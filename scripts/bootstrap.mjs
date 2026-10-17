@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes, generateKeyPairSync } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -47,5 +47,9 @@ const realm = {
   ],
 };
 mkdirSync(path.join(root, 'work', 'keycloak'), { recursive: true });
-writeFileSync(path.join(root, 'work', 'keycloak', 'finops-realm.json'), JSON.stringify(realm, null, 2), { mode: 0o600 });
+// This contains public development configuration and fixture credentials only.
+// Keycloak runs as a different, unprivileged UID on Linux; service secrets stay in .env (0600).
+const realmPath = path.join(root, 'work', 'keycloak', 'finops-realm.json');
+writeFileSync(realmPath, JSON.stringify(realm, null, 2), { mode: 0o644 });
+chmodSync(realmPath, 0o644);
 console.log('Local configuration ready. Service secrets are in ignored .env. Fixture login: owner / local-pilot-demo (local-only realm).');

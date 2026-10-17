@@ -46,6 +46,8 @@ jobs:
         run: git diff --exit-code -- frontend/src/api.generated.ts
       - name: All specification sections have traceability coverage
         run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
+      - name: Linux fixture realm is readable without exposing service secrets
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace node:22-bookworm-slim node scripts/bootstrap-permissions.mjs
   infrastructure:
     runs-on: ubuntu-latest
     timeout-minutes: 15
