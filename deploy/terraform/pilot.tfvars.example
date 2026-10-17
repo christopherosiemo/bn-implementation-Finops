@@ -1,0 +1,6 @@
+name                   = "finops-pilot"
+region                 = "eu-west-1"
+cluster_admin_role_arn = "arn:aws:iam::123456789012:role/finops-operator"
+operator_cidrs         = ["203.0.113.10/32"] # Replace this documentation address with your VPN egress.
+customer_read_role_arns      = []
+customer_execution_role_arns = []

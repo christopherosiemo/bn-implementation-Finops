@@ -1,0 +1,112 @@
+# Build and push the repository Dockerfiles; replace tags with reviewed digests.
+images:
+  backend: { repository: finops/backend, tag: pilot, digest: "" }
+  economics: { repository: finops/economics, tag: pilot, digest: "" }
+  web: { repository: finops/web, tag: pilot, digest: "" }
+  clickhouse: { repository: clickhouse/clickhouse-server, tag: "26.8", digest: "" }
+  temporal: { repository: temporalio/auto-setup, tag: "1.27.2", digest: "" }
+imagePullSecrets: []
+dataMode: fixture
+aws:
+  region: eu-west-1
+  # One live customer per isolated read/execution role deployment.
+  tenantId: ""
+  readRoleArn: ""
+  # Optional: leave empty for read-only AWS onboarding/discovery.
+  # A nonempty customer execution target also requires executorRoleArn + health.allowedHosts.
+  executionRoleArn: ""
+  externalIdSecret: finops-aws
+  rawBucket: ""
+  auditBucket: ""
+  # Terraform output workload_role_arns, not the cross-account target roles.
+  ingesterRoleArn: ""
+  signerRoleArn: ""
+  executorRoleArn: ""
+oidc:
+  issuer: "https://identity.example.invalid/realms/finops"
+  jwksUrl: ""
+  audience: finops
+database:
+  host: "replace-with-rds-endpoint.eu-west-1.rds.amazonaws.com"
+  caConfigMap: finops-rds-ca
+  # Each secret contains DATABASE_URL using sslmode=verify-full and the mounted CA.
+  secrets:
+    api: finops-db-api
+    worker: finops-db-worker
+    ingester: finops-db-ingester
+    signer: finops-db-signer
+    executor: finops-db-executor
+    migrate: finops-db-migrate
+secrets:
+  # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
+  signer: finops-signer
+  # executor: EXECUTOR_TOKEN, SIGNING_PUBLIC_KEY. Never contains private key.
+  executor: finops-executor
+  # worker: SIGNER_TOKEN, EXECUTOR_TOKEN, SIGNING_PUBLIC_KEY.
+  worker: finops-worker
+  # ClickHouse password key: password. Temporal keys: username,password.
+  clickhouse: finops-clickhouse
+  temporal: finops-temporal-db
+  economics: finops-economics
+health:
+  # Comma-delimited exact hostnames; AWS pilot probes use HTTPS (egress 443).
+  allowedHosts: ""
+notifications:
+  # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
+  webhookUrl: ""
+objectStorage:
+  # Empty endpoint selects regional AWS S3 and SDK IRSA credentials.
+  endpoint: ""
+clickhouseCredentials:
+  username: finops
+  database: finops
+externalSecrets:
+  enabled: false
+  # Install External Secrets Operator CRDs first; existing Terraform secret ARNs.
+  signerSecretArn: ""
+  executionSecretArn: ""
+ingress:
+  enabled: false
+  scheme: internal
+  hostname: ""
+  certificateArn: ""
+  inboundCidrs: []
+  vpcCidr: 10.42.0.0/16
+replicas:
+  api: 2
+  worker: 1
+  ingester: 1
+  signer: 1
+  executor: 1
+  economics: 1
+  web: 1
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 512Mi }
+migration:
+  enabled: true
+web:
+  containerPort: 8080
+  # Web image uses /api as its API origin; expose via a trusted TLS reverse proxy.
+  readOnlyRootFilesystem: true
+networkPolicy:
+  enabled: true
+clickhouse:
+  enabled: true
+  storageClass: finops-gp3
+  storageSize: 30Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+temporal:
+  enabled: true
+  namespace: finops
+  retention: 336h
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+external:
+  temporalAddress: ""
+  clickhouseUrl: ""
+storageClass:
+  create: true

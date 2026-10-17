@@ -1,0 +1,11 @@
+Cloud Cost Autopilot is deployed as a pilot in {{ .Release.Namespace }}.
+Data mode: {{ .Values.dataMode }}. AWS region: {{ .Values.aws.region }}.
+{{ if .Values.ingress.enabled }}ALB HTTPS ingress is enabled for {{ .Values.ingress.hostname }}. Verify certificate/DNS and target health.
+{{ else }}Ingress is disabled.{{ end }} Inspect health with:
+  kubectl -n {{ .Release.Namespace }} get pods
+  kubectl -n {{ .Release.Namespace }} port-forward service/finops-web 8088:80
+  kubectl -n {{ .Release.Namespace }} port-forward service/finops-api 8080:8080
+
+Existing Secrets and finops-rds-ca ConfigMap are required before installation.
+Temporal and ClickHouse defaults are single-replica pilot services, not HA.
+Read docs/deployment.md and docs/operations.md before enabling AWS mutation.

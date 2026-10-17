@@ -1,0 +1,47 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: finops-migrate-{{ .Release.Revision }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  activeDeadlineSeconds: 300
+  backoffLimit: 1
+  template:
+    metadata:
+      labels: { finops-role: migrate }
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: migrate
+          image: {{ include "finops.image" .Values.images.backend | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          env:
+            - { name: APP_ROLE, value: migrate }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.database.secrets.migrate }}, key: DATABASE_URL }
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: rds-ca
+          configMap: { name: {{ .Values.database.caConfigMap }} }
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
+{{- end }}

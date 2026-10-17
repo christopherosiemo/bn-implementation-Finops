@@ -1,0 +1,282 @@
+openapi: 3.0.3
+info:
+  title: Cloud Cost Autopilot AWS Pilot
+  version: 0.1.0
+  description: Tenant identity comes exclusively from the validated OIDC token. Monetary values are decimal strings. All POSTs require Idempotency-Key; resource updates also require If-Match.
+servers:
+  - url: /v1
+security:
+  - bearerAuth: []
+paths:
+  /dashboard:
+    get:
+      operationId: dashboard
+      responses:
+        '200':
+          description: Current tenant dashboard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
+  /cloud-accounts:
+    post:
+      operationId: connectAccount
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConnectAccountRequest' }
+      responses:
+        '201':
+          description: Account connected and read-only inventory discovered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CloudAccount' }
+  /recommendations:
+    post:
+      operationId: generateRecommendations
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '201': { description: Recommendations generated } }
+  /workloads:
+    post:
+      operationId: createWorkload
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '201': { description: Non-production workload with owner and mandatory health URL created; signals initially UNKNOWN } }
+  /policies/{id}:
+    post:
+      operationId: updatePolicy
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Scoped workload_autopilot_ids and pause updated; temporary Autopilot grant expires in 30 days } }
+  /resources/{id}/configure:
+    post:
+      operationId: configureResource
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Explicit workload mapping and field-specific runtime delegation configured } }
+  /billing/import:
+    post:
+      operationId: importBilling
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '202': { description: AWS CUR 2.0 records normalized and queued for immutable raw and analytics persistence; optional bound workload evidence imported } }
+  /schedules:
+    post:
+      operationId: createSchedule
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateScheduleRequest' }
+      responses: { '201': { description: Approved schedule definition created } }
+  /change-plans:
+    post:
+      operationId: createPlan
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePlanRequest' }
+      responses: { '201': { description: Immutable resource occurrence plan awaiting approval } }
+  /approvals:
+    post:
+      operationId: approvePlan
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/PlanReference' }
+      responses: { '201': { description: Exact plan approved; returns approval and updated change_plan } }
+  /executions:
+    post:
+      operationId: executePlan
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/PlanReference' }
+      responses: { '202': { description: Durable stop and restoration occurrence queued } }
+  /executions/{id}/start-now:
+    post:
+      operationId: restoreNow
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '202': { description: Owned restoration requested; pause never cancels restoration } }
+  /schedules/{id}/pause:
+    post:
+      operationId: pauseSchedule
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Schedule paused or resumed } }
+  /schedules/{id}/skip-next-stop:
+    post:
+      operationId: skipStop
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Next stop will be skipped } }
+  /workloads/{id}/signals:
+    post:
+      operationId: updateSignals
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Fresh explicit incident/deployment/job signals recorded } }
+  /control/pause:
+    post:
+      operationId: pauseAutopilot
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: New stops blocked; recovery remains authorized } }
+  /savings/verify:
+    post:
+      operationId: verifySavings
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Append verified or provisional evidence; negative values preserved } }
+  /demo/reset:
+    post:
+      operationId: resetFixture
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Fixture-only reset; audit and ledger retained } }
+  /demo/scenario:
+    post:
+      operationId: fixtureScenario
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '200': { description: Fixture healthy/incident/job/deployment/stale/unhealthy scenario selected } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 200 } }
+    IfMatch: { name: If-Match, in: header, required: true, schema: { type: string }, description: Quoted current integer version ETag; stale updates return 409. }
+  requestBodies:
+    Document:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Document' }
+    PlanReference:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [change_plan_id]
+            properties:
+              change_plan_id: { type: string }
+  schemas:
+    Decimal: { type: string, pattern: '^-?[0-9]+(\.[0-9]{1,12})?$' }
+    Document:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        version: { type: integer, format: int64 }
+    Resource:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            name: { type: string }
+            provider_resource_id: { type: string }
+            workload_id: { type: string }
+            state: { type: string }
+            eligibility: { type: string }
+            blockers: { type: array, items: { type: string } }
+            hourly_effective_cost: { $ref: '#/components/schemas/Decimal' }
+    Recommendation:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            title: { type: string }
+            resource_id: { type: string }
+            workload_id: { type: string }
+            status: { type: string }
+            reason_code: { type: string }
+            annual_saving: { $ref: '#/components/schemas/Decimal' }
+            monthly_saving: { $ref: '#/components/schemas/Decimal' }
+    Schedule: { allOf: [ { $ref: '#/components/schemas/Document' }, { $ref: '#/components/schemas/CreateScheduleRequest' } ] }
+    ChangePlan:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            status: { type: string }
+            risk_class: { type: string, enum: [R1] }
+            resource_id: { type: string }
+            recommendation_id: { type: string }
+            schedule_id: { type: string }
+            expires_at: { type: string, format: date-time }
+    Execution:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            change_plan_id: { type: string }
+            resource_id: { type: string }
+            status: { type: string }
+            stage: { type: string }
+            restoration_owned: { type: boolean }
+            error: { type: string }
+    Savings:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            execution_id: { type: string }
+            status: { type: string }
+            currency: { type: string }
+            verified_saving: { type: string, nullable: true }
+            expected_baseline_cost: { $ref: '#/components/schemas/Decimal' }
+            actual_cost: { $ref: '#/components/schemas/Decimal' }
+    CloudAccount: { $ref: '#/components/schemas/Document' }
+    Workload: { $ref: '#/components/schemas/Document' }
+    AuditEvent: { $ref: '#/components/schemas/Document' }
+    Policy: { $ref: '#/components/schemas/Document' }
+    Dashboard:
+      type: object
+      required: [org, fixture, cloud_accounts, resources, workloads, recommendations, policies, schedules, change_plans, executions, savings, audit, data_quality]
+      properties:
+        org: { $ref: '#/components/schemas/Document' }
+        fixture: { type: boolean }
+        cloud_accounts: { type: array, items: { $ref: '#/components/schemas/CloudAccount' } }
+        resources: { type: array, items: { $ref: '#/components/schemas/Resource' } }
+        workloads: { type: array, items: { $ref: '#/components/schemas/Workload' } }
+        recommendations: { type: array, items: { $ref: '#/components/schemas/Recommendation' } }
+        policies: { type: array, items: { $ref: '#/components/schemas/Policy' } }
+        schedules: { type: array, items: { $ref: '#/components/schemas/Schedule' } }
+        change_plans: { type: array, items: { $ref: '#/components/schemas/ChangePlan' } }
+        executions: { type: array, items: { $ref: '#/components/schemas/Execution' } }
+        savings: { type: array, items: { $ref: '#/components/schemas/Savings' } }
+        audit: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
+        data_quality: { type: array, items: { $ref: '#/components/schemas/Document' } }
+    ConnectAccountRequest:
+      type: object
+      required: [provider, name, account_id, region]
+      properties:
+        provider: { type: string, enum: [AWS] }
+        name: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+    CreateScheduleRequest:
+      type: object
+      required: [workload_id, stop_time, ready_time, timezone, days]
+      properties:
+        workload_id: { type: string }
+        stop_time: { type: string, example: '20:00' }
+        ready_time: { type: string, example: '07:00' }
+        timezone: { type: string, example: Europe/London }
+        days: { type: array, items: { type: integer, minimum: 1, maximum: 7 } }
+        mode: { type: string, enum: [OBSERVE, RECOMMEND, ASSISTED_EXECUTION, AUTOPILOT, FROZEN] }
+        autopilot_opt_in: { type: boolean }
+        memory_state_acknowledged: { type: boolean }
+        public_ip_change_acknowledged: { type: boolean }
+    CreatePlanRequest:
+      type: object
+      required: [recommendation_id, memory_state_acknowledged, public_ip_change_acknowledged]
+      properties:
+        recommendation_id: { type: string }
+        schedule_id: { type: string }
+        memory_state_acknowledged: { type: boolean, enum: [true] }
+        public_ip_change_acknowledged: { type: boolean, enum: [true] }

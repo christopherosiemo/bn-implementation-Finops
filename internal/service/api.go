@@ -1,0 +1,670 @@
+package service
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/safety"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
+	"github.com/jackc/pgx/v5"
+)
+
+type API struct {
+	Store  *store.Store
+	Config Config
+	Auth   *auth.Validator
+	Client *http.Client
+}
+type Problem struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func (p *Problem) Error() string                     { return p.Message }
+func problem(status int, code, message string) error { return &Problem{status, code, message} }
+func JSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+func fail(w http.ResponseWriter, e error) {
+	p := &Problem{500, "INTERNAL_ERROR", "request failed"}
+	if errors.Is(e, pgx.ErrNoRows) {
+		p = &Problem{404, "NOT_FOUND", "resource not found"}
+	} else if errors.Is(e, store.ErrConflict) {
+		p = &Problem{409, "VERSION_CONFLICT", e.Error()}
+	} else {
+		var found *Problem
+		if errors.As(e, &found) {
+			p = found
+		} else {
+			slog.Error("request failed", "error", e)
+		}
+	}
+	JSON(w, p.Status, model.Document{"error": p.Code, "message": p.Message})
+}
+func (a *API) Handler() http.Handler { return http.HandlerFunc(a.ServeHTTP) }
+func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/healthz" {
+		if e := a.Store.Pool.Ping(r.Context()); e != nil {
+			JSON(w, 503, model.Document{"status": "degraded"})
+			return
+		}
+		JSON(w, 200, model.Document{"status": "ok", "role": "api", "fixture": a.Config.Fixture})
+		return
+	}
+	i, e := a.Auth.Validate(r)
+	if e != nil {
+		fail(w, problem(401, "UNAUTHORIZED", e.Error()))
+		return
+	}
+	if !i.Can("FINOPS_ADMIN", "PLATFORM_ADMIN", "FINANCE", "APPLICATION_OWNER", "APPROVER", "VIEWER", "AUDITOR") {
+		fail(w, problem(403, "FORBIDDEN", "a FinOps organization role is required"))
+		return
+	}
+	if !strings.HasPrefix(r.URL.Path, "/v1/") {
+		fail(w, problem(404, "NOT_FOUND", "route not found"))
+		return
+	}
+	if r.Method == http.MethodGet {
+		a.get(w, r, i)
+		return
+	}
+	if r.Method != http.MethodPost {
+		fail(w, problem(405, "METHOD_NOT_ALLOWED", "use GET or POST"))
+		return
+	}
+	if !i.Can("FINOPS_ADMIN", "PLATFORM_ADMIN", "APPROVER", "APPLICATION_OWNER", "FINANCE") {
+		fail(w, problem(403, "FORBIDDEN", "mutation role required"))
+		return
+	}
+	key := r.Header.Get("Idempotency-Key")
+	if len(key) < 8 || len(key) > 200 {
+		fail(w, problem(400, "IDEMPOTENCY_KEY_REQUIRED", "provide an Idempotency-Key between 8 and 200 characters"))
+		return
+	}
+	body, e := io.ReadAll(io.LimitReader(r.Body, 4<<20))
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	var input model.Document
+	if len(body) > 0 {
+		if e = json.Unmarshal(body, &input); e != nil {
+			fail(w, problem(400, "INVALID_JSON", "invalid JSON request"))
+			return
+		}
+	}
+	if input == nil {
+		input = model.Document{}
+	}
+	sum := sha256.Sum256([]byte(i.Subject + "\n" + r.Method + "\n" + r.URL.Path + "\n" + string(body)))
+	hash := hex.EncodeToString(sum[:])
+	status := 200
+	var output model.Document
+	e = a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
+		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
+			return e
+		}
+		if _, e := t.Exec(r.Context(), "INSERT INTO idempotency(tenant_id,key,request_hash) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", i.Tenant, key, hash); e != nil {
+			return e
+		}
+		var oldhash string
+		var oldstatus *int
+		var oldbody []byte
+		if e := t.QueryRow(r.Context(), "SELECT request_hash,status,response FROM idempotency WHERE tenant_id=$1 AND key=$2 FOR UPDATE", i.Tenant, key).Scan(&oldhash, &oldstatus, &oldbody); e != nil {
+			return e
+		}
+		if oldhash != hash {
+			return problem(409, "IDEMPOTENCY_CONFLICT", "key already used for a different request")
+		}
+		if oldstatus != nil {
+			status = *oldstatus
+			return json.Unmarshal(oldbody, &output)
+		}
+		var e error
+		output, status, e = a.mutate(r.Context(), t, i, r, input)
+		if e != nil {
+			return e
+		}
+		b, _ := json.Marshal(output)
+		_, e = t.Exec(r.Context(), "UPDATE idempotency SET status=$3,response=$4 WHERE tenant_id=$1 AND key=$2", i.Tenant, key, status, b)
+		return e
+	})
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	if v := model.Number(output, "version"); v > 0 {
+		w.Header().Set("ETag", fmt.Sprintf("\"%d\"", v))
+	}
+	JSON(w, status, output)
+}
+func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
+	var out any
+	e := a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
+		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
+			return e
+		}
+		if r.URL.Path == "/v1/dashboard" {
+			d := model.Document{"fixture": a.Config.Fixture}
+			org, e := t.Get(r.Context(), "org", i.Tenant)
+			if e != nil {
+				return e
+			}
+			d["org"] = org
+			for _, k := range []string{"cloud_accounts", "resources", "workloads", "recommendations", "policies", "schedules", "change_plans", "executions", "data_quality"} {
+				rows, e := t.List(r.Context(), k)
+				if e != nil {
+					return e
+				}
+				d[k] = rows
+			}
+			for k, table := range map[string]string{"audit": "audit_events", "savings": "savings_ledger"} {
+				rows, e := t.Evidence(r.Context(), table)
+				if e != nil {
+					return e
+				}
+				d[k] = rows
+			}
+			restrictDashboard(i, d)
+			out = d
+			return nil
+		}
+		if scopedOwner(i) {
+			return problem(403, "WORKLOAD_SCOPE_DENIED", "application owners use the scoped dashboard")
+		}
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+		kind := strings.ReplaceAll(parts[0], "-", "_")
+		allowed := map[string]bool{"cloud_accounts": true, "resources": true, "workloads": true, "recommendations": true, "policies": true, "schedules": true, "change_plans": true, "executions": true, "approvals": true, "data_quality": true}
+		if !allowed[kind] {
+			return problem(404, "NOT_FOUND", "unknown API resource")
+		}
+		if len(parts) == 2 {
+			d, e := t.Get(r.Context(), kind, parts[1])
+			if e != nil {
+				return e
+			}
+			out = d
+			w.Header().Set("ETag", fmt.Sprintf("\"%d\"", model.Number(d, "version")))
+			return nil
+		}
+		rows, e := t.List(r.Context(), kind)
+		out = rows
+		return e
+	})
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	JSON(w, 200, out)
+}
+func requireRole(i auth.Identity, roles ...string) error {
+	if !i.Can(roles...) {
+		return problem(403, "FORBIDDEN", "your role cannot perform this operation")
+	}
+	return nil
+}
+func match(r *http.Request, d model.Document) error {
+	h := strings.Trim(r.Header.Get("If-Match"), "\"")
+	if h == "" {
+		return problem(428, "IF_MATCH_REQUIRED", "provide current resource ETag in If-Match")
+	}
+	v, e := strconv.ParseInt(h, 10, 64)
+	if e != nil || v != model.Number(d, "version") {
+		return store.ErrConflict
+	}
+	return nil
+}
+func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, error) {
+	path := strings.TrimPrefix(r.URL.Path, "/v1/")
+	parts := strings.Split(path, "/")
+	switch path {
+	case "cloud-accounts":
+		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		if model.String(in, "provider") != "AWS" {
+			return nil, 0, problem(422, "UNSUPPORTED_PROVIDER", "this pilot supports AWS only")
+		}
+		if !a.Config.Fixture {
+			if e := ValidateAWSTenant(i.Tenant); e != nil {
+				return nil, 0, e
+			}
+		}
+		region := model.String(in, "region")
+		if region == "" {
+			region = a.Config.AWSRegion
+		}
+		account := model.String(in, "account_id")
+		if account == "" && a.Config.Fixture {
+			account = "111122223333"
+		}
+		if len(account) != 12 {
+			return nil, 0, problem(422, "INVALID_ACCOUNT", "AWS account_id must contain 12 digits")
+		}
+		for _, c := range account {
+			if c < '0' || c > '9' {
+				return nil, 0, problem(422, "INVALID_ACCOUNT", "AWS account_id must contain 12 digits")
+			}
+		}
+		status := "CONNECTED"
+		if !a.Config.Fixture {
+			status = "DISCOVERY_PENDING"
+		}
+		d, e := t.Create(ctx, "cloud_accounts", model.Document{"provider": "AWS", "name": model.String(in, "name"), "account_id": account, "region": region, "status": status, "fixture": a.Config.Fixture, "last_synced_at": model.Now()})
+		if e != nil {
+			return nil, 0, e
+		}
+		if !a.Config.Fixture {
+			if _, e = t.Create(ctx, "discovery_jobs", model.Document{"cloud_account_id": d["id"], "status": "PENDING", "created_at": model.Now()}); e != nil {
+				return nil, 0, e
+			}
+		}
+		_ = t.Audit(ctx, i.Subject, "cloud_account.connected", model.String(d, "id"), d)
+		return d, 201, nil
+	case "recommendations":
+		if e := requireRole(i, "FINOPS_ADMIN", "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		resources, e := t.List(ctx, "resources")
+		if e != nil {
+			return nil, 0, e
+		}
+		policy, e := t.Get(ctx, "policies", "policy-default")
+		if e != nil {
+			return nil, 0, e
+		}
+		created := []model.Document{}
+		for _, res := range resources {
+			wid := model.String(res, "workload_id")
+			if filter := model.String(in, "workload_id"); filter != "" && filter != wid {
+				continue
+			}
+			w, e := t.Get(ctx, "workloads", wid)
+			if e != nil {
+				continue
+			}
+			blocked := safety.Eligibility(res, w, policy, time.Now())
+			status := "VALIDATED"
+			reason := "ELIGIBLE"
+			if len(blocked) > 0 {
+				status = "BLOCKED"
+				reason = blocked[0]
+			}
+			economics := model.Document{}
+			confidence := "LOW"
+			var monthly, annual any
+			if status == "VALIDATED" {
+				evidence, e := a.evidenceFor(ctx, t, model.String(res, "id"), false)
+				if e != nil {
+					status = "BLOCKED"
+					reason = "BLOCKED_BILLING_EVIDENCE_REQUIRED"
+					blocked = append(blocked, reason)
+				} else {
+					economics, e = a.economics(ctx, "evaluate", evidence)
+					if e != nil {
+						return nil, 0, e
+					}
+					confidence = "HIGH"
+					annual = economics["annualised_estimate"]
+					if a.Config.Fixture {
+						monthly = "144.000000000000"
+					}
+					if model.String(economics, "status") == "BLOCKED" || model.String(economics, "status") == "CONFOUNDED" {
+						status = "BLOCKED"
+						reason = model.String(economics, "reason_code")
+						confidence = "LOW"
+						annual = nil
+						monthly = nil
+					}
+				}
+			}
+			d, e := t.Create(ctx, "recommendations", model.Document{"workload_id": wid, "resource_id": res["id"], "title": "Schedule idle non-production EC2 off hours", "category": "NON_PRODUCTION_SCHEDULING", "risk_class": "R1", "status": status, "reason_code": reason, "blockers": blocked, "monthly_saving": monthly, "annual_saving": annual, "currency": valueOr(res, "currency", "USD"), "confidence": confidence, "evidence": "Calendar-matched idle windows; commitment exposure and retained storage included.", "economics": economics, "created_at": model.Now(), "expires_at": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339), "fixture": a.Config.Fixture})
+			if e != nil {
+				return nil, 0, e
+			}
+			created = append(created, d)
+			_ = t.Event(ctx, "recommendation.created", d)
+		}
+		_ = t.Audit(ctx, i.Subject, "recommendations.generated", i.Tenant, model.Document{"count": len(created)})
+		return model.Document{"recommendations": created}, 201, nil
+	case "schedules":
+		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
+			return nil, 0, e
+		}
+		wid := model.String(in, "workload_id")
+		w, e := t.Get(ctx, "workloads", wid)
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = workloadAccess(i, w); e != nil {
+			return nil, 0, e
+		}
+		if model.String(w, "environment") != "NON_PRODUCTION" {
+			return nil, 0, problem(422, "BLOCKED_PRODUCTION", "schedules support explicit non-production workloads only")
+		}
+		if !model.Bool(in, "memory_state_acknowledged") || !model.Bool(in, "public_ip_change_acknowledged") {
+			return nil, 0, problem(422, "ACKNOWLEDGEMENT_REQUIRED", "acknowledge loss of in-memory state and network identity implications")
+		}
+		if e = validateSchedule(in); e != nil {
+			return nil, 0, e
+		}
+		mode := model.String(in, "mode")
+		if mode == "" {
+			in["mode"] = "RECOMMEND"
+			if a.Config.Fixture {
+				in["mode"] = "ASSISTED_EXECUTION"
+			}
+		}
+		if mode == "AUTOPILOT" && (!model.Bool(in, "autopilot_opt_in") || !i.Can("PLATFORM_ADMIN")) {
+			return nil, 0, problem(422, "EXPLICIT_AUTOPILOT_REQUIRED", "Autopilot requires platform-admin opt-in")
+		}
+		if mode != "" && mode != "AUTOPILOT" && mode != "ASSISTED_EXECUTION" && mode != "OBSERVE" && mode != "RECOMMEND" && mode != "FROZEN" {
+			return nil, 0, problem(422, "INVALID_MODE", "invalid schedule execution mode")
+		}
+		if mode == "AUTOPILOT" {
+			p, e := t.Get(ctx, "policies", "policy-default")
+			if e != nil {
+				return nil, 0, e
+			}
+			allowed := false
+			for _, id := range model.Strings(p, "workload_autopilot_ids") {
+				if id == wid {
+					allowed = true
+				}
+			}
+			if !allowed {
+				return nil, 0, problem(422, "AUTOPILOT_POLICY_REQUIRED", "policy must explicitly allow scheduling Autopilot for this workload")
+			}
+		}
+		in["paused"], in["skip_next_stop"], in["approved_by"] = false, false, i.Subject
+		if mode == "AUTOPILOT" {
+			in["autopilot_expires_at"] = time.Now().Add(30 * 24 * time.Hour).UTC().Format(time.RFC3339)
+		}
+		d, e := t.Create(ctx, "schedules", in)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "schedule.created", model.String(d, "id"), d)
+		}
+		return d, 201, e
+	case "change-plans":
+		if e := requireRole(i, "PLATFORM_ADMIN", "FINOPS_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		if !model.Bool(in, "memory_state_acknowledged") || !model.Bool(in, "public_ip_change_acknowledged") {
+			return nil, 0, problem(422, "ACKNOWLEDGEMENT_REQUIRED", "acknowledge memory-state loss and possible public-IP change")
+		}
+		d, e := BuildPlan(ctx, t, model.String(in, "recommendation_id"), model.String(in, "schedule_id"), a.Config.Fixture)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "change_plan.created", model.String(d, "id"), d)
+		}
+		return d, 201, e
+	case "approvals":
+		if e := requireRole(i, "APPROVER", "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		plan, e := t.Get(ctx, "change_plans", model.String(in, "change_plan_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		w, e := t.Get(ctx, "workloads", model.String(plan, "workload_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = workloadAccess(i, w); e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, plan); e != nil {
+			return nil, 0, e
+		}
+		if model.String(plan, "status") != "AWAITING_APPROVAL" {
+			return nil, 0, problem(409, "INVALID_STATE", "plan is not awaiting approval")
+		}
+		payload := model.Clone(plan)
+		plan["status"] = "APPROVED"
+		plan, e = t.Update(ctx, "change_plans", model.String(plan, "id"), model.Number(plan, "version"), plan)
+		if e != nil {
+			return nil, 0, e
+		}
+		approval, e := t.Create(ctx, "approvals", model.Document{"change_plan_id": plan["id"], "approved_by": i.Subject, "approved_at": model.Now(), "policy_version": plan["policy_version"], "payload": payload})
+		if e == nil {
+			_ = t.Audit(ctx, i.Subject, "approval.completed", model.String(plan, "id"), approval)
+			_ = t.Event(ctx, "approval.completed", approval)
+		}
+		return model.Document{"approval": approval, "change_plan": plan, "id": plan["id"], "version": plan["version"]}, 201, e
+	case "executions":
+		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		p, e := t.Get(ctx, "change_plans", model.String(in, "change_plan_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		if _, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":plan:"+model.String(p, "id")); e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, p); e != nil {
+			return nil, 0, e
+		}
+		if model.String(p, "status") != "APPROVED" {
+			return nil, 0, problem(409, "APPROVAL_REQUIRED", "approve this exact plan first")
+		}
+		existing, e := t.List(ctx, "executions")
+		if e != nil {
+			return nil, 0, e
+		}
+		for _, x := range existing {
+			if model.String(x, "change_plan_id") == model.String(p, "id") {
+				return nil, 0, problem(409, "ALREADY_EXECUTED", "this immutable plan already has an execution")
+			}
+		}
+		d, e := t.Create(ctx, "executions", model.Document{"change_plan_id": p["id"], "resource_id": p["resource_id"], "workload_id": p["workload_id"], "schedule_id": p["schedule_id"], "status": "QUEUED", "stage": "PRECHECK", "created_at": model.Now(), "restoration_owned": false})
+		if e == nil {
+			_ = t.Audit(ctx, i.Subject, "execution.queued", model.String(d, "id"), d)
+			_ = t.Event(ctx, "execution.started", d)
+		}
+		return d, 202, e
+	case "control/pause":
+		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		d, e := t.Get(ctx, "org", i.Tenant)
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, d); e != nil {
+			return nil, 0, e
+		}
+		d["paused"] = model.Bool(in, "paused")
+		d, e = t.Update(ctx, "org", i.Tenant, model.Number(d, "version"), d)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "autopilot.pause_changed", i.Tenant, d)
+		}
+		return d, 200, e
+	case "savings/verify":
+		if e := requireRole(i, "FINOPS_ADMIN", "FINANCE", "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		return a.verifySavings(ctx, t, i, in)
+	case "demo/reset":
+		if !a.Config.Fixture {
+			return nil, 0, problem(404, "NOT_FOUND", "fixture reset is unavailable in AWS mode")
+		}
+		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		rows, e := t.List(ctx, "executions")
+		if e != nil {
+			return nil, 0, e
+		}
+		for _, x := range rows {
+			if s := model.String(x, "status"); s != "COMPLETED" && s != "FAILED" && s != "SKIPPED" {
+				return nil, 0, problem(409, "EXECUTION_ACTIVE", "complete restoration before resetting the demo")
+			}
+		}
+		_, e = t.Exec(ctx, "DELETE FROM entities WHERE tenant_id=$1", t.Tenant)
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = t.Seed(ctx, true); e != nil {
+			return nil, 0, e
+		}
+		_ = t.Audit(ctx, i.Subject, "fixture.reset", i.Tenant, nil)
+		return model.Document{"reset": true, "audit_preserved": true, "ledger_preserved": true}, 200, nil
+	case "demo/scenario":
+		if !a.Config.Fixture {
+			return nil, 0, problem(404, "NOT_FOUND", "fixture scenarios are unavailable in AWS mode")
+		}
+		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
+			return nil, 0, e
+		}
+		w, e := t.Get(ctx, "workloads", "workload-dev")
+		if e != nil {
+			return nil, 0, e
+		}
+		w["incident"], w["deployment"], w["job"], w["signals_at"], w["fixture_unhealthy"] = "CLEAR", "CLEAR", "CLEAR", model.Now(), false
+		switch model.String(in, "scenario") {
+		case "incident":
+			w["incident"] = "ACTIVE"
+		case "job":
+			w["job"] = "ACTIVE"
+		case "deployment":
+			w["deployment"] = "ACTIVE"
+		case "stale":
+			w["signals_at"] = time.Now().Add(-10 * time.Minute).UTC().Format(time.RFC3339)
+		case "unhealthy":
+			w["fixture_unhealthy"] = true
+		case "healthy":
+		default:
+			return nil, 0, problem(422, "UNKNOWN_SCENARIO", "unknown fixture scenario")
+		}
+		w, e = t.Update(ctx, "workloads", "workload-dev", model.Number(w, "version"), w)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "fixture.scenario_changed", "workload-dev", in)
+		}
+		return w, 200, e
+	}
+	if out, status, handled, e := a.extraMutate(ctx, t, i, r, in); handled {
+		return out, status, e
+	}
+	if len(parts) == 3 && parts[0] == "schedules" && (parts[2] == "pause" || parts[2] == "skip-next-stop") {
+		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
+			return nil, 0, e
+		}
+		d, e := t.Get(ctx, "schedules", parts[1])
+		if e != nil {
+			return nil, 0, e
+		}
+		workload, e := t.Get(ctx, "workloads", model.String(d, "workload_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = workloadAccess(i, workload); e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, d); e != nil {
+			return nil, 0, e
+		}
+		if parts[2] == "pause" {
+			d["paused"] = model.Bool(in, "paused")
+		} else {
+			d["skip_next_stop"] = true
+		}
+		d, e = t.Update(ctx, "schedules", parts[1], model.Number(d, "version"), d)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "schedule."+parts[2], parts[1], d)
+		}
+		return d, 200, e
+	}
+	if len(parts) == 3 && parts[0] == "workloads" && parts[2] == "signals" {
+		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
+			return nil, 0, e
+		}
+		d, e := t.Get(ctx, "workloads", parts[1])
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = workloadAccess(i, d); e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, d); e != nil {
+			return nil, 0, e
+		}
+		for _, k := range []string{"incident", "deployment", "job"} {
+			s := model.String(in, k)
+			if s != "CLEAR" && s != "ACTIVE" && s != "UNKNOWN" {
+				return nil, 0, problem(422, "INVALID_SIGNAL", "signals must be CLEAR, ACTIVE or UNKNOWN")
+			}
+			d[k] = s
+		}
+		d["signals_at"] = model.Now()
+		d, e = t.Update(ctx, "workloads", parts[1], model.Number(d, "version"), d)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "workload.signals_updated", parts[1], in)
+		}
+		return d, 200, e
+	}
+	if len(parts) == 3 && parts[0] == "executions" && parts[2] == "start-now" {
+		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
+			return nil, 0, e
+		}
+		d, e := t.Get(ctx, "executions", parts[1])
+		if e != nil {
+			return nil, 0, e
+		}
+		workload, e := t.Get(ctx, "workloads", model.String(d, "workload_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = workloadAccess(i, workload); e != nil {
+			return nil, 0, e
+		}
+		if e = match(r, d); e != nil {
+			return nil, 0, e
+		}
+		d["start_now"] = true
+		d, e = t.Update(ctx, "executions", parts[1], model.Number(d, "version"), d)
+		if e == nil {
+			e = t.Audit(ctx, i.Subject, "execution.restoration_requested", parts[1], nil)
+		}
+		return d, 202, e
+	}
+	return nil, 0, problem(404, "NOT_FOUND", "route not found")
+}
+func valueOr(d model.Document, k string, def any) any {
+	if v, ok := d[k]; ok && v != nil {
+		return v
+	}
+	return def
+}
+func validateSchedule(d model.Document) error {
+	var days []int
+	if values, ok := d["days"].([]any); ok {
+		for _, x := range values {
+			f, ok := x.(float64)
+			if !ok || f != float64(int(f)) {
+				return problem(422, "INVALID_SCHEDULE", "days must be ISO weekdays")
+			}
+			days = append(days, int(f))
+		}
+	}
+	_, _, e := safety.NextWindow(time.Now(), model.String(d, "timezone"), model.String(d, "stop_time"), model.String(d, "ready_time"), days)
+	if e != nil {
+		return problem(422, "INVALID_SCHEDULE", e.Error())
+	}
+	return nil
+}

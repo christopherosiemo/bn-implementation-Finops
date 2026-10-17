@@ -1,0 +1,7 @@
+apiVersion: v2
+name: finops
+description: AWS eu-west-1 Cloud Cost Autopilot pilot; private services and external secrets
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.30.0-0"

@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+work
+**/node_modules
+**/dist
+**/__pycache__
+**/.terraform
+**/*.tfstate*
+**/*.tfvars
+**/coverage
+test-results
+playwright-report
+**/test-results
+**/playwright-report

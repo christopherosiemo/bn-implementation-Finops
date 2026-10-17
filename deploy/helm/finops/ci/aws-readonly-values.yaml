@@ -1,0 +1,12 @@
+# Render-only regression fixture. These documentation ARNs are not credentials.
+dataMode: aws
+aws:
+  tenantId: tenant-aws-readonly-test
+  readRoleArn: arn:aws:iam::123456789012:role/finops-pilot-read
+  ingesterRoleArn: arn:aws:iam::123456789012:role/finops-pilot-ingester
+  rawBucket: finops-validation-raw
+  auditBucket: finops-validation-audit
+  executionRoleArn: ""
+  executorRoleArn: ""
+health:
+  allowedHosts: ""

@@ -1,0 +1,239 @@
+name: cloud-cost-autopilot
+
+x-go: &go
+  image: cloud-cost-autopilot-go:local
+  build:
+    context: .
+    dockerfile: Dockerfile.backend
+  restart: unless-stopped
+  networks: [private]
+
+x-common: &common
+  FIXTURE_MODE: ${FIXTURE_MODE:-true}
+  AWS_REGION: eu-west-1
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: default
+  ECONOMICS_URL: http://economics:8000
+  SIGNER_URL: http://signer:8091
+  EXECUTOR_URL: http://executor:8092
+  SIGNING_PUBLIC_KEY: ${SIGNING_PUBLIC_KEY:?Run node scripts/bootstrap.mjs}
+  OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+  OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+  OIDC_AUDIENCE: finops
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/bootstrap.mjs}
+      POSTGRES_DB: finops
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d finops']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+
+  migrate:
+    <<: *go
+    restart: 'no'
+    environment:
+      APP_ROLE: migrate
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/finops?sslmode=disable
+      DB_API_PASSWORD: ${DB_API_PASSWORD}
+      DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD}
+      DB_SIGNER_PASSWORD: ${DB_SIGNER_PASSWORD}
+      DB_EXECUTOR_PASSWORD: ${DB_EXECUTOR_PASSWORD}
+      DB_INGESTER_PASSWORD: ${DB_INGESTER_PASSWORD}
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    environment:
+      DB: postgres12
+      DB_PORT: '5432'
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: postgres
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, temporal, operator, cluster, health, --address, 'temporal:7233']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    networks: [private]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: [start-dev, --import-realm]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: local-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HEALTH_ENABLED: 'true'
+    ports: ['127.0.0.1:${KEYCLOAK_PORT:-8081}:8080']
+    volumes:
+      - ./work/keycloak:/opt/keycloak/data/import:ro
+      - keycloak:/opt/keycloak/data
+    networks: [private]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8-alpine
+    environment:
+      CLICKHOUSE_DB: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - ./config/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ./config/clickhouse-server/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- http://127.0.0.1:8123/ping | grep -q Ok']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: [minio:/data]
+    networks: [private]
+
+  buckets:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    entrypoint: [/bin/sh, /config/init-buckets.sh]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      AUDIT_ACCESS_KEY: ${AUDIT_ACCESS_KEY}
+      AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
+    volumes: ['./config/minio:/config:ro']
+    depends_on: [minio]
+    restart: on-failure
+    networks: [private]
+
+  economics:
+    image: cloud-cost-autopilot-economics:local
+    build: {context: ., dockerfile: economics/Dockerfile}
+    environment:
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:8000/healthz")']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [private]
+
+  signer:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: signer
+      PORT: '8091'
+      DATABASE_URL: postgres://finops_signer:${DB_SIGNER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      SIGNING_PRIVATE_KEY: ${SIGNING_PRIVATE_KEY}
+      SIGNER_TOKEN: ${SIGNER_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  executor:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: executor
+      PORT: '8092'
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      AWS_EXECUTION_ROLE_ARN: ${AWS_EXECUTION_ROLE_ARN:-}
+      AWS_EXTERNAL_ID: ${AWS_EXTERNAL_ID:-}
+      HEALTH_ALLOWED_HOSTS: ${HEALTH_ALLOWED_HOSTS:-}
+      DATABASE_URL: postgres://finops_executor:${DB_EXECUTOR_PASSWORD}@postgres:5432/finops?sslmode=disable
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  worker:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: worker
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      DATABASE_URL: postgres://finops_worker:${DB_WORKER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      SIGNER_TOKEN: ${SIGNER_TOKEN}
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      temporal: {condition: service_healthy}
+
+  ingester:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: ingester
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      AWS_READ_ROLE_ARN: ${AWS_READ_ROLE_ARN:-}
+      AWS_EXTERNAL_ID: ${AWS_EXTERNAL_ID:-}
+      DATABASE_URL: postgres://finops_ingester:${DB_INGESTER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_BUCKET_AUDIT: finops-audit
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      AUDIT_ACCESS_KEY: ${AUDIT_ACCESS_KEY}
+      AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+
+  api:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: api
+      PORT: '8080'
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      DATABASE_URL: postgres://finops_api:${DB_API_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-3000},http://localhost:5173
+    ports: ['127.0.0.1:${API_PORT:-8080}:8080']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+      keycloak: {condition: service_started}
+
+  web:
+    image: cloud-cost-autopilot-web:local
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    ports: ['127.0.0.1:${WEB_PORT:-3000}:8080']
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [private]
+
+networks:
+  private: {}
+
+volumes:
+  postgres: {}
+  keycloak: {}
+  clickhouse: {}
+  minio: {}
