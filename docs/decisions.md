@@ -8,6 +8,8 @@ Go control-plane modules share PostgreSQL transactions. Ingestion, signing, exec
 
 Local Keycloak is a development identity provider; hosted deployments use a configured OIDC issuer and JWKS. Keycloak's password grant is enabled only in the local fixture realm for automated acceptance. Browser login uses authorization code and PKCE; the access token stays in memory. No AWS resource change is authorized by creating a local demo account.
 
+Local object storage is built from official MinIO source: server release `RELEASE.2025-04-22T22-12-26Z`, commit `0d7408fc9969caf07de6a8c3a84f9fbb10a6739e`, and client release `RELEASE.2025-04-16T18-13-26Z`, commit `b00526b153a31b36767991a4f5ce2cced435ee8e`. The build verifies each commit and retains upstream licensing. This avoids depending on unavailable historical container images. Root UID is retained for compatibility with existing local named volumes; neither object-store service publishes a host port. Hosted evidence remains in AWS S3.
+
 Hosted signing uses an Ed25519 key injected from an externally managed secret, encrypted with a dedicated KMS key. This is KMS encryption at rest, not a claim that AWS KMS performs Ed25519 signing. Cloud identities use STS and workload identity.
 
 ## Corrected examples

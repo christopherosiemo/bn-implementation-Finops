@@ -69,7 +69,7 @@ jobs:
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml'
   compose-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -80,7 +80,11 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Build and start fixture pilot
-        run: docker compose up --build -d
+        run: |
+          docker compose build minio
+          docker compose build buckets
+          docker compose build api economics web
+          docker compose up --no-build -d
       - name: Exercise authenticated execution and verification
         run: node scripts/smoke.mjs
       - name: Restart API and worker during an owned stop

@@ -10,12 +10,16 @@ Prerequisites: Docker Desktop with Linux containers and Node.js 22+. Go, Python 
 
 ```powershell
 node scripts/bootstrap.mjs
+docker compose build minio
+docker compose build buckets
 docker compose up --build -d
 node scripts/smoke.mjs
 node scripts/recovery-smoke.mjs
 ```
 
 Open **http://localhost:3000**. Local fixture login: **owner / local-pilot-demo**. The `viewer` account is read-only; `other` demonstrates a separate tenant. These accounts exist only in the local development realm. Service secrets and signing keys are independently generated in ignored `.env`; the private signing key goes only to the signer process.
+
+Local MinIO and its administration client build from pinned upstream commits in `Dockerfile.local-object-store`; historical community container images are not required. Their first builds take longer. Build them sequentially as shown to limit memory use. Existing named volumes and the upstream images' root UID remain compatible; these object-store containers are confined to the private development network. Hosted deployments use encrypted AWS S3.
 
 The console guides the fixture through recommendation → immutable plan review → approval → execution → restoration → billing verification. Fixture time advances inside the workflow so a complete overnight cycle takes seconds. Every fixture view is labelled; it never invokes live AWS APIs.
 
