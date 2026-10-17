@@ -32,7 +32,7 @@ func restrictDashboard(i auth.Identity, d model.Document) {
 		}
 		d["workloads"] = filtered
 	}
-	for _, k := range []string{"resources", "recommendations", "schedules", "change_plans", "executions"} {
+	for _, k := range []string{"resources", "recommendations", "schedules", "change_plans", "executions", "readiness"} {
 		filtered := []model.Document{}
 		if rows, ok := d[k].([]model.Document); ok {
 			for _, row := range rows {

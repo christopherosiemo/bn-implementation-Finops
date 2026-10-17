@@ -24,6 +24,9 @@ func (t *Tx) Seed(ctx context.Context, fixture bool) error {
 		return e
 	}
 	org := model.Document{"id": t.Tenant, "name": "Cloud Cost Autopilot pilot", "paused": false, "residency": "EU", "fixture": fixture}
+	if fixture {
+		org["fixture_generation"] = model.ID()
+	}
 	if _, e = t.Create(ctx, "org", org); e != nil {
 		return e
 	}
@@ -67,7 +70,7 @@ func (t *Tx) Seed(ctx context.Context, fixture bool) error {
 			return e
 		}
 	}
-	schedule := model.Document{"id": "schedule-dev", "name": "Developer evenings", "workload_id": "workload-dev", "resource_id": "resource-dev-api", "stop_time": "20:00", "ready_time": "07:00", "timezone": "Europe/London", "days": []int{1, 2, 3, 4, 5}, "mode": "ASSISTED_EXECUTION", "paused": false, "skip_next_stop": false, "start_lead_minutes": 15}
+	schedule := model.Document{"id": "schedule-dev", "name": "Developer evenings", "workload_id": "workload-dev", "resource_id": "resource-dev-api", "stop_time": "20:00", "ready_time": "07:00", "timezone": "UTC", "days": []int{1, 2, 3, 4, 5, 6, 7}, "mode": "ASSISTED_EXECUTION", "paused": false, "skip_next_stop": false, "start_lead_minutes": 15}
 	if _, e = t.Create(ctx, "schedules", schedule); e != nil {
 		return e
 	}

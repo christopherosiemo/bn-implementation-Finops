@@ -8,6 +8,17 @@ export type ConnectAccountRequest =
   components["schemas"]["ConnectAccountRequest"];
 export type CreatePlanRequest = components["schemas"]["CreatePlanRequest"];
 export type WireDashboard = components["schemas"]["Dashboard"];
+export interface EvidenceFields {
+  pre_execution_ready?: boolean;
+  verification_status?: string;
+  baseline_id?: string | null;
+  measurement_id?: string | null;
+  readiness_id?: string | null;
+  activation_at?: string | null;
+  evidence_refs?: unknown[];
+  source_refs?: components["schemas"]["SourceReference"][];
+}
+export type Readiness = components["schemas"]["Readiness"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;
@@ -38,22 +49,23 @@ export interface Resource extends Document {
   environment: string;
   state: string;
   configuration_authority: string;
-  hourly_effective_cost: string;
-  monthly_effective_cost: string;
+  hourly_effective_cost: string | null;
+  monthly_effective_cost: string | null;
   eligibility: string | boolean;
   blockers: string[];
-  currency?: string;
+  currency?: string | null;
 }
-export interface Recommendation extends Document {
+export interface Recommendation extends Document, EvidenceFields {
+  resource_id?: string;
   workload_id: string;
   title: string;
   category: string;
   risk_class: string;
   status: string;
   reason_code?: string;
-  monthly_saving: string;
-  annual_saving: string;
-  currency?: string;
+  monthly_saving: string | null;
+  annual_saving: string | null;
+  currency?: string | null;
   confidence: number | string;
   evidence: unknown;
 }
@@ -67,7 +79,8 @@ export interface Schedule extends Document {
   paused: boolean;
   skip_next_stop: boolean;
 }
-export interface ChangePlan extends Document {
+export interface ChangePlan extends Document, EvidenceFields {
+  resource_id?: string;
   recommendation_id: string;
   schedule_id: string;
   status: string;
@@ -84,12 +97,12 @@ export interface Execution extends Document {
   restoration_owned: boolean;
   error?: string;
 }
-export interface Saving extends Document {
+export interface Saving extends Document, EvidenceFields {
   execution_id: string;
   status: string;
   verified_saving: string | null;
-  expected_baseline_cost: string;
-  actual_cost: string;
+  expected_baseline_cost: string | null;
+  actual_cost: string | null;
   currency: string;
   reason_code?: string;
 }
@@ -113,6 +126,7 @@ export interface Dashboard {
   savings: Saving[];
   audit: Audit[];
   data_quality: Document[];
+  readiness?: Readiness[];
 }
 export type Page =
   | "overview"

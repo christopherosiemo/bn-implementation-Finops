@@ -15,38 +15,21 @@ func ingestTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 	if e != nil {
 		return e
 	}
-	if a.Config.Fixture && len(jobs) == 0 {
-		records := []model.Document{}
-		for day := 0; day < 14; day++ {
-			start := time.Date(2026, 9, 1+day, 20, 0, 0, 0, time.UTC)
-			records = append(records, model.Document{"identity_line_item_id": "fixture-billing-" + start.Format("20060102"), "line_item_line_item_type": "Usage", "line_item_unblended_cost": "4.800000000000", "line_item_currency_code": "GBP", "line_item_resource_id": "i-0123456789abcdef0", "line_item_usage_account_id": "111122223333", "product_servicecode": "AmazonEC2", "product_region_code": "eu-west-1", "line_item_usage_start_date": start.Format(time.RFC3339), "line_item_usage_end_date": start.Add(10 * time.Hour).Format(time.RFC3339), "resource_tags": model.Document{"finops:environment": "NON_PRODUCTION"}})
-		}
-		raw := model.Document{"source_id": "fixture-cur2", "source_version": "fixture-cur-v1", "invoice_totals": model.Document{"GBP": "67.200000000000"}, "records": records}
-		var canonical model.Document
-		if e = a.call(ctx, a.Config.EconomicsURL, a.Config.EconomicsToken, "/normalize", raw, &canonical); e != nil {
+	producer := &service.API{Config: a.Config, Client: a.HTTP}
+	if a.Config.Fixture {
+		if e = producer.PrepareFixtureEvidence(ctx, t); e != nil {
 			return e
 		}
-		metrics := []model.Document{}
-		for hour := 0; hour < 14*24; hour++ {
-			at := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(hour) * time.Hour)
-			for _, name := range []string{"cpu_utilization", "network_in", "network_out"} {
-				value := "0.000000000000"
-				if name == "cpu_utilization" {
-					value = "2.500000000000"
-				}
-				metrics = append(metrics, model.Document{"resource_id": "i-0123456789abcdef0", "metric_name": name, "source_time": at.Format(time.RFC3339), "value": value, "fixture": true})
-			}
-		}
-		raw["metric_records"] = metrics
-		canonical["metric_facts"] = metrics
-		j, e := t.Create(ctx, "ingestion_jobs", model.Document{"id": "fixture-billing-ingestion", "status": "PENDING", "source_id": "fixture-cur2", "raw": raw, "canonical": canonical})
+		jobs, e = t.List(ctx, "ingestion_jobs")
 		if e != nil {
 			return e
 		}
-		jobs = append(jobs, j)
 	}
 	for _, j := range jobs {
 		if model.String(j, "status") == "PERSISTED" {
+			if e = producer.SealFixtureEvidence(ctx, t, j); e != nil {
+				return e
+			}
 			continue
 		}
 		var raw, canonical model.Document
@@ -59,6 +42,9 @@ func ingestTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 		}
 		j["status"], j["persisted_at"] = "PERSISTED", model.Now()
 		if _, e = t.Update(ctx, "ingestion_jobs", model.String(j, "id"), model.Number(j, "version"), j); e != nil {
+			return e
+		}
+		if e = producer.SealFixtureEvidence(ctx, t, j); e != nil {
 			return e
 		}
 		if e = t.Audit(ctx, "ingestion-worker", "billing.ingested", model.String(j, "id"), model.Document{"source_id": j["source_id"], "storage": "immutable raw + FOCUS ClickHouse facts"}); e != nil {

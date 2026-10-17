@@ -7,6 +7,7 @@ import os
 from decimal import Decimal
 from .model import EvidenceError, evaluate
 from .normalize import normalize
+from .v2 import evaluate_v2
 
 MAX_BODY = 64 * 1024 * 1024
 
@@ -33,7 +34,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(404, {"error": "not_found"})
 
     def do_POST(self):
-        if self.path not in ("/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
+        if self.path not in ("/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
             return self.reply(404, {"error": "not_found"})
         expected = os.getenv("ECONOMICS_TOKEN", "")
         if expected:
@@ -53,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
                 data = {"records": list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))), "source_id": self.headers.get("X-Source-Id"), "source_version": self.headers.get("X-Source-Version")}
             else:
                 data = json.loads(raw, parse_float=Decimal, parse_constant=lambda _: (_ for _ in ()).throw(EvidenceError("non-finite number")))
-            result = normalize(data) if self.path.startswith("/normalize") else evaluate(data)
+            result = normalize(data) if self.path.startswith("/normalize") else evaluate_v2(data) if self.path == "/v2/evaluate" else evaluate(data)
             self.reply(200, result)
         except (EvidenceError, ValueError, TypeError, KeyError, UnicodeError):
             self.reply(422, {"error": "invalid_evidence", "message": "Invalid or incomplete evidence; check exact decimal strings, intervals, identities and source version."})

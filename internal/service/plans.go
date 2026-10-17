@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
+	evidencepkg "github.com/christopherosiemo/bn-implementation-Finops/internal/evidence"
 	"github.com/jackc/pgx/v5"
 	"io"
 	"net/http"
@@ -23,7 +23,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if e != nil {
 		return nil, e
 	}
-	if model.String(rec, "status") != "VALIDATED" {
+	if model.String(rec, "status") != "VALIDATED" || !model.Bool(rec, "pre_execution_ready") {
 		return nil, problem(422, "RECOMMENDATION_NOT_VALIDATED", "recommendation must be validated")
 	}
 	if scheduleID == "" {
@@ -55,6 +55,20 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if e != nil {
 		return nil, e
 	}
+	ready, e := t.EvidenceGet(ctx, "readiness", model.String(rec, "readiness_id"))
+	if e != nil {
+		return nil, problem(422, "READINESS_REQUIRED", "refresh execution readiness before planning")
+	}
+	checked, err := time.Parse(time.RFC3339Nano, model.String(ready, "checked_at"))
+	if err != nil || time.Since(checked) > 5*time.Minute || !model.Bool(ready, "pre_execution_ready") {
+		return nil, problem(422, "READINESS_STALE", "refresh execution readiness before planning")
+	}
+	baseline, e := t.EvidenceGet(ctx, "baseline", model.String(ready, "baseline_id"))
+	if e != nil {
+		return nil, e
+	}
+	actualSnapshotHash := safety.SnapshotHash(res)
+	res["commitment_known"], res["uncovered_on_demand"], res["observation_days"] = true, true, 14
 	w, e := t.Get(ctx, "workloads", model.String(rec, "workload_id"))
 	if e != nil {
 		return nil, e
@@ -104,10 +118,20 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	restore := op
 	restore.Type = "EC2_START"
 	p := model.Plan{ID: model.ID(), TenantID: t.Tenant, RecommendationID: recID, ScheduleID: scheduleID, WorkloadID: model.String(w, "id"), PolicyID: model.String(policy, "id"), PolicyVersion: model.Number(policy, "version"), ResourceVersion: model.Number(res, "version"), ResourceSnapshotHash: safety.SnapshotHash(res), RiskClass: "R1", Nonce: model.ID(), Operations: []model.Operation{op, restore}, CreatedAt: now, ExpiresAt: expiry, StopAt: stop, RestoreAt: start, HealthURL: model.String(w, "health_url"), Fixture: fixture}
+	p.ResourceSnapshotHash = actualSnapshotHash
+	m, e := reserveMeasurement(ctx, t, model.String(baseline, "id"), model.String(res, "id"), model.String(baseline, "activation_at"))
+	if e != nil {
+		return nil, e
+	}
+	p.SchemaVersion, p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt = "2", model.String(ready, "id"), model.String(baseline, "id"), model.String(m, "id"), model.String(m, "activation_at")
+	if e = readinessPlanCheck(ctx, t, p, res); e != nil {
+		return nil, e
+	}
 	b, _ := json.Marshal(p)
 	var payload any
 	_ = json.Unmarshal(b, &payload)
 	d := model.Document{"id": p.ID, "recommendation_id": recID, "schedule_id": scheduleID, "resource_id": res["id"], "workload_id": w["id"], "policy_version": p.PolicyVersion, "risk_class": "R1", "status": "AWAITING_APPROVAL", "operations": p.Operations, "payload": payload, "stop_at": stop.Format(time.RFC3339Nano), "restore_at": start.Format(time.RFC3339Nano), "expires_at": expiry.Format(time.RFC3339Nano), "created_at": model.Now(), "restoration_authorized": true, "fixture": fixture}
+	d["readiness_id"], d["baseline_id"], d["measurement_id"], d["activation_at"] = p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt
 	return t.Create(ctx, "change_plans", d)
 }
 func decodePlan(d model.Document) (model.Plan, error) {
@@ -143,51 +167,7 @@ func (a *API) economics(ctx context.Context, endpoint string, input model.Docume
 	e = json.Unmarshal(raw, &d)
 	return d, e
 }
-func (a *API) fixtureEconomics(resource string, final bool) model.Document {
-	rows := []model.Document{}
-	for n := 0; n < 14; n++ {
-		start := time.Date(2026, 9, 1+n, 20, 0, 0, 0, time.UTC)
-		rows = append(rows, model.Document{"start": start.Format(time.RFC3339), "end": start.Add(10 * time.Hour).Format(time.RFC3339), "baseline_compute_cost": "4.800000000000", "actual_compute_cost": "0.000000000000", "incremental_cost": "0.008000000000", "baseline_units": "0", "actual_units": "0", "source_record_id": fmt.Sprintf("fixture-idle-window-%d", n)})
-	}
-	days := 0
-	if final {
-		days = 14
-	}
-	return model.Document{"resource_id": resource, "currency": "GBP", "baseline_days": 14, "verification_days": days, "baseline_complete": true, "workload_evidence_complete": true, "work_preserved": true, "confounded": false, "commitment_known": true, "uncovered_on_demand": true, "invoice_final": final, "reconciliation_ratio": "1.0000", "source_version": "fixture-cur-v1", "intervals": rows}
-}
-func (a *API) evidenceFor(ctx context.Context, t *store.Tx, resource string, final bool) (model.Document, error) {
-	if a.Config.Fixture {
-		return a.fixtureEconomics(resource, final), nil
-	}
-	list, e := t.List(ctx, "billing_evidence")
-	if e != nil {
-		return nil, e
-	}
-	for n := len(list) - 1; n >= 0; n-- {
-		d := list[n]
-		if model.String(d, "resource_id") == resource {
-			job, e := t.Get(ctx, "ingestion_jobs", model.String(d, "ingestion_job_id"))
-			if e != nil || model.String(job, "status") != "PERSISTED" {
-				return nil, problem(422, "BILLING_EVIDENCE_NOT_PERSISTED", "immutable source and analytics evidence have not been persisted")
-			}
-			raw, _ := json.Marshal(d["evidence"])
-			var evidence model.Document
-			_ = json.Unmarshal(raw, &evidence)
-			return evidence, nil
-		}
-	}
-	return nil, errors.New("imported billing and workload evidence required")
-}
 func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in model.Document) (model.Document, int, error) {
-	if a.Config.Fixture {
-		var persisted bool
-		if e := t.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM entities WHERE tenant_id=$1 AND kind='ingestion_jobs' AND document->>'source_id'='fixture-cur2' AND document->>'status'='PERSISTED')", t.Tenant).Scan(&persisted); e != nil {
-			return nil, 0, e
-		}
-		if !persisted {
-			return nil, 0, problem(422, "BILLING_EVIDENCE_NOT_PERSISTED", "wait for the billing ingester to persist immutable source and canonical facts")
-		}
-	}
 	executions, e := t.List(ctx, "executions")
 	if e != nil {
 		return nil, 0, e
@@ -200,7 +180,7 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 		if model.String(x, "status") != "COMPLETED" {
 			continue
 		}
-		evidence, e := a.evidenceFor(ctx, t, model.String(x, "resource_id"), true)
+		evidence, e := a.measurementInput(ctx, t, x)
 		if e != nil {
 			var p *Problem
 			if errors.As(e, &p) {
@@ -208,11 +188,12 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 			}
 			return nil, 0, problem(422, "BILLING_EVIDENCE_REQUIRED", e.Error())
 		}
-		d, e := a.economics(ctx, "verify", evidence)
+		d, e := a.economics(ctx, "v2/evaluate", evidence)
 		if e != nil {
 			return nil, 0, e
 		}
 		d["id"], d["execution_id"], d["recommendation_id"], d["created_at"], d["fixture"] = model.ID(), x["id"], x["recommendation_id"], model.Now(), a.Config.Fixture
+		d["baseline_id"], d["measurement_id"], d["measurement_snapshot_id"], d["activation_at"], d["financial_clock"] = evidence["baseline_id"], evidence["measurement_id"], evidence["measurement_snapshot_id"], evidence["activation_at"], evidence["financial_clock"]
 		fingerprint := model.String(d, "fingerprint")
 		if fingerprint == "" {
 			return nil, 0, errors.New("economics response missing evidence fingerprint")
@@ -222,20 +203,9 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 		// Attribution is independent of execution ID and source revision. Replayed
 		// evidence cannot claim the same window again; corrected source evidence
 		// appends a revision superseding the prior claim for that resource/window.
-		intervals, _ := evidence["intervals"].([]any)
-		if len(intervals) == 0 {
-			if rows, ok := evidence["intervals"].([]model.Document); ok {
-				for _, r := range rows {
-					intervals = append(intervals, r)
-				}
-			}
-		}
-		windows := []model.Document{}
-		for _, v := range intervals {
-			b, _ := json.Marshal(v)
-			var row model.Document
-			_ = json.Unmarshal(b, &row)
-			windows = append(windows, model.Document{"start": row["start"], "end": row["end"]})
+		windows := evidencepkg.Rows(d["coverage_intervals"])
+		if windows == nil {
+			windows = []model.Document{}
 		}
 		attribution, _ := json.Marshal(model.Document{"resource_id": x["resource_id"], "windows": windows, "model": d["baseline_model"]})
 		sum := sha256.Sum256(attribution)
@@ -249,7 +219,7 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 		}
 		var existing []byte
 		var existingCurrent bool
-		existingErr := t.QueryRow(ctx, "SELECT l.document,NOT EXISTS(SELECT 1 FROM savings_ledger n WHERE n.tenant_id=l.tenant_id AND n.document->>'supersedes_id'=l.id) FROM savings_ledger l WHERE l.tenant_id=$1 AND l.fingerprint=$2", t.Tenant, fingerprint).Scan(&existing, &existingCurrent)
+		existingErr := t.QueryRow(ctx, "SELECT l.document,"+store.SavingsCurrentPredicate+" FROM savings_ledger l WHERE l.tenant_id=$1 AND l.fingerprint=$2", t.Tenant, fingerprint).Scan(&existing, &existingCurrent)
 		if existingErr == nil {
 			var prior model.Document
 			if e = json.Unmarshal(existing, &prior); e != nil {
@@ -264,14 +234,13 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 		}
 		coverage, _ := json.Marshal(windows)
 		var overlaps bool
-		if e = t.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM savings_ledger l CROSS JOIN LATERAL jsonb_array_elements(l.document->'coverage_intervals') prior CROSS JOIN jsonb_array_elements($4::jsonb) proposed WHERE l.tenant_id=$1 AND l.document->>'resource_id'=$2 AND l.document->>'attribution_key'<>$3 AND NOT EXISTS(SELECT 1 FROM savings_ledger n WHERE n.tenant_id=l.tenant_id AND n.document->>'supersedes_id'=l.id) AND (prior->>'start')::timestamptz < (proposed->>'end')::timestamptz AND (proposed->>'start')::timestamptz < (prior->>'end')::timestamptz)`, t.Tenant, model.String(x, "resource_id"), key, coverage).Scan(&overlaps); e != nil {
+		if e = t.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM savings_ledger l CROSS JOIN LATERAL jsonb_array_elements(l.document->'coverage_intervals') prior CROSS JOIN jsonb_array_elements($4::jsonb) proposed WHERE l.tenant_id=$1 AND l.document->>'resource_id'=$2 AND l.document->>'attribution_key'<>$3 AND `+store.SavingsCurrentPredicate+` AND (prior->>'start')::timestamptz < (proposed->>'end')::timestamptz AND (proposed->>'start')::timestamptz < (prior->>'end')::timestamptz)`, t.Tenant, model.String(x, "resource_id"), key, coverage).Scan(&overlaps); e != nil {
 			return nil, 0, e
 		}
 		if overlaps {
 			return nil, 0, problem(409, "DOUBLE_CLAIM", "billing window overlaps an existing savings claim for this resource")
 		}
-		var oldID, oldFingerprint string
-		err := t.QueryRow(ctx, "SELECT id,fingerprint FROM savings_ledger WHERE tenant_id=$1 AND document->>'attribution_key'=$2 ORDER BY created_at DESC LIMIT 1", t.Tenant, key).Scan(&oldID, &oldFingerprint)
+		oldID, oldFingerprint, err := previousSavingsRevision(ctx, t, key, model.String(d, "measurement_id"))
 		if err == nil {
 			if oldFingerprint == fingerprint {
 				continue
@@ -292,6 +261,14 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 		results = append(results, d)
 	}
 	return model.Document{"savings": results}, 200, nil
+}
+
+func previousSavingsRevision(ctx context.Context, t *store.Tx, key, measurement string) (string, string, error) {
+	var id, fingerprint string
+	// Exact claim identity wins over an unrelated empty-coverage provisional row
+	// for the same measurement. Otherwise the old verified head would survive.
+	e := t.QueryRow(ctx, "SELECT l.id,l.fingerprint FROM savings_ledger l WHERE l.tenant_id=$1 AND (l.document->>'attribution_key'=$2 OR ($3<>'' AND l.document->>'measurement_id'=$3)) AND "+store.SavingsCurrentPredicate+" ORDER BY CASE WHEN l.document->>'attribution_key'=$2 THEN 0 ELSE 1 END,l.created_at DESC,l.id DESC LIMIT 1", t.Tenant, key, measurement).Scan(&id, &fingerprint)
+	return id, fingerprint, e
 }
 func CoverageOverlaps(windows []model.Document, prior any) bool {
 	var old []model.Document

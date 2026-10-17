@@ -114,7 +114,10 @@ try {
   await request(token, 'POST', '/v1/demo/scenario', { scenario: 'healthy' });
   dashboard = await fixtureDashboard(token);
   const workload = dashboard.workloads.find(item => item.id === 'workload-dev');
-  const recommendation = dashboard.recommendations.find(item => item.status === 'VALIDATED');
+  const recommendation = await waitFor(async () => {
+    const generated = await request(token, 'POST', '/v1/recommendations', { workload_id: 'workload-dev' });
+    return generated.recommendations.find(item => item.status === 'VALIDATED' && item.pre_execution_ready === true);
+  }, 'immutable baseline readiness before recovery occurrence');
   const schedule = dashboard.schedules.find(item => item.id === 'schedule-dev');
   assert.ok(workload && recommendation && schedule, 'seeded fixture workload, recommendation, and schedule are required');
   await request(token, 'POST', `/v1/workloads/${workload.id}/signals`, { incident: 'CLEAR', deployment: 'CLEAR', job: 'CLEAR' }, workload.version);

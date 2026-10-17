@@ -25,9 +25,11 @@ def evidence():
 class EconomicsTests(unittest.TestCase):
     def test_exact_verified_period(self):
         result = evaluate(evidence())
-        self.assertEqual(result["status"], "VERIFIED")
-        self.assertEqual(result["verified_saving"], "72.128000000000")
-        self.assertNotEqual(result["verified_saving"], result["annualised_estimate"])
+        self.assertEqual(result["legacy_status"], "VERIFIED")
+        self.assertEqual(result["observed_saving"], "72.128000000000")
+        self.assertFalse(result["pre_execution_ready"])
+        self.assertIsNone(result["verified_saving"])
+        self.assertEqual(result["reason_code"], "LEGACY_EVIDENCE_VERSION")
 
     def test_no_binary_floats_or_excess_scale(self):
         for value in [0.1, "NaN", "Infinity", "0.0000000000001", "1e2", "1" * 27]:
@@ -38,34 +40,34 @@ class EconomicsTests(unittest.TestCase):
         data = evidence()
         for row in data["intervals"]:
             row["actual_compute_cost"] = "6"
-        self.assertEqual(evaluate(data)["verified_saving"], "-11.760000000000")
+        self.assertEqual(evaluate(data)["observed_saving"], "-11.760000000000")
 
     def test_commitment_missing_and_covered_block_claim(self):
         for name, expected in [("commitment_known", "COMMITMENT_UNKNOWN"), ("uncovered_on_demand", "COMMITMENT_PORTFOLIO_MODEL_REQUIRED")]:
             data = evidence(); data[name] = False
             result = evaluate(data)
-            self.assertEqual(result["reason_code"], expected)
+            self.assertEqual(result["legacy_reason_code"], expected)
             self.assertIsNone(result["verified_saving"])
 
     def test_provisional_and_reconciliation_gate(self):
         for key, value in [("invoice_final", False), ("reconciliation_ratio", "0.994999999999"), ("verification_days", 13), ("baseline_days", 13)]:
             data = evidence(); data[key] = value
             result = evaluate(data)
-            self.assertEqual(result["status"], "MEASURING")
+            self.assertEqual(result["legacy_status"], "MEASURING")
             self.assertIsNone(result["verified_saving"])
         data = evidence(); data["reconciliation_ratio"] = "0.995"
-        self.assertEqual(evaluate(data)["status"], "VERIFIED")
+        self.assertEqual(evaluate(data)["legacy_status"], "VERIFIED")
 
     def test_zero_units_valid_missing_distinct_from_zero(self):
-        data = evidence(); self.assertEqual(evaluate(data)["status"], "VERIFIED")
+        data = evidence(); self.assertEqual(evaluate(data)["legacy_status"], "VERIFIED")
         data["intervals"][0]["actual_units"] = None
-        self.assertEqual(evaluate(data)["reason_code"], "WORKLOAD_EVIDENCE_MISSING")
+        self.assertEqual(evaluate(data)["legacy_reason_code"], "WORKLOAD_EVIDENCE_MISSING")
 
     def test_changed_workload_needs_model_not_division_by_runtime(self):
         data = evidence(); data["intervals"][0]["actual_units"] = "2"
-        self.assertEqual(evaluate(data)["status"], "CONFOUNDED")
+        self.assertEqual(evaluate(data)["legacy_status"], "CONFOUNDED")
         data = evidence(); data["confounded"] = True
-        self.assertEqual(evaluate(data)["reason_code"], "CONCURRENT_CHANGE")
+        self.assertEqual(evaluate(data)["legacy_reason_code"], "CONCURRENT_CHANGE")
 
     def test_duplicates_overlap_and_mixed_currency_rejected(self):
         data = evidence(); data["intervals"].append(copy.deepcopy(data["intervals"][0]))
@@ -86,7 +88,7 @@ class EconomicsTests(unittest.TestCase):
         after = evaluate(data)
         self.assertNotEqual(before["fingerprint"], after["fingerprint"])
         self.assertEqual(before["claim_key"], after["claim_key"])
-        self.assertNotEqual(before["verified_saving"], after["verified_saving"])
+        self.assertNotEqual(before["observed_saving"], after["observed_saving"])
 
 
 class BillingTests(unittest.TestCase):

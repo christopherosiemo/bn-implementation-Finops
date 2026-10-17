@@ -70,6 +70,9 @@ func (s *SecureService) Handler() http.Handler {
 				if e != nil {
 					return e
 				}
+				if p.Fixture != s.Config.Fixture {
+					return problem(422, "MODE_MISMATCH", "plan mode differs from signing service mode")
+				}
 				if e = validateApproval(r.Context(), t, d, p); e != nil {
 					return e
 				}
@@ -205,6 +208,9 @@ func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) err
 	if e != nil {
 		return e
 	}
+	if e = readinessPlanCheck(ctx, t, p, res); e != nil {
+		return e
+	}
 	stale := p.ResourceSnapshotHash == "" && model.Number(res, "version") != p.ResourceVersion || p.ResourceSnapshotHash != "" && safety.SnapshotHash(res) != p.ResourceSnapshotHash
 	if stale || model.String(res, "provider_resource_id") != p.Operations[0].ProviderResourceID {
 		return problem(422, "STALE_RECOMMENDATION", "resource changed since planning")
@@ -212,6 +218,7 @@ func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) err
 	if model.String(res, "workload_id") != p.WorkloadID || model.String(res, "account_id") != p.Operations[0].AccountID || model.String(res, "region") != p.Operations[0].Region {
 		return problem(422, "TARGET_BINDING_INVALID", "resource, workload, region and account must match the plan")
 	}
+	res["commitment_known"], res["uncovered_on_demand"], res["observation_days"] = true, true, 14
 	w, e := t.Get(ctx, "workloads", p.WorkloadID)
 	if e != nil {
 		return e
@@ -445,6 +452,12 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 		case "DESCRIBE":
 		}
 		if exists || intent {
+			if owned && current.State == "stopped" && model.String(state, "stopped_at") == "" {
+				state["stopped_at"] = model.Now()
+			}
+			if owned && current.State == "running" && model.String(state, "stopped_at") != "" && model.String(state, "running_at") == "" {
+				state["running_at"] = model.Now()
+			}
 			if in.Operation == "HEALTH" {
 				if current.State == "running" && current.Healthy {
 					since, e := time.Parse(time.RFC3339Nano, model.String(state, "healthy_since"))
@@ -481,9 +494,15 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 	return out, e
 }
 func (s *SecureService) probe(ctx context.Context, target string) (bool, error) {
+	if e := validateHealthURL(target, s.Config); e != nil {
+		return false, e
+	}
 	u, e := url.Parse(target)
 	if e != nil || u.Scheme != "https" && u.Scheme != "http" || u.User != nil {
 		return false, errors.New("invalid health URL")
+	}
+	if !s.Config.Fixture && (u.Scheme != "https" || u.Port() != "" && u.Port() != "443") {
+		return false, errors.New("live health URL requires HTTPS on port 443")
 	}
 	allowed := false
 	for _, h := range strings.Split(s.Config.HealthAllowedHosts, ",") {
@@ -528,4 +547,23 @@ func (s *SecureService) probe(ctx context.Context, target string) (bool, error) 
 		return false, fmt.Errorf("health status %d", res.StatusCode)
 	}
 	return true, nil
+}
+
+func validateHealthURL(target string, c Config) error {
+	u, e := url.Parse(target)
+	if e != nil || u.User != nil || u.Fragment != "" || u.Hostname() == "" {
+		return errors.New("invalid health URL")
+	}
+	if !c.Fixture && (u.Scheme != "https" || u.Port() != "" && u.Port() != "443") {
+		return errors.New("live health URL requires HTTPS on port 443")
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return errors.New("invalid health URL scheme")
+	}
+	for _, h := range strings.Split(c.HealthAllowedHosts, ",") {
+		if strings.TrimSpace(h) == u.Hostname() {
+			return nil
+		}
+	}
+	return errors.New("health host not explicitly allowlisted")
 }

@@ -60,8 +60,53 @@ paths:
     post:
       operationId: importBilling
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BillingImportRequest' }
+      responses: { '202': { description: AWS CUR 2.0 source records normalized and queued for immutable persistence. Caller supplied economic evidence flags are rejected. } }
+  /resources/{id}/readiness:
+    get:
+      operationId: resourceReadiness
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Fresh operational assessment bound to the latest sealed readiness report. Reports expire after five minutes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Readiness' }
+  /resources/{id}/readiness/refresh:
+    post:
+      operationId: refreshReadiness
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '202': { description: AWS CUR 2.0 records normalized and queued for immutable raw and analytics persistence; optional bound workload evidence imported } }
+      responses:
+        '201':
+          description: Immutable baseline and operational readiness assessment sealed. Generate recommendations to use this report in a plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Readiness' }
+  /evidence/baselines:
+    post:
+      operationId: sealBaseline
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BaselineRequest' }
+      responses: { '201': { description: Immutable source-bound baseline sealed; requires at least fourteen complete local days and validated idle-workload evidence } }
+  /evidence/measurements:
+    post:
+      operationId: sealMeasurement
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeasurementRequest' }
+      responses: { '201': { description: Immutable measurement snapshot sealed against the signed reservation; costs and invoice reconciliation derive from its persisted canonical source } }
   /schedules:
     post:
       operationId: createSchedule
@@ -166,6 +211,7 @@ components:
               change_plan_id: { type: string }
   schemas:
     Decimal: { type: string, pattern: '^-?[0-9]+(\.[0-9]{1,12})?$' }
+    NullableDecimal: { type: string, nullable: true, pattern: '^-?[0-9]+(\.[0-9]{1,12})?$' }
     Document:
       type: object
       additionalProperties: true
@@ -183,7 +229,9 @@ components:
             state: { type: string }
             eligibility: { type: string }
             blockers: { type: array, items: { type: string } }
-            hourly_effective_cost: { $ref: '#/components/schemas/Decimal' }
+            hourly_effective_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            monthly_effective_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            currency: { type: string, nullable: true }
     Recommendation:
       allOf:
         - { $ref: '#/components/schemas/Document' }
@@ -194,8 +242,15 @@ components:
             workload_id: { type: string }
             status: { type: string }
             reason_code: { type: string }
-            annual_saving: { $ref: '#/components/schemas/Decimal' }
-            monthly_saving: { $ref: '#/components/schemas/Decimal' }
+            annual_saving: { $ref: '#/components/schemas/NullableDecimal' }
+            monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
+            currency: { type: string, nullable: true }
+            pre_execution_ready: { type: boolean, description: Only explicit true permits a new plan. Legacy missing values are unactionable. }
+            readiness_status: { type: string, enum: [READY, BLOCKED] }
+            verification_status: { type: string, enum: [MEASURING, VERIFIED, BLOCKED, CONFOUNDED] }
+            readiness_id: { type: string, nullable: true }
+            baseline_id: { type: string, nullable: true }
+            measurement_id: { type: string, nullable: true }
     Schedule: { allOf: [ { $ref: '#/components/schemas/Document' }, { $ref: '#/components/schemas/CreateScheduleRequest' } ] }
     ChangePlan:
       allOf:
@@ -208,6 +263,11 @@ components:
             recommendation_id: { type: string }
             schedule_id: { type: string }
             expires_at: { type: string, format: date-time }
+            readiness_id: { type: string }
+            baseline_id: { type: string }
+            measurement_id: { type: string }
+            activation_at: { type: string, format: date-time }
+            payload: { $ref: '#/components/schemas/PlanPayload' }
     Execution:
       allOf:
         - { $ref: '#/components/schemas/Document' }
@@ -228,15 +288,24 @@ components:
             status: { type: string }
             currency: { type: string }
             verified_saving: { type: string, nullable: true }
-            expected_baseline_cost: { $ref: '#/components/schemas/Decimal' }
-            actual_cost: { $ref: '#/components/schemas/Decimal' }
+            expected_baseline_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            actual_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            incremental_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            observed_saving: { $ref: '#/components/schemas/NullableDecimal' }
+            baseline_id: { type: string }
+            measurement_id: { type: string }
+            measurement_snapshot_id: { type: string, nullable: true }
+            activation_at: { type: string, format: date-time }
+            financial_clock: { $ref: '#/components/schemas/Document' }
+            is_current: { type: boolean }
+            supersedes_id: { type: string }
     CloudAccount: { $ref: '#/components/schemas/Document' }
     Workload: { $ref: '#/components/schemas/Document' }
     AuditEvent: { $ref: '#/components/schemas/Document' }
     Policy: { $ref: '#/components/schemas/Document' }
     Dashboard:
       type: object
-      required: [org, fixture, cloud_accounts, resources, workloads, recommendations, policies, schedules, change_plans, executions, savings, audit, data_quality]
+      required: [org, fixture, cloud_accounts, resources, workloads, recommendations, policies, schedules, change_plans, executions, savings, audit, data_quality, readiness]
       properties:
         org: { $ref: '#/components/schemas/Document' }
         fixture: { type: boolean }
@@ -251,6 +320,115 @@ components:
         savings: { type: array, items: { $ref: '#/components/schemas/Savings' } }
         audit: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
         data_quality: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        readiness: { type: array, items: { $ref: '#/components/schemas/Readiness' } }
+    EvidenceBinding:
+      type: object
+      required: [tenant_id, resource_id, provider_resource_id, account_id, region, currency]
+      properties:
+        tenant_id: { type: string }
+        resource_id: { type: string }
+        provider_resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        currency: { type: string, nullable: true }
+    Readiness:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          required: [status, pre_execution_ready, verification_status, resource_id, checked_at, expires_at, binding]
+          properties:
+            status: { type: string, enum: [READY, BLOCKED] }
+            pre_execution_ready: { type: boolean }
+            verification_status: { type: string, enum: [MEASURING, VERIFIED, BLOCKED, CONFOUNDED] }
+            reason_code: { type: string }
+            resource_id: { type: string }
+            workload_id: { type: string }
+            baseline_id: { type: string, nullable: true }
+            measurement_id: { type: string, nullable: true }
+            activation_at: { type: string, nullable: true, format: date-time }
+            checked_at: { type: string, format: date-time }
+            expires_at: { type: string, format: date-time }
+            binding: { $ref: '#/components/schemas/EvidenceBinding' }
+            blockers: { type: array, items: { type: string } }
+            evidence_refs: { type: array, items: { type: string } }
+            source_refs: { type: array, items: { $ref: '#/components/schemas/SourceReference' } }
+    SourceReference:
+      type: object
+      required: [kind, ingestion_job_id, source_id, source_version, source_hash, canonical_hash, binding]
+      properties:
+        kind: { type: string, enum: [AWS_CUR2] }
+        ingestion_job_id: { type: string }
+        source_id: { type: string }
+        source_version: { type: string }
+        source_hash: { type: string, description: SHA-256 of immutable imported raw source JSON }
+        canonical_hash: { type: string, description: SHA-256 of persisted canonical snapshot JSON }
+        binding: { $ref: '#/components/schemas/EvidenceBinding' }
+    PlanPayload:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          required: [schema_version, baseline_id, measurement_id, readiness_id, activation_at]
+          properties:
+            schema_version: { type: string, enum: ['2'] }
+            baseline_id: { type: string }
+            measurement_id: { type: string }
+            readiness_id: { type: string }
+            activation_at: { type: string, format: date-time }
+    WorkloadSample:
+      type: object
+      required: [resource_id, provider_resource_id, account_id, region, start, end, units, source_record_id]
+      properties:
+        tenant_id: { type: string }
+        resource_id: { type: string }
+        provider_resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        units: { $ref: '#/components/schemas/Decimal' }
+        source_record_id: { type: string }
+    BillingImportRequest:
+      type: object
+      required: [schema_version, source_id, source_version, records]
+      properties:
+        schema_version: { type: string, enum: ['2'] }
+        source_id: { type: string }
+        source_version: { type: string }
+        records: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        invoice_totals:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/Decimal' }
+        invoice: { $ref: '#/components/schemas/SourceInvoice' }
+    SourceInvoice:
+      type: object
+      required: [invoice_id, issued_at, final, total]
+      properties:
+        invoice_id: { type: string }
+        issued_at: { type: string, format: date-time }
+        final: { type: boolean }
+        total: { $ref: '#/components/schemas/Decimal' }
+    BaselineRequest:
+      type: object
+      required: [resource_id, ingestion_job_id, schedule_id, start, end, workload_samples]
+      properties:
+        resource_id: { type: string }
+        ingestion_job_id: { type: string }
+        schedule_id: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        workload_samples: { type: array, items: { $ref: '#/components/schemas/WorkloadSample' } }
+    MeasurementRequest:
+      type: object
+      required: [measurement_id, ingestion_job_id, start, end, workload_samples]
+      properties:
+        measurement_id: { type: string }
+        ingestion_job_id: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        workload_samples: { type: array, items: { $ref: '#/components/schemas/WorkloadSample' } }
+        invoice:
+          allOf: [ { $ref: '#/components/schemas/SourceInvoice' } ]
+          description: Optional consistency assertion only; must exactly equal invoice metadata in the immutable imported source. Canonical reconciliation totals are always derived by the server.
     ConnectAccountRequest:
       type: object
       required: [provider, name, account_id, region]

@@ -19,6 +19,14 @@ import (
 
 var ErrConflict = errors.New("stale resource version")
 
+// SavingsCurrentPredicate uses the fixed outer alias l. It projects revisions
+// without changing immutable history: one latest attribution claim remains, and
+// a measured result retires its earlier provisional measurement rows even when
+// their coverage (and therefore attribution key) was initially empty.
+const SavingsCurrentPredicate = `NOT EXISTS(SELECT 1 FROM savings_ledger n WHERE n.tenant_id=l.tenant_id AND n.document->>'supersedes_id'=l.id)
+ AND NOT EXISTS(SELECT 1 FROM savings_ledger n WHERE n.tenant_id=l.tenant_id AND COALESCE(l.document->>'attribution_key','')<>'' AND n.document->>'attribution_key'=l.document->>'attribution_key' AND (n.created_at,n.id)>(l.created_at,l.id) AND NOT EXISTS(SELECT 1 FROM savings_ledger m WHERE m.tenant_id=n.tenant_id AND m.document->>'supersedes_id'=n.id))
+ AND NOT (l.document->>'status'='MEASURING' AND COALESCE(l.document->>'measurement_id','')<>'' AND EXISTS(SELECT 1 FROM savings_ledger n WHERE n.tenant_id=l.tenant_id AND n.document->>'measurement_id'=l.document->>'measurement_id' AND n.document->>'status'='VERIFIED' AND (n.created_at,n.id)>(l.created_at,l.id)))`
+
 type Store struct{ Pool *pgxpool.Pool }
 type Tx struct {
 	pgx.Tx
@@ -142,7 +150,7 @@ func (t *Tx) Evidence(ctx context.Context, table string) ([]model.Document, erro
 	}
 	query := "SELECT document,true FROM " + table + " WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 200"
 	if table == "savings_ledger" {
-		query = "SELECT l.document,NOT EXISTS(SELECT 1 FROM savings_ledger newer WHERE newer.tenant_id=l.tenant_id AND newer.document->>'supersedes_id'=l.id) FROM savings_ledger l WHERE l.tenant_id=$1 ORDER BY l.created_at DESC LIMIT 200"
+		query = "SELECT l.document," + SavingsCurrentPredicate + " FROM savings_ledger l WHERE l.tenant_id=$1 ORDER BY l.created_at DESC,l.id DESC LIMIT 200"
 	}
 	rows, e := t.Query(ctx, query, t.Tenant)
 	if e != nil {

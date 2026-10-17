@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/evidence"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/safety"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -167,6 +168,19 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				return e
 			}
 			d["org"] = org
+			readinessRows, e := t.EvidenceList(r.Context(), "readiness", "")
+			if e != nil {
+				return e
+			}
+			latest := map[string]model.Document{}
+			for _, row := range readinessRows {
+				latest[model.String(row, "resource_id")] = row
+			}
+			reports := []model.Document{}
+			for _, row := range latest {
+				reports = append(reports, row)
+			}
+			d["readiness"] = reports
 			for _, k := range []string{"cloud_accounts", "resources", "workloads", "recommendations", "policies", "schedules", "change_plans", "executions", "data_quality"} {
 				rows, e := t.List(r.Context(), k)
 				if e != nil {
@@ -189,6 +203,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return problem(403, "WORKLOAD_SCOPE_DENIED", "application owners use the scoped dashboard")
 		}
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+		if len(parts) == 3 && parts[0] == "resources" && parts[2] == "readiness" {
+			d, err := a.readiness(r.Context(), t, parts[1], false)
+			out = d
+			return err
+		}
 		kind := strings.ReplaceAll(parts[0], "-", "_")
 		allowed := map[string]bool{"cloud_accounts": true, "resources": true, "workloads": true, "recommendations": true, "policies": true, "schedules": true, "change_plans": true, "executions": true, "approvals": true, "data_quality": true}
 		if !allowed[kind] {
@@ -285,56 +304,27 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if e != nil {
 			return nil, 0, e
 		}
-		policy, e := t.Get(ctx, "policies", "policy-default")
-		if e != nil {
-			return nil, 0, e
-		}
 		created := []model.Document{}
 		for _, res := range resources {
 			wid := model.String(res, "workload_id")
 			if filter := model.String(in, "workload_id"); filter != "" && filter != wid {
 				continue
 			}
-			w, e := t.Get(ctx, "workloads", wid)
-			if e != nil {
+			if wid == "" {
 				continue
 			}
-			blocked := safety.Eligibility(res, w, policy, time.Now())
-			status := "VALIDATED"
-			reason := "ELIGIBLE"
-			if len(blocked) > 0 {
-				status = "BLOCKED"
-				reason = blocked[0]
+			ready, e := a.readiness(ctx, t, model.String(res, "id"), true)
+			if e != nil {
+				return nil, 0, e
 			}
-			economics := model.Document{}
+			status := "BLOCKED"
 			confidence := "LOW"
-			var monthly, annual any
-			if status == "VALIDATED" {
-				evidence, e := a.evidenceFor(ctx, t, model.String(res, "id"), false)
-				if e != nil {
-					status = "BLOCKED"
-					reason = "BLOCKED_BILLING_EVIDENCE_REQUIRED"
-					blocked = append(blocked, reason)
-				} else {
-					economics, e = a.economics(ctx, "evaluate", evidence)
-					if e != nil {
-						return nil, 0, e
-					}
-					confidence = "HIGH"
-					annual = economics["annualised_estimate"]
-					if a.Config.Fixture {
-						monthly = "144.000000000000"
-					}
-					if model.String(economics, "status") == "BLOCKED" || model.String(economics, "status") == "CONFOUNDED" {
-						status = "BLOCKED"
-						reason = model.String(economics, "reason_code")
-						confidence = "LOW"
-						annual = nil
-						monthly = nil
-					}
-				}
+			if model.Bool(ready, "pre_execution_ready") {
+				status = "VALIDATED"
+				confidence = "HIGH"
 			}
-			d, e := t.Create(ctx, "recommendations", model.Document{"workload_id": wid, "resource_id": res["id"], "title": "Schedule idle non-production EC2 off hours", "category": "NON_PRODUCTION_SCHEDULING", "risk_class": "R1", "status": status, "reason_code": reason, "blockers": blocked, "monthly_saving": monthly, "annual_saving": annual, "currency": valueOr(res, "currency", "USD"), "confidence": confidence, "evidence": "Calendar-matched idle windows; commitment exposure and retained storage included.", "economics": economics, "created_at": model.Now(), "expires_at": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339), "fixture": a.Config.Fixture})
+			econ := evidence.Object(ready["economics"])
+			d, e := t.Create(ctx, "recommendations", model.Document{"workload_id": wid, "resource_id": res["id"], "title": "Schedule idle non-production EC2 off hours", "category": "NON_PRODUCTION_SCHEDULING", "risk_class": "R1", "status": status, "reason_code": ready["reason_code"], "blockers": ready["blockers"], "pre_execution_ready": ready["pre_execution_ready"], "readiness_id": ready["id"], "baseline_id": ready["baseline_id"], "measurement_id": ready["measurement_id"], "verification_status": ready["verification_status"], "readiness_status": ready["status"], "monthly_saving": nil, "annual_saving": econ["annualised_estimate"], "currency": res["currency"], "confidence": confidence, "evidence": "Immutable source-bound baseline; financial verification requires post-activation evidence.", "economics": econ, "created_at": model.Now(), "expires_at": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339), "fixture": a.Config.Fixture})
 			if e != nil {
 				return nil, 0, e
 			}
@@ -463,6 +453,17 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if model.String(p, "status") != "APPROVED" {
 			return nil, 0, problem(409, "APPROVAL_REQUIRED", "approve this exact plan first")
 		}
+		parsed, e := decodePlan(p)
+		if e != nil {
+			return nil, 0, e
+		}
+		res, e := t.Get(ctx, "resources", model.String(p, "resource_id"))
+		if e != nil {
+			return nil, 0, e
+		}
+		if e = readinessPlanCheck(ctx, t, parsed, res); e != nil {
+			return nil, 0, e
+		}
 		existing, e := t.List(ctx, "executions")
 		if e != nil {
 			return nil, 0, e
@@ -516,7 +517,7 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 				return nil, 0, problem(409, "EXECUTION_ACTIVE", "complete restoration before resetting the demo")
 			}
 		}
-		_, e = t.Exec(ctx, "DELETE FROM entities WHERE tenant_id=$1", t.Tenant)
+		_, e = t.Exec(ctx, "DELETE FROM entities WHERE tenant_id=$1 AND kind NOT IN ('ingestion_jobs','audit_archives')", t.Tenant)
 		if e != nil {
 			return nil, 0, e
 		}

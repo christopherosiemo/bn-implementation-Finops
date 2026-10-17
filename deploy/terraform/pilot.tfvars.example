@@ -1,5 +1,10 @@
 name                   = "finops-pilot"
 region                 = "eu-west-1"
+expected_account_id    = "123456789012" # Exact control-plane account, not the customer account.
+pilot_owner            = "REPLACE-accountable-operator"
+pilot_expires_at        = "2026-11-01T18:00:00Z" # Replace with the agreed pilot end.
+monthly_budget_usd      = 0 # Intentionally invalid until an amount is approved; alerts are not a cap.
+budget_notification_emails = ["REPLACE@example.invalid"]
 cluster_admin_role_arn = "arn:aws:iam::123456789012:role/finops-operator"
 operator_cidrs         = ["203.0.113.10/32"] # Replace this documentation address with your VPN egress.
 customer_read_role_arns      = []

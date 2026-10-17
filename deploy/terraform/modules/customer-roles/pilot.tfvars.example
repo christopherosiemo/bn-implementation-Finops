@@ -1,0 +1,15 @@
+name                = "finops-pilot"
+region              = "eu-west-1"
+expected_account_id = "111122223333" # Exact sandbox customer account.
+pilot_owner         = "REPLACE-accountable-operator"
+pilot_expires_at    = "2026-11-01T18:00:00Z" # Replace with agreed pilot end.
+tenant_id           = "REPLACE-exact-oidc-tenant"
+read_principal_arn  = "arn:aws:iam::123456789012:role/finops-pilot-ingester"
+external_id         = "REPLACE-with-unique-32-character-minimum-value"
+billing_bucket_arn  = null # Discovery only; later arn:aws:s3:::YOUR-customer-billing
+billing_prefix      = "cur/"
+enable_execution    = false
+# Add only after read-only acceptance, or retain for an existing live deployment:
+# enable_execution        = true
+# execution_principal_arn = "arn:aws:iam::123456789012:role/finops-pilot-executor"
+# instance_ids            = ["i-0123456789abcdef0"]

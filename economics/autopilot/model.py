@@ -139,18 +139,21 @@ def evaluate(data: dict) -> dict:
         coverage = [{"start": start.isoformat(), "end": end.isoformat()} for start, end in ranges]
         claim_identity = json.dumps({"resource_id": data["resource_id"], "currency": currency, "coverage": coverage}, sort_keys=True, separators=(",", ":"))
         return {
-            "status": status, "reason_code": reason, "currency": currency,
+            # Legacy evidence is retained for inspection only. Its caller-declared
+            # booleans and amounts cannot authorize a new action or verified claim.
+            "schema_version": "1", "status": "MEASURING", "reason_code": "LEGACY_EVIDENCE_VERSION", "currency": currency,
+            "pre_execution_ready": False, "legacy_status": status, "legacy_reason_code": reason,
             "resource_id": data["resource_id"], "source_version": data["source_version"],
             "expected_baseline_cost": money(expected), "actual_cost": money(actual),
             "incremental_cost": money(incremental), "observed_saving": money(saving),
-            "verified_saving": money(saving) if status == "VERIFIED" else None,
-            "confidence": "HIGH" if status == "VERIFIED" else "LOW",
+            "verified_saving": None,
+            "confidence": "LOW",
             "fingerprint": hashlib.sha256(canonical.encode()).hexdigest(),
             "claim_key": hashlib.sha256(claim_identity.encode()).hexdigest(),
             "coverage_intervals": coverage,
             "baseline_days": baseline_days, "verification_days": verification_days,
             "interval_count": len(intervals), "normalization_unit": "workload_activity",
             "baseline_model": "calendar_matched_idle_windows",
-            "annualised_estimate": money(saving * Decimal(365) / Decimal(verification_days)) if verification_days else None,
+            "annualised_estimate": None,
             "explanation": "Matched historical idle-window compute cost minus actual compute and incremental cloud charges. Continuing EBS/IP charges are not claimed. Annualisation is an estimate, separate from the verified period amount.",
         }

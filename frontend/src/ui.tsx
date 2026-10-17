@@ -5,7 +5,7 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
-import type { Document } from "./types";
+import type { Dashboard, Document, EvidenceFields, Readiness } from "./types";
 import type { Saving } from "./types";
 
 export function Button({
@@ -57,10 +57,14 @@ export const dateTime = (date?: string) => {
         timeStyle: "short",
       }).format(parsed);
 };
-export function money(value: unknown, currency = "GBP"): string {
+export const isMoneyKnown = (value: unknown): boolean =>
+  value !== null &&
+  value !== undefined &&
+  /^-?\d+(?:\.\d{1,12})?$/.test(String(value));
+export function money(value: unknown, currency?: string | null): string {
   const numeric = Number(value);
-  if (value === undefined || value === null || !Number.isFinite(numeric))
-    return "—";
+  if (!isMoneyKnown(value) || !Number.isFinite(numeric) || !currency)
+    return "Unavailable";
   try {
     return new Intl.NumberFormat("en-GB", {
       style: "currency",
@@ -72,11 +76,13 @@ export function money(value: unknown, currency = "GBP"): string {
     return `${numeric.toFixed(2)} ${currency}`;
   }
 }
-export function sumMoney(values: unknown[]): string {
+export function sumMoney(values: unknown[]): string | null {
+  if (!values.length || values.some((value) => !isMoneyKnown(value)))
+    return null;
   let total = 0n;
   for (const value of values) {
-    const match = /^(-?)(\d+)(?:\.(\d{1,12}))?$/.exec(String(value ?? "0"));
-    if (!match) continue;
+    const match = /^(-?)(\d+)(?:\.(\d{1,12}))?$/.exec(String(value));
+    if (!match) return null;
     const amount =
       BigInt(match[2]) * 1_000_000_000_000n +
       BigInt((match[3] || "").padEnd(12, "0"));
@@ -84,6 +90,142 @@ export function sumMoney(values: unknown[]): string {
   }
   const absolute = total < 0n ? -total : total;
   return `${total < 0n ? "-" : ""}${absolute / 1_000_000_000_000n}.${String(absolute % 1_000_000_000_000n).padStart(12, "0")}`;
+}
+export const preExecutionReady = (record?: EvidenceFields): boolean =>
+  record?.pre_execution_ready === true;
+export const hasBoundMeasurement = (record: EvidenceFields): boolean =>
+  Boolean(record.baseline_id && record.measurement_id);
+export function isTrustedPlan(record: Document & EvidenceFields): boolean {
+  const payload = record.payload;
+  return (
+    hasBoundMeasurement(record) &&
+    Boolean(record.readiness_id) &&
+    Boolean(
+      payload &&
+      typeof payload === "object" &&
+      "schema_version" in payload &&
+      payload.schema_version === "2",
+    )
+  );
+}
+export function resourceReadiness(
+  data: Dashboard,
+  resourceId?: string,
+): Readiness | undefined {
+  return data.readiness
+    ?.filter((item) => item.resource_id === resourceId)
+    .sort(
+      (a, b) => Date.parse(b.checked_at || "") - Date.parse(a.checked_at || ""),
+    )[0];
+}
+export function ExecutionReadiness({ record }: { record?: EvidenceFields }) {
+  return (
+    <Badge
+      value={preExecutionReady(record) ? "READY" : "BLOCKED"}
+      tone={!record ? "neutral" : undefined}
+    >
+      {!record
+        ? "Not assessed"
+        : preExecutionReady(record)
+          ? "Ready to execute"
+          : "Execution blocked"}
+    </Badge>
+  );
+}
+export function EvidenceSummary({
+  record,
+}: {
+  record: Document & EvidenceFields;
+}) {
+  const hasBinding = Boolean(
+    record.baseline_id ||
+    record.measurement_id ||
+    record.readiness_id ||
+    record.activation_at ||
+    record.evidence_refs?.length ||
+    record.source_refs?.length ||
+    record.verification_status ||
+    record.pre_execution_ready !== undefined,
+  );
+  if (!hasBinding) return null;
+  return (
+    <section className="evidence-binding" aria-label="Bound financial evidence">
+      <dl className="definition-list">
+        {record.pre_execution_ready !== undefined && (
+          <div>
+            <dt>Execution readiness</dt>
+            <dd>
+              <ExecutionReadiness record={record} />
+            </dd>
+          </div>
+        )}
+        {record.verification_status && (
+          <div>
+            <dt>Savings verification</dt>
+            <dd>
+              <Badge value={record.verification_status} />
+            </dd>
+          </div>
+        )}
+        <div>
+          <dt>Baseline reference</dt>
+          <dd className="evidence-id">{record.baseline_id || "Not bound"}</dd>
+        </div>
+        <div>
+          <dt>Measurement reference</dt>
+          <dd className="evidence-id">
+            {record.measurement_id || "Not bound"}
+          </dd>
+        </div>
+        {record.readiness_id && (
+          <div>
+            <dt>Readiness reference</dt>
+            <dd className="evidence-id">{record.readiness_id}</dd>
+          </div>
+        )}
+        {record.activation_at && (
+          <div>
+            <dt>Activation</dt>
+            <dd>{dateTime(record.activation_at)}</dd>
+          </div>
+        )}
+        {record.financial_clock !== undefined && (
+          <div>
+            <dt>Financial clock</dt>
+            <dd className="evidence-id">
+              {typeof record.financial_clock === "string"
+                ? readable(record.financial_clock)
+                : JSON.stringify(record.financial_clock)}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {Boolean(record.evidence_refs?.length) && (
+        <details className="plan-operations">
+          <summary>
+            Evidence references ({record.evidence_refs!.length})
+          </summary>
+          <ul className="evidence-refs">
+            {record.evidence_refs!.map((ref, index) => (
+              <li key={index}>
+                {typeof ref === "string" ? ref : JSON.stringify(ref)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {Boolean(record.source_refs?.length) && (
+        <details className="plan-operations">
+          <summary>Source references ({record.source_refs!.length})</summary>
+          <ul className="evidence-refs">
+            {record.source_refs!.map((ref, index) => (
+              <li key={index}>{JSON.stringify(ref)}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
 }
 export function currentSavings(records: Saving[]): Saving[] {
   const superseded = new Set(
@@ -93,6 +235,10 @@ export function currentSavings(records: Saving[]): Saving[] {
     (record) => record.is_current !== false && !superseded.has(record.id),
   );
 }
+export const currentVerifiedSavings = (records: Saving[]): Saving[] =>
+  currentSavings(records).filter(
+    (record) => record.status === "VERIFIED" && hasBoundMeasurement(record),
+  );
 export function Badge({
   value,
   children,
@@ -105,17 +251,19 @@ export function Badge({
   const status = String(value || "").toUpperCase();
   const color =
     tone ||
-    (/FAIL|BLOCK|ERROR|ACTIVE|UNHEALTHY|UNKNOWN|FROZEN/.test(status)
-      ? "red"
-      : /PENDING|PROVISIONAL|RECOMMEND|WAIT|RESTOR|STOPPING|STARTING/.test(
-            status,
-          )
-        ? "amber"
-        : /ELIGIBLE|READY|CLEAR|VERIFIED|SUCCESS|COMPLET|APPROVED|CONNECTED|HEALTHY|RUNNING/.test(
+    (status === "UNVERIFIED"
+      ? "neutral"
+      : /FAIL|BLOCK|ERROR|ACTIVE|UNHEALTHY|UNKNOWN|FROZEN|CONFOUNDED/.test(status)
+        ? "red"
+        : /PENDING|PROVISIONAL|MEASURING|RECOMMEND|WAIT|RESTOR|STOPPING|STARTING/.test(
               status,
             )
-          ? "green"
-          : "neutral");
+          ? "amber"
+          : /ELIGIBLE|READY|CLEAR|VERIFIED|SUCCESS|COMPLET|APPROVED|CONNECTED|HEALTHY|RUNNING/.test(
+                status,
+              )
+            ? "green"
+            : "neutral");
   return (
     <span className={`badge ${color}`}>
       <span className="badge-dot" />
@@ -282,6 +430,7 @@ export function Evidence({
       subtitle={`${record.id} · version ${record.version}`}
       onClose={onClose}
     >
+      <EvidenceSummary record={record} />
       <div className="evidence-note">
         <Check size={16} /> Source values are preserved below for review.
       </div>

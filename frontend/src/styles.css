@@ -3904,3 +3904,14 @@ th {
 
 .policy-workloads { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 .policy-row { flex-wrap: wrap; }
+
+.readiness-summary { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 12px; color: #758a7b; font-size: 10px; }
+.readiness-summary > span { display: inline-flex; align-items: center; gap: 7px; }
+.binding-caption { color: #758a7b; font-size: 10px; margin-top: 9px; }
+.binding-caption .mono { margin-left: 6px; }
+.resource-readiness { min-width: 155px; max-width: 220px; white-space: normal; }
+.resource-readiness .button { margin-top: 8px; }
+.evidence-binding { padding: 16px 0 1px; margin-bottom: 18px; border-top: 1px solid #e8efdf; }
+.evidence-id { overflow-wrap: anywhere; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 10px; }
+.evidence-refs { padding-left: 17px; margin: 10px 0 0; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 10px; color: #749370; line-height: 1.8; overflow-wrap: anywhere; }
+@media(max-width: 760px) { .readiness-summary { gap: 7px; font-size: 9px; flex-direction: column; } .evidence-id, .evidence-refs { font-size: 9px; } }

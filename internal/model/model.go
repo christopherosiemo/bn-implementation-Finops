@@ -65,6 +65,11 @@ type Operation struct {
 	AccountID          string `json:"account_id"`
 }
 type Plan struct {
+	SchemaVersion        string      `json:"schema_version,omitempty"`
+	ReadinessID          string      `json:"readiness_id,omitempty"`
+	BaselineID           string      `json:"baseline_id,omitempty"`
+	MeasurementID        string      `json:"measurement_id,omitempty"`
+	ActivationAt         string      `json:"activation_at,omitempty"`
 	ID                   string      `json:"id"`
 	TenantID             string      `json:"tenant_id"`
 	RecommendationID     string      `json:"recommendation_id"`

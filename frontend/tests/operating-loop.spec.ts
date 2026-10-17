@@ -60,16 +60,51 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await expect(signals).not.toBeVisible();
 
   await page.getByRole("link", { name: "Recommendations" }).click();
-  await page.getByRole("button", { name: "Generate recommendations" }).click();
-  await expect(
-    page.getByRole("button", { name: "Generate recommendations" }),
-  ).toBeEnabled();
+  await expect
+    .poll(
+      async () => {
+        const generated = page.waitForResponse(
+          (response) =>
+            response.url().endsWith("/v1/recommendations") &&
+            response.request().method() === "POST" &&
+            response.ok(),
+        );
+        await page
+          .getByRole("button", { name: "Generate recommendations" })
+          .click();
+        const body = (await (await generated).json()) as {
+          recommendations?: {
+            pre_execution_ready?: boolean;
+            verification_status?: string;
+            baseline_id?: string;
+          }[];
+        };
+        return body.recommendations?.some(
+          (row) =>
+            row.pre_execution_ready === true &&
+            row.verification_status === "MEASURING" &&
+            row.baseline_id,
+        );
+      },
+      {
+        timeout: 60_000,
+        intervals: [1000, 2000, 4000],
+        message:
+          "ordinary fixture ingestion seals a valid baseline before new plans become actionable",
+      },
+    )
+    .toBeTruthy();
   await page
     .getByRole("button", { name: "Create change plan" })
+    .and(page.locator(":enabled"))
     .first()
     .click();
   const plan = page.getByRole("dialog", {
     name: "Create immutable change plan",
+  });
+  await plan.screenshot({
+    path: "test-results/readiness-plan-desktop.png",
+    animations: "disabled",
   });
   await expect(
     plan.getByRole("button", { name: "Create signed plan" }),
@@ -86,10 +121,17 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await approval.getByRole("checkbox").check();
   await approval.getByRole("button", { name: "Approve plan" }).click();
   await expect(approval).not.toBeVisible();
+  const executionResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/v1/executions") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+  );
   await page
     .getByRole("button", { name: "Execute approved plan" })
     .first()
     .click();
+  const execution = (await (await executionResponse).json()) as { id: string };
   await expect(
     page.getByRole("heading", { name: "Every change, in view." }),
   ).toBeVisible();
@@ -113,13 +155,62 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   ).toBeVisible();
 
   await page.getByRole("link", { name: "Savings evidence" }).click();
-  await page
-    .getByRole("button", { name: "Verify savings", exact: true })
-    .click();
-  await expect(page.getByRole("table")).toBeVisible();
   await expect(
-    page.getByText("Verified measurement period").first(),
+    page.getByText("Fixture financial clock · logical time", { exact: true }),
   ).toBeVisible();
+  let verifiedSavingId = "";
+  await expect
+    .poll(
+      async () => {
+        const result = page.waitForResponse(
+          (response) =>
+            response.url().endsWith("/v1/savings/verify") &&
+            response.request().method() === "POST" &&
+            response.ok(),
+        );
+        await page
+          .getByRole("button", { name: "Verify savings", exact: true })
+          .click();
+        const body = (await (await result).json()) as {
+          savings?: {
+            id: string;
+            execution_id: string;
+            status: string;
+            baseline_id?: string;
+            measurement_id?: string;
+          }[];
+        };
+        const verified = body.savings?.find(
+          (row) =>
+            row.execution_id === execution.id &&
+            row.status === "VERIFIED" &&
+            row.baseline_id &&
+            row.measurement_id,
+        );
+        verifiedSavingId = verified?.id || "";
+        return Boolean(verified);
+      },
+      {
+        timeout: 60_000,
+        intervals: [1000, 2000, 4000],
+        message:
+          "the actual cycle receives a sealed post-activation measurement before claiming verified savings",
+      },
+    )
+    .toBeTruthy();
+  await expect(page.getByRole("table")).toBeVisible();
+  const verifiedRow = page.getByRole("row").filter({
+    has: page.getByRole("button", {
+      name: `Inspect ${verifiedSavingId}`,
+      exact: true,
+    }),
+  });
+  await expect(verifiedRow).toContainText("Verified measurement period");
+  await page.screenshot({
+    path: "test-results/savings-desktop.png",
+    fullPage: true,
+    animations: "disabled",
+  });
   await page.getByRole("link", { name: "Audit trail", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "An unbroken trail." }),

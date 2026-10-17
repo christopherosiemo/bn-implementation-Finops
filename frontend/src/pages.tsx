@@ -27,15 +27,22 @@ import {
   Button,
   Empty,
   Evidence,
+  EvidenceSummary,
+  ExecutionReadiness,
   Metric,
   Modal,
   Panel,
   Table,
   TextLink,
   currentSavings,
+  hasBoundMeasurement,
+  isTrustedPlan,
+  isMoneyKnown,
   dateTime,
   matches,
   money,
+  preExecutionReady,
+  resourceReadiness,
   readable,
   shortId,
   sumMoney,
@@ -106,6 +113,43 @@ function RecordButton({
 }
 function NoMatches() {
   return <div className="no-matches">No records match this search.</div>;
+}
+function ReadinessCell({
+  data,
+  resourceId,
+  run,
+  busy,
+}: {
+  data: Dashboard;
+  resourceId: string;
+  run: RunMutation;
+  busy: boolean;
+}) {
+  const readiness = resourceReadiness(data, resourceId);
+  return (
+    <div className="resource-readiness">
+      <ExecutionReadiness record={readiness} />
+      <small className="blocker-text">
+        {readiness?.reason_code
+          ? readable(readiness.reason_code)
+          : "Fresh baseline assessment required"}
+      </small>
+      <Button
+        secondary
+        small
+        pending={busy}
+        onClick={() =>
+          void run({
+            path: `/resources/${resourceId}/readiness/refresh`,
+            label:
+              "Readiness refreshed. Generate recommendations to bind a new change plan.",
+          })
+        }
+      >
+        Refresh assessment
+      </Button>
+    </div>
+  );
 }
 
 function SignalForm({
@@ -261,6 +305,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
               "Workload / environment",
               "State",
               "Eligibility",
+              "Execution readiness",
               "Monthly compute",
               "",
             ]}
@@ -303,8 +348,21 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
+                  <ReadinessCell
+                    data={data}
+                    resourceId={item.id}
+                    run={run}
+                    busy={busy}
+                  />
+                </td>
+                <td className="numeric">
                   {money(item.monthly_effective_cost, item.currency)}
-                  <small>Source currency · compute</small>
+                  <small>
+                    {!isMoneyKnown(item.monthly_effective_cost) ||
+                    !item.currency
+                      ? "No evidenced compute price"
+                      : "Source currency · compute"}
+                  </small>
                 </td>
                 <td>
                   <RecordButton item={item} inspect={setInspect} />
@@ -422,6 +480,15 @@ function PlanForm({
             </dd>
           </div>
         </dl>
+        <EvidenceSummary record={recommendation} />
+        {preExecutionReady(recommendation) &&
+          recommendation.verification_status === "MEASURING" && (
+            <p className="form-note">
+              The baseline is ready for execution. Savings remain measuring
+              until the post-activation window and financial evidence are
+              complete. Creating the plan reserves its measurement reference.
+            </p>
+          )}
         <label className="checkbox-field">
           <input
             type="checkbox"
@@ -439,7 +506,11 @@ function PlanForm({
           <Button secondary type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" pending={busy} disabled={!acknowledged}>
+          <Button
+            type="submit"
+            pending={busy}
+            disabled={!acknowledged || !preExecutionReady(recommendation)}
+          >
             <Fingerprint size={16} />
             Create signed plan
           </Button>
@@ -512,6 +583,15 @@ export function RecommendationsPage({
                       {item.risk_class} · SCHEDULING
                     </span>
                   </div>
+                  <div className="readiness-summary">
+                    <span>
+                      Execution <ExecutionReadiness record={item} />
+                    </span>
+                    <span>
+                      Savings verification{" "}
+                      <Badge value={item.verification_status || "UNVERIFIED"} />
+                    </span>
+                  </div>
                   <h2>{item.title}</h2>
                   <p>
                     {titleFor(data, item.workload_id)}{" "}
@@ -520,7 +600,9 @@ export function RecommendationsPage({
                   <div className="recommendation-evidence">
                     <span>
                       <Activity size={14} />
-                      14-day baseline required
+                      {item.baseline_id
+                        ? "Frozen baseline bound"
+                        : "Complete baseline required"}
                     </span>
                     <span>
                       <ShieldCheck size={14} />
@@ -533,6 +615,14 @@ export function RecommendationsPage({
                   {item.reason_code && (
                     <div className="reason-line">
                       {readable(item.reason_code)}
+                    </div>
+                  )}
+                  {item.baseline_id && (
+                    <div className="binding-caption">
+                      Baseline{" "}
+                      <span className="mono" title={item.baseline_id}>
+                        {shortId(item.baseline_id)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -551,9 +641,11 @@ export function RecommendationsPage({
                 <Button
                   small
                   pending={busy}
-                  disabled={item.status !== "VALIDATED"}
+                  disabled={
+                    item.status !== "VALIDATED" || !preExecutionReady(item)
+                  }
                   title={
-                    item.status !== "VALIDATED"
+                    item.status !== "VALIDATED" || !preExecutionReady(item)
                       ? readable(item.reason_code || item.status)
                       : "Create an immutable signed occurrence plan"
                   }
@@ -863,6 +955,7 @@ function PlanReview({
           <dd>{plan.version}</dd>
         </div>
       </dl>
+      <EvidenceSummary record={plan} />
       <details className="plan-operations" open>
         <summary>Bound operations & restoration</summary>
         <pre>{JSON.stringify(plan.operations, null, 2)}</pre>
@@ -884,7 +977,7 @@ function PlanReview({
         </Button>
         <Button
           pending={busy}
-          disabled={!acknowledged}
+          disabled={!acknowledged || !isTrustedPlan(plan)}
           onClick={async () => {
             const result = await run({
               path: "/approvals",
@@ -1157,6 +1250,10 @@ export function SchedulesPage({
               const executed = data.executions.some(
                 (execution) => execution.change_plan_id === item.id,
               );
+              const bound = isTrustedPlan(item);
+              const ready = preExecutionReady(
+                resourceReadiness(data, item.resource_id),
+              );
               return (
                 <tr key={item.id}>
                   <td>
@@ -1167,6 +1264,11 @@ export function SchedulesPage({
                     </strong>
                     <small className="mono">
                       {shortId(item.id)} · v{item.version}
+                    </small>
+                    <small>
+                      {bound
+                        ? `Baseline ${shortId(item.baseline_id!)} · Measurement ${shortId(item.measurement_id!)}`
+                        : "Historical plan · fresh bound evidence required"}
                     </small>
                   </td>
                   <td>
@@ -1182,6 +1284,14 @@ export function SchedulesPage({
                         <Button
                           small
                           pending={busy}
+                          disabled={!bound || !ready}
+                          title={
+                            !bound
+                              ? "Create a fresh plan bound to current baseline and measurement evidence"
+                              : !ready
+                                ? "Refresh execution readiness before dispatch"
+                                : undefined
+                          }
                           onClick={async () => {
                             const result = await run({
                               path: "/executions",
@@ -1201,6 +1311,12 @@ export function SchedulesPage({
                         <Button
                           small
                           pending={busy}
+                          disabled={!bound}
+                          title={
+                            !bound
+                              ? "Historical plan is read-only; create a fresh evidence-bound plan"
+                              : undefined
+                          }
                           onClick={() => setReview(item)}
                         >
                           <Fingerprint size={14} />
@@ -1451,7 +1567,7 @@ function CurrencySummary({ data }: { data: Dashboard }) {
       <div className="metrics-grid three">
         <Metric
           label="Verified period savings"
-          value="—"
+          value="Unavailable"
           detail="No verified measurement periods"
           icon={<ShieldCheck size={17} />}
           accent
@@ -1476,9 +1592,11 @@ function CurrencySummary({ data }: { data: Dashboard }) {
         const records = currentSavings(data.savings).filter(
           (item) => item.currency === currency,
         );
-        const verified = records.filter((item) => item.status === "VERIFIED");
+        const verified = records.filter(
+          (item) => item.status === "VERIFIED" && hasBoundMeasurement(item),
+        );
         const provisional = records.filter(
-          (item) => item.status !== "VERIFIED",
+          (item) => item.status !== "VERIFIED" && hasBoundMeasurement(item),
         );
         return (
           <div className="metrics-grid three" key={currency}>
@@ -1488,7 +1606,7 @@ function CurrencySummary({ data }: { data: Dashboard }) {
                 sumMoney(verified.map((item) => item.verified_saving)),
                 currency,
               )}
-              detail={`${verified.length} final measurement records`}
+              detail={`${verified.length} bound final measurement records · legacy history excluded`}
               icon={<ShieldCheck size={17} />}
               accent
             />
@@ -1535,7 +1653,7 @@ export function SavingsPage({ data, run, busy, query }: PageProps) {
             void run({
               path: "/savings/verify",
               label:
-                "Financial verification completed. Review finality and source evidence below.",
+                "Savings evidence refreshed. Measurement windows and finality gates determine verification.",
             })
           }
         >
@@ -1544,6 +1662,23 @@ export function SavingsPage({ data, run, busy, query }: PageProps) {
         </Button>
       </Heading>
       <CurrencySummary data={data} />
+      {data.fixture && (
+        <div className="fixture-notice">
+          <Timer size={21} />
+          <div>
+            <strong>Fixture financial clock · logical time</strong>
+            <p>
+              Financial windows simulate fourteen complete days. Provider
+              stop/start receipts belong to the actual fixture cycle; the
+              resulting savings are deterministic test evidence.
+            </p>
+          </div>
+          <span className="fixture-badge">
+            <span />
+            FIXTURE MODE
+          </span>
+        </div>
+      )}
       <div className="savings-method">
         <span className="method-icon">
           <Fingerprint size={24} />
@@ -1582,9 +1717,15 @@ export function SavingsPage({ data, run, busy, query }: PageProps) {
                   <small>Execution {shortId(item.execution_id)}</small>
                 </td>
                 <td>
-                  <Badge
-                    value={currentIds.has(item.id) ? item.status : "SUPERSEDED"}
-                  />
+                  {hasBoundMeasurement(item) ? (
+                    <Badge
+                      value={
+                        currentIds.has(item.id) ? item.status : "SUPERSEDED"
+                      }
+                    />
+                  ) : (
+                    <Badge value="LEGACY">Legacy / unbound history</Badge>
+                  )}
                   {item.reason_code && (
                     <small className="blocker-text">
                       {readable(item.reason_code)}
@@ -1606,11 +1747,13 @@ export function SavingsPage({ data, run, busy, query }: PageProps) {
                 >
                   {money(item.verified_saving, item.currency)}
                   <small>
-                    {!currentIds.has(item.id)
-                      ? "Superseded · retained history"
-                      : item.status === "VERIFIED"
-                        ? "Verified measurement period"
-                        : "Not a verified savings claim"}
+                    {!hasBoundMeasurement(item)
+                      ? "Legacy / unbound history · excluded from verified totals"
+                      : !currentIds.has(item.id)
+                        ? "Superseded · retained history"
+                        : item.status === "VERIFIED"
+                          ? "Verified measurement period"
+                          : "Not a verified savings claim"}
                   </small>
                 </td>
                 <td>

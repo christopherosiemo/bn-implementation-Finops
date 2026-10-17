@@ -116,6 +116,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/resources/{id}/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resourceReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/readiness/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["refreshReadiness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evidence/baselines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sealBaseline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evidence/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sealMeasurement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/schedules": {
         parameters: {
             query?: never;
@@ -313,6 +377,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Decimal: string;
+        NullableDecimal: string | null;
         Document: {
             id?: string;
             /** Format: int64 */
@@ -327,7 +392,9 @@ export interface components {
             state?: string;
             eligibility?: string;
             blockers?: string[];
-            hourly_effective_cost?: components["schemas"]["Decimal"];
+            hourly_effective_cost?: components["schemas"]["NullableDecimal"];
+            monthly_effective_cost?: components["schemas"]["NullableDecimal"];
+            currency?: string | null;
         };
         Recommendation: components["schemas"]["Document"] & {
             title?: string;
@@ -335,8 +402,18 @@ export interface components {
             workload_id?: string;
             status?: string;
             reason_code?: string;
-            annual_saving?: components["schemas"]["Decimal"];
-            monthly_saving?: components["schemas"]["Decimal"];
+            annual_saving?: components["schemas"]["NullableDecimal"];
+            monthly_saving?: components["schemas"]["NullableDecimal"];
+            currency?: string | null;
+            /** @description Only explicit true permits a new plan. Legacy missing values are unactionable. */
+            pre_execution_ready?: boolean;
+            /** @enum {string} */
+            readiness_status?: "READY" | "BLOCKED";
+            /** @enum {string} */
+            verification_status?: "MEASURING" | "VERIFIED" | "BLOCKED" | "CONFOUNDED";
+            readiness_id?: string | null;
+            baseline_id?: string | null;
+            measurement_id?: string | null;
         };
         Schedule: components["schemas"]["Document"] & components["schemas"]["CreateScheduleRequest"];
         ChangePlan: components["schemas"]["Document"] & {
@@ -348,6 +425,12 @@ export interface components {
             schedule_id?: string;
             /** Format: date-time */
             expires_at?: string;
+            readiness_id?: string;
+            baseline_id?: string;
+            measurement_id?: string;
+            /** Format: date-time */
+            activation_at?: string;
+            payload?: components["schemas"]["PlanPayload"];
         };
         Execution: components["schemas"]["Document"] & {
             change_plan_id?: string;
@@ -362,8 +445,18 @@ export interface components {
             status?: string;
             currency?: string;
             verified_saving?: string | null;
-            expected_baseline_cost?: components["schemas"]["Decimal"];
-            actual_cost?: components["schemas"]["Decimal"];
+            expected_baseline_cost?: components["schemas"]["NullableDecimal"];
+            actual_cost?: components["schemas"]["NullableDecimal"];
+            incremental_cost?: components["schemas"]["NullableDecimal"];
+            observed_saving?: components["schemas"]["NullableDecimal"];
+            baseline_id?: string;
+            measurement_id?: string;
+            measurement_snapshot_id?: string | null;
+            /** Format: date-time */
+            activation_at?: string;
+            financial_clock?: components["schemas"]["Document"];
+            is_current?: boolean;
+            supersedes_id?: string;
         };
         CloudAccount: components["schemas"]["Document"];
         Workload: components["schemas"]["Document"];
@@ -383,6 +476,110 @@ export interface components {
             savings: components["schemas"]["Savings"][];
             audit: components["schemas"]["AuditEvent"][];
             data_quality: components["schemas"]["Document"][];
+            readiness: components["schemas"]["Readiness"][];
+        };
+        EvidenceBinding: {
+            tenant_id: string;
+            resource_id: string;
+            provider_resource_id: string;
+            account_id: string;
+            region: string;
+            currency: string | null;
+        };
+        Readiness: components["schemas"]["Document"] & {
+            /** @enum {string} */
+            status: "READY" | "BLOCKED";
+            pre_execution_ready: boolean;
+            /** @enum {string} */
+            verification_status: "MEASURING" | "VERIFIED" | "BLOCKED" | "CONFOUNDED";
+            reason_code?: string;
+            resource_id: string;
+            workload_id?: string;
+            baseline_id?: string | null;
+            measurement_id?: string | null;
+            /** Format: date-time */
+            activation_at?: string | null;
+            /** Format: date-time */
+            checked_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            binding: components["schemas"]["EvidenceBinding"];
+            blockers?: string[];
+            evidence_refs?: string[];
+            source_refs?: components["schemas"]["SourceReference"][];
+        };
+        SourceReference: {
+            /** @enum {string} */
+            kind: "AWS_CUR2";
+            ingestion_job_id: string;
+            source_id: string;
+            source_version: string;
+            /** @description SHA-256 of immutable imported raw source JSON */
+            source_hash: string;
+            /** @description SHA-256 of persisted canonical snapshot JSON */
+            canonical_hash: string;
+            binding: components["schemas"]["EvidenceBinding"];
+        };
+        PlanPayload: components["schemas"]["Document"] & {
+            /** @enum {string} */
+            schema_version: "2";
+            baseline_id: string;
+            measurement_id: string;
+            readiness_id: string;
+            /** Format: date-time */
+            activation_at: string;
+        };
+        WorkloadSample: {
+            tenant_id?: string;
+            resource_id: string;
+            provider_resource_id: string;
+            account_id: string;
+            region: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            units: components["schemas"]["Decimal"];
+            source_record_id: string;
+        };
+        BillingImportRequest: {
+            /** @enum {string} */
+            schema_version: "2";
+            source_id: string;
+            source_version: string;
+            records: components["schemas"]["Document"][];
+            invoice_totals?: {
+                [key: string]: components["schemas"]["Decimal"];
+            };
+            invoice?: components["schemas"]["SourceInvoice"];
+        };
+        SourceInvoice: {
+            invoice_id: string;
+            /** Format: date-time */
+            issued_at: string;
+            final: boolean;
+            total: components["schemas"]["Decimal"];
+        };
+        BaselineRequest: {
+            resource_id: string;
+            ingestion_job_id: string;
+            schedule_id: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            workload_samples: components["schemas"]["WorkloadSample"][];
+        };
+        MeasurementRequest: {
+            measurement_id: string;
+            ingestion_job_id: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            workload_samples: components["schemas"]["WorkloadSample"][];
+            /** @description Optional consistency assertion only; must exactly equal invoice metadata in the immutable imported source. Canonical reconciliation totals are always derived by the server. */
+            invoice?: components["schemas"]["SourceInvoice"];
         };
         ConnectAccountRequest: {
             /** @enum {string} */
@@ -584,10 +781,108 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingImportRequest"];
+            };
+        };
+        responses: {
+            /** @description AWS CUR 2.0 source records normalized and queued for immutable persistence. Caller supplied economic evidence flags are rejected. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resourceReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fresh operational assessment bound to the latest sealed readiness report. Reports expire after five minutes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Readiness"];
+                };
+            };
+        };
+    };
+    refreshReadiness: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
         requestBody: components["requestBodies"]["Document"];
         responses: {
-            /** @description AWS CUR 2.0 records normalized and queued for immutable raw and analytics persistence; optional bound workload evidence imported */
-            202: {
+            /** @description Immutable baseline and operational readiness assessment sealed. Generate recommendations to use this report in a plan. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Readiness"];
+                };
+            };
+        };
+    };
+    sealBaseline: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaselineRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable source-bound baseline sealed; requires at least fourteen complete local days and validated idle-workload evidence */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sealMeasurement: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeasurementRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable measurement snapshot sealed against the signed reservation; costs and invoice reconciliation derive from its persisted canonical source */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

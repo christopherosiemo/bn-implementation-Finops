@@ -29,6 +29,10 @@ The end-to-end test expects the complete Compose fixture stack at `http://localh
 
 OpenAPI-generated wire contracts live in `src/api.generated.ts`. Console types refine the document-shaped API records for display. Monetary aggregation uses fixed-scale integer arithmetic; formatting is display-only. Summaries exclude superseded ledger records and keep source currencies separate.
 
+Version-2 execution readiness is independent of savings verification. Only an explicit `pre_execution_ready: true` allows creation of a new plan; a validated baseline can authorize an approved cycle while savings remain `MEASURING`. New approvals and executions require the signed version-2 baseline, measurement and readiness references. Legacy unbound records remain visible as history and are excluded from verified totals. Unknown costs and estimates display as unavailable. Fixture savings identify their synthetic logical financial clock.
+
+`npx playwright test readiness.spec.ts` runs isolated presentation-contract cases for those rules without mutating the fixture API. The complete operating-loop test additionally waits for the bound measurement to pass the ordinary verification gates.
+
 ## Container
 
 Build from the repository root using `frontend/Dockerfile`. Build arguments `NODE_IMAGE` and `NGINX_IMAGE` permit a configured registry mirror. The final unprivileged nginx process listens on 8080. `API_UPSTREAM` defaults to `api:8080`; environment substitution writes the upstream configuration to `/tmp/default.conf`. Nameservers come from the platform's `/etc/resolv.conf`, and upstream DNS refreshes every five seconds so API container replacement does not leave stale routing. Kubernetes must provide the API service's full DNS name, including namespace and cluster domain. A read-only root filesystem needs only a writable `/tmp` volume. `/healthz` is a local web liveness check; `/v1` is proxied to the authenticated API. Access logs omit query strings, including OIDC authorization codes.

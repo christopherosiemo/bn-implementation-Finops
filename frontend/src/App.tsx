@@ -48,9 +48,11 @@ import {
   Metric,
   Panel,
   TextLink,
-  currentSavings,
+  currentVerifiedSavings,
   dateTime,
   money,
+  preExecutionReady,
+  resourceReadiness,
   readable,
   sumMoney,
   type RunMutation,
@@ -84,26 +86,24 @@ function Overview({
   run: RunMutation;
   busy: boolean;
 }) {
-  const eligible = data.resources.filter(
-    (resource) =>
-      resource.eligibility === true ||
-      ["ELIGIBLE", "READY"].includes(
-        String(resource.eligibility).toUpperCase(),
-      ),
+  const eligible = data.resources.filter((resource) =>
+    preExecutionReady(resourceReadiness(data, resource.id)),
   );
-  const currency = data.recommendations[0]?.currency || "GBP";
+  const currency = data.recommendations.find((item) => item.currency)?.currency;
   const newest = new Map(
     data.recommendations.map((item) => [item.resource_id || item.id, item]),
   );
   const candidates = [...newest.values()].filter(
     (item) =>
-      (item.currency || "GBP") === currency &&
+      item.currency === currency &&
+      preExecutionReady(item) &&
       !/BLOCKED|EXPIRED|REJECTED|SUPERSEDED/.test(item.status),
   );
   const monthly = sumMoney(candidates.map((item) => item.monthly_saving));
-  const savingCurrency = data.savings[0]?.currency || currency;
+  const verifiedRecords = currentVerifiedSavings(data.savings);
+  const savingCurrency = verifiedRecords[0]?.currency || currency;
   const verified = sumMoney(
-    currentSavings(data.savings)
+    verifiedRecords
       .filter(
         (item) =>
           item.status === "VERIFIED" && item.currency === savingCurrency,
@@ -148,8 +148,8 @@ function Overview({
     },
     {
       name: "Verify",
-      detail: `${data.savings.filter((item) => item.status === "VERIFIED").length} verified records`,
-      done: data.savings.some((item) => item.status === "VERIFIED"),
+      detail: `${verifiedRecords.length} verified records`,
+      done: verifiedRecords.length > 0,
       page: "savings" as Page,
     },
   ];
@@ -172,18 +172,26 @@ function Overview({
         <Metric
           label="Monthly opportunity"
           value={money(monthly, currency)}
-          detail={`Estimated · ${candidates.length} recommendations · ${currency}`}
+          detail={
+            monthly === null
+              ? "Cost evidence unavailable"
+              : `Estimated · ${candidates.length} recommendations · ${currency}`
+          }
           icon={<Sparkles size={17} />}
           accent
         />
         <Metric
           label="Verified period savings"
           value={money(verified, savingCurrency)}
-          detail={`Reconciled and final · ${savingCurrency}`}
+          detail={
+            verified === null
+              ? "No verified measurement period"
+              : `${data.fixture ? "Fixture logical financial period" : "Reconciled and final"} · ${savingCurrency}`
+          }
           icon={<ShieldCheck size={17} />}
         />
         <Metric
-          label="Eligible resources"
+          label="Ready to execute"
           value={
             <>
               {eligible.length}
@@ -193,7 +201,7 @@ function Overview({
               </span>
             </>
           }
-          detail="Passed scheduling safety checks"
+          detail="Current baseline and safety evidence"
           icon={<Boxes size={17} />}
         />
         <Metric

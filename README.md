@@ -70,7 +70,7 @@ flowchart LR
 
 ## Live AWS pilot
 
-Live infrastructure is opt-in and is **not deployed by local startup**. Read [deployment](docs/deployment.md), [operations](docs/operations.md), and [acceptance](docs/acceptance.md) before using live mode. A configured customer-role pair is bound to exactly one `AWS_TENANT_ID`; the pilot never shares that identity with another tenant. Live execution remains blocked until ownership, configuration authority, workload telemetry, billing and uncovered economics are established.
+Live infrastructure is opt-in and is **not deployed by local startup**. Read [sandbox readiness](docs/sandbox-readiness.md), [evidence contracts](docs/readiness-evidence.md), [deployment](docs/deployment.md), [operations](docs/operations.md), and [acceptance](docs/acceptance.md) before using live mode. A configured customer identity is bound to exactly one `AWS_TENANT_ID`; the pilot never shares that identity with another tenant. Fresh customer installations create a read role only. API-uploaded financial evidence stays provisional; live execution requires trusted provider and workload evidence integration alongside ownership, configuration authority, fresh safety inputs and uncovered economics. No commissioning bypass is provided.
 
 Optional operator webhooks use `WEBHOOK_URL` and the independently generated `WEBHOOK_SECRET`, supplied only to the worker. An empty URL retains events in the transactional outbox. Live delivery requires HTTPS; receiver configuration and signature verification are described in [deployment](docs/deployment.md).
 

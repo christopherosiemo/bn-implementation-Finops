@@ -2,6 +2,10 @@
 
 This deployment targets the approved AWS development EC2 stop/start pilot in **eu-west-1**. It provides a regional control plane and a tightly scoped customer execution role. It is a pilot reference deployment; production capacity, availability, recovery objectives and security certification have not been established by these files. Terraform validation and Helm rendering do not establish successful deployment in an AWS account.
 
+Complete the [sandbox input and rollout checklist](sandbox-readiness.md) first. Both Terraform stacks now require an exact `expected_account_id`, owner and expiry. The platform also requires an approved account-wide alert budget and recipients. Fresh customer-role installs default to read-only; existing installations must follow the checklist's state-preserving upgrade instructions before planning.
+
+The selected live pilot uses two separate AWS sandbox accounts: one for the EKS control plane and one for customer workloads. Record distinct account IDs and trust only the specified role in the other account. Same-account customer principals/targets are rejected by Terraform; initial empty platform allowlists are supported. Local Compose is the developer fixture path.
+
 ## Boundaries and resources
 
 `deploy/terraform` creates a two-AZ VPC, private EKS worker subnets, isolated RDS subnets, an encrypted PostgreSQL 16 RDS instance with managed administrator credentials, and separate raw and audit S3 buckets. The cluster API is private plus a public endpoint restricted to explicit operator CIDRs. Application services are ClusterIP only. The database accepts PostgreSQL from the EKS cluster security group and requires TLS.
@@ -73,7 +77,7 @@ Temporal auto-setup connects to the pre-created `temporal` and `temporal_visibil
 
 ## Customer-account role installation
 
-Instantiate `deploy/terraform/modules/customer-roles` in the **customer sandbox account**, using an independent Terraform state. Supply the control-plane `ingester` and `executor` role ARNs as the trusted read and execution principals; API, workflow worker and signer have no customer mutation role. The ingester handles discovery and billing/audit ingestion with no signer/executor service credentials. Require a unique external ID at least 32 characters, an explicit tenant, a bounded CUR S3 prefix and exact EC2 instance IDs.
+Instantiate `deploy/terraform/modules/customer-roles` in the **customer sandbox account**, using an independent Terraform state and its `pilot.tfvars.example`. Supply only the control-plane ingester as the read principal initially; the module defaults to `enable_execution=false` and creates no customer execution role/policy. Billing bucket access is optional for discovery. Later execution requires explicit `enable_execution=true`, executor principal and exact instance IDs. API, workflow worker and signer have no customer mutation role. Use a unique external ID at least 32 characters and the exact tenant; when adding billing, scope its S3 prefix and KMS access.
 
 The execution role allows only instance/status/stop-protection descriptions and StartInstances/StopInstances in the selected region. Stopping requires all of these exact tags on an allowlisted instance:
 

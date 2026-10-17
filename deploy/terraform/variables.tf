@@ -1,3 +1,43 @@
+variable "expected_account_id" {
+  type        = string
+  description = "Exact control-plane AWS account; mismatching credentials fail before resource changes."
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.expected_account_id))
+    error_message = "Provide the exact 12-digit control-plane account ID."
+  }
+}
+variable "pilot_owner" {
+  type        = string
+  description = "Accountable operator/team, applied as the Owner cost tag."
+  validation {
+    condition     = length(trimspace(var.pilot_owner)) > 0
+    error_message = "An accountable pilot owner is required."
+  }
+}
+variable "pilot_expires_at" {
+  type        = string
+  description = "Reviewed RFC3339 pilot end time. This tag does not automatically destroy or stop resources."
+  validation {
+    condition     = can(formatdate("YYYY-MM-DD", var.pilot_expires_at))
+    error_message = "Use an RFC3339 expiry timestamp."
+  }
+}
+variable "monthly_budget_usd" {
+  type        = number
+  description = "Approved account-wide monthly alert budget in USD, not a spending cap."
+  validation {
+    condition     = var.monthly_budget_usd > 0
+    error_message = "Supply an explicitly approved positive monthly budget."
+  }
+}
+variable "budget_notification_emails" {
+  type        = list(string)
+  description = "One to five approved operator recipients for account-wide cost alerts."
+  validation {
+    condition     = length(var.budget_notification_emails) > 0 && length(var.budget_notification_emails) <= 5 && alltrue([for email in var.budget_notification_emails : can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email))])
+    error_message = "Supply one to five valid operator email addresses."
+  }
+}
 variable "region" {
   type    = string
   default = "eu-west-1"
@@ -80,11 +120,19 @@ variable "customer_read_role_arns" {
   type        = list(string)
   default     = []
   description = "Explicit customer read roles the isolated ingester may assume."
+  validation {
+    condition     = alltrue([for arn in var.customer_read_role_arns : can(regex("^arn:aws:iam::[0-9]{12}:role/.+", arn)) && try(split(":", arn)[4], "") != var.expected_account_id])
+    error_message = "Customer read roles must belong to the separate workload account, not this control-plane account. Empty bootstrap lists are valid."
+  }
 }
 variable "customer_execution_role_arns" {
   type        = list(string)
   default     = []
   description = "Explicit customer execution roles the isolated executor may assume."
+  validation {
+    condition     = alltrue([for arn in var.customer_execution_role_arns : can(regex("^arn:aws:iam::[0-9]{12}:role/.+", arn)) && try(split(":", arn)[4], "") != var.expected_account_id])
+    error_message = "Customer execution roles must belong to the separate workload account, not this control-plane account. Empty read-only lists are valid."
+  }
 }
 variable "signer_secret_arn" {
   type        = string

@@ -48,6 +48,11 @@ jobs:
         run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
       - name: Linux fixture realm is readable without exposing service secrets
         run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace node:22-bookworm-slim node scripts/bootstrap-permissions.mjs
+      - name: Scan tracked source for secrets
+        run: |
+          mkdir -p /tmp/finops-secret-scan
+          git archive HEAD | tar -x -C /tmp/finops-secret-scan
+          docker run --rm -v /tmp/finops-secret-scan:/src:ro zricethezav/gitleaks:v8.28.0 dir /src --redact --no-banner
   infrastructure:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -57,7 +62,9 @@ jobs:
         run: docker run --rm -v "$PWD:/src" -w /src/deploy/terraform hashicorp/terraform:1.9.8 fmt -check -recursive
       - name: Terraform init and validate without AWS credentials
         run: |
-          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate'
+          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform test -no-color && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate && terraform -chdir=modules/customer-roles test -no-color'
+      - name: Sandbox acceptance and non-destructive plan checker regressions (mock API, no AWS)
+        run: docker run --rm -v "$PWD:/src:ro" -w /src node:22-bookworm-slim sh -ec 'node --test scripts/tests/*.test.mjs'
       - name: Helm lint and render
         run: |
           cmp config/clickhouse/001_facts.sql deploy/helm/finops/files/001_facts.sql
