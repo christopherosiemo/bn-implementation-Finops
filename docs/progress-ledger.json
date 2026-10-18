@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 25,
-  "rounded_description": "Approximately 25 percent of the full product",
-  "credit_review": "Private continuous fleet-health factories, provisional multicloud publication and strict runtime identities accepted within existing component maturity. All eight normal CI jobs passed at a0d4771; full default-duration protocol acceptance remains separately pending. No additional credit, complete fleet workflow, customer/live operation or production acceptance.",
+  "current_weighted_percent": 25.2,
+  "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
+  "credit_review": "Bounded observed-cost allocation accepted at deterministic E2E maturity after all eight exact-commit CI jobs passed at 21e2e8c. The absent 11.5-point broad allocation/forecast/portfolio scope is subdivided into 0.5 bounded allocation and 11 remaining, preserving all weights and historical credit. No additional shared-foundation, private attestor/rate-broker, fleet, live/customer or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 1.3,
+      "contribution_points": 1.5,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -159,19 +159,41 @@
           ]
         },
         {
+          "id": "bounded_observed_cost_allocation",
+          "scope_weight_percent": 0.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/allocation",
+            "internal/store/allocation_integration_test.go",
+            "internal/service/allocation_integration_test.go",
+            "migrations/023_allocation.sql",
+            "frontend/tests/allocation-live.spec.ts",
+            "docs/cost-allocation.md",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Historical ownership and complete chargeback policies remain in the broader package",
+            "Provider-scale asynchronous reporting and customer validation",
+            "Supervised live use, production operation and contractual acceptance"
+          ]
+        },
+        {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 11.5,
+          "scope_weight_percent": 11,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md"
           ],
           "remaining": [
-            "Portfolio allocation, forecasting and broader optimisation"
+            "Portfolio allocation, forecasting and broader optimisation",
+            "Historical ownership, complete chargeback/showback policy breadth, tag/account hierarchies and multi-level allocation",
+            "Provider-scale asynchronous or streaming reports and wider cost definitions",
+            "Azure/GCP authoritative financial reporting, native Kubernetes/node attribution and customer commissioning"
           ]
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 7.222222222222223
+      "current_area_maturity": 8.333333333333332
     },
     {
       "id": "execution_iac_gitops",
@@ -748,6 +770,52 @@
       "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39155256473",
       "live_credit_awarded": false,
       "acceptance": "All eight normal CI jobs passed, including PostgreSQL 16/17, real Python economics, 39 browser cases, process recovery, native telemetry, actual provisional PostgreSQL/MinIO/ClickHouse publication, encrypted physical backup, Kubernetes, generated contracts and source/dependency security. Private fleet health independently latches full-window failures and preserves owned rollback. The separately dispatched default-duration fleet program is pending and cannot be inferred from normal CI. These improvements strengthen existing component stages without extra progress credit. No live cloud source, enabled fleet runtime, fleet financial claim or customer production acceptance."
+    },
+    {
+      "id": "bounded-observed-allocation-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25.2,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 11.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_observed_cost_allocation",
+              "scope_weight_percent": 0.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 11,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_observed_cost_allocation",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 0.2,
+          "acceptance": "Actual OIDC/API persisted-source selection, immutable policy and sealed report, independent pagination and tenant/financial-role denial; actual PostgreSQL exact signed conservation, unknown/zero/currency separation, source correction, immutable roots and cancellation. Current ownership and provisional observed BilledCost only; no historical ownership, verified savings, final chargeback or provider-scale latency claim."
+        }
+      ],
+      "evidence": [
+        "docs/cost-allocation.md",
+        "docs/acceptance.md",
+        "frontend/tests/allocation-live.spec.ts",
+        "internal/service/allocation_integration_test.go",
+        "internal/store/allocation_integration_test.go",
+        "internal/service/financial_source_lock_integration_test.go"
+      ],
+      "release_commit": "21e2e8c4f07435fa314c5efb730074def36c3757",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39161293580",
+      "live_credit_awarded": false,
+      "acceptance": "All eight normal CI jobs passed, including PostgreSQL16/17, real Python economics, 45 browser cases, process recovery, generated contracts, source/dependency security, isolated artifact/rate labs and encrypted PostgreSQL readback. Independent review closed source sync/revocation/current-head selection races with additive024; owned legacy/schema3 START survives. Private020/021 and pending native Flux strengthen existing components without separate credit."
     }
   ]
 }

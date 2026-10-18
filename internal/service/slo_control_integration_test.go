@@ -173,7 +173,7 @@ func TestSLOCurrentMinuteBreachLatchesAndPreservesOwnedRestoration(t *testing.T)
 		t.Fatalf("SLO/expiry/pause stranded existing restoration:%+v %v", state, e)
 	}
 	for n := 0; n < 3; n++ {
-		if state, e := executor.dispatch(ctx, model.Dispatch{Envelope: envelope, ExecutionID: execution, Operation: "HEALTH"}); e != nil || !state.Healthy {
+		if state, e := executor.dispatch(ctx, model.Dispatch{Envelope: envelope, ExecutionID: execution, Operation: "HEALTH"}); e != nil || state.Healthy != (n == 2) || n < 2 && state.Reason != "RESTORATION_HEALTH_PENDING" {
 			t.Fatalf("restoration health failed:%+v %v", state, e)
 		}
 		if n == 0 {

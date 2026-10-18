@@ -117,9 +117,17 @@ existing `Pilot validation` workflow on the reviewed branch with
 CI bounded. The selected job preserves the signed policy durations and fails
 on a test or pipeline error; the exact checkout SHA is recorded in the artifact.
 
-Full default-policy drain acceptance is pending until its exact snapshot run
-passes. Full customer-pipeline/public runtime and financial acceptance remain
-outside this component even after that protocol test passes.
+Default-policy drain acceptance passed in **11,261.58 seconds** on 18 October,
+separate from normal CI. The current health-schema run is pinned to
+`b259dc56739d60979f2e0d35f84f33a62721a1de` with migration022. The
+[explicit DEFAULT job](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39153379926/job/117751461205)
+retains its bounded log: 26 owned children, the signed one-hour canary,
+fifteen-minute terminal windows, at most two changed members per child, and
+old0/green20/traffic100 completion. Receipt clocks were actual server clocks;
+native membership/telemetry and customer pipeline transports remain doubles.
+Other jobs in that older workflow run do not establish this gate. This strengthens
+the existing component stage without extra product credit. Full customer-pipeline,
+public runtime and financial acceptance remain outside this private protocol.
 
 Earlier frozen001–018 clock runs remain evidence for that earlier snapshot
 only. Current-schema default-duration acceptance requires the exact reviewed

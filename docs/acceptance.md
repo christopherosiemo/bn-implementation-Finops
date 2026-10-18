@@ -25,8 +25,11 @@ earlier test's 15-second response wait. The financial gate remains 120 seconds
 and the console request limit remains 30 seconds. All eight normal CI jobs also
 passed at [31263c3](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39159560195),
 including PostgreSQL 16/17, both isolated evidence labs and the final encrypted
-backup drill. The authority follow-up below still requires final-commit acceptance
-before the progress review.
+backup drill. The authority follow-up below also passed all eight jobs at
+[21e2e8c](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39161293580).
+The fixed-weight review awards only the bounded allocation view 0.2 points,
+advancing the complete product from 25.0 to 25.2. Private artifact/rate components
+and shared foundations receive no additional credit.
 
 Billing-source revision selection now compares parsed native instants. Equal
 instants with different execution IDs persist an ambiguity refusal rather than
@@ -55,6 +58,24 @@ Adversarial table-lock tests check that synchronization is already excluded whil
 that query waits. Missing sources return a typed blocker without leaving the
 authority transaction aborted.
 
+The final rebuilt local stack additionally passed 17 operating-loop checks,
+6 actual API/worker recovery checks, 6 machine activity, 15 dependency, 15 SLO,
+10 native telemetry and 5 official OTel checks. The real Python/provider-shaped
+financial history/correction/recovery regression passed in 926 seconds after
+the test-clock correction, preserving the exact claim, replay deduplication and
+append-only cancellation through a journey longer than the live freshness
+limit. This is deterministic acceptance with explicit provider doubles, not a
+customer financial claim or product latency SLO.
+
+The final rebuilt-stack encrypted PostgreSQL drill also passed all eight checks.
+It authenticated the archive before extraction, verified native checksums and
+WAL before startup, and recovered audit, financial, signature and ownership
+records alongside Temporal schemas. Restricted-role/RLS metadata and function
+definitions/execute grants, including migration 024, matched after recovery.
+The restored database had no network, published ports or application workers.
+Its 865-second local duration is not a production RTO; workflow resumption,
+object-store and ClickHouse recovery remain separate gates.
+
 Two separate private evidence components pass actual isolated local labs. The
 configuration attestor reads a committed local repository and actual Terraform
 1.16 built-in-provider plan/state, then stores an authenticated encrypted bundle
@@ -73,6 +94,84 @@ The labs start from fresh owned module/build caches. Credential-free dependency
 preparation receives only module lockfiles; credentialed acceptance runs without
 outbound network on an internal fixture network. Exact labelled cleanup must
 finish before acceptance is recorded. No cloud resources are provisioned.
+
+## 18 October follow-up: scheduling controls at the dispatch boundary
+
+The executor and API serialize restoration overrides, organization/schedule
+pause, skip and policy changes with the first STOP decision. A cancellation
+committed during the intent handoff consumes only the new, unissued intent;
+earlier uncertain attempts retain reconciliation and recovery authority.
+Different resource stops share the scheduling guard rather than serializing
+each other. The executor retains SELECT-only access to execution entities; no
+new role grants or migration are required.
+
+Actual disposable PostgreSQL tests under distinct authenticated roles cover all
+five controls both before and after the final dispatch decision. An ambiguous
+skip against an existing unowned STOP intent returns 409 without changing its
+flag; an explicit `start_now` still requests recovery. The same focused run
+covers SLO breach latching with graph-before-provider-row ordering, owned START,
+definitive rejection, uncertain responses and consumed authority after a later
+manual stop. The combined run passed in 53 seconds; service vet and
+provider/safety tests passed.
+
+Immutable exact-occurrence skip receipts survive scheduler consumption and
+process/pool replacement. A known current unissued occurrence receives its
+receipt directly, avoiding a second skip on the next day. Existing intents are
+never assumed unissued. Nanosecond fixture instants and fixture generations
+remain distinct; live scheduled minutes retain their canonical UTC instant.
+The updated actual PostgreSQL workflow suite passed in 33 seconds, including
+tenant denial, replay, the next occurrence, preassigned proposal suppression
+and webhook retry. Notification HTTP runs in a separate transaction after
+queued workflows start, without holding the scheduling control guard or
+rolling back committed skips. Independent cross-review found no remaining
+issue in these bounded paths. These reliability fixes receive no additional
+product progress credit or live AWS acceptance.
+
+An unresolved provider STOP cannot be discharged by observing a running healthy
+instance. The executor learns ownership from an actual stopping/stopped state,
+retains uncertain intent through healthy-running observations, and resets stale
+health evidence when the observed state is not running. HEALTH reports recovery
+ready only after its persisted mandatory probe sequence completes. This also
+prevents cached workflow successes from bypassing a new sequence after an
+interrupted recovery. The Temporal command shape and existing signatures remain
+unchanged; the additional confirmation polls can extend readiness confirmation.
+Already consumed capabilities still leave later manual stops untouched.
+The final combined restricted-PostgreSQL regression passed in 132 seconds,
+including a genuine current-minute SLO wait, all dispatch-control cases and
+the new uncertainty/interrupted-health cases; service vet passed. No SQL or
+workflow-version migration is introduced by this fix.
+The rebuilt core then passed all seven connected runtime suites, including
+actual API/worker restart recovery and the official OTel collector. These
+checks use the retained database and signing keys.
+The complete unchanged Chromium suite subsequently passed all 45 cases in
+5.1 minutes with one worker, original timeouts and zero retries, including
+actual OIDC allocation/native views and the full approved stop/pause/owned
+restoration/exact-claim journey. The earlier 44/45 attempt and its slow initial
+login trace remain preserved; the final rerun followed heavy lab cleanup.
+
+The commissioning dossier now links an exact-decimal, offline Ireland sandbox
+cost model with a versioned public-price snapshot. Its USD 394.11 reference
+subtotal for 730 hours is not a full bill or spending ceiling: unknown usage,
+retained evidence, key rotation and other unpriced charges remain visible.
+Scenario checks preserve those unknowns and enforce the reviewed EKS support
+period. This planning aid grants no deployment approval or progress credit.
+
+The current private fleet health protocol separately passed its exact
+migration022 snapshot in
+[the explicit DEFAULT job](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39153379926/job/117751461205).
+Its 11,262-second real-clock run retained the one-hour canary and fifteen-minute
+terminal windows through 26 bounded children. Provider/member/telemetry and
+pipeline transports remain doubles; the queue, financial measurement and
+customer execution are disabled. This is component assurance without extra
+progress credit. See [the protocol boundary](fleet-cohort-health.md).
+
+The separate native Flux harness adds exact source/controller/artifact binding,
+strict static rendering and a complete rollout/PDB/failure/Git-revert protocol.
+Its dedicated CI job must produce a matching successful native outcome; unit
+tests do not substitute for that gate. Current Node checks pass all 166 cases.
+Actual Linux UID1001 compilation, Git publication, HTTP transport tests and
+read-only server validation pass on fresh volumes with private permissions,
+network-free compilation and verified cleanup. See [native lab boundaries](../examples/flux/README.md).
 
 ## 18 October increment: native hardware, capacity integration and encrypted recovery
 

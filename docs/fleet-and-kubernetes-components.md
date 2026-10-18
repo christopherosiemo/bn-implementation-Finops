@@ -76,13 +76,15 @@ The cohort calculator checks every member, frozen-blue and current-blue/green
 scope, complete windows and conservative histogram bounds. Absolute SLOs and
 regression limits are independent; a 35% regression breaches a 15% allowance.
 A quiet unhealthy member cannot hide behind a healthy high-volume member.
-The runtime proof factory must still select continuously observed evidence for
-the **entire signed stage window**, preserve any failure latch and reject gaps.
+The private health factory selects continuously observed evidence for the
+**entire signed stage window**, preserves any failure latch and rejects gaps.
 Elapsed time plus a fresh two-minute snapshot does not prove an hour of safe
-canary operation. Private authority/capacity/financial factories, customer
-pipeline dispatch, the connected full fleet journey and financial verification
-remain required before R2 execution can be enabled. No public API signs or
-dispatches these v4 plans in this increment.
+canary operation. Its [separate real-clock protocol gate](fleet-cohort-health.md)
+does not register a runtime queue. Current private artifact/rate components,
+connected authority/capacity/financial factories, customer pipeline dispatch,
+the full fleet journey and financial verification remain required before R2
+execution can be enabled. No public API signs or dispatches these v4 plans in
+this increment.
 
 Terraform binary/JSON/state artifacts can contain sensitive values. Keep them in
 restricted encrypted storage, never public API payloads, logs or Git. The offline
@@ -111,3 +113,21 @@ stay blocked. No node-cost realization, workload-normalized financial saving or
 customer production acceptance is established. The lab's private evidence is in
 `work/kubernetes-lab/acceptance.json`; CI retains only that bounded evidence, not
 kubeconfig or ServiceAccount credentials. See [local reproduction](../examples/kubernetes/README.md).
+
+A separate [native Flux lab](../examples/flux/README.md) installs pinned real
+source and Kustomize controllers in a new three-node cluster. Its read-only
+collector binds native source/controller identities, generations, exact Git
+revision, artifact digest and Deployment spec. The constrained renderer accepts
+only the static fixture layout; it does not establish live ConfigMap or code
+equivalence. The complete native journey requires successful rollout, an
+explicit PDB preflight refusal, failed readiness and an owned Git-revert
+recovery before its PASS artifact is written. A separate CI job retains that
+bounded outcome; unit tests alone cannot establish native acceptance.
+
+This local fixture uses a dedicated standard Docker bridge with outbound
+connectivity, a localhost-only Kubernetes API and no published Git port. It has
+no customer/cloud credentials or customer data. Exact ownership checks govern
+cleanup. Linux consumers use the invoking UID/GID, retaining private directory
+and credential permissions. Actual nonroot Linux compilation and Git/server
+checks pass on fresh volumes with networking disabled. These components do not
+enable a customer runtime or earn additional progress credit.

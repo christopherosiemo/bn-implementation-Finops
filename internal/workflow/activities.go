@@ -253,7 +253,12 @@ func Run(ctx context.Context, cfg service.Config, db *store.Store) error {
 		}
 	}
 }
-func dispatchQueued(ctx context.Context, c client.Client, a *Activities) error {
+
+type workflowStarter interface {
+	ExecuteWorkflow(context.Context, client.StartWorkflowOptions, interface{}, ...interface{}) (client.WorkflowRun, error)
+}
+
+func dispatchQueued(ctx context.Context, c workflowStarter, a *Activities) error {
 	rows, e := a.Store.Pool.Query(ctx, "SELECT tenant_id FROM tenant_registry")
 	if e != nil {
 		return e
@@ -279,7 +284,7 @@ func dispatchQueued(ctx context.Context, c client.Client, a *Activities) error {
 			if e := scheduleDue(ctx, a, t); e != nil {
 				return e
 			}
-			return deliverOutbox(ctx, a, t)
+			return nil
 		})
 		if e != nil {
 			slog.Error("tenant dispatch", "tenant", tenant, "error", e)
@@ -295,6 +300,15 @@ func dispatchQueued(ctx context.Context, c client.Client, a *Activities) error {
 			if e != nil && !errors.As(e, &already) {
 				slog.Error("start occurrence", "execution", in.ExecutionID, "error", e)
 			}
+		}
+	}
+	// Start eligible queues for every tenant before making notification calls;
+	// a slow receiver for one tenant must not delay another tenant's starts.
+	for _, tenant := range tenants {
+		// Notification failure must neither roll back a committed skip nor
+		// hold the tenant scheduling-control guard across HTTP.
+		if e = a.Store.Do(ctx, tenant, func(t *store.Tx) error { return deliverOutbox(ctx, a, t) }); e != nil {
+			slog.Error("tenant notifications", "tenant", tenant, "error", e)
 		}
 	}
 	return nil

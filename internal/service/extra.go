@@ -49,6 +49,9 @@ func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *
 		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
 			return nil, 0, true, e
 		}
+		if e := lockSchedulingControl(ctx, t, false); e != nil {
+			return nil, 0, true, e
+		}
 		d, e := t.Get(ctx, "policies", parts[1])
 		if e != nil {
 			return nil, 0, true, e

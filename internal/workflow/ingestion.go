@@ -82,6 +82,23 @@ func ingestTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 }
 
 func scheduleDue(ctx context.Context, a *Activities, t *store.Tx) error {
+	return scheduleDueAt(ctx, a, t, time.Time{})
+}
+
+// The clock is server-selected. Tests can exercise a later calendar occurrence
+// without sleeping a day; no request or configuration can select this instant.
+func scheduleDueAt(ctx context.Context, a *Activities, t *store.Tx, now time.Time) error {
+	// Use the same guard as pause/skip/policy controls before reading their
+	// versions or acquiring BuildPlan's dependency-graph guard. The caller
+	// commits this scheduling transaction before any notification network I/O.
+	if _, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":scheduling-control"); e != nil {
+		return e
+	}
+	if now.IsZero() {
+		// Sample the production clock after waiting for controls/dispatches;
+		// a previously captured minute may no longer be the due occurrence.
+		now = time.Now()
+	}
 	schedules, e := t.List(ctx, "schedules")
 	if e != nil {
 		return e
@@ -93,7 +110,6 @@ func scheduleDue(ctx context.Context, a *Activities, t *store.Tx) error {
 	if model.Bool(org, "paused") {
 		return nil
 	}
-	now := time.Now()
 	for _, s := range schedules {
 		if model.Bool(s, "paused") {
 			continue
@@ -125,13 +141,38 @@ func scheduleDue(ctx context.Context, a *Activities, t *store.Tx) error {
 		if !allowed {
 			continue
 		}
+		// Match NextWindow's IANA/date construction, including its single
+		// resolution of a repeated local minute at a DST transition.
+		stop := time.Date(local.Year(), local.Month(), local.Day(), local.Hour(), local.Minute(), 0, 0, loc).UTC()
 		s["last_occurrence_date"] = date
+		skipped, e := service.ScheduleStopSkipped(ctx, t, model.String(s, "id"), stop)
+		if e != nil {
+			return e
+		}
+		if skipped {
+			// An operator can bind the cancellation to a queued occurrence
+			// before this scheduler tick. Preserve that decision without a
+			// second proposal or a duplicate immutable skip receipt.
+			if _, e = t.Update(ctx, "schedules", model.String(s, "id"), model.Number(s, "version"), s); e != nil {
+				return e
+			}
+			continue
+		}
 		if model.Bool(s, "skip_next_stop") {
+			// Preserve this exact calendar occurrence after consuming the flag.
 			s["skip_next_stop"] = false
 			if _, e = t.Update(ctx, "schedules", model.String(s, "id"), model.Number(s, "version"), s); e != nil {
 				return e
 			}
-			if e = t.Audit(ctx, "scheduler", "schedule.stop_skipped", model.String(s, "id"), nil); e != nil {
+			details := model.Document{"schedule_id": s["id"], "stop_at": stop.Format(time.RFC3339Nano), "local_date": date, "timezone": s["timezone"]}
+			if model.Bool(org, "fixture") {
+				generation := model.String(org, "fixture_generation")
+				if generation == "" {
+					generation = "initial"
+				}
+				details["fixture_generation"] = generation
+			}
+			if e = t.Audit(ctx, "scheduler", "schedule.stop_skipped", model.String(s, "id"), details); e != nil {
 				return e
 			}
 			continue

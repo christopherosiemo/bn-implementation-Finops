@@ -260,7 +260,9 @@ func (r Reader) Collect(ctx context.Context, b Binding) (Snapshot, error) {
 	s.AutoscalerDiscoveryComplete = b.Provider == "LOCAL_KIND"
 	s.NodeAutoscalers = stable(s.NodeAutoscalers)
 	s.Git, err = r.git(ctx, b, read)
-	s.Git.RawHash = s.RawHashes["git_ack"]
+	if b.Git.Engine != "FLUX" {
+		s.Git.RawHash = s.RawHashes["git_ack"]
+	}
 	if err != nil {
 		s.Problems = append(s.Problems, err.Error())
 	}
@@ -318,23 +320,7 @@ func (r Reader) git(ctx context.Context, b Binding, read func(string, string) (D
 		g.RawHash = Hash(d)
 		return g, nil
 	}
-	d, e := read("git_ack", "/apis/kustomize.toolkit.fluxcd.io/v1/namespaces/"+b.Git.ControllerNamespace+"/kustomizations/"+b.Git.ControllerName)
-	if e != nil {
-		return g, e
-	}
-	spec, status := object(d["spec"]), object(d["status"])
-	g.Path = str(spec, "path")
-	g.Revision = str(status, "lastAppliedRevision")
-	if parts := strings.Split(g.Revision, "@sha1:"); len(parts) == 2 {
-		g.Revision = parts[1]
-	}
-	g.Ready = condition(status, "Ready")
-	g.Generation = num(object(d["metadata"]), "generation")
-	g.ObservedGeneration = num(status, "observedGeneration")
-	g.Synced = g.Ready && g.ObservedGeneration >= g.Generation
-	g.ObservedAt, _ = time.Parse(time.RFC3339Nano, str(status, "lastHandledReconcileAt"))
-	g.RawHash = Hash(d)
-	return g, nil
+	return r.flux(ctx, b, read)
 }
 
 func ParseDeployment(d Document) (Deployment, error) {

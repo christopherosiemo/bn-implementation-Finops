@@ -1,18 +1,18 @@
 # Product scope progress ledger
 
-Recorded 18 October 2026. **Approximately 24% → 25%** of the full product, using **24.4 → 25.0 weighted points** across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
+Recorded 18 October 2026. **25.0% → 25.2%** of the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 
 | Domain | Fixed scope weight | Current area maturity | Contribution |
 | --- | ---: | ---: | ---: |
 | Billing, inventory and telemetry | 18% | 28.33% | 5.1 points |
 | Workload graph, demand and SLO | 12% | 40% | 4.8 points |
-| Optimisation, forecasting and commitments | 18% | 7.22% | 1.3 points |
+| Optimisation, forecasting and commitments | 18% | 8.33% | 1.5 points |
 | Execution, IaC and GitOps | 18% | 18.33% | 3.3 points |
 | Reconciliation and verified savings | 10% | 40% | 4.0 points |
 | Identity, tenancy, policy and audit | 10% | 35% | 3.5 points |
 | Console, API and enterprise workflows | 6% | 30% | 1.8 points |
 | Production operations | 8% | 15% | 1.2 points |
-| **Total** | **100%** | | **25.0 points** |
+| **Total** | **100%** | | **25.2 points** |
 
 The fleet/local Kubernetes component review adds **0.6 points** after all seven CI jobs passed at [e7b0cd7](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086). The unaccepted 11.25-point broad IaC/GitOps package is subdivided into 1.5 points of fleet protocol components, 1.5 points of local Kubernetes/GitOps safety components and 8.25 points of remaining broad actions, preserving all previous scope and credit. Only the two bounded components advance from absent to component acceptance. No full fleet workflow, hosted Kubernetes, Azure/GCP parity, customer use, live operation or production credit is awarded. Shared console, identity and storage foundations are not counted again. See [component boundaries](fleet-and-kubernetes-components.md).
 
@@ -34,11 +34,21 @@ not establish it. Native multicloud sources, complete invoices/commitments,
 enabled fleet runtime, fleet savings and customer production operation remain
 outstanding.
 
-The allocation/attestor/rate-broker candidate is under final acceptance. Focused
-local passes and additional tests do not yet add credit. Its bounded allocation
-scope, possible subdivision and evidence will be reviewed only after connected
-acceptance and exact-commit CI; shared storage, identity and console foundations
-will not be counted again.
+The bounded observed-cost allocation review records **25.0 → 25.2** after all
+eight CI jobs passed at
+[21e2e8c](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39161293580).
+The previous absent 11.5-point broad allocation/forecast/portfolio package is
+subdivided into 0.5 points for bounded current-ownership allocation and 11 points
+for all remaining scope, preserving prior scope and credit. Only the bounded
+view advances from absent to deterministic E2E maturity, adding 0.2 points.
+Actual OIDC and persisted API evidence connect source selection, immutable
+policy, sealed exact-decimal report, pagination and role/tenant denial. Signed
+credits, unknowns, separate currencies, corrections and source authority have
+restricted PostgreSQL acceptance. Shared storage, identity and console
+foundations receive no additional credit. Neither private artifact/rate
+components nor pending native Flux earn credit here. Historical ownership,
+provider-scale reporting, customer chargeback, complete fleet economics and
+live/production operation remain required. See [allocation limits](cost-allocation.md).
 
 The preceding SLO increment added 1.2 points by advancing the bounded independent-demand/SLO package from component acceptance to deterministic end-to-end acceptance. Registered machine observations feed immutable objectives and sealed pre-plan evaluations. Hard limits and enabled regression are independent; missing intervals, uncertain histogram bounds and incompatible availability windows block stops. A genuine minute-rollover PostgreSQL test records an owned failure and one notification, preserves restoration through expiry/pause, and retains the latch after later good state. Financial correction tests prevent sibling occurrences or re-verification from reviving the disqualified measurement. Collector, API and browser acceptance connect these components. Native instrumentation, longer SLI distributions, CPU/memory headroom, replica/AZ/RTO/RPO breadth, live and production acceptance earned no credit in that review. Shared signing, tenancy, console and restoration foundations are not counted again.
 

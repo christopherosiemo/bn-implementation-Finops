@@ -635,6 +635,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
 			return nil, 0, e
 		}
+		if e := lockSchedulingControl(ctx, t, false); e != nil {
+			return nil, 0, e
+		}
 		d, e := t.Get(ctx, "org", i.Tenant)
 		if e != nil {
 			return nil, 0, e
@@ -718,6 +721,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
 			return nil, 0, e
 		}
+		if e := lockSchedulingControl(ctx, t, false); e != nil {
+			return nil, 0, e
+		}
 		d, e := t.Get(ctx, "schedules", parts[1])
 		if e != nil {
 			return nil, 0, e
@@ -735,7 +741,11 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if parts[2] == "pause" {
 			d["paused"] = model.Bool(in, "paused")
 		} else {
-			d["skip_next_stop"] = true
+			bound, err := bindCurrentScheduleSkip(ctx, t, i.Subject, d, a.now())
+			if err != nil {
+				return nil, 0, err
+			}
+			d["skip_next_stop"] = !bound
 		}
 		d, e = t.Update(ctx, "schedules", parts[1], model.Number(d, "version"), d)
 		if e == nil {
@@ -773,6 +783,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 	}
 	if len(parts) == 3 && parts[0] == "executions" && parts[2] == "start-now" {
 		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
+			return nil, 0, e
+		}
+		if e := lockExecutionControl(ctx, t, parts[1]); e != nil {
 			return nil, 0, e
 		}
 		d, e := t.Get(ctx, "executions", parts[1])

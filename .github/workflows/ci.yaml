@@ -136,7 +136,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate'
           docker run --rm --network none -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence hashicorp/terraform:1.9.8 test -no-color
-      - name: Sandbox acceptance and non-destructive plan checker regressions (mock API, no AWS)
+      - name: Sandbox guards, offline cost arithmetic and plan checker regressions (no AWS)
         run: docker run --rm -v "$PWD:/src:ro" -w /src node:22-bookworm-slim sh -ec 'node --test scripts/tests/*.test.mjs'
       - name: Helm lint and render
         run: |
@@ -185,6 +185,34 @@ jobs:
         if: always()
         run: |
           if [ -x work/tools/kind ]; then work/tools/kind delete cluster --name finops-autopilot-lab; fi
+  flux-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # A separate disposable job: never change the main fixture daemon or an
+      # operator's Docker settings. Preserve exact OCI manifests for KIND import.
+      - name: Configure this runner's digest-preserving image store
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5
+        with:
+          daemon-config: |
+            {"features":{"containerd-snapshotter":true}}
+      - name: Exercise real Flux rollout, PDB refusal and owned Git rollback
+        run: node scripts/flux-lab.mjs
+      - name: Retain bounded controller acceptance without credentials or admin config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-flux-acceptance
+          path: |
+            work/flux-lab/acceptance.json
+            work/flux-lab/*/observation-failure.json
+            work/flux-lab/*/controllers-failure.json
+          if-no-files-found: ignore
+          retention-days: 7
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -247,6 +247,13 @@ func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) err
 	if model.Bool(schedule, "paused") || model.Bool(schedule, "skip_next_stop") {
 		return problem(422, "BLOCKED_SCHEDULE_PAUSED", "schedule paused or next stop skipped")
 	}
+	skipped, e := ScheduleStopSkipped(ctx, t, p.ScheduleID, p.StopAt)
+	if e != nil {
+		return e
+	}
+	if skipped {
+		return problem(422, "BLOCKED_STOP_OCCURRENCE_SKIPPED", "this scheduled occurrence was durably skipped")
+	}
 	mode := model.String(schedule, "mode")
 	if mode != "ASSISTED_EXECUTION" && mode != "AUTOPILOT" {
 		return problem(422, "BLOCKED_EXECUTION_MODE", "schedule mode prohibits stop")
@@ -270,6 +277,73 @@ func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) err
 	}
 	return nil
 }
+
+// ScheduleStopSkipped preserves the cancellation of an exact occurrence after
+// the scheduler clears its one-shot flag. Audit receipts are immutable and
+// tenant-scoped; older receipts without an explicit stop instant match nothing.
+func ScheduleStopSkipped(ctx context.Context, t *store.Tx, scheduleID string, stopAt time.Time) (bool, error) {
+	org, e := t.Get(ctx, "org", t.Tenant)
+	if e != nil {
+		return false, e
+	}
+	generation := ""
+	if model.Bool(org, "fixture") {
+		generation = model.String(org, "fixture_generation")
+		if generation == "" {
+			generation = "initial"
+		}
+	}
+	var skipped bool
+	e = t.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM audit_events WHERE tenant_id=$1 AND action='schedule.stop_skipped' AND resource=$2 AND document->'details'->>'stop_at'=$3 AND ($4='' OR document->'details'->>'fixture_generation'=$4))", t.Tenant, scheduleID, stopAt.UTC().Format(time.RFC3339Nano), generation).Scan(&skipped)
+	return skipped, e
+}
+
+// Stops take this shared lock after their resource lock and retain it through
+// dispatch commit. Cancellation controls take it exclusively before reading
+// their current version. Different resources can still stop concurrently.
+func lockSchedulingControl(ctx context.Context, t *store.Tx, shared bool) error {
+	query := "SELECT pg_advisory_xact_lock(hashtextextended($1,0))"
+	if shared {
+		query = "SELECT pg_advisory_xact_lock_shared(hashtextextended($1,0))"
+	}
+	_, e := t.Exec(ctx, query, t.Tenant+":scheduling-control")
+	return e
+}
+
+// The API needs no resource lock. The executor always orders resource,
+// scheduling-control, then execution-control, avoiding an UPDATE grant on the
+// executions table merely to serialize a cancellation with provider dispatch.
+func lockExecutionControl(ctx context.Context, t *store.Tx, executionID string) error {
+	_, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":execution-control:"+executionID)
+	return e
+}
+
+func pendingStopControl(ctx context.Context, t *store.Tx, p model.Plan, executionID string) error {
+	if e := lockSchedulingControl(ctx, t, true); e != nil {
+		return e
+	}
+	if e := lockExecutionControl(ctx, t, executionID); e != nil {
+		return e
+	}
+	execution, e := t.Get(ctx, "executions", executionID)
+	if e != nil {
+		return e
+	}
+	if model.String(execution, "change_plan_id") != p.ID {
+		return problem(422, "EXECUTION_MISMATCH", "wrong execution")
+	}
+	if model.Bool(execution, "start_now") {
+		return problem(422, "STOP_CANCELLED", "restoration override cancels the pending stop")
+	}
+	if p.SchemaVersion == "3" {
+		// SLO breach latching also orders dependency graph before the
+		// provider receipt row. Never invert that order on a new STOP.
+		_, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph")
+		return e
+	}
+	return nil
+}
+
 func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.ProviderState, error) {
 	var out model.ProviderState
 	p := in.Envelope.Plan
@@ -308,6 +382,11 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 		targetKey := op.AccountID + ":" + op.Region + ":" + op.ProviderResourceID
 		if _, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", p.TenantID+":"+targetKey); e != nil {
 			return e
+		}
+		if in.Operation == "STOP" {
+			if e = pendingStopControl(ctx, t, p, in.ExecutionID); e != nil {
+				return e
+			}
 		}
 		var intent, owned, restored bool
 		var data []byte
@@ -362,6 +441,26 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			out = current
 			return nil
 		}
+		if exists && !restored && (current.State != "running" || !current.Healthy) {
+			delete(state, "healthy_since")
+			state["healthy_checks"] = int64(0)
+		}
+		// A transport timeout is not proof that the first STOP did nothing.
+		// Only an observed stopping/stopped transition establishes ownership;
+		// running health alone cannot discharge that unresolved obligation.
+		if exists && intent && !restored && (current.State == "stopping" || current.State == "stopped") {
+			owned = true
+		}
+		if exists && intent && !owned && !restored {
+			current.Healthy = false
+			current.Reason = "STOP_OUTCOME_UNRESOLVED"
+			delete(state, "healthy_since")
+			state["healthy_checks"] = int64(0)
+		}
+		if in.Operation == "HEALTH" && (!exists || !intent) {
+			current.Healthy = false
+			current.Reason = "RESTORATION_NOT_OWNED"
+		}
 		dispatched := false
 		switch in.Operation {
 		case "STOP":
@@ -370,8 +469,6 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			}
 			if owned || intent && current.State == "stopped" {
 				owned = true
-				current.State = "stopped"
-				current.Healthy = false
 				break
 			}
 			if exists && intent {
@@ -419,6 +516,11 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				if _, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", p.TenantID+":"+op.AccountID+":"+op.Region+":"+op.ProviderResourceID); e != nil {
 					return e
 				}
+				controlErr := pendingStopControl(ctx, t, p, in.ExecutionID)
+				var blocked *Problem
+				if controlErr != nil && (!errors.As(controlErr, &blocked) || blocked.Code != "STOP_CANCELLED") {
+					return controlErr
+				}
 				// Committing intent releases the first lock. Re-read consumption
 				// before dispatch in case another recovery completed meanwhile.
 				if e = t.QueryRow(ctx, "SELECT stop_intent,stop_owned,restored FROM provider_operations WHERE tenant_id=$1 AND execution_id=$2 FOR UPDATE", t.Tenant, in.ExecutionID).Scan(&intent, &owned, &restored); e != nil {
@@ -426,6 +528,13 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				}
 				if restored || !intent || owned {
 					return problem(409, "OCCURRENCE_COMPLETED", "stop authority was consumed while intent was persisted")
+				}
+				// The intent commit released all control locks. A start-now or
+				// pause accepted during that handoff must cancel this unissued
+				// stop. Hold the reacquired locks until dispatch has committed so
+				// a later control cannot report success inside the checked gap.
+				if controlErr != nil {
+					return consumeUnissuedStop(ctx, t, in.ExecutionID, state, op, "STOP_CANCELLED", controlErr)
 				}
 				if e = precheck(ctx, t, p, time.Now()); e != nil {
 					return consumeUnissuedStop(ctx, t, in.ExecutionID, state, op, "STOP_PRECONDITIONS_CHANGED", e)
@@ -456,8 +565,7 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				return problem(422, "RESTORATION_NOT_OWNED", "this occurrence did not initiate a stop")
 			}
 			if current.State == "stopping" {
-				out = current
-				return nil
+				break
 			}
 			if current.State == "running" {
 				break
@@ -465,7 +573,7 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			if current.State != "stopped" && current.State != "pending" {
 				return problem(422, "INVALID_RESTORE_STATE", "cannot safely restore provider state")
 			}
-			if s.Config.Fixture {
+			if s.Config.Fixture && current.State == "stopped" {
 				current = model.ProviderState{State: "running", Healthy: true}
 				dispatched = true
 			} else if current.State == "stopped" {
@@ -478,7 +586,6 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 					return e
 				}
 			}
-			owned = true
 		case "HEALTH":
 			if current.State == "running" && current.Healthy && !s.Config.Fixture {
 				current.Healthy, e = s.probe(ctx, p.HealthURL)
@@ -496,7 +603,7 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				state["running_at"] = model.Now()
 			}
 			if in.Operation == "HEALTH" && !restored {
-				if current.State == "running" && current.Healthy {
+				if intent && owned && current.State == "running" && current.Healthy {
 					since, e := time.Parse(time.RFC3339Nano, model.String(state, "healthy_since"))
 					if e != nil {
 						since = time.Now()
@@ -521,6 +628,13 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			if _, e = t.Exec(ctx, "UPDATE provider_operations SET stop_owned=$3,restored=$4,document=$5,updated_at=now() WHERE tenant_id=$1 AND execution_id=$2", t.Tenant, in.ExecutionID, owned, restored, b); e != nil {
 				return e
 			}
+		}
+		// The workflow may have cached successes from before an interrupted
+		// transition. Only the executor's fresh, persisted stabilization proof
+		// can advertise recovery health; this preserves the workflow protocol.
+		if in.Operation == "HEALTH" && !restored && current.Healthy {
+			current.Healthy = false
+			current.Reason = "RESTORATION_HEALTH_PENDING"
 		}
 		out = current
 		if dispatched {

@@ -241,7 +241,7 @@ func TestDefinitivelyRejectedFirstStopCannotAcquireManualStop(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			read := func() []byte {
+			read := func(wantOwned bool) []byte {
 				t.Helper()
 				var body []byte
 				var intent, owned, restored bool
@@ -250,12 +250,12 @@ func TestDefinitivelyRejectedFirstStopCannotAcquireManualStop(t *testing.T) {
 				}); err != nil {
 					t.Fatal(err)
 				}
-				if !intent || owned || restored {
+				if !intent || owned != wantOwned || restored {
 					t.Fatalf("reconciliation altered uncertain ownership: intent=%v owned=%v restored=%v", intent, owned, restored)
 				}
 				return body
 			}
-			original := read()
+			original := read(false)
 			service := SecureService{Store: executorDB, Config: Config{Fixture: true, Role: "executor"}, Public: public}
 			// There is deliberately no resource or baseline to pass a new-stop
 			// precheck. A prior uncertain request must only reconcile its outcome.
@@ -264,8 +264,15 @@ func TestDefinitivelyRejectedFirstStopCannotAcquireManualStop(t *testing.T) {
 				if err != nil || current.State != providerState {
 					t.Fatalf("uncertain %s intent was redispatched: %+v, %v", providerState, current, err)
 				}
-				if !bytes.Equal(original, read()) {
-					t.Fatal("reconciliation rewrote the pending receipt")
+				body := read(providerState == "stopping")
+				if providerState == "running" && !bytes.Equal(original, body) {
+					t.Fatal("unresolved running reconciliation rewrote the pending receipt")
+				}
+				if providerState == "stopping" {
+					var observed model.Document
+					if err := json.Unmarshal(body, &observed); err != nil || model.String(observed, "state") != "stopping" || model.String(observed, "nonce") != plan.Nonce || model.String(observed, "stopped_at") != "" || model.Number(observed, "healthy_checks") != 0 {
+						t.Fatal("reconciled stopping state fabricated a completed stop or healthy streak")
+					}
 				}
 			}
 			var mutations int

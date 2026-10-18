@@ -32,6 +32,12 @@ type GitBinding struct {
 	Path                string `json:"path"`
 	ControllerNamespace string `json:"controller_namespace"`
 	ControllerName      string `json:"controller_name"`
+	ControllerUID       string `json:"controller_uid,omitempty"`
+	SourceName          string `json:"source_name,omitempty"`
+	SourceUID           string `json:"source_uid,omitempty"`
+	ManifestPath        string `json:"manifest_path,omitempty"`
+	SourceBranch        string `json:"source_branch,omitempty"`
+	ApplyServiceAccount string `json:"apply_service_account,omitempty"`
 }
 type GitObservation struct {
 	Engine             string    `json:"engine"`
@@ -45,6 +51,8 @@ type GitObservation struct {
 	DeploymentSpecHash string    `json:"deployment_spec_hash,omitempty"`
 	ObservedAt         time.Time `json:"observed_at"`
 	RawHash            string    `json:"raw_hash"`
+	SourceUID          string    `json:"source_uid,omitempty"`
+	ArtifactHash       string    `json:"artifact_hash,omitempty"`
 }
 type Container struct {
 	Name               string `json:"name"`
@@ -199,6 +207,9 @@ func ValidateBinding(b Binding) error {
 	}
 	if b.Git.Engine == "LOCAL_GITOPS_TEST_DOUBLE" && b.Provider != "LOCAL_KIND" {
 		return errors.New("K8S_LOCAL_CONTROLLER_FORBIDDEN")
+	}
+	if b.Git.Engine == "FLUX" && (!name.MatchString(b.Git.SourceName) || b.Git.SourceUID == "" || b.Git.ControllerUID == "" || b.Git.ManifestPath == "" || b.Git.SourceBranch == "" || !name.MatchString(b.Git.ApplyServiceAccount) || !fluxRepositoryURL(b.Git.Repository)) {
+		return errors.New("K8S_FLUX_SOURCE_BINDING_REQUIRED")
 	}
 	if b.Provider != "LOCAL_KIND" && b.Provider != "AWS" && b.Provider != "AZURE" && b.Provider != "GCP" {
 		return errors.New("K8S_PROVIDER_UNSUPPORTED")

@@ -23,6 +23,11 @@ Local MinIO and its administration client build from pinned upstream commits in 
 
 The console guides the fixture through recommendation → immutable plan review → approval → execution → restoration → billing verification. Fixture time advances inside the workflow so a complete overnight cycle takes seconds. Every fixture view is labelled; it never invokes live AWS APIs.
 
+The **Cost allocation** view lets Finance/FinOps roles select a persisted source,
+save versioned fixed shares and inspect sealed, paginated observed-cost reports.
+Signed credits, unknown amounts and currencies remain distinct. Reports capture
+current ownership and stay provisional; see [allocation boundaries](docs/cost-allocation.md).
+
 ```powershell
 # Stop containers without deleting evidence.
 docker compose down
@@ -73,6 +78,11 @@ flowchart LR
   Ingester --> Raw[(Regional raw / audit objects)]
   Ingester --> CH[(ClickHouse facts)]
 ```
+
+The separate [native Flux lab](examples/flux/README.md) exercises pinned local
+controllers, Git-owned rollout, PDB preflight, failed readiness and Git revert.
+Its matching successful runtime artifact is required for acceptance. It does
+not enable customer execution or financial claims.
 
 ## Live AWS pilot
 
