@@ -73,6 +73,56 @@ func refreshSLOTestReceipts(t *testing.T, ctx context.Context, tenant string, so
 	}
 }
 
+// A real financial calculation can span a minute boundary. This explicitly
+// labelled test source continues its fixture observations through normal guarded
+// ingress, just as the external collector must in operation. It never changes
+// the receive clock, inserts historical rows or relaxes a freshness gate.
+func keepSLOTestCollectorRunning(t *testing.T, tenant string, source slo.Source) func() {
+	t.Helper()
+	db := trustedRoleStore(t, os.Getenv("TEST_DATABASE_URL"), "finops_activity")
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		last := time.Now().UTC().Truncate(time.Minute)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				done <- nil
+				return
+			case <-ticker.C:
+				end := time.Now().UTC().Truncate(time.Minute)
+				if !end.After(last) {
+					continue
+				}
+				upper := int64(110)
+				in := slo.Interval{SchemaVersion: "1", SourceID: source.ID, ObjectiveID: source.ObjectiveID, WorkloadID: source.WorkloadID, ResourceID: source.ResourceID, Sequence: end.Unix() / 60, IntervalStart: end.Add(-time.Minute), IntervalEnd: end, AvailabilityGoodSeconds: 60, AvailabilityTotalSeconds: 60, Latency: slo.Histogram{Unit: "milliseconds", Buckets: []slo.Bucket{{UpperBoundMS: &upper, Count: 0}, {UpperBoundMS: nil, Count: 0}}}}
+				raw, _ := json.Marshal(in)
+				err := db.Do(ctx, tenant, func(tx *store.Tx) error {
+					_, _, err := tx.SLOAppend(ctx, store.SLOSubmission{Interval: in, RawBody: raw, Issuer: source.Issuer, Subject: source.Subject, IdempotencyKey: fmt.Sprintf("sli-%d", in.Sequence)})
+					return err
+				})
+				if err != nil {
+					if ctx.Err() != nil {
+						done <- nil
+					} else {
+						done <- err
+					}
+					return
+				}
+				last = end
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("independent fixture SLI collector: %v", err)
+		}
+	}
+}
+
 func TestSLOAPIRequiresExplicitObjectiveAndIndependentEvidence(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {

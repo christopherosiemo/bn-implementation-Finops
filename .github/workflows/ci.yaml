@@ -12,7 +12,7 @@ concurrency:
 jobs:
   go:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -29,7 +29,7 @@ jobs:
           curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
       - name: Go tests and vet in container
         run: |
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... && go vet ./...'
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... -timeout=25m && go vet ./...'
       - name: Stop isolated economics worker
         if: always()
         run: docker rm -f economics-tests || true
@@ -41,6 +41,14 @@ jobs:
       - name: Decimal economics tests in container
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace/economics python:3.13-slim sh -ec 'pip install --no-cache-dir -r requirements.txt && python -m unittest discover -s tests -v'
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check reachable Go dependency vulnerabilities
+        run: |
+          docker run --rm --memory=2g -e GOMAXPROCS=2 -e GOMEMLIMIT=1500MiB -v "$PWD:/workspace:ro" -w /workspace golang:1.27.2-bookworm sh -ec 'go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...'
   frontend-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -51,6 +59,8 @@ jobs:
           docker run --rm -v "$PWD:/workspace" -w /workspace/frontend node:22-bookworm-slim sh -ec 'npm ci && npm run generate && npm run typecheck && npm run build'
       - name: Generated API types match the contract
         run: git diff --exit-code -- frontend/src/api.generated.ts
+      - name: Audit locked frontend production and development dependencies
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace/frontend node:22-bookworm-slim npm audit --audit-level=low
       - name: All specification sections have traceability coverage
         run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
       - name: Fixed product progress weights and acceptance credit reconcile
@@ -71,7 +81,7 @@ jobs:
         run: docker run --rm -v "$PWD:/src" -w /src/deploy/terraform hashicorp/terraform:1.9.8 fmt -check -recursive
       - name: Terraform init and validate without AWS credentials
         run: |
-          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform test -no-color && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate && terraform -chdir=modules/customer-roles test -no-color'
+          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform test -no-color && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate && terraform -chdir=modules/customer-roles test -no-color && terraform -chdir=modules/native-telemetry init -backend=false -input=false && terraform -chdir=modules/native-telemetry validate && terraform -chdir=modules/native-telemetry test -no-color'
       - name: Sandbox acceptance and non-destructive plan checker regressions (mock API, no AWS)
         run: docker run --rm -v "$PWD:/src:ro" -w /src node:22-bookworm-slim sh -ec 'node --test scripts/tests/*.test.mjs'
       - name: Helm lint and render
@@ -83,9 +93,12 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml > /tmp/finops-readonly.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set notifications.webhookUrl=https://hooks.example.invalid/finops > /tmp/finops-notifications.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set activity.issuer=https://machine.example.invalid --set sources.readBindingsSecret=finops-source-read-bindings > /tmp/finops-sources.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/native-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/native-values.yaml > /tmp/finops-native.yaml
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-native.yaml:/native.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /native.yaml && python deploy/tests/test_native_chart.py /native.yaml'
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -114,6 +127,10 @@ jobs:
         run: node scripts/dependency-smoke.mjs
       - name: Exercise trusted SLO objective and machine receipt safety
         run: node scripts/slo-smoke.mjs
+      - name: Exercise native Prometheus and authenticated OTLP evidence persistence
+        run: node scripts/native-smoke.mjs
+      - name: Exercise the real OpenTelemetry collector and machine OAuth2 export
+        run: node scripts/native-otel-smoke.mjs
       # Run after API smoke: both tests intentionally use/reset the same fixture tenant.
       - name: Exercise OIDC login and console journey in Chromium
         working-directory: frontend

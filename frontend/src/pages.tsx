@@ -2,6 +2,8 @@ import { useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { DependencySafety } from "./DependencySafety";
 import { SloSafety } from "./SloSafety";
+import { NativeTelemetry } from "./NativeTelemetry";
+import { WorkloadSafety } from "./WorkloadSafety";
 import {
   Activity,
   ArrowDownRight,
@@ -382,6 +384,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
+      <WorkloadSafety data={data} run={run} busy={busy} />
       <SloSafety data={data} run={run} busy={busy} />
       <DependencySafety data={data} run={run} busy={busy} />
       {inspect && (
@@ -2107,6 +2110,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
         )}
       </Panel>
       <SourceTrust data={data} run={run} busy={busy} />
+      <NativeTelemetry data={data} run={run} busy={busy} />
       <div className="two-column">
         <Panel title="Read, approve, execute">
           <div className="boundary-list">

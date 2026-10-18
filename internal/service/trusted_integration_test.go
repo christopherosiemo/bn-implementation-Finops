@@ -252,12 +252,17 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 	// sync supplies current commitment and source-health receipts independently
 	// of the immutable historical baseline's activation clock.
 	clock = time.Now().UTC()
+	api.Clock = nil // Present-time safety continues to advance during real evaluation.
 	if err = pipeline.Sync(ctx, tenant, parsed.ID); err != nil {
 		t.Fatal(err)
 	}
 	refreshTrustedActivity(t, apiDB, admin, tenant, activitySource.ID)
+	stopActivityCollector := keepActivityTestCollectorRunning(t, tenant, activitySource.ID)
+	defer stopActivityCollector()
 	seedDependencyReview(t, ctx, &api, apiDB, tenant, "resource-dev-api")
-	seedSLOAuthority(t, ctx, &api, apiDB, tenant)
+	_, sliSource := seedSLOAuthority(t, ctx, &api, apiDB, tenant)
+	stopCollector := keepSLOTestCollectorRunning(t, tenant, sliSource)
+	defer stopCollector()
 	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
 		var e error
 		ready, e = api.readiness(ctx, tx, "resource-dev-api", true)
@@ -274,7 +279,7 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 		plan, e = BuildPlan(ctx, tx, "trusted-recommendation", "schedule-dev", true)
 		return e
 	}); err != nil {
-		t.Fatal(err)
+		t.Fatalf("current plan gate: %#v", err)
 	}
 	p, err := decodePlan(plan)
 	if err != nil {
@@ -647,6 +652,11 @@ func refreshTrustedActivity(t *testing.T, readDB, admin *store.Store, tenant, so
 			if _, e := tx.Exec(ctx, "SET LOCAL ROLE finops_activity"); e != nil {
 				return e
 			}
+			if _, e := tx.Exec(ctx,"SELECT pg_advisory_xact_lock(hashtextextended($1,0))",tenant+":activity:"+sourceID);e!=nil{return e}
+			var e error
+			latest,e=tx.ActivityLatest(ctx,"resource-dev-api")
+			if e!=nil{return e}
+			if !end.After(latest.IntervalEnd){return nil}
 			source, e := tx.ActivitySource(ctx, sourceID)
 			if e != nil {
 				return e
@@ -658,6 +668,63 @@ func refreshTrustedActivity(t *testing.T, readDB, admin *store.Store, tenant, so
 		})
 		if err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// Continue the explicitly synthetic live activity source while expensive
+// financial checks run. Only newly completed current minutes pass normal
+// admission; elapsed unobserved history is never manufactured.
+func keepActivityTestCollectorRunning(t *testing.T, tenant, sourceID string) func() {
+	t.Helper()
+	db := trustedRoleStore(t, os.Getenv("TEST_DATABASE_URL"), "finops_activity")
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				done <- nil
+				return
+			case <-ticker.C:
+				err := db.Do(ctx, tenant, func(tx *store.Tx) error {
+					if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", tenant+":activity:"+sourceID); err != nil {
+						return err
+					}
+					latest, err := tx.ActivityLatest(ctx, "resource-dev-api")
+					if err != nil {
+						return err
+					}
+					end := time.Now().UTC().Truncate(time.Minute)
+					if !end.After(latest.IntervalEnd) {
+						return nil
+					}
+					source, err := tx.ActivitySource(ctx, sourceID)
+					if err != nil {
+						return err
+					}
+					in := store.ActivityInterval{SchemaVersion: "1", SourceID: sourceID, ResourceID: source.ResourceID, WorkloadID: source.WorkloadID, Sequence: latest.Sequence + 1, IntervalStart: end.Add(-time.Minute), IntervalEnd: end, MetricDefinition: source.MetricDefinition, Heartbeat: true, Incident: "CLEAR", Deployment: "CLEAR", Job: "CLEAR"}
+					raw, _ := json.Marshal(in)
+					_, _, err = tx.ActivityAppend(ctx, store.ActivitySubmission{Interval: in, RawBody: raw, Issuer: source.Issuer, Subject: source.Subject, IdempotencyKey: "live-" + strconv.FormatInt(in.Sequence, 10)})
+					return err
+				})
+				if err != nil {
+					if ctx.Err() != nil {
+						done <- nil
+					} else {
+						done <- err
+					}
+					return
+				}
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("independent fixture activity collector: %v", err)
 		}
 	}
 }

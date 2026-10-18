@@ -59,6 +59,10 @@ func fail(w http.ResponseWriter, e error) {
 		p = &Problem{404, "NOT_FOUND", "resource not found"}
 	} else if errors.Is(e, store.ErrConflict) {
 		p = &Problem{409, "VERSION_CONFLICT", e.Error()}
+	} else if errors.Is(e, store.ErrTelemetryConflict) {
+		p = &Problem{409, "TELEMETRY_REPLAY_CONFLICT", "the source revision or immutable request conflicts"}
+	} else if errors.Is(e, store.ErrTelemetrySource) {
+		p = &Problem{422, "TELEMETRY_SOURCE_INVALID", "the registered source is unavailable or no longer matches its resource"}
 	} else {
 		var found *Problem
 		if errors.As(e, &found) {
@@ -171,6 +175,18 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 	e := a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
 		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
 			return e
+		}
+		if result, handled, err := a.capacityGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
+		if result, handled, err := a.workloadSafetyGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
+		if result, handled, err := a.telemetryGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
 		}
 		if r.URL.Path == "/v1/dashboard" {
 			d := model.Document{"fixture": a.Config.Fixture}
@@ -329,6 +345,9 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 		fail(w, e)
 		return
 	}
+	if d, ok := out.(model.Document); ok && model.Number(d, "version") > 0 {
+		w.Header().Set("ETag", fmt.Sprintf("\"%d\"", model.Number(d, "version")))
+	}
 	JSON(w, 200, out)
 }
 func requireRole(i auth.Identity, roles ...string) error {
@@ -351,6 +370,15 @@ func match(r *http.Request, d model.Document) error {
 func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
+	if out, status, handled, err := a.capacityMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.workloadSafetyMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.telemetryMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
 	switch path {
 	case "cloud-accounts":
 		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {

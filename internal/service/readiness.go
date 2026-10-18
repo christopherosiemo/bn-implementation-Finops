@@ -175,6 +175,12 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 			}
 			d["economics"], d["verification_status"], d["reason_code"] = result, result["status"], result["reason_code"]
 			if model.Bool(result, "pre_execution_ready") {
+				// Economics may finish after a collector has published a newer minute.
+				// Assess present safety against the present receive clock, independently
+				// of the frozen financial period; never compare fresh receipts with the
+				// time at which a potentially long analytical request began.
+				now = a.now()
+				d["checked_at"], d["expires_at"] = now.Format(time.RFC3339Nano), now.Add(5*time.Minute).Format(time.RFC3339Nano)
 				w, err := t.Get(ctx, "workloads", model.String(res, "workload_id"))
 				if err != nil {
 					return nil, err

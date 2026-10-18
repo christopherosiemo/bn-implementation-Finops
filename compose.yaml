@@ -48,6 +48,8 @@ services:
       DB_EXECUTOR_PASSWORD: ${DB_EXECUTOR_PASSWORD}
       DB_INGESTER_PASSWORD: ${DB_INGESTER_PASSWORD}
       DB_ACTIVITY_PASSWORD: ${DB_ACTIVITY_PASSWORD}
+      DB_TELEMETRY_READER_PASSWORD: ${DB_TELEMETRY_READER_PASSWORD}
+      DB_TELEMETRY_INGRESS_PASSWORD: ${DB_TELEMETRY_INGRESS_PASSWORD}
     depends_on:
       postgres: {condition: service_healthy}
 
@@ -239,12 +241,80 @@ services:
       AWS_TENANT_ID: ${AWS_TENANT_ID:-}
       DATABASE_URL: postgres://finops_api:${DB_API_PASSWORD}@postgres:5432/finops?sslmode=disable
       ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      TELEMETRY_READER_TOKEN: ${TELEMETRY_READER_TOKEN}
+      TELEMETRY_READER_URL: http://telemetry-reader:8095
       ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-3000},http://localhost:5173
     ports: ['127.0.0.1:${API_PORT:-8080}:8080']
     depends_on:
       migrate: {condition: service_completed_successfully}
       economics: {condition: service_healthy}
       keycloak: {condition: service_started}
+
+  telemetry-reader:
+    <<: *go
+    environment:
+      APP_ROLE: telemetry-reader
+      PORT: '8095'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_telemetry_reader:${DB_TELEMETRY_READER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      TELEMETRY_READER_TOKEN: ${TELEMETRY_READER_TOKEN}
+      TELEMETRY_READ_BINDINGS_JSON: ${TELEMETRY_READ_BINDINGS_JSON:-}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+
+  telemetry-ingress:
+    <<: *go
+    environment:
+      APP_ROLE: telemetry-ingress
+      PORT: '8094'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_telemetry_ingress:${DB_TELEMETRY_INGRESS_PASSWORD}@postgres:5432/finops?sslmode=disable
+      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+      OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+      OIDC_AUDIENCE: finops
+      TELEMETRY_OIDC_AUDIENCE: finops-telemetry
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports: ['127.0.0.1:${TELEMETRY_PORT:-8094}:8094']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+      keycloak: {condition: service_started}
+
+  telemetry-gateway:
+    image: python:3.13-slim
+    command: [python, /app/gateway.py]
+    volumes: ['./examples/telemetry/gateway.py:/app/gateway.py:ro']
+    mem_limit: 128m
+    restart: unless-stopped
+    networks: [private]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.retention.time=100d']
+    volumes: ['./examples/telemetry/prometheus.yml:/etc/prometheus/prometheus.yml:ro', prometheus:/prometheus]
+    mem_limit: 512m
+    restart: unless-stopped
+    networks: [private]
 
   web:
     image: cloud-cost-autopilot-web:local
@@ -262,3 +332,4 @@ volumes:
   keycloak: {}
   clickhouse: {}
   minio: {}
+  prometheus: {}

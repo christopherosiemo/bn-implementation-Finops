@@ -19,6 +19,7 @@ Hosted signing uses an Ed25519 key injected from an externally managed secret, e
 3. Hard SLO limits and baseline regression guards are independent constraints. The section 106 `max(SLO, baseline × 1.15)` expression must never permit a hard SLO breach.
 4. Immutable ledger entries are corrected by append-only superseding revisions, not edits or deletion. Current totals exclude superseded revisions and duplicate resource/time claims.
 5. Canonical lifecycle statuses carry separate `reason_code` values for stale, insufficient and blocked cases.
+6. Section 95's unchanged-replica downsizing example is unsafe without additional measured evidence. Halving capacity turns 46% CPU into 92% and 52% memory into 104%, before its 30% reserve. Keeping twelve replicas does not repair that per-replica fit. The capacity evaluator rejects it; different demand, replica count or measured capacity needs a separately evidenced calculation.
 
 ## Scheduling interpretation
 

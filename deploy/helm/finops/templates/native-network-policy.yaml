@@ -1,0 +1,69 @@
+{{- if and .Values.networkPolicy.enabled .Values.telemetry.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-native-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: finops-role, operator: In, values: [telemetry-reader, telemetry-ingress]}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - podSelector:
+            matchLabels: {finops-role: clickhouse}
+      ports: [{protocol: TCP, port: 8123}]
+    {{- if .Values.telemetry.httpsEgressCidrs }}
+    - to:
+        {{- range .Values.telemetry.httpsEgressCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 443}]
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-native-reader-ingress
+spec:
+  podSelector:
+    matchLabels: {finops-role: telemetry-reader}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {finops-role: api}
+      ports: [{protocol: TCP, port: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-api-native-egress
+spec:
+  podSelector:
+    matchLabels: {finops-role: api}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {finops-role: telemetry-reader}
+      ports: [{protocol: TCP, port: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-native-collector-ingress
+spec:
+  podSelector:
+    matchLabels: {finops-role: telemetry-ingress}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{ toYaml .Values.telemetry.collectorPodSelector | nindent 14 }}
+      ports: [{protocol: TCP, port: 8080}]
+{{- end }}

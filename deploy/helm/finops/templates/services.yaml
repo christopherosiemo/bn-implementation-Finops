@@ -103,6 +103,18 @@ spec:
             {{- if has $role (list "api" "activity-ingress") }}
             - { name: ACTIVITY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.activity.issuer | quote }} }
             {{- end }}
+            {{- if and $.Values.telemetry.enabled (eq $role "api") }}
+            - { name: TELEMETRY_READER_URL, value: "http://finops-telemetry-reader:8080" }
+            - { name: TELEMETRY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.telemetry.issuer | quote }} }
+            - name: TELEMETRY_READER_TOKEN
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.telemetry.readerTokenSecret }}, key: TELEMETRY_READER_TOKEN }
+            {{- if $.Values.telemetry.bindingCatalogSecret }}
+            - name: TELEMETRY_BINDING_CATALOG_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.telemetry.bindingCatalogSecret }}, key: TELEMETRY_BINDING_CATALOG_JSON }
+            {{- end }}
+            {{- end }}
             {{- end }}
             {{- if eq $role "worker" }}
             - { name: SIGNER_URL, value: "http://finops-signer:8080" }

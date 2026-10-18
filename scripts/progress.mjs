@@ -24,6 +24,27 @@ for (const domain of ledger.domains) {
   total += credit;
 }
 assert.ok(Math.abs(total - ledger.current_weighted_percent) < 1e-9, 'Current progress disagrees with accepted capability credit');
+let reviewed = ledger.baseline_weighted_percent;
+const reviews = new Set();
+for (const review of ledger.reviews) {
+  assert.ok(!reviews.has(review.id), `Duplicate historical review ${review.id}`);
+  reviews.add(review.id);
+  if (review.previous_weighted_percent === undefined) {
+    assert.equal(review.weighted_percent, ledger.baseline_weighted_percent, 'Historical baseline changed');
+    continue;
+  }
+  assert.ok(Math.abs(review.previous_weighted_percent - reviewed) < 1e-9, `Historical review chain changed at ${review.id}`);
+  const delta = review.contribution_changes.reduce((sum, item) => sum + item.delta_points, 0);
+  assert.ok(Math.abs(review.weighted_percent - reviewed - delta) < 1e-9, `Unevidenced progress at ${review.id}`);
+  for (const split of review.package_subdivisions || []) {
+    const scope = split.children.reduce((sum, child) => sum + child.scope_weight_percent, 0);
+    const credit = split.children.reduce((sum, child) => sum + child.scope_weight_percent * child.previous_maturity / 100, 0);
+    assert.ok(Math.abs(scope - split.previous_scope_weight_percent) < 1e-9, 'Subdivision changed contractual scope');
+    assert.ok(Math.abs(credit - split.previous_scope_weight_percent * split.previous_maturity / 100) < 1e-9, 'Subdivision retroactively changed credit');
+  }
+  reviewed = review.weighted_percent;
+}
+assert.ok(Math.abs(reviewed - total) < 1e-9, 'Latest accepted review disagrees with the current ledger');
 if (total >= 100) assert.ok(ledger.live_aws_validated && ledger.customer_verified_savings && ledger.commercial_ga_accepted, 'Incomplete delivery cannot be called 100%');
 const displayed = total < 100 ? Math.min(99, Math.round(total)) : 100;
 console.log(`Fixed scope weights and capability credit reconcile: approximately ${displayed}% of the complete product.`);

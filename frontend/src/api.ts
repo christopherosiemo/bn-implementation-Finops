@@ -75,6 +75,7 @@ async function request<T>(
 }
 
 export const api = {
+  get: <T>(path: string) => request<T>(path),
   dashboard: async () => {
     const result = await request<WireDashboard>("/dashboard");
     const collections = [

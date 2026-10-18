@@ -24,6 +24,14 @@ spec:
     - host: {{ $host | quote }}
       http:
         paths:
+          {{- if and .Values.telemetry.enabled .Values.telemetry.ingressEnabled }}
+          - path: /v1/metrics
+            pathType: Exact
+            backend:
+              service:
+                name: finops-telemetry-ingress
+                port: {number: 8080}
+          {{- end }}
           - path: /v1/activity/intervals
             pathType: Exact
             backend:
@@ -65,4 +73,20 @@ spec:
     - from:
         - ipBlock: { cidr: {{ .Values.ingress.vpcCidr }} }
       ports: [{ protocol: TCP, port: 8080 }]
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.networkPolicy.enabled .Values.telemetry.enabled .Values.telemetry.ingressEnabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-alb-native-ingress
+spec:
+  podSelector:
+    matchLabels: {finops-role: telemetry-ingress}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: {cidr: {{ .Values.ingress.vpcCidr }}}
+      ports: [{protocol: TCP, port: 8080}]
 {{- end }}

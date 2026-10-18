@@ -37,6 +37,8 @@ database:
     signer: finops-db-signer
     executor: finops-db-executor
     activity-ingress: finops-db-activity
+    telemetry-reader: finops-db-telemetry-reader
+    telemetry-ingress: finops-db-telemetry-ingress
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -64,6 +66,33 @@ activity:
   audience: finops-activity
   issuer: ""
   jwksUrl: ""
+telemetry:
+  # Opt in after provisioning distinct database logins and versioned raw storage.
+  enabled: false
+  audience: finops-telemetry
+  issuer: ""
+  jwksUrl: ""
+  readerRoleArn: ""
+  ingressRoleArn: ""
+  readerTokenSecret: finops-telemetry-reader-token
+  # Only the reader receives endpoint/credential bindings. The API receives
+  # a separate endpoint-free catalog with exact resource and required labels.
+  readBindingsSecret: ""
+  bindingCatalogSecret: ""
+  readCredentialsSecret: ""
+  # Exact approved HTTPS destination networks: regional S3/VPC endpoints,
+  # machine JWKS and approved Prometheus. No world-open egress is accepted.
+  httpsEgressCidrs: []
+  collectorPodSelector: {app: finops-native-collector}
+  ingressEnabled: false
+  readerReplicas: 1
+  ingressReplicas: 1
+  readerResources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+  ingressResources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
 objectStorage:
   # Empty endpoint selects regional AWS S3 and SDK IRSA credentials.
   endpoint: ""

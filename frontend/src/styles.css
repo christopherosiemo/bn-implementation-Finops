@@ -3921,6 +3921,19 @@ th {
 .readiness-summary { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 12px; color: #758a7b; font-size: 10px; }
 .readiness-summary > span { display: inline-flex; align-items: center; gap: 7px; }
 .binding-caption { color: #758a7b; font-size: 10px; margin-top: 9px; }
+.native-intro { margin: 0 22px 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.native-workload-picker { margin: 0 22px 20px; max-width: 440px; }
+.native-section, .native-evaluation { padding: 20px 22px; border-top: 1px solid var(--border); }
+.native-section h3, .native-evaluation h3 { font-size: 14px; margin: 0 0 12px; }
+.native-section .definition-list dd, .native-evaluation .definition-list dd { overflow-wrap: anywhere; min-width: 0; }
+.native-section .definition-list dd small, .native-evaluation .definition-list dd small { display: block; margin-top: 6px; }
+.native-evaluation details { margin-top: 14px; }
+.native-evaluation summary { cursor: pointer; color: var(--green); font-size: 12px; }
+.remote-page-actions { padding: 14px 22px; }
+.selector-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 12px; }
+.source-revoke { padding: 18px 0; }
+.native-subheading { margin: 22px 0 12px; font-size: 14px; }
+@media(max-width: 760px) { .selector-row { grid-template-columns: minmax(0, 1fr); } .native-intro { margin-inline: 16px; } .native-workload-picker { margin-inline: 16px; } .native-section, .native-evaluation { padding-inline: 16px; } }
 .binding-caption .mono { margin-left: 6px; }
 .resource-readiness { min-width: 155px; max-width: 220px; white-space: normal; }
 .resource-readiness .button { margin-top: 8px; }

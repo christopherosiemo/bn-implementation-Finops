@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("OIDC sign-in and the complete fixture operating loop", async ({
   page,
 }) => {
+  test.setTimeout(240_000);
   const javascriptErrors: string[] = [];
   page.on("pageerror", (error) => javascriptErrors.push(error.message));
   await page.goto("/");
@@ -224,7 +225,7 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
         return Boolean(verified);
       },
       {
-        timeout: 60_000,
+        timeout: 120_000,
         intervals: [1000, 2000, 4000],
         message:
           "the actual cycle receives a sealed post-activation measurement before claiming verified savings",

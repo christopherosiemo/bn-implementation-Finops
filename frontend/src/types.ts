@@ -44,6 +44,16 @@ export type SloSource = components["schemas"]["SloSource"];
 export type SloEvaluation = components["schemas"]["SloEvaluation"];
 export type SloEvaluationSnapshot =
   components["schemas"]["SloEvaluationSnapshot"];
+export type TelemetryConnection = components["schemas"]["TelemetryConnection"];
+export type TelemetryDefinition = components["schemas"]["TelemetryDefinition"];
+export type TelemetryConnectionRequest =
+  components["schemas"]["TelemetryConnectionRequest"];
+export type TelemetryEvaluationRecord =
+  components["schemas"]["TelemetryEvaluationRecord"];
+export type WorkloadSafetyProfile =
+  components["schemas"]["WorkloadSafetyProfile"];
+export type WorkloadSafetyRequest =
+  components["schemas"]["WorkloadSafetyRequest"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;

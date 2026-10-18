@@ -4,6 +4,219 @@
  */
 
 export interface paths {
+    "/workloads/{id}/capacity-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCapacityAssessments"];
+        put?: never;
+        /** @description Selects persisted native observations and the current workload safety profile. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. This increment reports BLOCKED while native provider hardware and contracted prices are unavailable; it never creates or authorizes a change plan. */
+        post: operations["assessNativeCapacityEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTelemetryConnections"];
+        put?: never;
+        /** @description PLATFORM_ADMIN registers definitions and an approved read binding or exact OTLP machine subject. Provider binding, identity, issuer and mandatory resource selectors are server selected. Registration does not create observations or execution authority. */
+        post: operations["registerTelemetryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTelemetryConnection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviseTelemetryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Queues durable Prometheus source collection. History length is selected server-side from workload requirements (14, 30 or 90 days); no caller-supplied observations or historical authority. */
+        post: operations["syncTelemetryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/sync/{sync_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTelemetrySyncJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revokes current source authority while preserving immutable receipts and owned recovery duties. */
+        post: operations["revokeTelemetryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["evaluateTelemetryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTelemetryReceipts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telemetry-connections/{id}/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTelemetryEvaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metric-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMetricDefinitions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/safety-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listWorkloadSafetyProfiles"];
+        put?: never;
+        /** @description PLATFORM_ADMIN declares action-specific requirements, with If-Match latest profile version including zero. RPO must be explicit null when unknown. Requirements do not establish observed capacity, replica health, recovery or execution authority. */
+        post: operations["reviseWorkloadSafetyProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/safety-evaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["evaluateWorkloadSafetyRequirements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workloads/{id}/slo-objectives": {
         parameters: {
             query?: never;
@@ -574,6 +787,374 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CapacityAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            workload_id: string;
+            resource_id: string;
+            connection_id: string;
+            connection_version: number;
+            revision_id: string;
+            config_hash: string;
+            safety_profile_id: string;
+            safety_profile_version: number;
+            safety_profile_hash: string;
+            population_hash: string;
+            receipt_ids: string[];
+            source_refs: {
+                receipt_id: string;
+                batch_id: string;
+                config_hash: string;
+                raw_sha256: string;
+                canonical_hash: string;
+            }[];
+            history: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+                /** @enum {integer} */
+                days: 14 | 30 | 90;
+                timezone: string;
+                /** @enum {string} */
+                environment: "NON_PRODUCTION" | "PRODUCTION" | "UNKNOWN";
+            };
+            native_evaluation: components["schemas"]["NativeTelemetryEvaluation"];
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string} */
+            hardware_catalog_status: "UNAVAILABLE";
+            /** @enum {string} */
+            native_price_status: "UNAVAILABLE";
+            estimated_saving: components["schemas"]["NullableDecimal"];
+            verified_saving: components["schemas"]["NullableDecimal"];
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            writer_role: string;
+        };
+        CapacityAssessmentPage: {
+            items: components["schemas"]["CapacityAssessment"][];
+            next_cursor: string | null;
+        };
+        TelemetrySyncJob: {
+            id: string;
+            tenant_id: string;
+            connection_id: string;
+            revision_id: string;
+            request_hash: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            /** @enum {integer} */
+            history_days: 14 | 30 | 90;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            status: "PENDING" | "RUNNING" | "RETRY" | "COMPLETED" | "BLOCKED";
+            attempts: number;
+            /** Format: date-time */
+            next_attempt: string;
+            receipt_id?: string | null;
+            receipt_ids: string[];
+            reason_code?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        NativeResourceBinding: {
+            tenant_id: string;
+            resource_id: string;
+            workload_id: string;
+            provider: string;
+            provider_resource_id: string;
+            account_id: string;
+            region: string;
+        };
+        TelemetryDefinition: {
+            id: string;
+            version: string;
+            metric: string;
+            /** @description Exact registered native metric name */
+            name: string;
+            /** @description Exact native unit spelling; registration performs no implicit conversion */
+            unit: string;
+            /** @enum {string} */
+            type: "GAUGE" | "SUM" | "HISTOGRAM";
+            monotonic: boolean;
+            cadence_seconds: number;
+            /** @description At least cadence_seconds */
+            max_gap_seconds: number;
+            attributes: {
+                [key: string]: string;
+            };
+            resource_attributes: {
+                [key: string]: string;
+            };
+            epoch_metric?: string;
+            epoch_attributes?: {
+                [key: string]: string;
+            };
+        };
+        TelemetryConnectionRequest: {
+            resource_id: string;
+            /** @enum {string} */
+            kind: "PROMETHEUS" | "OTLP";
+            /** @description Approved server-side Prometheus endpoint binding; credentials and URLs are never supplied here */
+            read_binding_id?: string;
+            /** @description Exact registered OTLP machine subject */
+            subject?: string;
+            definitions: components["schemas"]["TelemetryDefinition"][];
+        };
+        TelemetryConnection: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            version: number;
+            /** @enum {string} */
+            kind: "PROMETHEUS" | "OTLP";
+            read_binding_id?: string;
+            issuer?: string;
+            subject?: string;
+            binding: components["schemas"]["NativeResourceBinding"];
+            enabled: boolean;
+            definitions: components["schemas"]["TelemetryDefinition"][];
+            config_hash: string;
+            revision_id: string;
+            revoked: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            writer_role?: string;
+        };
+        TelemetryConnectionPage: {
+            items: components["schemas"]["TelemetryConnection"][];
+            next_cursor: string | null;
+        };
+        TelemetryDefinitionPage: {
+            items: components["schemas"]["TelemetryDefinition"][];
+            next_cursor: string | null;
+            connection_id: string;
+            config_hash: string;
+        };
+        NativeHistogram: {
+            count: string;
+            bounds: string[];
+            /** @description Disjoint bucket counts */
+            bucket_counts: string[];
+        };
+        NativeMetricResult: {
+            definition_id: string;
+            metric: string;
+            unit: string;
+            status: string;
+            reason_codes: string[];
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            observed_samples: number;
+            expected_samples: number;
+            coverage_ppm: number;
+            /** @description Exact native duration; the browser must not sum nanoseconds as floating point */
+            observed_duration_ns: number;
+            unknown_duration_ns: number;
+            p50: components["schemas"]["NullableDecimal"];
+            p90: components["schemas"]["NullableDecimal"];
+            p95: components["schemas"]["NullableDecimal"];
+            p99: components["schemas"]["NullableDecimal"];
+            p999: components["schemas"]["NullableDecimal"];
+            maximum: components["schemas"]["NullableDecimal"];
+            total: components["schemas"]["NullableDecimal"];
+            histogram?: components["schemas"]["NativeHistogram"];
+            /** @description Bounded preview only; complete evidence is retained in pinned receipt objects */
+            segment_ids: string[];
+            segment_count: number;
+            /** @description SHA-256 of all ordered segment IDs */
+            segment_hash: string;
+            segment_ids_truncated: boolean;
+            /** @description Observed sample distribution */
+            statistic: string;
+        };
+        NativeTelemetryEvaluation: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            status: "READY" | "BLOCKED";
+            reason_codes: string[];
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            /** Format: date-time */
+            evaluated_at: string;
+            metrics: components["schemas"]["NativeMetricResult"][];
+            hash: string;
+            history_days?: number;
+            timezone?: string;
+        };
+        TelemetryEvaluationRecord: {
+            id: string;
+            connection_id: string;
+            config_hash: string;
+            revision_id?: string;
+            receipt_ids: string[];
+            evaluation: components["schemas"]["NativeTelemetryEvaluation"];
+            hash?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        TelemetryEvaluationPage: {
+            items: components["schemas"]["TelemetryEvaluationRecord"][];
+            next_cursor: string | null;
+        };
+        TelemetryReceipt: {
+            id: string;
+            batch_id: string;
+            connection_id: string;
+            revision_id: string;
+            config_hash: string;
+            binding: components["schemas"]["NativeResourceBinding"];
+            /** @enum {string} */
+            source_kind: "PROMETHEUS" | "OTLP";
+            raw_sha256: string;
+            canonical_hash: string;
+            /** Format: date-time */
+            collected_at: string;
+            /** Format: date-time */
+            start?: string | null;
+            /** Format: date-time */
+            end?: string | null;
+            /** Format: date-time */
+            query_start?: string;
+            /** Format: date-time */
+            query_end?: string;
+            sample_count: number;
+            rejection_count: number;
+            warning_count: number;
+            active_source: boolean;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        TelemetryReceiptPage: {
+            items: components["schemas"]["TelemetryReceipt"][];
+            next_cursor: string | null;
+        };
+        SafetyWeeklyWindow: {
+            days: number[];
+            start_time: string;
+            /** @description Unequal to start; an earlier end means the next local day and 24:00 means the end of the local day */
+            end_time: string;
+        };
+        SafetyBlackout: {
+            id: string;
+            reason: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+        };
+        SafetyDemandEvent: {
+            id: string;
+            reason: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            demand_multiplier_ppm: number;
+        };
+        WorkloadSafetyRequest: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            criticality: "TIER_0" | "TIER_1" | "TIER_2" | "TIER_3" | "NON_PRODUCTION";
+            /** @enum {string} */
+            statefulness: "STATELESS" | "STATEFUL" | "UNKNOWN";
+            high_seasonality: boolean;
+            /** @description Explicit IANA timezone */
+            timezone: string;
+            min_replicas: number;
+            /** @description No greater than min_replicas */
+            min_zones: number;
+            headroom: {
+                /** @description Unused capacity fraction; 300000 means utilization at most 70% */
+                cpu_free_ppm: number;
+                memory_free_ppm: number;
+                /** @description Additive reserve; 300000 requires capacity at least forecast times 1.30 */
+                reserve_above_forecast_ppm: number;
+            };
+            saturation: {
+                cpu_p99_ppm: number;
+                memory_p99_ppm: number;
+            };
+            rto_seconds: number;
+            /** @description Null means unknown */
+            rpo_seconds: number | null;
+            maintenance: components["schemas"]["SafetyWeeklyWindow"][];
+            recurring_blackouts: components["schemas"]["SafetyWeeklyWindow"][];
+            blackouts: components["schemas"]["SafetyBlackout"][];
+            demand_events: components["schemas"]["SafetyDemandEvent"][];
+            max_simultaneous_change_ppm: number;
+            vm_cooldown_seconds: number;
+        };
+        WorkloadSafetyProfile: {
+            id: string;
+            workload_id: string;
+            version: number;
+            hash: string;
+            /** Format: date-time */
+            created_at?: string;
+            writer_role?: string;
+            /** @enum {string} */
+            schema_version: "1";
+            criticality: components["schemas"]["WorkloadSafetyRequest"]["criticality"];
+            statefulness: components["schemas"]["WorkloadSafetyRequest"]["statefulness"];
+            high_seasonality: boolean;
+            timezone: string;
+            min_replicas: number;
+            min_zones: number;
+            headroom: components["schemas"]["WorkloadSafetyRequest"]["headroom"];
+            saturation: components["schemas"]["WorkloadSafetyRequest"]["saturation"];
+            rto_seconds: number;
+            rpo_seconds: number | null;
+            maintenance: components["schemas"]["SafetyWeeklyWindow"][];
+            recurring_blackouts: components["schemas"]["SafetyWeeklyWindow"][];
+            blackouts: components["schemas"]["SafetyBlackout"][];
+            demand_events: components["schemas"]["SafetyDemandEvent"][];
+            max_simultaneous_change_ppm: number;
+            vm_cooldown_seconds: number;
+        };
+        WorkloadSafetyPage: {
+            version: number;
+            latest: components["schemas"]["WorkloadSafetyProfile"] | null;
+            items: components["schemas"]["WorkloadSafetyProfile"][];
+            next_cursor: string | null;
+        };
+        WorkloadSafetyEvaluation: {
+            workload_id: string;
+            /** @enum {string} */
+            status: "CLEAR" | "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            requirements_only?: true;
+            /** @enum {boolean} */
+            execution_authorized?: false;
+            /** @enum {string} */
+            recovery_evidence_status?: "UNAVAILABLE";
+            profile?: components["schemas"]["WorkloadSafetyProfile"];
+            window?: {
+                status?: string;
+                reason_codes?: string[];
+                profile_hash?: string;
+                /** Format: date-time */
+                start?: string;
+                /** Format: date-time */
+                end?: string;
+            };
+        };
         SloLimits: {
             /** @description Absolute hard maximum in parts per million */
             max_error_rate_ppm: number;
@@ -1241,6 +1822,9 @@ export interface components {
     };
     responses: never;
     parameters: {
+        PageLimit: number;
+        /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+        PageCursor: string;
         Id: string;
         IdempotencyKey: string;
         /** @description Quoted current integer version ETag; stale updates return 409. */
@@ -1265,6 +1849,569 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listCapacityAssessments: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant and workload scoped immutable analytical history; no raw sample batches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapacityAssessmentPage"];
+                };
+            };
+        };
+    };
+    assessNativeCapacityEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    connection_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Immutable assessment binds the selected source, profile, observation population and receipts */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapacityAssessment"];
+                };
+            };
+            /** @description Analyst or scoped application owner role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Safety profile version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing safety profile */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Independent native evidence selection unavailable or invalid */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listTelemetryConnections: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+                /** @description Required explicit owned workload scope for APPLICATION_OWNER */
+                workload_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cursor-paginated native telemetry source metadata within authorized workload scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryConnectionPage"];
+                };
+            };
+        };
+    };
+    registerTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable initial connection revision */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryConnection"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid definitions */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current immutable configuration and source revision metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryConnection"];
+                };
+            };
+        };
+    };
+    reviseTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description New immutable definition revision; previous evidence cannot authorize the new configuration */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryConnection"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connection version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid definitions or source binding */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    syncTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Durable synchronization requested; publication completion does not establish observed coverage */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetrySyncJob"];
+                };
+            };
+            /** @description Connection version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Revoked or unsupported source */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTelemetrySyncJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Durable source publication status without worker leases or credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetrySyncJob"];
+                };
+            };
+            /** @description Job absent from this tenant and connection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Immutable source revocation appended */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connection version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    evaluateTelemetryConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    mode: "history" | "window";
+                };
+            };
+        };
+        responses: {
+            /** @description Immutable evaluation from server-selected current definitions and persisted receipts; no execution authorization */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryEvaluationRecord"];
+                };
+            };
+            /** @description Connection version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listTelemetryReceipts: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable source receipt metadata with actual native timestamps and content hashes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReceiptPage"];
+                };
+            };
+        };
+    };
+    listTelemetryEvaluations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cursor-paginated immutable evaluation history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryEvaluationPage"];
+                };
+            };
+        };
+    };
+    listMetricDefinitions: {
+        parameters: {
+            query: {
+                connection_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description At most 32 current registered definitions, with immutable connection binding */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDefinitionPage"];
+                };
+            };
+        };
+    };
+    listWorkloadSafetyProfiles: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest workload requirements and cursor-paginated immutable revision history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadSafetyPage"];
+                };
+            };
+        };
+    };
+    reviseWorkloadSafetyProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkloadSafetyRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable requirements revision recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadSafetyProfile"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Safety profile version changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Incomplete or invalid action requirements */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    evaluateWorkloadSafetyRequirements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Present requirement-window assessment. This view grants no execution authority and does not fabricate RTO/RPO or topology proof. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadSafetyEvaluation"];
+                };
+            };
+        };
+    };
     listSloObjectives: {
         parameters: {
             query?: never;

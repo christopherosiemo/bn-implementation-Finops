@@ -8,6 +8,215 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /workloads/{id}/capacity-assessments:
+    get:
+      operationId: listCapacityAssessments
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Tenant and workload scoped immutable analytical history; no raw sample batches
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapacityAssessmentPage' }
+    post:
+      operationId: assessNativeCapacityEvidence
+      description: Selects persisted native observations and the current workload safety profile. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. This increment reports BLOCKED while native provider hardware and contracted prices are unavailable; it never creates or authorizes a change plan.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false, required: [connection_id], properties: { connection_id: { type: string, minLength: 1 } } }
+      responses:
+        '201':
+          description: Immutable assessment binds the selected source, profile, observation population and receipts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CapacityAssessment' }
+        '403': { description: Analyst or scoped application owner role required }
+        '409': { description: Safety profile version changed }
+        '422': { description: Missing safety profile, inactive or mismatched source, or caller-supplied evidence }
+        '503': { description: Independent native evidence selection unavailable or invalid }
+  /telemetry-connections:
+    get:
+      operationId: listTelemetryConnections
+      parameters: [ { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' }, { name: workload_id, in: query, schema: { type: string }, description: Required explicit owned workload scope for APPLICATION_OWNER } ]
+      responses:
+        '200':
+          description: Cursor-paginated native telemetry source metadata within authorized workload scope
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryConnectionPage' }
+    post:
+      operationId: registerTelemetryConnection
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      description: PLATFORM_ADMIN registers definitions and an approved read binding or exact OTLP machine subject. Provider binding, identity, issuer and mandatory resource selectors are server selected. Registration does not create observations or execution authority.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TelemetryConnectionRequest' }
+      responses:
+        '201':
+          description: Immutable initial connection revision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryConnection' }
+        '403': { description: PLATFORM_ADMIN and workload scope required }
+        '422': { description: Invalid definitions, resource binding or approved source identity }
+  /telemetry-connections/{id}:
+    get:
+      operationId: getTelemetryConnection
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Current immutable configuration and source revision metadata
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryConnection' }
+  /telemetry-connections/{id}/revisions:
+    post:
+      operationId: reviseTelemetryConnection
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TelemetryConnectionRequest' }
+      responses:
+        '201':
+          description: New immutable definition revision; previous evidence cannot authorize the new configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryConnection' }
+        '403': { description: PLATFORM_ADMIN and workload scope required }
+        '409': { description: Connection version changed }
+        '422': { description: Invalid definitions or source binding }
+  /telemetry-connections/{id}/sync:
+    post:
+      operationId: syncTelemetryConnection
+      description: Queues durable Prometheus source collection. History length is selected server-side from workload requirements (14, 30 or 90 days); no caller-supplied observations or historical authority.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false, maxProperties: 0 }
+      responses:
+        '202':
+          description: Durable synchronization requested; publication completion does not establish observed coverage
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetrySyncJob' }
+        '409': { description: Connection version changed }
+        '422': { description: Revoked or unsupported source }
+  /telemetry-connections/{id}/sync/{sync_id}:
+    get:
+      operationId: getTelemetrySyncJob
+      parameters: [ { $ref: '#/components/parameters/Id' }, { name: sync_id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: Durable source publication status without worker leases or credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetrySyncJob' }
+        '404': { description: Job absent from this tenant and connection }
+  /telemetry-connections/{id}/revoke:
+    post:
+      operationId: revokeTelemetryConnection
+      description: Revokes current source authority while preserving immutable receipts and owned recovery duties.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false, required: [reason], properties: { reason: { type: string, minLength: 1 } } }
+      responses: { '200': { description: Immutable source revocation appended }, '409': { description: Connection version changed }, '403': { description: PLATFORM_ADMIN required } }
+  /telemetry-connections/{id}/evaluate:
+    post:
+      operationId: evaluateTelemetryConnection
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false, required: [mode], properties: { mode: { type: string, enum: [history, window] } } }
+      responses:
+        '201':
+          description: Immutable evaluation from server-selected current definitions and persisted receipts; no execution authorization
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryEvaluationRecord' }
+        '409': { description: Connection version changed }
+        '422': { description: Missing, revoked or invalid source evidence }
+  /telemetry-connections/{id}/receipts:
+    get:
+      operationId: listTelemetryReceipts
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Immutable source receipt metadata with actual native timestamps and content hashes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryReceiptPage' }
+  /telemetry-connections/{id}/evaluations:
+    get:
+      operationId: listTelemetryEvaluations
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Cursor-paginated immutable evaluation history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryEvaluationPage' }
+  /metric-definitions:
+    get:
+      operationId: listMetricDefinitions
+      parameters: [ { name: connection_id, in: query, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: At most 32 current registered definitions, with immutable connection binding
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelemetryDefinitionPage' }
+  /workloads/{id}/safety-profiles:
+    get:
+      operationId: listWorkloadSafetyProfiles
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Latest workload requirements and cursor-paginated immutable revision history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkloadSafetyPage' }
+    post:
+      operationId: reviseWorkloadSafetyProfile
+      description: PLATFORM_ADMIN declares action-specific requirements, with If-Match latest profile version including zero. RPO must be explicit null when unknown. Requirements do not establish observed capacity, replica health, recovery or execution authority.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkloadSafetyRequest' }
+      responses:
+        '201':
+          description: Immutable requirements revision recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkloadSafetyProfile' }
+        '403': { description: PLATFORM_ADMIN and workload scope required }
+        '409': { description: Safety profile version changed }
+        '422': { description: Incomplete or invalid action requirements }
+  /workloads/{id}/safety-evaluation:
+    get:
+      operationId: evaluateWorkloadSafetyRequirements
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Present requirement-window assessment. This view grants no execution authority and does not fabricate RTO/RPO or topology proof.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkloadSafetyEvaluation' }
   /workloads/{id}/slo-objectives:
     get:
       operationId: listSloObjectives
@@ -394,6 +603,8 @@ components:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
     activityMachineAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Dedicated finops-activity audience and registered machine subject }
   parameters:
+    PageLimit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    PageCursor: { name: cursor, in: query, schema: { type: string }, description: Opaque tenant/query-bound cursor; never derive it from resource contents }
     Id: { name: id, in: path, required: true, schema: { type: string } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 200 } }
     IfMatch: { name: If-Match, in: header, required: true, schema: { type: string }, description: Quoted current integer version ETag; stale updates return 409. }
@@ -413,6 +624,368 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    CapacityAssessment:
+      type: object
+      required: [schema_version, id, workload_id, resource_id, connection_id, connection_version, revision_id, config_hash, safety_profile_id, safety_profile_version, safety_profile_hash, population_hash, receipt_ids, source_refs, history, native_evaluation, status, reason_codes, execution_authorized, hardware_catalog_status, native_price_status, estimated_saving, verified_saving, hash, created_at, writer_role]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        workload_id: { type: string }
+        resource_id: { type: string }
+        connection_id: { type: string }
+        connection_version: { type: integer, minimum: 1 }
+        revision_id: { type: string }
+        config_hash: { type: string }
+        safety_profile_id: { type: string }
+        safety_profile_version: { type: integer, minimum: 1 }
+        safety_profile_hash: { type: string }
+        population_hash: { type: string }
+        receipt_ids: { type: array, maxItems: 2048, items: { type: string } }
+        source_refs:
+          type: array
+          maxItems: 2048
+          items:
+            type: object
+            required: [receipt_id, batch_id, config_hash, raw_sha256, canonical_hash]
+            properties:
+              receipt_id: { type: string }
+              batch_id: { type: string }
+              config_hash: { type: string }
+              raw_sha256: { type: string }
+              canonical_hash: { type: string }
+        history:
+          type: object
+          required: [start, end, days, timezone, environment]
+          properties:
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
+            days: { type: integer, enum: [14, 30, 90] }
+            timezone: { type: string }
+            environment: { type: string, enum: [NON_PRODUCTION, PRODUCTION, UNKNOWN] }
+        native_evaluation: { $ref: '#/components/schemas/NativeTelemetryEvaluation' }
+        status: { type: string, enum: [BLOCKED] }
+        reason_codes: { type: array, minItems: 1, items: { type: string } }
+        execution_authorized: { type: boolean, enum: [false] }
+        hardware_catalog_status: { type: string, enum: [UNAVAILABLE] }
+        native_price_status: { type: string, enum: [UNAVAILABLE] }
+        estimated_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        verified_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    CapacityAssessmentPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CapacityAssessment' } }
+        next_cursor: { type: string, nullable: true }
+    TelemetrySyncJob:
+      type: object
+      required: [id, tenant_id, connection_id, revision_id, request_hash, start, end, history_days, created_at, status, attempts, next_attempt, receipt_ids, updated_at]
+      properties:
+        id: { type: string }
+        tenant_id: { type: string }
+        connection_id: { type: string }
+        revision_id: { type: string }
+        request_hash: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        history_days: { type: integer, enum: [14, 30, 90] }
+        created_at: { type: string, format: date-time }
+        status: { type: string, enum: [PENDING, RUNNING, RETRY, COMPLETED, BLOCKED] }
+        attempts: { type: integer, minimum: 0 }
+        next_attempt: { type: string, format: date-time }
+        receipt_id: { type: string, nullable: true }
+        receipt_ids: { type: array, items: { type: string } }
+        reason_code: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time }
+    NativeResourceBinding:
+      type: object
+      required: [tenant_id, resource_id, workload_id, provider, provider_resource_id, account_id, region]
+      properties:
+        tenant_id: { type: string }
+        resource_id: { type: string }
+        workload_id: { type: string }
+        provider: { type: string }
+        provider_resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+    TelemetryDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, version, metric, name, unit, type, monotonic, cadence_seconds, max_gap_seconds, attributes, resource_attributes]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        metric: { type: string }
+        name: { type: string, description: Exact registered native metric name }
+        unit: { type: string, minLength: 1, maxLength: 128, description: Exact native unit spelling; registration performs no implicit conversion }
+        type: { type: string, enum: [GAUGE, SUM, HISTOGRAM] }
+        monotonic: { type: boolean }
+        cadence_seconds: { type: integer, minimum: 1, maximum: 300 }
+        max_gap_seconds: { type: integer, minimum: 1, maximum: 600, description: At least cadence_seconds }
+        attributes: { type: object, maxProperties: 32, additionalProperties: { type: string } }
+        resource_attributes: { type: object, maxProperties: 32, additionalProperties: { type: string } }
+        epoch_metric: { type: string }
+        epoch_attributes: { type: object, maxProperties: 32, additionalProperties: { type: string } }
+    TelemetryConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, kind, definitions]
+      properties:
+        resource_id: { type: string }
+        kind: { type: string, enum: [PROMETHEUS, OTLP] }
+        read_binding_id: { type: string, description: Approved server-side Prometheus endpoint binding; credentials and URLs are never supplied here }
+        subject: { type: string, description: Exact registered OTLP machine subject }
+        definitions: { type: array, minItems: 1, maxItems: 32, items: { $ref: '#/components/schemas/TelemetryDefinition' } }
+    TelemetryConnection:
+      type: object
+      required: [schema_version, id, version, kind, binding, enabled, definitions, config_hash, revision_id, revoked]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [PROMETHEUS, OTLP] }
+        read_binding_id: { type: string }
+        issuer: { type: string }
+        subject: { type: string }
+        binding: { $ref: '#/components/schemas/NativeResourceBinding' }
+        enabled: { type: boolean }
+        definitions: { type: array, items: { $ref: '#/components/schemas/TelemetryDefinition' } }
+        config_hash: { type: string }
+        revision_id: { type: string }
+        revoked: { type: boolean }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    TelemetryConnectionPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/TelemetryConnection' } }
+        next_cursor: { type: string, nullable: true }
+    TelemetryDefinitionPage:
+      type: object
+      required: [items, next_cursor, connection_id, config_hash]
+      properties:
+        items: { type: array, maxItems: 32, items: { $ref: '#/components/schemas/TelemetryDefinition' } }
+        next_cursor: { type: string, nullable: true }
+        connection_id: { type: string }
+        config_hash: { type: string }
+    NativeHistogram:
+      type: object
+      required: [count, bounds, bucket_counts]
+      properties:
+        count: { type: string, pattern: '^[0-9]+$' }
+        bounds: { type: array, items: { type: string } }
+        bucket_counts: { type: array, items: { type: string, pattern: '^[0-9]+$' }, description: Disjoint bucket counts, including the final positive-infinity population }
+    NativeMetricResult:
+      type: object
+      required: [definition_id, metric, unit, status, reason_codes, start, end, observed_samples, expected_samples, coverage_ppm, observed_duration_ns, unknown_duration_ns, p50, p90, p95, p99, p999, maximum, total, segment_ids, segment_count, segment_hash, segment_ids_truncated, statistic]
+      properties:
+        definition_id: { type: string }
+        metric: { type: string }
+        unit: { type: string }
+        status: { type: string }
+        reason_codes: { type: array, items: { type: string } }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        observed_samples: { type: integer, minimum: 0 }
+        expected_samples: { type: integer, minimum: 0 }
+        coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
+        observed_duration_ns: { type: integer, minimum: 0, description: Exact native duration; the browser must not sum nanoseconds as floating point }
+        unknown_duration_ns: { type: integer, minimum: 0 }
+        p50: { $ref: '#/components/schemas/NullableDecimal' }
+        p90: { $ref: '#/components/schemas/NullableDecimal' }
+        p95: { $ref: '#/components/schemas/NullableDecimal' }
+        p99: { $ref: '#/components/schemas/NullableDecimal' }
+        p999: { $ref: '#/components/schemas/NullableDecimal' }
+        maximum: { $ref: '#/components/schemas/NullableDecimal' }
+        total: { $ref: '#/components/schemas/NullableDecimal' }
+        histogram: { $ref: '#/components/schemas/NativeHistogram' }
+        segment_ids: { type: array, maxItems: 16, items: { type: string }, description: Bounded preview only; complete evidence is retained in pinned receipt objects }
+        segment_count: { type: integer, minimum: 0 }
+        segment_hash: { type: string, description: SHA-256 of all ordered segment IDs }
+        segment_ids_truncated: { type: boolean }
+        statistic: { type: string, description: Observed sample distribution, explicit bucket population or interval statistic; Maximum is never renamed a quantile }
+    NativeTelemetryEvaluation:
+      type: object
+      required: [schema_version, status, reason_codes, start, end, evaluated_at, metrics, hash]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        status: { type: string, enum: [READY, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        evaluated_at: { type: string, format: date-time }
+        metrics: { type: array, items: { $ref: '#/components/schemas/NativeMetricResult' } }
+        hash: { type: string }
+        history_days: { type: integer }
+        timezone: { type: string }
+    TelemetryEvaluationRecord:
+      type: object
+      required: [id, connection_id, config_hash, receipt_ids, evaluation]
+      properties:
+        id: { type: string }
+        connection_id: { type: string }
+        config_hash: { type: string }
+        revision_id: { type: string }
+        receipt_ids: { type: array, items: { type: string } }
+        evaluation: { $ref: '#/components/schemas/NativeTelemetryEvaluation' }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+    TelemetryEvaluationPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/TelemetryEvaluationRecord' } }
+        next_cursor: { type: string, nullable: true }
+    TelemetryReceipt:
+      type: object
+      required: [id, batch_id, connection_id, revision_id, config_hash, binding, source_kind, raw_sha256, canonical_hash, collected_at, sample_count, rejection_count, warning_count, active_source]
+      properties:
+        id: { type: string }
+        batch_id: { type: string }
+        connection_id: { type: string }
+        revision_id: { type: string }
+        config_hash: { type: string }
+        binding: { $ref: '#/components/schemas/NativeResourceBinding' }
+        source_kind: { type: string, enum: [PROMETHEUS, OTLP] }
+        raw_sha256: { type: string }
+        canonical_hash: { type: string }
+        collected_at: { type: string, format: date-time }
+        start: { type: string, format: date-time, nullable: true }
+        end: { type: string, format: date-time, nullable: true }
+        query_start: { type: string, format: date-time }
+        query_end: { type: string, format: date-time }
+        sample_count: { type: integer, minimum: 0 }
+        rejection_count: { type: integer, minimum: 0 }
+        warning_count: { type: integer, minimum: 0 }
+        active_source: { type: boolean }
+        created_at: { type: string, format: date-time }
+    TelemetryReceiptPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/TelemetryReceipt' } }
+        next_cursor: { type: string, nullable: true }
+    SafetyWeeklyWindow:
+      type: object
+      additionalProperties: false
+      required: [days, start_time, end_time]
+      properties:
+        days: { type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: { type: integer, minimum: 0, maximum: 6 } }
+        start_time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        end_time: { type: string, pattern: '^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$', description: Unequal to start; an earlier end means the next local day and 24:00 means the end of the local day }
+    SafetyBlackout:
+      type: object
+      additionalProperties: false
+      required: [id, reason, start, end]
+      properties:
+        id: { type: string }
+        reason: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+    SafetyDemandEvent:
+      type: object
+      additionalProperties: false
+      required: [id, reason, start, end, demand_multiplier_ppm]
+      properties:
+        id: { type: string }
+        reason: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        demand_multiplier_ppm: { type: integer, minimum: 1000000, maximum: 1000000000 }
+    WorkloadSafetyRequest:
+      type: object
+      additionalProperties: false
+      required: [schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        criticality: { type: string, enum: [TIER_0, TIER_1, TIER_2, TIER_3, NON_PRODUCTION] }
+        statefulness: { type: string, enum: [STATELESS, STATEFUL, UNKNOWN] }
+        high_seasonality: { type: boolean }
+        timezone: { type: string, description: Explicit IANA timezone }
+        min_replicas: { type: integer, minimum: 1, maximum: 1000000 }
+        min_zones: { type: integer, minimum: 1, maximum: 100, description: No greater than min_replicas }
+        headroom:
+          type: object
+          additionalProperties: false
+          required: [cpu_free_ppm, memory_free_ppm, reserve_above_forecast_ppm]
+          properties:
+            cpu_free_ppm: { type: integer, minimum: 1, maximum: 999999, description: Unused capacity fraction; 300000 means utilization at most 70% }
+            memory_free_ppm: { type: integer, minimum: 1, maximum: 999999 }
+            reserve_above_forecast_ppm: { type: integer, minimum: 0, maximum: 10000000, description: Additive reserve; 300000 requires capacity at least forecast times 1.30 }
+        saturation:
+          type: object
+          additionalProperties: false
+          required: [cpu_p99_ppm, memory_p99_ppm]
+          properties:
+            cpu_p99_ppm: { type: integer, minimum: 1, maximum: 1000000 }
+            memory_p99_ppm: { type: integer, minimum: 1, maximum: 1000000 }
+        rto_seconds: { type: integer, minimum: 1, maximum: 604800 }
+        rpo_seconds: { type: integer, nullable: true, minimum: 0, maximum: 604800, description: Null means unknown, never an observed recovery achievement }
+        maintenance: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/SafetyWeeklyWindow' } }
+        recurring_blackouts: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/SafetyWeeklyWindow' } }
+        blackouts: { type: array, maxItems: 256, items: { $ref: '#/components/schemas/SafetyBlackout' } }
+        demand_events: { type: array, maxItems: 256, items: { $ref: '#/components/schemas/SafetyDemandEvent' } }
+        max_simultaneous_change_ppm: { type: integer, minimum: 1, maximum: 1000000 }
+        vm_cooldown_seconds: { type: integer, minimum: 0, maximum: 31536000 }
+    WorkloadSafetyProfile:
+      type: object
+      required: [id, workload_id, version, hash, schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
+      properties:
+        id: { type: string }
+        workload_id: { type: string }
+        version: { type: integer, minimum: 1 }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+        schema_version: { type: string, enum: ['1'] }
+        criticality: { $ref: '#/components/schemas/WorkloadSafetyRequest/properties/criticality' }
+        statefulness: { $ref: '#/components/schemas/WorkloadSafetyRequest/properties/statefulness' }
+        high_seasonality: { type: boolean }
+        timezone: { type: string }
+        min_replicas: { type: integer }
+        min_zones: { type: integer }
+        headroom: { $ref: '#/components/schemas/WorkloadSafetyRequest/properties/headroom' }
+        saturation: { $ref: '#/components/schemas/WorkloadSafetyRequest/properties/saturation' }
+        rto_seconds: { type: integer }
+        rpo_seconds: { type: integer, nullable: true }
+        maintenance: { type: array, items: { $ref: '#/components/schemas/SafetyWeeklyWindow' } }
+        recurring_blackouts: { type: array, items: { $ref: '#/components/schemas/SafetyWeeklyWindow' } }
+        blackouts: { type: array, items: { $ref: '#/components/schemas/SafetyBlackout' } }
+        demand_events: { type: array, items: { $ref: '#/components/schemas/SafetyDemandEvent' } }
+        max_simultaneous_change_ppm: { type: integer }
+        vm_cooldown_seconds: { type: integer }
+    WorkloadSafetyPage:
+      type: object
+      required: [version, latest, items, next_cursor]
+      properties:
+        version: { type: integer, minimum: 0 }
+        latest:
+          nullable: true
+          allOf: [ { $ref: '#/components/schemas/WorkloadSafetyProfile' } ]
+        items: { type: array, items: { $ref: '#/components/schemas/WorkloadSafetyProfile' } }
+        next_cursor: { type: string, nullable: true }
+    WorkloadSafetyEvaluation:
+      type: object
+      required: [workload_id, status, reason_codes]
+      properties:
+        workload_id: { type: string }
+        status: { type: string, enum: [CLEAR, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        requirements_only: { type: boolean, enum: [true] }
+        execution_authorized: { type: boolean, enum: [false] }
+        recovery_evidence_status: { type: string, enum: [UNAVAILABLE] }
+        profile: { $ref: '#/components/schemas/WorkloadSafetyProfile' }
+        window:
+          type: object
+          properties:
+            status: { type: string }
+            reason_codes: { type: array, items: { type: string } }
+            profile_hash: { type: string }
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
     SloLimits:
       type: object
       additionalProperties: false

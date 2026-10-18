@@ -12,7 +12,9 @@ kind: NetworkPolicy
 metadata:
   name: finops-dns-and-https
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress]}
   policyTypes: [Egress]
   egress:
     - to:
@@ -32,11 +34,11 @@ spec:
     matchExpressions:
       - key: finops-role
         operator: In
-        values: [api, worker, ingester, signer, executor, activity-ingress, migrate, temporal]
+        values: [api, worker, ingester, signer, executor, activity-ingress, telemetry-reader, telemetry-ingress, migrate, temporal]
   policyTypes: [Egress]
   egress:
     - ports: [{ protocol: TCP, port: 5432 }]
-{{- range $role, $sources := dict "api" (list "web") "economics" (list "api" "ingester") "signer" (list "worker") "executor" (list "worker") "temporal" (list "api" "worker") "clickhouse" (list "ingester") }}
+{{- range $role, $sources := dict "api" (list "web") "economics" (list "api" "ingester") "signer" (list "worker") "executor" (list "worker") "temporal" (list "api" "worker") "clickhouse" (list "ingester" "telemetry-reader" "telemetry-ingress") }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
