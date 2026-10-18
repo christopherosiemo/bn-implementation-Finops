@@ -18,8 +18,15 @@ The actual OIDC/API browser allocation journey has passed against the rebuilt
 local stack, including persisted source selection, policy creation, sealed
 report, paginated observations/entries and denied cross-tenant/viewer access.
 Five supplementary presentation contracts use visibly labelled fixtures.
-Full-suite and final-commit acceptance for this candidate remain pending; these
-focused results do not by themselves advance the progress ledger.
+All 45 local Chromium tests subsequently passed, including the connected native
+telemetry and scheduling/restoration/savings journeys. Six verification requests
+returned 200 with no request abort; the slowest was 15.42 seconds, exposing the
+earlier test's 15-second response wait. The financial gate remains 120 seconds
+and the console request limit remains 30 seconds. All eight normal CI jobs also
+passed at [31263c3](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39159560195),
+including PostgreSQL 16/17, both isolated evidence labs and the final encrypted
+backup drill. The authority follow-up below still requires final-commit acceptance
+before the progress review.
 
 Billing-source revision selection now compares parsed native instants. Equal
 instants with different execution IDs persist an ambiguity refusal rather than
@@ -30,6 +37,23 @@ before provider I/O, so process death cannot expose the previous healthy status
 after partial publication. Actual PostgreSQL/service regressions cover an
 in-flight sync, cancellation with retained refusal, successful recovery and
 retained historical report visibility. Owned START restoration is unchanged.
+
+An additional authority review found that the Sync advisory guard alone did not
+serialize registration revocation. Additive migration 024 supplies a tenant-bound
+source-row read lock to the API, worker, signer and executor without granting
+registration mutation. Authority holds that row through its transaction; a
+committed revocation is read before subsequent authority can proceed. Actual
+dedicated-login regressions prove both outcomes, restricted execute privileges,
+cross-tenant refusal and owned legacy/schema-3 START during pause, expiry,
+revocation and an active Sync guard. The historical financial integration now
+switches its provider receive clock to actual UTC after baseline activation;
+later refreshes cannot reuse the initial activation instant. The live
+five-minute freshness limit and immutable historical timestamps are unchanged.
+Current-head selectors take the same guard before their first receipt query,
+preventing a completed correction from racing between selection and validation.
+Adversarial table-lock tests check that synchronization is already excluded while
+that query waits. Missing sources return a typed blocker without leaving the
+authority transaction aborted.
 
 Two separate private evidence components pass actual isolated local labs. The
 configuration attestor reads a committed local repository and actual Terraform

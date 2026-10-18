@@ -41,6 +41,16 @@ func holdTrustedSourceSnapshot(ctx context.Context, t *store.Tx, connection stri
 	if !stable {
 		return errors.New("SOURCE_SYNC_IN_PROGRESS")
 	}
+	// Sync's advisory guard does not serialize registration UPDATE/revoke. Hold
+	// the exact source row until this authority transaction completes, without
+	// granting read-only signer/executor identities UPDATE privileges.
+	var found bool
+	if err := t.QueryRow(ctx, "SELECT financial_source_current_lock($1,$2)", t.Tenant, connection).Scan(&found); err != nil {
+		return err
+	}
+	if !found {
+		return errors.New("TRUSTED_SOURCE_REQUIRED")
+	}
 	return nil
 }
 
@@ -149,6 +159,9 @@ func currentSourceGate(ctx context.Context, t *store.Tx, connection string, bind
 }
 
 func selectedTrustedSource(ctx context.Context, t *store.Tx, connection string, res model.Document) (model.Document, model.Document, error) {
+	if e := holdTrustedSourceSnapshot(ctx, t, connection); e != nil {
+		return nil, nil, e
+	}
 	receipts, e := t.SourceReceiptList(ctx, "AWS_CUR2", connection)
 	if e != nil {
 		return nil, nil, e
@@ -295,6 +308,9 @@ func (a *API) trustedSnapshot(ctx context.Context, t *store.Tx, in, res model.Do
 func periodReceipts(ctx context.Context, t *store.Tx, connection string, start, end time.Time) ([]model.Document, error) {
 	if connection == "" {
 		return nil, errors.New("TRUSTED_SOURCE_REQUIRED")
+	}
+	if e := holdTrustedSourceSnapshot(ctx, t, connection); e != nil {
+		return nil, e
 	}
 	receipts, e := t.SourceReceiptList(ctx, "AWS_CUR2", connection)
 	if e != nil {

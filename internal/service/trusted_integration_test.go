@@ -253,6 +253,11 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 	// of the immutable historical baseline's activation clock.
 	clock = time.Now().UTC()
 	api.Clock = nil // Present-time safety continues to advance during real evaluation.
+	// Each provider refresh must also use its actual receive time. Keeping the
+	// activation fixture clock fixed here makes a later genuine sync stale when
+	// the full native/Python/correction journey lasts longer than five minutes.
+	// Historical delivery/baseline timestamps remain frozen; safety does not.
+	pipeline.Now = func() time.Time { return time.Now().UTC() }
 	if err = pipeline.Sync(ctx, tenant, parsed.ID); err != nil {
 		t.Fatal(err)
 	}

@@ -39,6 +39,8 @@ server-side, checks its issued receipt, current registration, source revision,
 raw/canonical hashes and payer binding, and retains the whole payer record set.
 It does not add together different export revisions. A revoked or changed source
 cannot produce a new native report. Existing reports remain immutable snapshots.
+New native selections refuse an active or interrupted source sync, and their
+source-row lock serializes registration revocation through report publication.
 Authenticated export provenance does not imply invoice finality or complete
 workload ownership; all report results remain provisional observations.
 
