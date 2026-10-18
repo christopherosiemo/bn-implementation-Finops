@@ -52,4 +52,16 @@ func restrictDashboard(i auth.Identity, d model.Document) {
 	// Application owners receive their scoped inventory, without tenant graph
 	// topology, review identities, hashes or relationships to other workloads.
 	d["dependency_graph"] = model.Document{"version": 0, "nodes": []model.Document{}, "edges": []model.Document{}, "reviews": []model.Document{}, "status": "UNKNOWN", "reasons": []string{"WORKLOAD_SCOPE_DENIED"}}
+	for _, key := range []string{"slo_objectives", "slo_evaluations"} {
+		visible := []model.Document{}
+		if rows, ok := d[key].([]model.Document); ok {
+			for _, row := range rows {
+				if allowed[model.String(row, "workload_id")] {
+					visible = append(visible, row)
+				}
+			}
+		}
+		d[key] = visible
+	}
+	d["slo_sources"] = []model.Document{}
 }

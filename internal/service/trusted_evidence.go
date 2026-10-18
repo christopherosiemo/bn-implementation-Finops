@@ -524,7 +524,7 @@ func (a *API) createTrustedMeasurement(ctx context.Context, t *store.Tx, in mode
 	return t.EvidenceCreate(ctx, "measurement_snapshot", snapshot)
 }
 
-func sealProofSet(ctx context.Context, t *store.Tx, b, res model.Document, now time.Time) (model.Document, error) {
+func sealProofSet(ctx context.Context, t *store.Tx, b, res model.Document, now time.Time, readiness model.Document) (model.Document, error) {
 	job, receipt, e := selectedTrustedSource(ctx, t, model.String(b, "source_connection_id"), res)
 	if e != nil {
 		return nil, e
@@ -547,6 +547,9 @@ func sealProofSet(ctx context.Context, t *store.Tx, b, res model.Document, now t
 		return nil, e
 	}
 	d["dependency_review_id"], d["dependency_graph_hash"] = review["id"], review["graph_hash"]
+	for _, key := range []string{"slo_objective_id", "slo_objective_version", "slo_objective_hash", "slo_evaluation_id", "slo_evaluation_hash"} {
+		d[key] = readiness[key]
+	}
 	return t.EvidenceCreate(ctx, "proof_set", d)
 }
 
@@ -563,6 +566,9 @@ func proofPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, b, res, read
 	}
 	if model.String(proof, "dependency_review_id") != p.DependencyReviewID || model.String(proof, "dependency_graph_hash") != p.DependencyGraphHash {
 		return errors.New("DEPENDENCY_PROOF_SET_INVALID")
+	}
+	if model.String(proof, "slo_objective_id") != p.SLOObjectiveID || model.Number(proof, "slo_objective_version") != p.SLOObjectiveVersion || model.String(proof, "slo_objective_hash") != p.SLOObjectiveHash || model.String(proof, "slo_evaluation_id") != p.SLOEvaluationID || model.String(proof, "slo_evaluation_hash") != p.SLOEvaluationHash {
+		return errors.New("SLO_PROOF_SET_INVALID")
 	}
 	_, receipt, e := selectedTrustedSource(ctx, t, model.String(b, "source_connection_id"), res)
 	if e != nil {

@@ -2,6 +2,8 @@
 
 The sandbox uses two independent decisions. `pre_execution_ready` authorizes consideration of a new stop; it does not establish realised savings. The readiness API reports `READY` or `BLOCKED`, with a separate `verification_status`. A frozen, complete baseline can be execution-ready while verification is `MEASURING`. Operational safety, exact-plan approval and fresh provider preflight still apply.
 
+The [trusted SLO increment](slo-safety.md), validated in local fixtures, adds `slo_status: CLEAR` and exact objective ID/version/hash plus immutable evaluation ID/hash to schema-3 readiness and signed plans. A health evaluation alone is insufficient: the complete singleton stop/restoration window must be outside explicitly required availability. A worker-recorded violation disqualifies the entire signed measurement; the API appends a null blocked correction without changing prior claim history. Later good telemetry cannot revive that measurement. The schema-2 fixture/history path remains available, while every new live stop requires the current schema-3 safety authority.
+
 ## Current evidence version 3
 
 Version 3 adds source receipts and an immutable proof set to the baseline, measurement and signed ChangePlan. The ingester resolves registered AWS Data Exports revisions, versioned objects, native invoices and payer-wide commitments. Independent activity ingress resolves registered machine identities and immutable receipts. API request amounts, uploaded invoices, workload samples and submitted completeness flags cannot establish this authority. Database receipt provenance must be checked before the private economics worker receives a proof; a receipt identifier by itself is not authentication.

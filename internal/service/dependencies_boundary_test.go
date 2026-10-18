@@ -105,6 +105,20 @@ func trustedDependencyServiceBoundaries(t *testing.T, ctx context.Context, apiDB
 			t.Fatal("missing or mismatched review yielded a persisted signed envelope")
 		}
 	}
+	for _, missing := range []bool{true, false} {
+		invalid := original
+		invalid.ID, invalid.Nonce = model.ID(), model.ID()
+		if missing {
+			invalid.SLOEvaluationID = ""
+		} else {
+			invalid.SLOEvaluationHash = strings.Repeat("0", 64)
+		}
+		invalidExecution := approved(invalid)
+		assertRejected(sign(invalid, invalidExecution), "SLO_READINESS_BINDING_INVALID")
+		if n := count(signerDB, "signed_plans", "plan_id", invalid.ID); n != 0 {
+			t.Fatal("missing or tampered SLO snapshot yielded a signature")
+		}
+	}
 	return func() {
 		t.Helper()
 		assertRejected(sign(valid, execution), "DEPENDENCY_GRAPH_CHANGED")

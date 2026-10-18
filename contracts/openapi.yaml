@@ -8,6 +8,88 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /workloads/{id}/slo-objectives:
+    get:
+      operationId: listSloObjectives
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Latest immutable workload objective and revision history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SloObjectiveHistory' }
+    post:
+      operationId: reviseSloObjective
+      description: PLATFORM_ADMIN records an immutable objective revision. If-Match is the latest objective version, including zero before the first revision. Hard objectives and baseline regression guards are independent; neither can waive the other. No evidence is accepted from the browser.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SloObjectiveRequest' }
+      responses:
+        '201':
+          description: Immutable objective revision recorded; prior stop authority requires reassessment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SloObjective' }
+        '403': { description: PLATFORM_ADMIN required }
+        '409': { description: Objective version changed; refresh before retrying }
+        '422': { description: Invalid limits, evaluation window, timezone, same-day availability windows or regression guard }
+  /slo-sources:
+    get:
+      operationId: listSloSources
+      responses:
+        '200':
+          description: Registered independent machine collectors; registration alone does not establish evidence coverage
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/SloSource' } }
+    post:
+      operationId: registerSloSource
+      description: PLATFORM_ADMIN binds an existing objective and resource to an exact machine subject. Console tokens cannot ingest SLO intervals.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SloSourceRequest' }
+      responses:
+        '201':
+          description: Machine collector registration recorded without execution authority
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SloSource' }
+        '403': { description: PLATFORM_ADMIN required }
+        '409': { description: Conflicting source binding }
+        '422': { description: Invalid objective, resource binding or machine subject }
+  /resources/{id}/slo-evaluation:
+    get:
+      operationId: getSloEvaluation
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Current trusted SLO evaluation and immutable snapshot binding when available. Missing evidence remains blocked or unavailable, never zero latency.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SloEvaluationSnapshot' }
+  /slo/intervals:
+    post:
+      operationId: ingestSloInterval
+      description: Isolated activity-ingress service accepts exact registered machine subjects with the dedicated machine audience. Console tokens cannot ingest evidence. One UTC minute per observation; non-cumulative histogram bucket counts must sum to request_count. Exact replays are idempotent; historical backfills and conflicting receipts are rejected.
+      security: [ { activityMachineAuth: [] } ]
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SloInterval' }
+      responses:
+        '201': { description: Authenticated immutable minute observation appended }
+        '200': { description: Exact receipt replay }
+        '403': { description: Dedicated registered machine identity required; console tokens denied }
+        '409': { description: Conflicting sequence, interval or idempotency key }
+        '422': { description: Stale, incomplete, incorrectly bound observation or inconsistent histogram }
   /resource-graph:
     get:
       operationId: getResourceGraph
@@ -331,6 +413,190 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    SloLimits:
+      type: object
+      additionalProperties: false
+      required: [max_error_rate_ppm, min_availability_ppm, max_p95_latency_ms, max_p99_latency_ms, min_latency_samples]
+      properties:
+        max_error_rate_ppm: { type: integer, minimum: 0, maximum: 1000000, description: Absolute hard maximum in parts per million }
+        min_availability_ppm: { type: integer, minimum: 0, maximum: 1000000, description: Absolute hard minimum in parts per million }
+        max_p95_latency_ms: { type: integer, minimum: 1, maximum: 86400000 }
+        max_p99_latency_ms: { type: integer, minimum: 1, maximum: 86400000, description: Must be greater than or equal to the p95 limit }
+        min_latency_samples: { type: integer, minimum: 1, maximum: 1000000000000, description: Minimum request observations for latency evaluation; insufficient samples never become zero latency }
+    SloAvailabilityWindow:
+      type: object
+      additionalProperties: false
+      required: [days, start_time, end_time]
+      properties:
+        days: { type: array, minItems: 1, uniqueItems: true, items: { type: integer, minimum: 0, maximum: 6 }, description: Sunday is zero }
+        start_time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        end_time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Must be later than start_time; overnight windows are unsupported }
+    SloAvailability:
+      type: object
+      additionalProperties: false
+      required: [mode, timezone, windows]
+      properties:
+        mode: { type: string, enum: [ALWAYS, WINDOWS], description: ALWAYS blocks a standalone singleton STOP. WINDOWS requires the whole stop-to-readiness interval outside the declared availability windows. }
+        timezone: { type: string, description: Explicit IANA timezone }
+        windows: { type: array, maxItems: 32, items: { $ref: '#/components/schemas/SloAvailabilityWindow' }, description: Empty for ALWAYS; at least one same-day window for WINDOWS }
+    SloRegression:
+      type: object
+      additionalProperties: false
+      required: [enabled, max_percent]
+      properties:
+        enabled: { type: boolean, description: Requires a measurable frozen server-selected pre-plan latency baseline when enabled }
+        max_percent: { type: integer, minimum: 0, maximum: 1000, description: Independent maximum latency regression percentage; cannot waive a hard limit }
+    SloObjectiveRequest:
+      type: object
+      additionalProperties: false
+      required: [schema_version, limits, evaluation_minutes, availability, regression]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        limits: { $ref: '#/components/schemas/SloLimits' }
+        evaluation_minutes: { type: integer, minimum: 2, maximum: 60 }
+        availability: { $ref: '#/components/schemas/SloAvailability' }
+        regression: { $ref: '#/components/schemas/SloRegression' }
+    SloObjective:
+      type: object
+      required: [schema_version, limits, evaluation_minutes, availability, regression, id, workload_id, version, hash, created_at]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        limits: { $ref: '#/components/schemas/SloLimits' }
+        evaluation_minutes: { type: integer, minimum: 2, maximum: 60 }
+        availability: { $ref: '#/components/schemas/SloAvailability' }
+        regression: { $ref: '#/components/schemas/SloRegression' }
+        id: { type: string }
+        workload_id: { type: string }
+        version: { type: integer, minimum: 1 }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    SloObjectiveHistory:
+      type: object
+      required: [version, latest, history]
+      properties:
+        version: { type: integer, minimum: 0 }
+        latest:
+          nullable: true
+          allOf: [ { $ref: '#/components/schemas/SloObjective' } ]
+        history: { type: array, items: { $ref: '#/components/schemas/SloObjective' } }
+    SloSourceRequest:
+      type: object
+      additionalProperties: false
+      required: [objective_id, resource_id, subject]
+      properties:
+        objective_id: { type: string }
+        resource_id: { type: string }
+        subject: { type: string, description: Exact dedicated machine OIDC subject; no credentials }
+    SloSource:
+      type: object
+      required: [schema_version, id, objective_id, resource_id, subject, workload_id, provider_resource_id, account_id, region, issuer, enabled]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        objective_id: { type: string }
+        resource_id: { type: string }
+        subject: { type: string }
+        workload_id: { type: string }
+        provider_resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        issuer: { type: string }
+        enabled: { type: boolean }
+    SloCheck:
+      type: object
+      required: [name, status, reason_code]
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [PASS, FAIL, INDETERMINATE, NOT_APPLICABLE] }
+        reason_code: { type: string }
+    SloEvaluation:
+      type: object
+      description: Missing objective, source or binding produces only a blocked status and reasons. Observability fields are absent until independently observed; partial coverage cannot establish complete-window request counts, rates or latency.
+      required: [status, reason_codes]
+      properties:
+        id: { type: string }
+        evaluation_hash: { type: string }
+        status: { type: string, enum: [CLEAR, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        objective_id: { type: string }
+        objective_version: { type: integer, minimum: 0 }
+        objective_hash: { type: string }
+        source_id: { type: string }
+        source_hash: { type: string }
+        resource_id: { type: string }
+        workload_id: { type: string }
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        expected_intervals: { type: integer, minimum: 0 }
+        observed_intervals: { type: integer, minimum: 0 }
+        coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
+        request_count: { type: integer, minimum: 0 }
+        error_count: { type: integer, minimum: 0 }
+        availability_good_seconds: { type: integer, minimum: 0 }
+        availability_total_seconds: { type: integer, minimum: 0 }
+        error_rate_ppm: { type: integer, nullable: true, minimum: 0, maximum: 1000000 }
+        availability_ppm: { type: integer, nullable: true, minimum: 0, maximum: 1000000 }
+        latency_samples: { type: integer, minimum: 0 }
+        p95_latency_ms: { type: integer, nullable: true, minimum: 0, description: Histogram upper bound; unavailable for no demand or insufficient observations }
+        p99_latency_ms: { type: integer, nullable: true, minimum: 0 }
+        p95_lower_ms: { type: integer, nullable: true, minimum: 0 }
+        p99_lower_ms: { type: integer, nullable: true, minimum: 0 }
+        latency_status: { type: string, enum: [OBSERVED, NO_DEMAND, INSUFFICIENT] }
+        hard_checks: { type: array, items: { $ref: '#/components/schemas/SloCheck' } }
+        regression_checks: { type: array, items: { $ref: '#/components/schemas/SloCheck' } }
+        receipt_ids: { type: array, items: { type: string } }
+        baseline_evaluation_id: { type: string }
+        baseline_evaluation_hash: { type: string }
+    SloHistogramBucket:
+      type: object
+      additionalProperties: false
+      required: [upper_bound_ms, count]
+      properties:
+        upper_bound_ms: { type: integer, nullable: true, minimum: 0, maximum: 86400000, description: Strictly increasing finite millisecond bounds; the last bucket alone has null for positive infinity }
+        count: { type: integer, minimum: 0, maximum: 1000000000000, description: Non-cumulative bucket count }
+    SloHistogram:
+      type: object
+      additionalProperties: false
+      required: [unit, buckets, sample_count]
+      properties:
+        unit: { type: string, enum: [milliseconds] }
+        buckets: { type: array, minItems: 1, maxItems: 256, items: { $ref: '#/components/schemas/SloHistogramBucket' } }
+        sample_count: { type: integer, minimum: 0, maximum: 1000000000000, description: Equals request_count and the sum of all non-cumulative bucket counts }
+    SloInterval:
+      type: object
+      additionalProperties: false
+      required: [schema_version, source_id, objective_id, workload_id, resource_id, sequence, interval_start, interval_end, request_count, error_count, availability_good_seconds, availability_total_seconds, latency]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        source_id: { type: string }
+        objective_id: { type: string }
+        workload_id: { type: string }
+        resource_id: { type: string }
+        sequence: { type: integer, minimum: 1 }
+        interval_start: { type: string, format: date-time, description: Exact UTC minute boundary }
+        interval_end: { type: string, format: date-time, description: Exactly sixty seconds after interval_start }
+        request_count: { type: integer, minimum: 0, maximum: 1000000000000 }
+        error_count: { type: integer, minimum: 0, maximum: 1000000000000, description: No greater than request_count }
+        availability_good_seconds: { type: integer, minimum: 0, maximum: 60 }
+        availability_total_seconds: { type: integer, enum: [60] }
+        latency: { $ref: '#/components/schemas/SloHistogram' }
+    SloEvaluationSnapshot:
+      type: object
+      required: [resource_id, workload_id, objective, source, evaluation]
+      properties:
+        resource_id: { type: string }
+        workload_id: { type: string }
+        objective:
+          nullable: true
+          allOf: [ { $ref: '#/components/schemas/SloObjective' } ]
+        source:
+          nullable: true
+          allOf: [ { $ref: '#/components/schemas/SloSource' } ]
+        evaluation: { $ref: '#/components/schemas/SloEvaluation' }
+        snapshot_id: { type: string }
+        snapshot_hash: { type: string }
     SourceConnectionRequest:
       type: object
       additionalProperties: false
@@ -664,6 +930,9 @@ components:
         source_connections: { type: array, items: { $ref: '#/components/schemas/SourceConnection' } }
         activity_sources: { type: array, items: { $ref: '#/components/schemas/Document' } }
         dependency_graph: { $ref: '#/components/schemas/ResourceGraph' }
+        slo_objectives: { type: array, items: { $ref: '#/components/schemas/SloObjective' } }
+        slo_sources: { type: array, items: { $ref: '#/components/schemas/SloSource' } }
+        slo_evaluations: { type: array, items: { $ref: '#/components/schemas/SloEvaluationSnapshot' } }
     EvidenceBinding:
       type: object
       required: [tenant_id, resource_id, provider_resource_id, account_id, region, currency]
@@ -703,6 +972,14 @@ components:
             dependency_reasons: { type: array, items: { type: string } }
             dependency_review_id: { type: string, nullable: true }
             dependency_graph_hash: { type: string, nullable: true }
+            slo_status: { type: string, enum: [CLEAR, BLOCKED] }
+            slo_reasons: { type: array, items: { type: string } }
+            slo_objective_id: { type: string, nullable: true }
+            slo_objective_version: { type: integer, nullable: true, minimum: 1 }
+            slo_objective_hash: { type: string, nullable: true }
+            slo_evaluation_id: { type: string, nullable: true }
+            slo_evaluation_hash: { type: string, nullable: true }
+            slo_evaluation: { $ref: '#/components/schemas/SloEvaluation' }
             pricing_basis: { type: array, items: { type: string, enum: [NET_UNBLENDED, UNBLENDED] } }
     SourceReference:
       type: object
@@ -727,6 +1004,11 @@ components:
             proof_set_id: { type: string, description: Required for all new live stops; signed immutable proof set }
             dependency_review_id: { type: string, description: Required for new schema-3 stops; immutable explicit dependency review }
             dependency_graph_hash: { type: string, description: Required for new schema-3 stops; binds the reviewed graph revision }
+            slo_objective_id: { type: string, description: Required for new schema-3 stops; immutable workload objective }
+            slo_objective_version: { type: integer, minimum: 1 }
+            slo_objective_hash: { type: string }
+            slo_evaluation_id: { type: string, description: Required for new schema-3 stops; immutable trusted evaluation }
+            slo_evaluation_hash: { type: string }
             baseline_id: { type: string }
             measurement_id: { type: string }
             readiness_id: { type: string }

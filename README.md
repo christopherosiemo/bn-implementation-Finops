@@ -45,6 +45,8 @@ The smoke and browser acceptance suites use the owner fixture tenant and must ru
 
 The [dependency-safety guide](docs/dependency-safety.md) covers the implemented typed graph, operator declarations, expiring review and signed schema-3 new-stop binding. Run `node scripts/dependency-smoke.mjs` for the 15-check fixture API journey. Contract checks use `go test ./internal/dependency ./internal/store ./internal/service ./internal/workflow`; PostgreSQL cases require a disposable `TEST_DATABASE_URL`, and full source-to-claim integration uses the real Python worker. A unit-only pass does not establish the complete graph/review operating loop.
 
+The bounded [trusted SLO increment](docs/slo-safety.md) adds versioned objectives, dedicated machine minute receipts, signed evaluations and append-only breach disqualification for schema-3 stops. Its rebuilt local stack passed all 15 SLO checks and 20 Chromium tests. Run `node scripts/slo-smoke.mjs` after the activity/dependency smokes; it registers visible owner-tenant SLO history without resetting or executing the owner operating loop. The retained schema-2 fixture path remains available. Local results do not establish live SLO performance or customer acceptance.
+
 ## What is in the pilot
 
 - OIDC/PKCE console and tenant-scoped API, forced PostgreSQL row-level security, scoped roles and versioned mutations.
@@ -54,7 +56,7 @@ The [dependency-safety guide](docs/dependency-safety.md) covers the implemented 
 - CUR 2.0 normalization with explicit FOCUS 1.4 mapping gaps, raw evidence in versioned object storage and canonical facts in ClickHouse.
 - AWS pilot Terraform/Helm assets, CI and operating instructions. Provisioning assets is separate from a verified live customer deployment.
 
-Dependency safety is a bounded capability: current workload `RUNS_ON` mappings plus operator-declared relationships, with review expiry and graph/inventory changes blocking new schema-3 stops. It does not establish automatic complete dependency discovery. An inbound external consumer blocks the pilot's stop, without an inferred SLO exception; existing owned restoration retains authority. Hard-SLO telemetry/evaluation, full topology/EBS graph integration and production fleet canary behavior remain outstanding. The [acceptance record](docs/acceptance.md) and [progress ledger](docs/progress-ledger.md) distinguish deterministic capability from the remaining live and product-wide gates.
+Dependency safety is a bounded capability: current workload `RUNS_ON` mappings plus operator-declared relationships, with review expiry and graph/inventory changes blocking new schema-3 stops. It does not establish automatic complete dependency discovery. An inbound external consumer blocks the pilot's stop, without an inferred SLO exception; existing owned restoration retains authority. The bounded trusted SLO flow passed local fixture acceptance; broad telemetry adapters, full topology/EBS graph integration and production fleet canary behavior remain outstanding. The [acceptance record](docs/acceptance.md) and [progress ledger](docs/progress-ledger.md) distinguish deterministic capability from the remaining live and product-wide gates.
 
 ```mermaid
 flowchart LR

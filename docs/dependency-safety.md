@@ -83,6 +83,6 @@ Inspect the review result, then create fresh readiness and an exact plan through
 
 ## Outstanding product requirements
 
-Hard-SLO telemetry and evaluation remain outstanding. Independent activity counters establish demand and operational signals, while an HTTP-success probe establishes a bounded readiness signal; neither proves latency, error-rate or availability objectives. CloudWatch hourly maxima are not p95/p99 estimates. The specification's hard objectives and regression thresholds remain independent constraints as recorded in [decisions](decisions.md).
+The separate [trusted SLO increment](slo-safety.md) adds bounded objective/receipt/evaluation authority and passed local fixture API/ingress and browser acceptance. Independent activity counters establish demand and operational signals, while an HTTP-success probe establishes a bounded readiness signal; neither substitutes for application latency/error/availability evidence. Broad telemetry adapters and complete workload SLO coverage remain outstanding. CloudWatch hourly maxima are not p95/p99 estimates. Hard objectives and regression thresholds remain independent constraints as recorded in [decisions](decisions.md).
 
 This increment does not implement production rightsizing, candidate/control cohorts, fleet canary expansion, forecasting, automatic full dependency discovery, IaC/GitOps execution or platform SLO measurement. It earns no live/customer-use credit. The fixed-weight [progress ledger](progress-ledger.md) records accepted capability maturity separately from test counts and planned work.

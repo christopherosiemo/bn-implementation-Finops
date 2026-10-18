@@ -15,11 +15,13 @@ function fixture() {
   readiness.dependency_status = 'READY';
   readiness.dependency_review_id = 'dependency-review-test';
   readiness.dependency_graph_hash = 'a'.repeat(64);
+  Object.assign(readiness, { slo_status: 'CLEAR', slo_objective_id: 'slo-objective-test', slo_objective_version: 1, slo_objective_hash: 'c'.repeat(64), slo_evaluation_id: 'slo-evaluation-test', slo_evaluation_hash: 'd'.repeat(64) });
   readiness.activity_signal = { status: 'CLEAR', source_id: 'activity-source', receipt_id: 'minute-receipt', received_at: iso(-1000), interval_end: iso(-1000) };
   readiness.commitment_scope = { complete: true, reserved_instance_count: 0, savings_plan_count: 0 };
   const op = { resource_id: resource.id, provider_resource_id: resource.provider_resource_id, account_id: resource.account_id, region: resource.region };
   const schedule = { id: 'schedule-test', workload_id: workload.id, paused: false, version: 7 };
   const plan = { id: env.FINOPS_APPROVED_PLAN_ID, version: 2, status: 'APPROVED', fixture: false, schedule_id: schedule.id, resource_id: resource.id, workload_id: workload.id, recommendation_id: rec.id, payload: { id: env.FINOPS_APPROVED_PLAN_ID, schema_version: '3', proof_set_id: readiness.proof_set_id, dependency_review_id: readiness.dependency_review_id, dependency_graph_hash: readiness.dependency_graph_hash, tenant_id: env.FINOPS_SANDBOX_TENANT_ID, fixture: false, schedule_id: schedule.id, workload_id: workload.id, recommendation_id: rec.id, readiness_id: readiness.id, baseline_id: readiness.baseline_id, measurement_id: readiness.measurement_id, activation_at: readiness.activation_at, stop_at: iso(0), restore_at: iso(3_600_000), expires_at: iso(900_000), operations: [{ ...op, type: 'EC2_STOP' }, { ...op, type: 'EC2_START' }] } };
+  for (const key of ['slo_objective_id', 'slo_objective_version', 'slo_objective_hash', 'slo_evaluation_id', 'slo_evaluation_hash']) plan.payload[key] = readiness[key];
   const calls = []; let polls = 0;
   const fetchImpl = async (url, options) => {
     calls.push({ path: url.pathname, ...options }); let body;
@@ -44,6 +46,7 @@ test('default inspection: one GET, no workload/economics/execution prerequisites
   const f = fixture(); delete f.env.FINOPS_LIVE_ACK; delete f.env.FINOPS_APPROVED_PLAN_ID; f.dashboard.workloads = []; f.dashboard.recommendations = []; delete f.resource.workload_id; delete f.resource.commitment_known;
   delete f.readiness.dependency_status; delete f.readiness.dependency_review_id; delete f.readiness.dependency_graph_hash;
   delete f.plan.payload.dependency_review_id; delete f.plan.payload.dependency_graph_hash;
+  for (const key of ['slo_status', 'slo_objective_id', 'slo_objective_version', 'slo_objective_hash', 'slo_evaluation_id', 'slo_evaluation_hash']) { delete f.readiness[key]; delete f.plan.payload[key]; }
   assert.equal((await runSandboxSmoke({ ...f, args: [] })).mode, 'inspection'); assert.equal(f.calls.length, 1); assert.ok(f.calls.every(c => c.method === 'GET'));
 });
 test('explicit execution: approved plan, owned restoration, then confirmed schedule pause', async () => {
@@ -75,6 +78,31 @@ for (const [name, mutate] of [
   ['short-lived token', f => { f.env.FINOPS_API_TOKEN = 'h.' + Buffer.from(JSON.stringify({ exp: instant / 1000 + 1200 })).toString('base64url') + '.s'; }],
   ['insecure API URL', f => { f.env.FINOPS_API_URL = 'http://public.example.invalid'; }]
 ]) test(`fails before POST: ${name}`, async () => { const f = fixture(); mutate(f); await assert.rejects(runSandboxSmoke({ ...f, args: ['--execute'] })); assert.ok(f.calls.every(c => c.method === 'GET')); });
+for (const key of ['slo_objective_id', 'slo_objective_hash', 'slo_evaluation_id', 'slo_evaluation_hash']) {
+  for (const [kind, mutate] of [
+    ['missing signed', f => { delete f.plan.payload[key]; }],
+    ['missing readiness', f => { delete f.readiness[key]; }],
+    ['mismatched', f => { f.readiness[key] = 'different'; }],
+    ['blank', f => { f.readiness[key] = f.plan.payload[key] = ' '; }],
+  ]) test(`fails before POST: ${kind} ${key}`, async () => {
+    const f = fixture(); mutate(f);
+    await assert.rejects(runSandboxSmoke({ ...f, args: ['--execute'] }), /SLO readiness/);
+    assert.ok(f.calls.every(call => call.method === 'GET'));
+  });
+}
+for (const [name, mutate] of [
+  ['missing SLO status', f => { delete f.readiness.slo_status; }],
+  ['blocked SLO status', f => { f.readiness.slo_status = 'BLOCKED'; }],
+  ['missing signed objective version', f => { delete f.plan.payload.slo_objective_version; }],
+  ['missing readiness objective version', f => { delete f.readiness.slo_objective_version; }],
+  ['mismatched objective version', f => { f.readiness.slo_objective_version = 2; }],
+  ['zero objective version', f => { f.readiness.slo_objective_version = f.plan.payload.slo_objective_version = 0; }],
+  ['fractional objective version', f => { f.readiness.slo_objective_version = f.plan.payload.slo_objective_version = 1.5; }],
+]) test(`fails before POST: ${name}`, async () => {
+  const f = fixture(); mutate(f);
+  await assert.rejects(runSandboxSmoke({ ...f, args: ['--execute'] }), /SLO/);
+  assert.ok(f.calls.every(call => call.method === 'GET'));
+});
 test('HTTP failure never logs bearer token or response body', async () => {
   const f = fixture(); const logs = []; f.log = value => logs.push(value); f.fetchImpl = async () => ({ ok: false, status: 401, json: async () => ({ secret: f.env.FINOPS_API_TOKEN }) });
   await assert.rejects(runSandboxSmoke({ ...f, args: [] }), e => !e.message.includes(f.env.FINOPS_API_TOKEN)); assert.ok(!logs.join('').includes(f.env.FINOPS_API_TOKEN));

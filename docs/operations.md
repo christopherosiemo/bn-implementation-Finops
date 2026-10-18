@@ -20,6 +20,12 @@ Read the persisted execution/provider-operation record before manually acting. R
 
 Starting must respect the original ownership/precondition record: do not start an instance the customer had independently stopped before the workflow. Likewise a manual operator start must be recognised by reconciliation so a retry does not later stop the instance again.
 
+## Trusted SLO breach or missing telemetry
+
+For schema-3 plans with signed SLO authority, inspect the current objective/source/evaluation and the persisted violation reason alongside the original execution and provider-operation ownership. Preserve the off-instance observer, ingress, worker, executor and Temporal while recovery is pending. A breach, stale evidence or changed authority requests owned restoration; it must not cancel the existing START duty. `ALWAYS` availability blocks a new singleton stop. Changing a policy or receiving a later good minute cannot clear an immutable measurement violation.
+
+The API corrects a prior financial claim by appending a current `BLOCKED` row with null verified saving; it preserves earlier positive and negative rows and their claim identity. Do not delete a violation, edit a financial row, reset collector sequence state or relabel old receipts to recover a positive claim. Use a newly reviewed objective/source/plan for a later change after the fault is understood. Check signed outbox receiver delivery separately from event persistence and route owner escalation through explicitly configured channels. The recent 2–60-minute SLO regression baseline does not replace the independent fourteen-day financial/workload baseline. See [trusted SLO scope and remaining gates](slo-safety.md); runtime/live acceptance is recorded separately.
+
 ## Service or control-plane failure
 
 The worker must replay durable Temporal workflow state; the executor must reconcile its persisted cloud-operation intent with actual EC2 state. Restart services with the same database, Temporal namespace and signing verification key. Do not reset volumes or launch a new workflow ID to work around a paused occurrence. Check `/healthz`, database connectivity, Temporal namespace/worker pollers, signatures/expiry, secret versions and customer STS failures. Health endpoints are liveness signals; verify database migrations and durable work processing separately.

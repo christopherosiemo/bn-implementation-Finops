@@ -257,6 +257,7 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 	}
 	refreshTrustedActivity(t, apiDB, admin, tenant, activitySource.ID)
 	seedDependencyReview(t, ctx, &api, apiDB, tenant, "resource-dev-api")
+	seedSLOAuthority(t, ctx, &api, apiDB, tenant)
 	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
 		var e error
 		ready, e = api.readiness(ctx, tx, "resource-dev-api", true)

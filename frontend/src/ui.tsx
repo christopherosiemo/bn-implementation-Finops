@@ -111,7 +111,17 @@ export function isTrustedPlan(record: Document & EvidenceFields): boolean {
             "dependency_review_id" in payload &&
             Boolean(payload.dependency_review_id) &&
             "dependency_graph_hash" in payload &&
-            Boolean(payload.dependency_graph_hash))),
+            Boolean(payload.dependency_graph_hash) &&
+            "slo_objective_id" in payload &&
+            Boolean(payload.slo_objective_id) &&
+            "slo_objective_version" in payload &&
+            Number(payload.slo_objective_version) > 0 &&
+            "slo_objective_hash" in payload &&
+            Boolean(payload.slo_objective_hash) &&
+            "slo_evaluation_id" in payload &&
+            Boolean(payload.slo_evaluation_id) &&
+            "slo_evaluation_hash" in payload &&
+            Boolean(payload.slo_evaluation_hash))),
     )
   );
 }
@@ -151,6 +161,9 @@ export function EvidenceSummary({
       record.dependency_review_id ||
       record.dependency_graph_hash ||
       record.dependency_status ||
+      record.slo_status ||
+      record.slo_objective_id ||
+      record.slo_evaluation_id ||
       record.activation_at ||
       record.evidence_refs?.length ||
       record.source_refs?.length ||
@@ -159,7 +172,10 @@ export function EvidenceSummary({
   );
   if (!hasBinding) return null;
   return (
-    <section className="evidence-binding" aria-label="Bound financial evidence">
+    <section
+      className="evidence-binding"
+      aria-label="Bound financial and safety evidence"
+    >
       <dl className="definition-list">
         {record.pre_execution_ready !== undefined && (
           <div>
@@ -214,6 +230,38 @@ export function EvidenceSummary({
           <div>
             <dt>Dependency graph hash</dt>
             <dd className="evidence-id">{record.dependency_graph_hash}</dd>
+          </div>
+        )}
+        {record.slo_status && (
+          <div>
+            <dt>SLO assessment</dt>
+            <dd>
+              <Badge value={record.slo_status} />
+              {record.slo_reasons?.map((reason) => (
+                <small key={reason}>{readable(reason)}</small>
+              ))}
+            </dd>
+          </div>
+        )}
+        {record.slo_objective_id && (
+          <div>
+            <dt>Bound SLO objective</dt>
+            <dd className="evidence-id">
+              {record.slo_objective_id}
+              <small>
+                Revision {record.slo_objective_version ?? "unavailable"} ·{" "}
+                {record.slo_objective_hash || "Hash unavailable"}
+              </small>
+            </dd>
+          </div>
+        )}
+        {record.slo_evaluation_id && (
+          <div>
+            <dt>Bound SLO evaluation</dt>
+            <dd className="evidence-id">
+              {record.slo_evaluation_id}
+              <small>{record.slo_evaluation_hash || "Hash unavailable"}</small>
+            </dd>
           </div>
         )}
         {record.activation_at && (

@@ -19,6 +19,14 @@ export interface EvidenceFields {
   dependency_reasons?: string[];
   dependency_review_id?: string | null;
   dependency_graph_hash?: string | null;
+  slo_status?: "CLEAR" | "BLOCKED";
+  slo_reasons?: string[];
+  slo_objective_id?: string | null;
+  slo_objective_version?: number | null;
+  slo_objective_hash?: string | null;
+  slo_evaluation_id?: string | null;
+  slo_evaluation_hash?: string | null;
+  slo_evaluation?: components["schemas"]["SloEvaluation"];
   activation_at?: string | null;
   evidence_refs?: unknown[];
   source_refs?: components["schemas"]["SourceReference"][];
@@ -30,6 +38,12 @@ export type DependencyEdgeInput = components["schemas"]["DependencyEdgeInput"];
 export type DependencyEdgeType = components["schemas"]["DependencyEdgeType"];
 export type DependencyReview = components["schemas"]["DependencyReview"];
 export type ResourceGraph = components["schemas"]["ResourceGraph"];
+export type SloObjective = components["schemas"]["SloObjective"];
+export type SloObjectiveRequest = components["schemas"]["SloObjectiveRequest"];
+export type SloSource = components["schemas"]["SloSource"];
+export type SloEvaluation = components["schemas"]["SloEvaluation"];
+export type SloEvaluationSnapshot =
+  components["schemas"]["SloEvaluationSnapshot"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;
@@ -141,6 +155,9 @@ export interface Dashboard {
   source_connections?: (Document & components["schemas"]["SourceConnection"])[];
   activity_sources?: Document[];
   dependency_graph?: ResourceGraph;
+  slo_objectives?: SloObjective[];
+  slo_sources?: SloSource[];
+  slo_evaluations?: SloEvaluationSnapshot[];
 }
 export type Page =
   | "overview"

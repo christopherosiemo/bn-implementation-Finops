@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 22.2,
-  "rounded_description": "Approximately 22 percent of the full product",
-  "credit_review": "Accepted bounded workload mapping through typed dependency reviews, proof-bound STOP and owned restoration using deterministic fixtures and restricted PostgreSQL roles; no complete-discovery, SLO, live, production or customer-use credit",
+  "current_weighted_percent": 23.4,
+  "rounded_description": "Approximately 23 percent of the full product",
+  "credit_review": "Accepted bounded independent SLO receipts, objective/plan binding, owned rollback and permanent measurement disqualification with deterministic acceptance; no full-SLO, native instrumentation, live, production or customer-use credit",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -58,7 +58,7 @@
     {
       "id": "workload_graph_demand_slo",
       "weight_percent": 12,
-      "contribution_points": 3.6,
+      "contribution_points": 4.8,
       "packages": [
         {
           "id": "bounded_workload_mapping",
@@ -81,21 +81,27 @@
         {
           "id": "independent_demand_and_slo",
           "scope_weight_percent": 6,
-          "accepted_maturity": 20,
+          "accepted_maturity": 40,
           "evidence": [
-            "internal/activity",
-            "internal/store/activity_integration_test.go",
+            "internal/slo",
+            "internal/activity/slo_integration_test.go",
             "internal/service/trusted_integration_test.go",
-            "scripts/activity-smoke.mjs"
+            "internal/service/slo_control_integration_test.go",
+            "internal/service/slo_savings_integration_test.go",
+            "internal/workflow/slo_test.go",
+            "scripts/slo-smoke.mjs",
+            "scripts/tests/slo-collector.test.mjs",
+            "frontend/tests/slo.spec.ts"
           ],
           "remaining": [
-            "Deploy independent customer collector and collect genuine history",
-            "Complete workload graph, demand integrations and hard SLO validation"
+            "Deploy independently instrumented customer collectors and collect genuine history",
+            "Native OTel/Prometheus integrations, longer SLI distributions and seasonality",
+            "Complete CPU/memory headroom, replica/AZ/RTO/RPO and broader action-specific SLO gates"
           ]
         }
       ],
       "baseline_area_maturity": 10,
-      "current_area_maturity": 30
+      "current_area_maturity": 40
     },
     {
       "id": "optimisation_forecast_commitments",
@@ -302,7 +308,7 @@
     }
   ],
   "next_credit_gates": [
-    "Complete independent hard-SLO telemetry and action-specific evaluation without substituting hourly maxima for quantiles",
+    "Complete remaining application/capacity SLO breadth and native instrumentation; retain independent hard and regression gates",
     "Approve exact two-account deployment plan, budget, owner and expiry",
     "Deploy read-only first and validate authentic source/activity receipts",
     "Collect genuine fourteen-day baseline, latest complete day within forty-eight hours of activation",
@@ -483,6 +489,29 @@
         "internal/service/dependencies_concurrency_test.go",
         "scripts/dependency-smoke.mjs",
         "frontend/tests/dependencies.spec.ts"
+      ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "trusted-slo-2026-10-18",
+      "previous_weighted_percent": 22.2,
+      "weighted_percent": 23.4,
+      "contribution_changes": [
+        {
+          "capability": "independent_demand_and_slo",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 1.2,
+          "acceptance": "Machine-authenticated current-minute SLI receipts and immutable objectives through sealed plan authority, independent hard/regression evaluation, fixture-owned restoration and permanent append-only financial disqualification. Native instrumentation, full capacity SLOs and customer operation remain unaccepted."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "internal/service/slo_control_integration_test.go",
+        "internal/service/slo_savings_integration_test.go",
+        "scripts/slo-smoke.mjs",
+        "frontend/tests/slo.spec.ts"
       ],
       "live_credit_awarded": false
     }

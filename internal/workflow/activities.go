@@ -72,6 +72,22 @@ func (a *Activities) Stage(ctx context.Context, in StageInput) error {
 			return e
 		}
 		previousStatus, previousStage := model.String(d, "status"), model.String(d, "stage")
+		if strings.HasPrefix(in.Error, "SLO_") && in.Owned {
+			plan, err := t.Get(ctx, "change_plans", in.Input.PlanID)
+			if err != nil {
+				return err
+			}
+			var p model.Plan
+			b, _ := json.Marshal(plan["payload"])
+			if err = json.Unmarshal(b, &p); err != nil {
+				return err
+			}
+			if p.SchemaVersion == "3" {
+				if err = service.RecordSLOFailure(ctx, t, p, in.Input.ExecutionID, in.Error); err != nil {
+					return err
+				}
+			}
+		}
 		if previousStatus == in.Status && previousStage == in.Stage && model.String(d, "error") == in.Error && model.Bool(d, "restoration_owned") == in.Owned {
 			return nil
 		}
@@ -132,6 +148,9 @@ func (a *Activities) Stage(ctx context.Context, in StageInput) error {
 		if in.Status == "FAILED" || in.Stage == "RESTORATION_ALERT" || in.Stage == "HEALTH_ALERT" {
 			event = "execution.failed"
 		}
+		if in.Stage == "ROLLED_BACK" {
+			event = "execution.rolled_back"
+		}
 		return t.Event(ctx, event, d)
 	})
 }
@@ -173,6 +192,23 @@ func (a *Activities) Control(ctx context.Context, in model.WorkflowInput) (Contr
 			c.Restore = model.Bool(d, "start_now") || model.Bool(org, "paused") || model.Bool(s, "paused") || err != nil || activity.FreshActivity(time.Now(), latest, 2*time.Minute).Status != "CLEAR"
 			if err := service.DependencyPlanReady(ctx, t, model.String(d, "resource_id"), model.String(payload, "dependency_review_id"), model.String(payload, "dependency_graph_hash"), time.Now()); err != nil {
 				c.Restore = true
+			}
+			var signed model.Plan
+			if err := json.Unmarshal(encoded, &signed); err != nil {
+				return err
+			}
+			reason, err := service.ObserveSLO(ctx, t, signed, in.ExecutionID)
+			if err != nil {
+				return err
+			}
+			if reason != "" {
+				c.Restore = true
+				c.ReasonCode = reason
+				var active bool
+				if err = t.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM provider_operations WHERE tenant_id=$1 AND execution_id=$2 AND stop_intent AND NOT restored)", t.Tenant, in.ExecutionID).Scan(&active); err != nil {
+					return err
+				}
+				c.Disqualified = active && signed.SLOObjectiveID != ""
 			}
 		}
 		return nil

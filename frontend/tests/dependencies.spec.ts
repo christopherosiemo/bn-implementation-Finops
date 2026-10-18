@@ -466,6 +466,11 @@ test("schema-three plans need dependency binding while fixture schema two remain
     proof_set_id: "proof-set",
     dependency_review_id: "review-api",
     dependency_graph_hash: "graph-v3",
+    slo_objective_id: "objective-api",
+    slo_objective_version: 1,
+    slo_objective_hash: "objective-hash",
+    slo_evaluation_id: "evaluation-api",
+    slo_evaluation_hash: "evaluation-hash",
   };
   await page.getByRole("button", { name: "Refresh data" }).click();
   await expect(execute).toBeEnabled();

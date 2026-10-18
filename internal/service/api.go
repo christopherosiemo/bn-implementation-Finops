@@ -209,6 +209,12 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				}
 				d[k] = rows
 			}
+			if _, e := t.Exec(r.Context(), "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
+				return e
+			}
+			if _, _, e := reconcileSLOClaims(r.Context(), t); e != nil {
+				return e
+			}
 			for k, table := range map[string]string{"audit": "audit_events", "savings": "savings_ledger"} {
 				rows, e := t.Evidence(r.Context(), table)
 				if e != nil {
@@ -221,6 +227,29 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				return err
 			}
 			d["dependency_graph"] = graph
+			objectives, err := t.SLOObjectives(r.Context())
+			if err != nil {
+				return err
+			}
+			d["slo_objectives"] = objectives
+			sloSources, err := t.SLOSources(r.Context())
+			if err != nil {
+				return err
+			}
+			d["slo_sources"] = sloSources
+			sloStates := []model.Document{}
+			resources, err := t.List(r.Context(), "resources")
+			if err != nil {
+				return err
+			}
+			for _, res := range resources {
+				state, err := currentSLO(r.Context(), t, res, nil, true, time.Time{}, time.Time{})
+				if err != nil {
+					return err
+				}
+				sloStates = append(sloStates, state)
+			}
+			d["slo_evaluations"] = sloStates
 			restrictDashboard(i, d)
 			out = d
 			return nil
@@ -229,6 +258,28 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return problem(403, "WORKLOAD_SCOPE_DENIED", "application owners use the scoped dashboard")
 		}
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+		if len(parts) == 3 && parts[0] == "workloads" && parts[2] == "slo-objectives" {
+			d, e := sloObjectiveHistory(r.Context(), t, parts[1])
+			out = d
+			if e == nil {
+				w.Header().Set("ETag", fmt.Sprintf("\"%d\"", model.Number(d, "version")))
+			}
+			return e
+		}
+		if len(parts) == 1 && parts[0] == "slo-sources" {
+			d, e := t.SLOSources(r.Context())
+			out = d
+			return e
+		}
+		if len(parts) == 3 && parts[0] == "resources" && parts[2] == "slo-evaluation" {
+			res, e := t.Get(r.Context(), "resources", parts[1])
+			if e != nil {
+				return e
+			}
+			d, e := currentSLO(r.Context(), t, res, nil, true, time.Time{}, time.Time{})
+			out = d
+			return e
+		}
 		if len(parts) == 1 && parts[0] == "resource-graph" {
 			d, e := dependencyGraph(r.Context(), t)
 			out = d

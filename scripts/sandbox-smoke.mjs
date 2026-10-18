@@ -78,6 +78,9 @@ export async function runSandboxSmoke({ env = process.env, args = process.argv.s
   insist(readiness.proof_set_id === payload.proof_set_id, 'Signed proof set must match current readiness');
   insist(readiness.dependency_status === 'READY', 'Current dependency review must explicitly permit execution');
   for (const key of ['dependency_review_id', 'dependency_graph_hash']) insist(typeof readiness[key] === 'string' && readiness[key].trim().length > 0 && payload[key] === readiness[key], `Signed ${key} must match current dependency readiness`);
+  insist(readiness.slo_status === 'CLEAR', 'Current trusted SLO evaluation must explicitly permit execution');
+  for (const key of ['slo_objective_id', 'slo_objective_hash', 'slo_evaluation_id', 'slo_evaluation_hash']) insist(typeof readiness[key] === 'string' && readiness[key].trim().length > 0 && payload[key] === readiness[key], `Signed ${key} must match current SLO readiness`);
+  insist(Number.isSafeInteger(readiness.slo_objective_version) && readiness.slo_objective_version > 0 && payload.slo_objective_version === readiness.slo_objective_version, 'Signed SLO objective version must match current readiness');
   const activity = readiness.activity_signal;
   insist(activity?.status === 'CLEAR' && activity.receipt_id && activity.source_id, 'Independent authenticated workload signals must be CLEAR');
   const signalsAt = timestamp(activity.received_at, 'activity received_at');

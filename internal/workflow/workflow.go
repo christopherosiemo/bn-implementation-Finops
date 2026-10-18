@@ -22,8 +22,10 @@ type DispatchInput struct {
 	Operation string
 }
 type Control struct {
-	Restore bool
-	StopAt  time.Time
+	Restore      bool
+	StopAt       time.Time
+	Disqualified bool
+	ReasonCode   string
 }
 
 // Occurrence is a durable resource-scoped stop AND restoration obligation.
@@ -63,6 +65,16 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 				stopErr = e
 				break
 			}
+			if envelope.Plan.SLOObjectiveID != "" {
+				var c Control
+				if e := tw.ExecuteActivity(ctx, "Control", in).Get(ctx, &c); e != nil {
+					stopErr = e
+					break
+				} else if c.Disqualified {
+					stopErr = errors.New(c.ReasonCode)
+					break
+				}
+			}
 			if e := tw.ExecuteActivity(ctx, "Dispatch", DispatchInput{in, envelope, "DESCRIBE"}).Get(ctx, &state); e != nil {
 				stopErr = e
 				break
@@ -76,6 +88,7 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 	// cannot cancel restoration. Executor independently requires persisted stop intent.
 	recovery, _ := tw.NewDisconnectedContext(ctx)
 	recovery = tw.WithActivityOptions(recovery, tw.ActivityOptions{StartToCloseTimeout: 45 * time.Second, RetryPolicy: &temporal.RetryPolicy{InitialInterval: time.Second, MaximumInterval: 30 * time.Second, MaximumAttempts: 3}})
+	sloError := ""
 	if stopErr == nil {
 		stage("EXECUTING", "STOPPED", true, "")
 		poll := 15 * time.Second
@@ -85,6 +98,12 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 		for tw.Now(ctx).Before(envelope.Plan.RestoreAt) {
 			var c Control
 			e := tw.ExecuteActivity(ctx, "Control", in).Get(ctx, &c)
+			if e != nil && envelope.Plan.SLOObjectiveID != "" {
+				sloError = "SLO_OBSERVATION_UNAVAILABLE"
+			}
+			if c.Disqualified {
+				sloError = c.ReasonCode
+			}
 			if e != nil || c.Restore {
 				break
 			}
@@ -101,7 +120,7 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 			}
 		}
 	}
-	stepError := ""
+	stepError := sloError
 	if stopErr != nil {
 		stepError = stopErr.Error()
 	}
@@ -126,6 +145,19 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 			}
 		}
 		if e == nil && result.State == "running" {
+			if envelope.Plan.SLOObjectiveID != "" {
+				var c Control
+				if err := tw.ExecuteActivity(recovery, "Control", in).Get(recovery, &c); err != nil {
+					if stepError == "" {
+						stepError = "SLO_OBSERVATION_UNAVAILABLE"
+					}
+				} else if c.Disqualified {
+					stepError = c.ReasonCode
+				}
+			}
+			if stepError != "" && envelope.Plan.SLOObjectiveID != "" {
+				_ = tw.ExecuteActivity(recovery, "Stage", StageInput{in, "RESTORING", "STARTING", stepError, true}).Get(recovery, nil)
+			}
 			e = tw.ExecuteActivity(recovery, "Dispatch", DispatchInput{in, envelope, "HEALTH"}).Get(recovery, &result)
 			if e == nil && result.Healthy {
 				healthyCount++

@@ -133,6 +133,8 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if model.String(baseline, "schema_version") == "3" {
 		p.SchemaVersion, p.ProofSetID = "3", model.String(ready, "proof_set_id")
 		p.DependencyReviewID, p.DependencyGraphHash = model.String(ready, "dependency_review_id"), model.String(ready, "dependency_graph_hash")
+		p.SLOObjectiveID, p.SLOObjectiveVersion, p.SLOObjectiveHash = model.String(ready, "slo_objective_id"), model.Number(ready, "slo_objective_version"), model.String(ready, "slo_objective_hash")
+		p.SLOEvaluationID, p.SLOEvaluationHash = model.String(ready, "slo_evaluation_id"), model.String(ready, "slo_evaluation_hash")
 	}
 	if e = readinessPlanCheck(ctx, t, p, res); e != nil {
 		return nil, e
@@ -144,6 +146,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	d["readiness_id"], d["baseline_id"], d["measurement_id"], d["activation_at"] = p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt
 	d["proof_set_id"] = p.ProofSetID
 	d["dependency_review_id"], d["dependency_graph_hash"] = p.DependencyReviewID, p.DependencyGraphHash
+	d["slo_objective_id"], d["slo_objective_version"], d["slo_objective_hash"], d["slo_evaluation_id"], d["slo_evaluation_hash"] = p.SLOObjectiveID, p.SLOObjectiveVersion, p.SLOObjectiveHash, p.SLOEvaluationID, p.SLOEvaluationHash
 	return t.Create(ctx, "change_plans", d)
 }
 func decodePlan(d model.Document) (model.Plan, error) {
@@ -187,14 +190,43 @@ func (a *API) economics(ctx context.Context, endpoint string, input model.Docume
 	return d, e
 }
 func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in model.Document) (model.Document, int, error) {
+	if _, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
+		return nil, 0, e
+	}
+	blocked, disqualified, e := reconcileSLOClaims(ctx, t)
+	if e != nil {
+		return nil, 0, e
+	}
 	executions, e := t.List(ctx, "executions")
 	if e != nil {
 		return nil, 0, e
 	}
 	results := []model.Document{}
+	requestedMeasurement := ""
+	if filter := model.String(in, "execution_id"); filter != "" {
+		for _, x := range executions {
+			if model.String(x, "id") == filter {
+				if plan, err := t.Get(ctx, "change_plans", model.String(x, "change_plan_id")); err == nil {
+					if payload, err := decodePlan(plan); err == nil {
+						requestedMeasurement = payload.MeasurementID
+					}
+				}
+			}
+		}
+	}
+	for _, row := range blocked {
+		if filter := model.String(in, "execution_id"); filter == "" || filter == model.String(row, "execution_id") || requestedMeasurement != "" && requestedMeasurement == model.String(row, "measurement_id") {
+			results = append(results, row)
+		}
+	}
 	for _, x := range executions {
 		if filter := model.String(in, "execution_id"); filter != "" && filter != model.String(x, "id") {
 			continue
+		}
+		if plan, err := t.Get(ctx, "change_plans", model.String(x, "change_plan_id")); err == nil {
+			if payload, err := decodePlan(plan); err == nil && disqualified[payload.MeasurementID] {
+				continue
+			}
 		}
 		if model.String(x, "status") != "COMPLETED" {
 			continue

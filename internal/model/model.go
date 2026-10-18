@@ -73,6 +73,11 @@ type Plan struct {
 	ProofSetID           string      `json:"proof_set_id,omitempty"`
 	DependencyReviewID   string      `json:"dependency_review_id,omitempty"`
 	DependencyGraphHash  string      `json:"dependency_graph_hash,omitempty"`
+	SLOObjectiveID       string      `json:"slo_objective_id,omitempty"`
+	SLOObjectiveVersion  int64       `json:"slo_objective_version,omitempty"`
+	SLOObjectiveHash     string      `json:"slo_objective_hash,omitempty"`
+	SLOEvaluationID      string      `json:"slo_evaluation_id,omitempty"`
+	SLOEvaluationHash    string      `json:"slo_evaluation_hash,omitempty"`
 	ID                   string      `json:"id"`
 	TenantID             string      `json:"tenant_id"`
 	RecommendationID     string      `json:"recommendation_id"`

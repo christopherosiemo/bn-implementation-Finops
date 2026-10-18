@@ -149,6 +149,7 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 		return nil, e
 	}
 	now := a.now()
+	var sloState model.Document
 	d := model.Document{"id": model.ID(), "resource_id": resource, "tenant_id": t.Tenant, "workload_id": res["workload_id"], "status": "BLOCKED", "pre_execution_ready": false, "verification_status": "MEASURING", "reason_code": "BASELINE_REQUIRED", "checked_at": now.Format(time.RFC3339Nano), "expires_at": now.Add(5 * time.Minute).Format(time.RFC3339Nano), "baseline_id": nil, "measurement_id": nil, "activation_at": nil, "binding": evidence.Binding(t.Tenant, res, model.String(res, "currency")), "blockers": []string{}, "evidence_refs": []string{}}
 	if !a.Config.Fixture {
 		d["reason_code"] = "TRUSTED_SOURCE_REQUIRED"
@@ -204,6 +205,22 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 				}
 				d["blockers"] = blocked
 				if model.String(b, "schema_version") == "3" {
+					sloState, err = currentSLO(ctx, t, res, nil, true, time.Time{}, time.Time{})
+					if err != nil {
+						return nil, err
+					}
+					sloBlocks := sloReasons(sloState)
+					if len(sloBlocks) == 0 {
+						sloBlocks = sloScheduleReasons(sloState, evidence.Object(b["schedule"]), a.Config.Fixture)
+					}
+					d["slo_status"], d["slo_reasons"], d["slo_evaluation"] = "CLEAR", sloBlocks, sloState["evaluation"]
+					if len(sloBlocks) > 0 {
+						d["slo_status"] = "BLOCKED"
+						blocked = append(blocked, sloBlocks...)
+					} else {
+						obj := evidence.Object(sloState["objective"])
+						d["slo_objective_id"], d["slo_objective_version"], d["slo_objective_hash"] = obj["id"], obj["version"], obj["hash"]
+					}
 					review, dependencyErr := currentDependencyReview(ctx, t, resource, "", "", time.Now())
 					d["dependency_status"], d["dependency_reasons"] = "READY", []string{}
 					if dependencyErr != nil {
@@ -239,7 +256,12 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 	if seal {
 		if model.Bool(d, "pre_execution_ready") {
 			if model.String(b, "schema_version") == "3" {
-				proof, err := sealProofSet(ctx, t, b, res, now)
+				snapshot, err := sealSLO(ctx, t, sloState)
+				if err != nil {
+					return nil, err
+				}
+				d["slo_evaluation_id"], d["slo_evaluation_hash"] = snapshot["id"], snapshot["hash"]
+				proof, err := sealProofSet(ctx, t, b, res, now, d)
 				if err != nil {
 					return nil, err
 				}
@@ -260,7 +282,7 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 	if len(prior) > 0 {
 		last := prior[len(prior)-1]
 		if model.String(last, "baseline_id") == model.String(d, "baseline_id") {
-			for _, k := range []string{"id", "checked_at", "expires_at", "measurement_id", "proof_set_id"} {
+			for _, k := range []string{"id", "checked_at", "expires_at", "measurement_id", "proof_set_id", "slo_evaluation_id", "slo_evaluation_hash"} {
 				d[k] = last[k]
 			}
 			checked, err := time.Parse(time.RFC3339Nano, model.String(last, "checked_at"))
@@ -352,6 +374,12 @@ func readinessPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, res mode
 			return problem(422, "DEPENDENCY_REVIEW_REQUIRED", "new version 3 stops require the exact reviewed dependency graph")
 		}
 		if err := DependencyPlanReady(ctx, t, model.String(res, "id"), p.DependencyReviewID, p.DependencyGraphHash, time.Now()); err != nil {
+			return evidenceProblem(err)
+		}
+		if p.SLOObjectiveID != model.String(ready, "slo_objective_id") || p.SLOObjectiveVersion != model.Number(ready, "slo_objective_version") || p.SLOObjectiveHash != model.String(ready, "slo_objective_hash") || p.SLOEvaluationID != model.String(ready, "slo_evaluation_id") || p.SLOEvaluationHash != model.String(ready, "slo_evaluation_hash") {
+			return problem(422, "SLO_READINESS_BINDING_INVALID", "signed SLO authority must match sealed readiness")
+		}
+		if err := SLOPlanReady(ctx, t, p); err != nil {
 			return evidenceProblem(err)
 		}
 		if e = proofPlanCheck(ctx, t, p, b, res, ready); e != nil {

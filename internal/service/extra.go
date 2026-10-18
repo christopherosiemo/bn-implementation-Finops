@@ -14,6 +14,9 @@ import (
 func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, bool, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
+	if d, status, handled, e := a.sloMutate(ctx, t, i, r, in, parts); handled {
+		return d, status, true, e
+	}
 	if d, status, handled, e := a.dependencyMutate(ctx, t, i, r, in, parts); handled {
 		return d, status, true, e
 	}

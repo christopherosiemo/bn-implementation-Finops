@@ -43,7 +43,7 @@ func (s *Server) Handler() http.Handler {
 			response(w, 200, map[string]string{"status": "ok", "role": "activity-ingress"})
 			return
 		}
-		if r.URL.Path != "/v1/activity/intervals" {
+		if r.URL.Path != "/v1/activity/intervals" && r.URL.Path != "/v1/slo/intervals" {
 			http.NotFound(w, r)
 			return
 		}
@@ -69,6 +69,10 @@ func (s *Server) Handler() http.Handler {
 		raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16<<10))
 		if err != nil {
 			failure(w, 413, "ACTIVITY_BODY_TOO_LARGE")
+			return
+		}
+		if r.URL.Path == "/v1/slo/intervals" {
+			s.sloInterval(w, r, identity, raw, key)
 			return
 		}
 		interval, err := Decode(raw)

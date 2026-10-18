@@ -4,6 +4,73 @@
  */
 
 export interface paths {
+    "/workloads/{id}/slo-objectives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSloObjectives"];
+        put?: never;
+        /** @description PLATFORM_ADMIN records an immutable objective revision. If-Match is the latest objective version, including zero before the first revision. Hard objectives and baseline regression guards are independent; neither can waive the other. No evidence is accepted from the browser. */
+        post: operations["reviseSloObjective"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/slo-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSloSources"];
+        put?: never;
+        /** @description PLATFORM_ADMIN binds an existing objective and resource to an exact machine subject. Console tokens cannot ingest SLO intervals. */
+        post: operations["registerSloSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/slo-evaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSloEvaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/slo/intervals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Isolated activity-ingress service accepts exact registered machine subjects with the dedicated machine audience. Console tokens cannot ingest evidence. One UTC minute per observation; non-cumulative histogram bucket counts must sum to request_count. Exact replays are idempotent; historical backfills and conflicting receipts are rejected. */
+        post: operations["ingestSloInterval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resource-graph": {
         parameters: {
             query?: never;
@@ -507,6 +574,186 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SloLimits: {
+            /** @description Absolute hard maximum in parts per million */
+            max_error_rate_ppm: number;
+            /** @description Absolute hard minimum in parts per million */
+            min_availability_ppm: number;
+            max_p95_latency_ms: number;
+            /** @description Must be greater than or equal to the p95 limit */
+            max_p99_latency_ms: number;
+            /** @description Minimum request observations for latency evaluation; insufficient samples never become zero latency */
+            min_latency_samples: number;
+        };
+        SloAvailabilityWindow: {
+            /** @description Sunday is zero */
+            days: number[];
+            start_time: string;
+            /** @description Must be later than start_time; overnight windows are unsupported */
+            end_time: string;
+        };
+        SloAvailability: {
+            /**
+             * @description ALWAYS blocks a standalone singleton STOP. WINDOWS requires the whole stop-to-readiness interval outside the declared availability windows.
+             * @enum {string}
+             */
+            mode: "ALWAYS" | "WINDOWS";
+            /** @description Explicit IANA timezone */
+            timezone: string;
+            /** @description Empty for ALWAYS; at least one same-day window for WINDOWS */
+            windows: components["schemas"]["SloAvailabilityWindow"][];
+        };
+        SloRegression: {
+            /** @description Requires a measurable frozen server-selected pre-plan latency baseline when enabled */
+            enabled: boolean;
+            /** @description Independent maximum latency regression percentage; cannot waive a hard limit */
+            max_percent: number;
+        };
+        SloObjectiveRequest: {
+            /** @enum {string} */
+            schema_version: "1";
+            limits: components["schemas"]["SloLimits"];
+            evaluation_minutes: number;
+            availability: components["schemas"]["SloAvailability"];
+            regression: components["schemas"]["SloRegression"];
+        };
+        SloObjective: {
+            /** @enum {string} */
+            schema_version: "1";
+            limits: components["schemas"]["SloLimits"];
+            evaluation_minutes: number;
+            availability: components["schemas"]["SloAvailability"];
+            regression: components["schemas"]["SloRegression"];
+            id: string;
+            workload_id: string;
+            version: number;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            writer_role?: string;
+        };
+        SloObjectiveHistory: {
+            version: number;
+            latest: components["schemas"]["SloObjective"] | null;
+            history: components["schemas"]["SloObjective"][];
+        };
+        SloSourceRequest: {
+            objective_id: string;
+            resource_id: string;
+            /** @description Exact dedicated machine OIDC subject; no credentials */
+            subject: string;
+        };
+        SloSource: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            objective_id: string;
+            resource_id: string;
+            subject: string;
+            workload_id: string;
+            provider_resource_id: string;
+            account_id: string;
+            region: string;
+            issuer: string;
+            enabled: boolean;
+        };
+        SloCheck: {
+            name: string;
+            /** @enum {string} */
+            status: "PASS" | "FAIL" | "INDETERMINATE" | "NOT_APPLICABLE";
+            reason_code: string;
+        };
+        /** @description Missing objective, source or binding produces only a blocked status and reasons. Observability fields are absent until independently observed; partial coverage cannot establish complete-window request counts, rates or latency. */
+        SloEvaluation: {
+            id?: string;
+            evaluation_hash?: string;
+            /** @enum {string} */
+            status: "CLEAR" | "BLOCKED";
+            reason_codes: string[];
+            objective_id?: string;
+            objective_version?: number;
+            objective_hash?: string;
+            source_id?: string;
+            source_hash?: string;
+            resource_id?: string;
+            workload_id?: string;
+            /** Format: date-time */
+            window_start?: string;
+            /** Format: date-time */
+            window_end?: string;
+            /** Format: date-time */
+            received_at?: string;
+            expected_intervals?: number;
+            observed_intervals?: number;
+            coverage_ppm?: number;
+            request_count?: number;
+            error_count?: number;
+            availability_good_seconds?: number;
+            availability_total_seconds?: number;
+            error_rate_ppm?: number | null;
+            availability_ppm?: number | null;
+            latency_samples?: number;
+            /** @description Histogram upper bound; unavailable for no demand or insufficient observations */
+            p95_latency_ms?: number | null;
+            p99_latency_ms?: number | null;
+            p95_lower_ms?: number | null;
+            p99_lower_ms?: number | null;
+            /** @enum {string} */
+            latency_status?: "OBSERVED" | "NO_DEMAND" | "INSUFFICIENT";
+            hard_checks?: components["schemas"]["SloCheck"][];
+            regression_checks?: components["schemas"]["SloCheck"][];
+            receipt_ids?: string[];
+            baseline_evaluation_id?: string;
+            baseline_evaluation_hash?: string;
+        };
+        SloHistogramBucket: {
+            /** @description Strictly increasing finite millisecond bounds; the last bucket alone has null for positive infinity */
+            upper_bound_ms: number | null;
+            /** @description Non-cumulative bucket count */
+            count: number;
+        };
+        SloHistogram: {
+            /** @enum {string} */
+            unit: "milliseconds";
+            buckets: components["schemas"]["SloHistogramBucket"][];
+            /** @description Equals request_count and the sum of all non-cumulative bucket counts */
+            sample_count: number;
+        };
+        SloInterval: {
+            /** @enum {string} */
+            schema_version: "1";
+            source_id: string;
+            objective_id: string;
+            workload_id: string;
+            resource_id: string;
+            sequence: number;
+            /**
+             * Format: date-time
+             * @description Exact UTC minute boundary
+             */
+            interval_start: string;
+            /**
+             * Format: date-time
+             * @description Exactly sixty seconds after interval_start
+             */
+            interval_end: string;
+            request_count: number;
+            /** @description No greater than request_count */
+            error_count: number;
+            availability_good_seconds: number;
+            /** @enum {integer} */
+            availability_total_seconds: 60;
+            latency: components["schemas"]["SloHistogram"];
+        };
+        SloEvaluationSnapshot: {
+            resource_id: string;
+            workload_id: string;
+            objective: components["schemas"]["SloObjective"] | null;
+            source: components["schemas"]["SloSource"] | null;
+            evaluation: components["schemas"]["SloEvaluation"];
+            snapshot_id?: string;
+            snapshot_hash?: string;
+        };
         SourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
@@ -819,6 +1066,9 @@ export interface components {
             source_connections?: components["schemas"]["SourceConnection"][];
             activity_sources?: components["schemas"]["Document"][];
             dependency_graph?: components["schemas"]["ResourceGraph"];
+            slo_objectives?: components["schemas"]["SloObjective"][];
+            slo_sources?: components["schemas"]["SloSource"][];
+            slo_evaluations?: components["schemas"]["SloEvaluationSnapshot"][];
         };
         EvidenceBinding: {
             tenant_id: string;
@@ -858,6 +1108,15 @@ export interface components {
             dependency_reasons?: string[];
             dependency_review_id?: string | null;
             dependency_graph_hash?: string | null;
+            /** @enum {string} */
+            slo_status?: "CLEAR" | "BLOCKED";
+            slo_reasons?: string[];
+            slo_objective_id?: string | null;
+            slo_objective_version?: number | null;
+            slo_objective_hash?: string | null;
+            slo_evaluation_id?: string | null;
+            slo_evaluation_hash?: string | null;
+            slo_evaluation?: components["schemas"]["SloEvaluation"];
             pricing_basis?: ("NET_UNBLENDED" | "UNBLENDED")[];
         };
         SourceReference: {
@@ -884,6 +1143,13 @@ export interface components {
             dependency_review_id?: string;
             /** @description Required for new schema-3 stops; binds the reviewed graph revision */
             dependency_graph_hash?: string;
+            /** @description Required for new schema-3 stops; immutable workload objective */
+            slo_objective_id?: string;
+            slo_objective_version?: number;
+            slo_objective_hash?: string;
+            /** @description Required for new schema-3 stops; immutable trusted evaluation */
+            slo_evaluation_id?: string;
+            slo_evaluation_hash?: string;
             baseline_id: string;
             measurement_id: string;
             readiness_id: string;
@@ -999,6 +1265,220 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listSloObjectives: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest immutable workload objective and revision history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloObjectiveHistory"];
+                };
+            };
+        };
+    };
+    reviseSloObjective: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloObjectiveRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable objective revision recorded; prior stop authority requires reassessment */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloObjective"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Objective version changed; refresh before retrying */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid limits */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listSloSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registered independent machine collectors; registration alone does not establish evidence coverage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloSource"][];
+                };
+            };
+        };
+    };
+    registerSloSource: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Machine collector registration recorded without execution authority */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloSource"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicting source binding */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid objective */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSloEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current trusted SLO evaluation and immutable snapshot binding when available. Missing evidence remains blocked or unavailable, never zero latency. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SloEvaluationSnapshot"];
+                };
+            };
+        };
+    };
+    ingestSloInterval: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SloInterval"];
+            };
+        };
+        responses: {
+            /** @description Exact receipt replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated immutable minute observation appended */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dedicated registered machine identity required; console tokens denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicting sequence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getResourceGraph: {
         parameters: {
             query?: never;
