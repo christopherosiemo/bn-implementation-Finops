@@ -63,7 +63,7 @@ async function main() {
   for (const args of [['patch', 'deployments'], ['get', 'secrets']]) { let response; try { response = kube(['auth', 'can-i', ...args, '--as', `system:serviceaccount:${ns}:finops-k8s-reader`, '-n', ns]).trim(); } catch (error) { response = String(error.stdout || '').trim(); } assert.equal(response, 'no'); }
   pass('separate real Kubernetes reader can inventory but cannot mutate workloads or read Secrets');
 
-  run('docker', ['run', '--rm', '-e', 'GOMAXPROCS=2', '-v', `${root}:/src`, '-v', 'finops-go-mod:/go/pkg/mod', '-v', 'finops-go-cache-127:/root/.cache/go-build', '-w', '/src', 'golang:1.27.2-bookworm', 'go', 'build', '-o', '/src/work/kubernetes-lab/k8s-safety', './internal/kubernetes/labcmd']);
+  run('docker', ['run', '--rm', '-e', 'GOMAXPROCS=2', '-v', `${root}:/src`, '-v', 'finops-go-mod:/go/pkg/mod', '-v', 'finops-go-cache-127:/root/.cache/go-build', '-w', '/src', 'golang:1.27.2-bookworm', 'go', 'build', '-buildvcs=false', '-o', '/src/work/kubernetes-lab/k8s-safety', './internal/kubernetes/labcmd']);
   if (!existsSync(path.join(repository, '.git'))) { git(['init', '-q']); git(['config', 'user.name', 'FinOps local lab']); git(['config', 'user.email', 'local-lab@example.invalid']); }
   let manifest = JSON.parse(readFileSync(path.join(root, 'examples/kubernetes/deployment.json'), 'utf8'));
   const save = object => writeFileSync(path.join(repository, 'deployment.json'), JSON.stringify(object, null, 2) + '\n');

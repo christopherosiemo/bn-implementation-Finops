@@ -2,6 +2,18 @@
 
 ## 18 October increment: fleet protocol and real local Kubernetes components
 
+Read-only Azure/GCP adapter components have also passed isolated, network-disabled
+Go tests and vet. They read native export/query, VM membership and metric shapes
+while retaining source scope, revisions, currencies, exact IDs, counter epochs,
+units and histogram bounds. Public list prices never become contracted costs;
+missing costs and coverage stay unavailable. These are private, unwired adapters:
+no cloud credentials, customer API calls, immutable publication, complete native
+invoice/commitment proof or onboarding-to-verification acceptance is established.
+Every snapshot remains provisional with execution and verified savings disabled.
+This component addition earns no separate full-product progress credit. See the
+[billing adapter boundaries](../internal/multicloud/README.md) and
+[inventory/metric boundaries](../internal/multicloud/INVENTORY_METRICS.md).
+
 The additive fleet/configuration package keeps scheduling signatures and Temporal
 histories separate. It adds typed v4 fleet plans, exact saved-plan validation,
 two-of-twenty disruption reservations across overlapping executions, immutable
