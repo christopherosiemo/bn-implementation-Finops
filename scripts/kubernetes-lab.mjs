@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { labKindPath } from './kubernetes-bootstrap.mjs';
+import { waitForNativeRollout } from './lib/kubernetes-observation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cluster = 'finops-autopilot-lab', control = `${cluster}-control-plane`, ns = 'finops-k8s-lab';
@@ -77,7 +78,8 @@ async function main() {
   const clusterID = get('namespace', 'kube-system', '').metadata.uid, namespaceUID = get('namespace', ns, '').metadata.uid, deploymentUID = get('deployment', 'gateway').metadata.uid;
   const binding = { tenant_id: 'tenant-kubernetes-lab', workload_id: 'workload-kubernetes-lab', provider: 'LOCAL_KIND', cluster_id: clusterID, namespace: ns, namespace_uid: namespaceUID, deployment: 'gateway', deployment_uid: deploymentUID, owner: 'local-lab-operator', git: { engine, repository: repositoryID, path: 'deployment.json', controller_namespace: ns, controller_name: 'gitops-ack' } };
   const collect = () => cli('collect', binding);
-  let snapshot = collect(); ack(initial, true, snapshot.deployment.spec_hash); snapshot = collect();
+  const observeTopology = expectedSpecHash => waitForNativeRollout({ collect, expectedSpecHash, onFailure: snapshot => writeFileSync(path.join(dir, 'observation-failure.json'), JSON.stringify(snapshot, null, 2) + '\n') });
+  let snapshot = await observeTopology(); ack(initial, true, snapshot.deployment.spec_hash); snapshot = collect();
   assert.equal(snapshot.problems.length, 0); assert.equal(snapshot.pods.filter(pod => pod.ready).length, 2); assert.equal(new Set(snapshot.pods.filter(pod => pod.ready).map(pod => pod.zone)).size, 2);
   await waitFor(() => get('pdb', 'gateway').status.disruptionsAllowed === 1, 'PDB did not observe two healthy replicas');
   pass('actual two-replica gateway and two-zone readiness with independent native inventory hashes');
@@ -88,7 +90,7 @@ async function main() {
   assert.equal(plan.status, 'READY_FOR_GIT_PROPOSAL', plan.reason_codes.join(',')); assert.match(plan.financial_status, /UNAVAILABLE/);
   assert.equal(head(), plan.base_git_revision); manifest.spec = plan.desired_spec; save(manifest); const revision = commit('Local lab: approved memory request proposal 128Mi to 160Mi');
   assert.equal(cli('authorize', { plan, snapshot: collect() }).status, 'AUTHORIZED_FOR_GIT_RECONCILE');
-  controllerApply(revision); kube(['rollout', 'status', 'deployment/gateway', '-n', ns, '--timeout=90s']); snapshot = collect(); ack(revision, true, snapshot.deployment.spec_hash); snapshot = collect();
+  controllerApply(revision); kube(['rollout', 'status', 'deployment/gateway', '-n', ns, '--timeout=90s']); snapshot = await observeTopology(plan.desired_spec_hash); ack(revision, true, snapshot.deployment.spec_hash); snapshot = collect();
   const verified = cli('verify', { plan, snapshot, revision }); assert.equal(verified.status, 'ACKNOWLEDGED');
   pass('reviewed exact Git commit reconciles to real successful Deployment rollout');
 
@@ -105,7 +107,7 @@ async function main() {
   controllerApply(bad); let rolloutFailed = false; try { kube(['rollout', 'status', 'deployment/gateway', '-n', ns, '--timeout=40s']); } catch { rolloutFailed = true; } assert.ok(rolloutFailed, 'Fault-injected rollout unexpectedly became healthy');
   const during = collect(); assert.equal(during.git.ready, false); assert.equal(during.git.revision, bad); const badPlan = assess(during, { container: 'gateway', cpu_request_milli: 50, memory_request_bytes: 176 * 1048576 }); assert.equal(badPlan.status, 'BLOCKED');
   const restoredManifest = JSON.parse(git(['show', healthy + ':deployment.json'])); save(restoredManifest); const rollback = commit(`Local lab: rollback bad Git revision ${bad}`); assert.notEqual(rollback, healthy);
-  controllerApply(rollback); kube(['rollout', 'status', 'deployment/gateway', '-n', ns, '--timeout=90s']); snapshot = collect(); ack(rollback, true, snapshot.deployment.spec_hash); snapshot = collect(); assert.equal(snapshot.deployment.ready_replicas, 2); assert.equal(snapshot.git.revision, rollback); assert.equal(snapshot.deployment.spec_hash, plan.desired_spec_hash);
+  controllerApply(rollback); kube(['rollout', 'status', 'deployment/gateway', '-n', ns, '--timeout=90s']); snapshot = await observeTopology(plan.desired_spec_hash); ack(rollback, true, snapshot.deployment.spec_hash); snapshot = collect(); assert.equal(snapshot.deployment.ready_replicas, 2); assert.equal(snapshot.git.revision, rollback); assert.equal(snapshot.deployment.spec_hash, plan.desired_spec_hash);
   pass('real failed readiness rollout restores through a new exact Git rollback commit');
 
   const hpa = cli('hpa', { Replicas: 2, OldRequestMilli: 1000, NewRequestMilli: 700, ObservedUsageMilli: 490, TargetUtilizationPercent: 50, MinReplicas: 2, MaxReplicas: 10 }); assert.equal(hpa.predicted_replicas, 3); assert.equal(hpa.predicted_requested_milli, 2100); assert.equal(hpa.reason_code, 'K8S_HPA_TOTAL_REQUESTS_INCREASE');

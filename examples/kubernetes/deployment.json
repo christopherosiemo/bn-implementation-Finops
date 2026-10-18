@@ -27,7 +27,7 @@
           "volumeMounts": [{"name": "gateway", "mountPath": "/app", "readOnly": true}]
         }],
         "volumes": [{"name": "gateway", "configMap": {"name": "gateway-code"}}],
-        "topologySpreadConstraints": [{"maxSkew": 1, "topologyKey": "topology.kubernetes.io/zone", "whenUnsatisfiable": "DoNotSchedule", "labelSelector": {"matchLabels": {"app": "finops-k8s-gateway"}}}]
+        "topologySpreadConstraints": [{"maxSkew": 1, "topologyKey": "topology.kubernetes.io/zone", "whenUnsatisfiable": "DoNotSchedule", "labelSelector": {"matchLabels": {"app": "finops-k8s-gateway"}}, "matchLabelKeys": ["pod-template-hash"]}]
       }
     }
   }

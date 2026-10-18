@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,14 +23,27 @@ func OpenHardwareReader(ctx context.Context, url string) (*Store, error) {
 	if cfg.MaxConns < 3 {
 		return nil, errors.New("HARDWARE_DATABASE_POOL_MINIMUM_THREE_REQUIRED")
 	}
+	for key, value := range cfg.ConnConfig.RuntimeParams {
+		switch strings.ToLower(key) {
+		case "role", "session_authorization":
+			return nil, errors.New("HARDWARE_DATABASE_STARTUP_IDENTITY_OVERRIDE_FORBIDDEN")
+		case "options":
+			if value != "" {
+				return nil, errors.New("HARDWARE_DATABASE_STARTUP_OPTIONS_FORBIDDEN")
+			}
+		case "search_path":
+			delete(cfg.ConnConfig.RuntimeParams, key)
+		}
+	}
+	cfg.ConnConfig.RuntimeParams["search_path"] = "public,pg_temp"
 	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		var permitted bool
-		err := conn.QueryRow(ctx, `SELECT NOT r.rolsuper AND NOT r.rolcreaterole AND NOT r.rolcreatedb AND NOT r.rolbypassrls
+		err := conn.QueryRow(ctx, `SELECT session_user::text=$1
 		 AND pg_has_role(session_user,'finops_hardware_reader','MEMBER')
 		 AND NOT EXISTS(SELECT 1 FROM pg_roles other
-		 WHERE other.rolname NOT IN(session_user,'finops_hardware_reader','finops_ingester')
-		 AND pg_has_role(session_user,other.oid,'MEMBER'))
-		 FROM pg_roles r WHERE r.rolname=session_user`).Scan(&permitted)
+		 WHERE pg_has_role(session_user,other.oid,'MEMBER')
+		 AND (other.rolsuper OR other.rolcreaterole OR other.rolcreatedb OR other.rolbypassrls OR other.rolreplication
+		 OR other.rolname NOT IN(session_user,'finops_hardware_reader','finops_ingester')))`, cfg.ConnConfig.User).Scan(&permitted)
 		if err != nil || !permitted {
 			return errors.New("HARDWARE_DEDICATED_DATABASE_IDENTITY_REQUIRED")
 		}

@@ -26,4 +26,22 @@ Consolidate these customer decisions for the final safe handover:
 
 Before a first action, select an existing qualifying resource with genuine complete history or collect the required days. There is no commissioning bypass. Validate authentic source versions, delivery policy, independent observations, ownership, recovery and current safety. Demonstrate backup restoration, key rotation and the applicable incident/recovery procedures before their acceptance credit. A signed plan is not a customer deployment attestation; a pipeline success is not application readiness.
 
+For fleet financial commissioning, a current ASG member list and current tags do
+not prove historical workload ownership. Preserve each instance incarnation and
+complete historical membership/change coverage before freezing a financial
+baseline; periodic point snapshots leave unobserved churn unknown. A controlled
+topology needs a complete, independently retained change journal, or an approved
+native historical source must prove the intervals. Independently bind the
+business demand definition at workload level: per-member HTTP/SLO counters do
+not automatically measure preserved business work. Explicit observed zero demand
+is valid, while missing observations and unsupported normalization remain
+blockers. The scheduling counterfactual cannot be reused for an ASG fleet.
+
+Native account-rate samples support a conditional planning estimate. They do not
+guarantee future provider prices or a hard cloud-spend cap. Review the surge,
+retained-control and recovery cost exposure with that limitation visible before
+approving a fleet program. A future fleet financial scope must cover the whole
+owned program and prevent overlap with other action families; the current
+private health failure latch alone is not financial ledger enforcement.
+
 After an approved intervention, retain actual work-preservation and cost evidence through the complete observation period. Keep results provisional until native invoice finality, commitment exposure, workload normalization, attributable transition/continuing costs and reconciliation gates pass. Rollback permanently excludes the affected measurement from positive verified savings. Customer usability, security assurance and sustained production operation remain separate acceptance gates. Only evidence of the complete contractual workflow in customer use can earn 100%.

@@ -141,6 +141,7 @@ services:
     image: cloud-cost-autopilot-economics:local
     build: {context: ., dockerfile: economics/Dockerfile}
     environment:
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
       ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
     healthcheck:
       test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:8000/healthz")']

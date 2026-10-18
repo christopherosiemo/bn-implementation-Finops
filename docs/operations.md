@@ -28,6 +28,24 @@ The API corrects a prior financial claim by appending a current `BLOCKED` row wi
 
 ## Service or control-plane failure
 
+Each runtime process requires a separate database login holding only its expected
+`finops_*` group; custom login names are supported. Startup validates the
+authenticated session identity and its complete transitive memberships, rejects
+administration, replication and unrelated roles (including predefined broad
+PostgreSQL roles), then pins `current_user` to the expected group on every new
+connection. The hardware reader alone additionally inherits the ingestion group
+required by its immutable source writer. Fixture mode permits local plaintext
+transport but does not relax these identity checks. Only the separate `migrate`
+process accepts the commissioned administrative credential. Live processes also
+require verified PostgreSQL TLS. Correct an invalid service Secret or role grant
+before restart; changing the database startup role cannot mask an overprivileged
+login.
+
+The ingestion and hardware-reader pools require at least three connections:
+one holds durable polling ownership, one publishes tenant transactions and one
+remains available for health checks. Smaller configured pools fail startup
+instead of deadlocking evidence synchronization behind their own lock.
+
 The worker must replay durable Temporal workflow state; the executor must reconcile its persisted cloud-operation intent with actual EC2 state. Restart services with the same database, Temporal namespace and signing verification key. Do not reset volumes or launch a new workflow ID to work around a paused occurrence. Check `/healthz`, database connectivity, Temporal namespace/worker pollers, signatures/expiry, secret versions and customer STS failures. Health endpoints are liveness signals; verify database migrations and durable work processing separately.
 
 Use `kubectl -n finops get pods,events` and per-service logs scoped to the execution. Logs must contain IDs and error categories, not tokens, private keys or connection strings. For an AWS AccessDenied, inspect the actual caller role, external ID, region, instance allowlist and current tags. Restoring by widening IAM to `ec2:*` is not an acceptable pilot fix.
@@ -51,6 +69,13 @@ The same RDS instance contains application and Temporal histories, so whole-inst
 ## Secret and signing-key rotation
 
 Use separate service tokens, database identities and signer/execution KMS wrapping keys. Automatic KMS encryption-key rotation does not rotate the Ed25519 signing key or service tokens. Restrict secret retrieval and audit reads through Secrets Manager/CloudTrail; applications must never log decrypted values.
+
+The economics worker refuses hosted startup without its dedicated token and
+rejects malformed secret values without echoing them. An unauthenticated worker
+is permitted only with explicit fixture mode. An empty Secret must not be used
+to recover a failed authentication deployment. Database startup also refuses
+mixed identities; rotate the commissioned login rather than substituting an
+administrative connection.
 
 For signer/executor token rotation, pause dispatch and drain or safely pause in-progress calls, update the corresponding service Secret and the worker's matching token, then restart both ends and run authenticated health/execution tests before resuming. Do not substitute one global token. Rotate database credentials one role at a time, update only its Secret, roll that workload and verify its grants remain restricted.
 

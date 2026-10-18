@@ -43,8 +43,10 @@ func run() error {
 	var e error
 	if cfg.Role == "hardware-reader" {
 		db, e = store.OpenHardwareReader(ctx, cfg.DatabaseURL)
-	} else {
+	} else if cfg.Role == "migrate" {
 		db, e = store.Open(ctx, cfg.DatabaseURL)
+	} else {
+		db, e = store.OpenRuntime(ctx, cfg.DatabaseURL, cfg.Role)
 	}
 	if e != nil {
 		return e

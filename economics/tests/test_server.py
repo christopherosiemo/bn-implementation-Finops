@@ -1,12 +1,15 @@
 import json
 import threading
+import os
+import subprocess
+import sys
 import unittest
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from autopilot.server import Handler
+from autopilot.server import Handler, runtime_token
 from test_v2 import evidence
 from test_v3 import evidence as evidence_v3
 
@@ -61,6 +64,35 @@ class WorkerContractTests(unittest.TestCase):
                 result = json.load(response)
         self.assertIsNone(result["records"][0]["ContractedCost"])
         self.assertEqual(result["records"][0]["x_PricingBasis"], "UNBLENDED")
+
+    def test_missing_live_secret_never_opens_an_unauthenticated_route(self):
+        request = Request(self.url, data=b'{}', headers={"Content-Type": "application/json"})
+        with patch.dict("os.environ", {"ECONOMICS_TOKEN": "", "FIXTURE_MODE": "false", "DATA_MODE": "aws"}):
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(request)
+            self.assertEqual(caught.exception.code, 503)
+            self.assertNotIn("ECONOMICS_TOKEN", caught.exception.read().decode())
+
+    def test_startup_rejects_unconfigured_live_worker_before_binding(self):
+        environment = dict(os.environ, ECONOMICS_TOKEN="", FIXTURE_MODE="false", DATA_MODE="aws", PORT="invalid-if-bind-is-reached")
+        result = subprocess.run([sys.executable, "-m", "autopilot.server"], env=environment,
+                                capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ECONOMICS_AUTHENTICATION_CONFIGURATION_INVALID", result.stderr)
+        self.assertNotIn("invalid-if-bind-is-reached", result.stderr)
+
+    def test_fixture_exception_is_explicit_and_malformed_tokens_are_rejected(self):
+        with patch.dict("os.environ", {"ECONOMICS_TOKEN": "", "FIXTURE_MODE": "true", "DATA_MODE": ""}):
+            self.assertEqual(runtime_token(), "")
+        for fixture in ("false", "", "unknown"):
+            with patch.dict("os.environ", {"ECONOMICS_TOKEN": "", "FIXTURE_MODE": fixture, "DATA_MODE": "aws"}):
+                with self.assertRaises(RuntimeError):
+                    runtime_token()
+        for token in ("private token", "private\nvalue", "private\x7fvalue", "x" * 4097):
+            with patch.dict("os.environ", {"ECONOMICS_TOKEN": token, "FIXTURE_MODE": "true"}):
+                with self.assertRaises(RuntimeError) as caught:
+                    runtime_token()
+                self.assertNotIn(token, str(caught.exception))
 
 
 if __name__ == "__main__": unittest.main()

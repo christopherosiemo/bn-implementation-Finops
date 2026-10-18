@@ -4,12 +4,53 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      fleet_protocol:
+        description: Optional real-clock private fleet protocol; shorter policy earns no default-duration acceptance
+        type: choice
+        default: "OFF"
+        options: ["OFF", DEFAULT, TEST_POLICY_120S]
 permissions:
   contents: read
 concurrency:
-  group: validation-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve explicitly requested real-clock acceptance while later engineering
+  # receives normal PR validation. Ordinary superseded checks may still cancel.
+  group: validation-${{ github.ref }}-${{ inputs.fleet_protocol || 'OFF' }}-${{ github.event_name == 'workflow_dispatch' && inputs.fleet_protocol != 'OFF' && github.sha || 'latest' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || inputs.fleet_protocol == 'OFF' }}
 jobs:
+  fleet-protocol:
+    if: github.event_name == 'workflow_dispatch' && contains(fromJSON('["DEFAULT","TEST_POLICY_120S"]'), inputs.fleet_protocol)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: fleet_protocol_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run selected signed policy without changing its clock or observation windows
+        env:
+          REQUESTED_POLICY: ${{ inputs.fleet_protocol }}
+        run: |
+          set -euo pipefail
+          case "$REQUESTED_POLICY" in
+            DEFAULT) flag=TEST_FLEET_FULL_PROGRAM; test=TestFleetFullProgramRealClockControlledDrain ;;
+            TEST_POLICY_120S) flag=TEST_FLEET_TEST_POLICY; test=TestFleetFullProgramRealClockTestPolicy ;;
+            *) exit 2 ;;
+          esac
+          mkdir -p work
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
+      - name: Preserve bounded private protocol evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-protocol-${{ inputs.fleet_protocol }}-${{ github.sha }}
+          path: work/fleet-protocol-acceptance.log
+          retention-days: 5
   go:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -30,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start isolated real economics worker for provider-shaped acceptance
         run: |
-          docker run --detach --name economics-tests --network host -e PORT=8001 -v "$PWD/economics:/app:ro" -w /app python:3.13-slim python -m autopilot.server
+          docker run --detach --name economics-tests --network host -e PORT=8001 -e FIXTURE_MODE=true -v "$PWD/economics:/app:ro" -w /app python:3.13-slim python -m autopilot.server
           curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
       - name: Go tests and vet in container
         run: |
@@ -135,7 +176,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: local-kubernetes-acceptance
-          path: work/kubernetes-lab/acceptance.json
+          path: |
+            work/kubernetes-lab/acceptance.json
+            work/kubernetes-lab/observation-failure.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Remove only the named CI-owned local lab
@@ -191,6 +234,10 @@ jobs:
             frontend/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Exercise isolated provisional multicloud publication with actual local storage
+        run: |
+          node --test scripts/tests/multicloud-publication-lab.test.mjs
+          node scripts/multicloud-publication-lab.mjs
       - name: Verify encrypted whole-cluster PostgreSQL backup in network quarantine
         run: node scripts/postgres-recovery-lab.mjs
       - name: Collect service diagnostics on failure

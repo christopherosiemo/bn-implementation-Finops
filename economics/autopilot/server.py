@@ -15,6 +15,15 @@ from .capacity import evaluate_capacity
 MAX_BODY = 64 * 1024 * 1024
 
 
+def runtime_token():
+    """An omitted secret must never turn a hosted worker into an open service."""
+    fixture = os.getenv("FIXTURE_MODE", "").lower() in ("true", "1", "t") or os.getenv("DATA_MODE") == "fixture"
+    token = os.getenv("ECONOMICS_TOKEN", "")
+    if len(token) > 4096 or any(ord(char) < 33 or ord(char) > 126 for char in token) or not token and not fixture:
+        raise RuntimeError("ECONOMICS_AUTHENTICATION_CONFIGURATION_INVALID")
+    return token
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AutopilotEconomics/1"
 
@@ -39,7 +48,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path not in ("/v4/capacity", "/v3/evaluate", "/v3/normalize", "/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
             return self.reply(404, {"error": "not_found"})
-        expected = os.getenv("ECONOMICS_TOKEN", "")
+        try:
+            expected = runtime_token()
+        except RuntimeError:
+            return self.reply(503, {"error": "worker_authentication_unavailable"})
         if expected:
             import hmac
             if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + expected):
@@ -73,4 +85,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    runtime_token()  # Fail before opening a socket; diagnostic contains no secret.
     ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "8000"))), Handler).serve_forever()
