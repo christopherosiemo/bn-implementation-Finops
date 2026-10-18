@@ -12,6 +12,7 @@ import { localDockerEndpoint } from './kubernetes-bootstrap.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const labelKey = 'finops.local-recovery.run';
 const sourceLabelKey = 'finops.local-recovery.source';
+let recoveryStage = 'LOCAL_SOURCE_VALIDATION';
 const coreRoles = ['finops_api', 'finops_worker', 'finops_signer', 'finops_executor', 'finops_ingester', 'finops_activity', 'finops_telemetry_reader', 'finops_telemetry_ingress', 'finops_deployment_observer', 'finops_hardware_reader'];
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const literal = value => "'" + String(value).replaceAll("'", "''") + "'";
@@ -86,7 +87,10 @@ const metadataSQL = `SELECT json_build_object(
 function samples(container, user) {
   const groups = [];
   for (const [table, key] of [['audit_events','id'], ['savings_ledger','id'], ['signed_plans','plan_id'], ['provider_operations','execution_id']]) {
-    const where = table === 'provider_operations' ? "WHERE restored AND updated_at < now()-interval '5 minutes'" : '';
+    // Terminal application state and consumed provider ownership establish a
+    // stable sample. Wall-clock age is unrelated: a fast clean CI journey may
+    // have completed every occurrence less than five minutes before backup.
+    const where = table === 'provider_operations' ? "WHERE t.restored AND EXISTS(SELECT 1 FROM entities e WHERE e.tenant_id=t.tenant_id AND e.kind='executions' AND e.id=t.execution_id AND e.document->>'status'='COMPLETED')" : '';
     const rows = jsonSQL(`SELECT coalesce(json_agg(x),'[]') FROM (SELECT tenant_id,${key} AS id,${digestSQL('to_jsonb(t)::text')} AS hash FROM ${table} t ${where} ORDER BY tenant_id,${key} LIMIT 16) x;`, container, user, 'finops');
     assert.ok(rows.length > 0, `Existing ${table} evidence is required for actual recovery acceptance`);
     groups.push({ table, key, rows });
@@ -144,6 +148,7 @@ function checkSentinel(container,user,database) {
 }
 
 export async function recoveryLab() {
+  recoveryStage='LOCAL_SOURCE_VALIDATION';
   assert.equal(process.argv.length,2,'No alternate source, destination, credentials or remote target arguments are accepted');
   if (process.env.DOCKER_HOST) assert.ok(localDockerEndpoint(process.env.DOCKER_HOST),'Remote Docker hosts are forbidden');
   const contextName=run(['context','show']); const context=JSON.parse(run(['context','inspect',contextName]))[0];
@@ -165,14 +170,17 @@ export async function recoveryLab() {
   let sentinel=false,volumeCreated=false,passed=0;
   const started=Date.now(),pass=message=>{passed++;console.log('PostgreSQL recovery lab: '+message);};
   try {
+    recoveryStage='SOURCE_EVIDENCE_CAPTURE';
     seedSentinel(source,user,database,runID,()=>{sentinel=true;});
     const metadata=jsonSQL(metadataSQL,source,user,'finops'),sampled=samples(source,user),temporal=temporalMetadata(source,user,true);
     assert.equal(metadata.roles.length,coreRoles.length);assert.ok(metadata.relations.filter(r=>r.relrowsecurity&&r.relforcerowsecurity).length>10);
     pass('explicit local fixture primary and test-owned sentinel; application rows remain read-only');
+    recoveryStage='ENCRYPTED_PHYSICAL_BACKUP';
     const backup=child(['exec','--user','postgres',source,'pg_basebackup','-U',user,'-h','/var/run/postgresql','--no-password','--pgdata=-','--format=tar','--wal-method=fetch','--checkpoint=fast','--max-rate=64M','--manifest-checksums=SHA256','--label','finops-local-recovery-'+runID]);backup.process.stdin.end();
     let encryptedHash;
     try { [encryptedHash]=await Promise.all([encryptBackup(backup.process.stdout,partial,key),backup.completed]); } catch(error){backup.process.kill();throw error;}
     renameSync(partial,archive);const backedUp=Date.now();pass('whole-cluster physical tar streamed directly through gzip and AES-256-GCM; native backup process succeeded');
+    recoveryStage='ARCHIVE_AUTHENTICATION';
     let incorrectConsumer=false;await assert.rejects(authenticatedBackup(archive,randomBytes(32),async()=>{incorrectConsumer=true;}));assert.equal(incorrectConsumer,false);pass('wrong recovery key rejects the real archive before creating a restore consumer');
     await authenticatedBackup(archive,key,async()=>{
       run(['volume','create',...labels,volume]);volumeCreated=true;validateOwnedRecoveryObject(inspect('volume',volume),runID,source);
@@ -181,14 +189,19 @@ export async function recoveryLab() {
       const unpack=child(['run','--rm','-i','--name',extraction,...isolation,'--user',`${uid}:${gid}`,...mount,'--entrypoint','sh',postgres.Image,'-c','umask 077; chmod 700 /var/lib/postgresql/data; exec tar -xo -f - -C /var/lib/postgresql/data']);
       return {input:unpack.process.stdin,completed:unpack.completed,abort(){unpack.process.kill();}};
     });
+    recoveryStage='NATIVE_MANIFEST_AND_WAL';
     const verifyStarted=Date.now();run(['run','--rm',...isolation,'--user',`${uid}:${gid}`,...mount,'--entrypoint','pg_verifybackup',postgres.Image,'--exit-on-error','--quiet','/var/lib/postgresql/data'],undefined,10*60_000);const verified=Date.now();pass('AES-GCM authentication and native pg_verifybackup checksums plus required WAL parsing succeeded before startup');
+    recoveryStage='QUARANTINED_DATABASE_START';
     ownedContainers.push(container);
     run(['run','-d','--name',container,...isolation,'--user',`${uid}:${gid}`,...mount,'--tmpfs','/tmp:rw,noexec,nosuid,size=32m,mode=1777','--entrypoint','postgres',postgres.Image,'-D','/var/lib/postgresql/data','-c','listen_addresses=','-c','unix_socket_directories=/tmp','-c','archive_mode=off','-c','archive_command=','-c','restore_command=','-c','primary_conninfo=','-c','primary_slot_name=','-c','recovery_end_command=','-c','shared_preload_libraries=','-c','session_preload_libraries=','-c','local_preload_libraries=','-c','max_worker_processes=0','-c','max_parallel_workers=0','-c','max_logical_replication_workers=0','-c','autovacuum=off','-c','default_transaction_read_only=on','-c','log_statement=none','-c','log_min_error_statement=panic']);
     const recovered=inspect('container',container);validateOwnedRecoveryObject(recovered,runID,source);assert.equal(recovered.Image,postgres.Image);assert.equal(recovered.HostConfig.NetworkMode,'none');assert.equal(recovered.HostConfig.ReadonlyRootfs,true);assert.equal(Object.keys(recovered.NetworkSettings.Ports||{}).length,0);assert.equal(recovered.Mounts.filter(m=>m.Type==='volume').length,1);assert.ok(!Object.keys(environment(recovered)).some(key=>/^(AWS_|AZURE_|GOOGLE_|GCP_|ARM_)/.test(key)));
     const deadline=Date.now()+90_000;let ready=false;while(Date.now()<deadline){try{ready=sql(container,user,'postgres','SELECT 1;')==='1';}catch{}if(ready)break;await sleep(1000);}assert.equal(ready,true,'The isolated restored PostgreSQL failed to become readable');
     assert.equal(sql(container,user,'postgres',"SELECT current_setting('listen_addresses')='' AND current_setting('archive_mode')='off' AND current_setting('primary_conninfo')='' AND NOT pg_is_in_recovery();"),'t');pass('same exact PostgreSQL image starts as a socket-only quarantined primary with no ports, network, preload libraries or application workers');
+    recoveryStage='APPLICATION_EVIDENCE_READBACK';
     compareSamples(sampled,container,user);const restoredMetadata=jsonSQL(metadataSQL,container,user,'finops',false);assert.equal(hash(restoredMetadata),hash(metadata),'Application schema, grants, forced RLS, roles or immutable guards changed');pass('actual audit, ledger, signed-envelope and completed ownership rows survive with identical SHA-256 hashes and database authority metadata');
+    recoveryStage='TEMPORAL_SCHEMA_READBACK';
     assert.deepEqual(temporalMetadata(container,user,false),temporal);pass('Temporal and visibility databases retain their native schema-version readback');
+    recoveryStage='RESTRICTED_AUTHORITY_READBACK';
     checkSentinel(container,user,database);pass('restored restricted API role enforces exact decimals, append-only UPDATE/DELETE denial, tenant isolation and active-intent uniqueness');
     const finished=Date.now();const acceptance={schema_version:'1',run_id:runID,local_fixture_only:true,hosted_cloud:false,source_image_id:postgres.Image,postgres_version:prerequisites.version,encrypted_sha256:encryptedHash,encrypted_bytes:statSync(archive).size,archive:path.relative(root,archive),key:path.relative(root,keyFile),physical_backup_includes_all_cluster_databases:true,checks:passed,sample_counts:Object.fromEntries(sampled.map(group=>[group.table,group.rows.length])),sample_commitment:hash(sampled),authority_metadata_sha256:hash(metadata),temporal,quarantined:true,network:'none',published_ports:0,application_workers_started:0,timings_seconds:{backup:(backedUp-started)/1000,offline_manifest_verification:(verified-verifyStarted)/1000,total:(finished-started)/1000},production_rto_proven:false,temporal_workflow_resume_proven:false,object_store_recovery_proven:false,clickhouse_recovery_proven:false};
     writeFileSync(path.join(directory,'acceptance.json'),JSON.stringify(acceptance,null,2)+'\n',{flag:'wx',mode:0o600});
@@ -204,4 +217,4 @@ export async function recoveryLab() {
     key.fill(0);
   }
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){try{await recoveryLab();}catch{console.error('PostgreSQL recovery lab failed safely; no raw database data or credentials are printed. Test-owned recovery resources are cleaned; any encrypted partial archive remains private.');process.exitCode=1;}}
+if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){try{await recoveryLab();}catch{console.error('PostgreSQL recovery lab failed safely at '+recoveryStage+'; no raw database data or credentials are printed. Inspect exact run-labelled cleanup state; any encrypted partial archive remains private.');process.exitCode=1;}}
