@@ -369,6 +369,13 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				current.Healthy = false
 				break
 			}
+			if exists && intent {
+				// The first dispatch may still be in flight after an uncertain
+				// response. Observe its outcome; another STOP cannot acquire a
+				// second mutation merely because Describe still reports running.
+				out = current
+				return nil
+			}
 			if e = precheck(ctx, t, p, time.Now()); e != nil {
 				return e
 			}
@@ -391,7 +398,8 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			// Commit intention before the provider call so a worker crash or uncertain
 			// response cannot lose the duty to restore. The API cannot write this table.
 			if !exists {
-				b, _ := json.Marshal(model.Document{"state": current.State, "nonce": p.Nonce})
+				state = model.Document{"state": current.State, "nonce": p.Nonce}
+				b, _ := json.Marshal(state)
 				if _, e = t.Exec(ctx, "INSERT INTO provider_operations(tenant_id,execution_id,resource_id,stop_intent,document) VALUES($1,$2,$3,true,$4)", t.Tenant, in.ExecutionID, targetKey, b); e != nil {
 					return e
 				}
@@ -406,6 +414,14 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				if _, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", p.TenantID+":"+op.AccountID+":"+op.Region+":"+op.ProviderResourceID); e != nil {
 					return e
 				}
+				// Committing intent releases the first lock. Re-read consumption
+				// before dispatch in case another recovery completed meanwhile.
+				if e = t.QueryRow(ctx, "SELECT stop_intent,stop_owned,restored FROM provider_operations WHERE tenant_id=$1 AND execution_id=$2 FOR UPDATE", t.Tenant, in.ExecutionID).Scan(&intent, &owned, &restored); e != nil {
+					return e
+				}
+				if restored || !intent || owned {
+					return problem(409, "OCCURRENCE_COMPLETED", "stop authority was consumed while intent was persisted")
+				}
 				intent = true
 			}
 			if s.Config.Fixture {
@@ -414,7 +430,7 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				dispatched = true
 			} else {
 				if e = aws.Stop(ctx, op); e != nil {
-					return e
+					return finalizeStopError(ctx, t, in.ExecutionID, state, op, !exists && !owned, e)
 				}
 				dispatched = true
 				current, e = aws.Describe(ctx, op)
@@ -506,6 +522,37 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 	})
 	return out, e
 }
+
+// A definitive first-request rejection grants no restoration capability. An
+// older intent may represent a lost successful response, so it must keep its
+// duty to restore even if a later retry is rejected. Commit cancellation before
+// returning the provider error, which otherwise rolls back this transaction.
+func finalizeStopError(ctx context.Context, t *store.Tx, executionID string, state model.Document, op model.Operation, firstDispatch bool, cause error) error {
+	if !firstDispatch || !provider.StopDefinitelyRejected(cause) {
+		return cause
+	}
+	state = model.Clone(state)
+	state["stop_rejected"], state["reason_code"] = true, "STOP_DEFINITIVELY_REJECTED"
+	b, e := json.Marshal(state)
+	if e != nil {
+		return e
+	}
+	updated, e := t.Exec(ctx, "UPDATE provider_operations SET stop_intent=false,stop_owned=false,restored=true,document=$3,updated_at=now() WHERE tenant_id=$1 AND execution_id=$2 AND NOT stop_owned AND NOT restored", t.Tenant, executionID, b)
+	if e != nil {
+		return e
+	}
+	if updated.RowsAffected() != 1 {
+		return problem(409, "STOP_OWNERSHIP_CHANGED", "stop authority changed before rejection was persisted")
+	}
+	if e = t.Audit(ctx, "executor", "provider.stop.rejected", op.ResourceID, model.Document{"execution_id": executionID, "provider_resource_id": op.ProviderResourceID, "reason_code": "STOP_DEFINITIVELY_REJECTED"}); e != nil {
+		return e
+	}
+	if e = t.Commit(ctx); e != nil {
+		return e
+	}
+	return cause
+}
+
 func (s *SecureService) probe(ctx context.Context, target string) (bool, error) {
 	if e := validateHealthURL(target, s.Config); e != nil {
 		return false, e

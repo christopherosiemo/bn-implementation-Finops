@@ -118,7 +118,7 @@ func Occurrence(ctx tw.Context, in model.WorkflowInput) error {
 		attempts++
 		var result model.ProviderState
 		e := tw.ExecuteActivity(recovery, "Dispatch", DispatchInput{in, envelope, "START"}).Get(recovery, &result)
-		if e != nil && attempts == 1 && stopErr != nil {
+		if attempts == 1 && stopErr != nil {
 			var owned bool
 			if oe := tw.ExecuteActivity(recovery, "Owned", in).Get(recovery, &owned); oe == nil && !owned {
 				_ = tw.ExecuteActivity(recovery, "Stage", StageInput{in, "FAILED", "STOP_FAILED", stopErr.Error(), false}).Get(recovery, nil)

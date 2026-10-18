@@ -13,11 +13,11 @@ import (
 )
 
 type fakeActivities struct {
-	mu                             sync.Mutex
-	stages                         []StageInput
-	operations                     []string
-	stopError, owned, paused, live bool
-	now                            time.Time
+	mu                                             sync.Mutex
+	stages                                         []StageInput
+	operations                                     []string
+	stopError, owned, paused, live, restoreStopped bool
+	now                                            time.Time
 }
 
 func (f *fakeActivities) Control(context.Context, model.WorkflowInput) (Control, error) {
@@ -43,6 +43,9 @@ func (f *fakeActivities) Dispatch(_ context.Context, in DispatchInput) (model.Pr
 		if f.stopError {
 			return model.ProviderState{}, temporal.NewNonRetryableApplicationError("uncertain provider stop", "ProviderError", errors.New("timeout"))
 		}
+		return model.ProviderState{State: "stopped"}, nil
+	}
+	if in.Operation == "START" && f.restoreStopped {
 		return model.ProviderState{State: "stopped"}, nil
 	}
 	return model.ProviderState{State: "running", Healthy: true}, nil
@@ -118,5 +121,28 @@ func TestUncertainStopStillRestoresWithoutClaimingSuccess(t *testing.T) {
 	}
 	if !started {
 		t.Fatal("uncertain mutation lost restoration obligation")
+	}
+}
+
+func TestRejectedStopWithoutOwnershipEndsRecovery(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	f := &fakeActivities{now: time.Now(), stopError: true, restoreStopped: true}
+	env.RegisterActivity(f)
+	env.ExecuteWorkflow(Occurrence, model.WorkflowInput{TenantID: "t"})
+	if e := env.GetWorkflowError(); e != nil {
+		t.Fatal(e)
+	}
+	if !env.IsWorkflowCompleted() {
+		t.Fatal("unowned rejected stop retained a recovery loop")
+	}
+	last := f.stages[len(f.stages)-1]
+	if last.Status != "FAILED" || last.Stage != "STOP_FAILED" || last.Owned {
+		t.Fatalf("rejected stop retained restoration ownership: %+v", last)
+	}
+	for _, operation := range f.operations {
+		if operation == "HEALTH" {
+			t.Fatal("unowned manual stop entered application recovery")
+		}
 	}
 }

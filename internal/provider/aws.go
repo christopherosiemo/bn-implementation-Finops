@@ -26,6 +26,58 @@ type AWS struct {
 	client *http.Client
 }
 
+// QueryRejection retains only the structured, non-sensitive AWS error code.
+// Provider messages, authorization diagnostics and response bodies stay private.
+type QueryRejection struct {
+	Action     string
+	Code       string
+	StatusCode int
+}
+
+func (e *QueryRejection) Error() string {
+	return fmt.Sprintf("AWS %s failed: %s (%d)", e.Action, e.Code, e.StatusCode)
+}
+
+type stopNotDispatched struct{ cause error }
+
+func (e *stopNotDispatched) Error() string { return "EC2 stop was not dispatched" }
+func (e *stopNotDispatched) Unwrap() error { return e.cause }
+
+// StopDefinitelyRejected describes this call only. A caller must never use it
+// to cancel restoration owed by a previous attempt with an uncertain outcome.
+// Transport, response-read, 5xx and unfamiliar StopInstances errors stay unknown.
+func StopDefinitelyRejected(err error) bool {
+	if err == nil {
+		return false
+	}
+	var notSent *stopNotDispatched
+	if errors.As(err, &notSent) {
+		return true
+	}
+	var rejected *QueryRejection
+	if !errors.As(err, &rejected) || rejected.Action != "StopInstances" || rejected.StatusCode < 400 || rejected.StatusCode >= 500 {
+		return false
+	}
+	switch rejected.Code {
+	case "UnauthorizedOperation", "AuthFailure":
+		return true
+	default:
+		return false
+	}
+}
+
+func awsErrorCode(code string) string {
+	if len(code) == 0 || len(code) > 128 {
+		return "ProviderError"
+	}
+	for _, r := range code {
+		if !(r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-') {
+			return "ProviderError"
+		}
+	}
+	return code
+}
+
 func NewAWS(ctx context.Context, region, role, external string) (*AWS, error) {
 	c, e := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if e != nil {
@@ -87,7 +139,7 @@ func (a *AWS) query(ctx context.Context, region, action string, values url.Value
 		if len(failure.Errors) > 0 {
 			code = failure.Errors[0].Code
 		}
-		return fmt.Errorf("AWS %s failed: %s (%d)", action, code, res.StatusCode)
+		return &QueryRejection{Action: action, Code: awsErrorCode(code), StatusCode: res.StatusCode}
 	}
 	if out != nil {
 		return xml.Unmarshal(b, out)
@@ -257,10 +309,10 @@ func (a *AWS) Stop(ctx context.Context, op model.Operation) error {
 		Value bool `xml:"disableApiStop>value"`
 	}
 	if e := a.query(ctx, op.Region, "DescribeInstanceAttribute", url.Values{"InstanceId": {op.ProviderResourceID}, "Attribute": {"disableApiStop"}}, &r); e != nil {
-		return e
+		return &stopNotDispatched{cause: e}
 	}
 	if r.Value {
-		return errors.New("stop protection enabled")
+		return &stopNotDispatched{cause: errors.New("stop protection enabled")}
 	}
 	return a.query(ctx, op.Region, "StopInstances", url.Values{"InstanceId.1": {op.ProviderResourceID}, "Force": {"false"}, "Hibernate": {"false"}}, nil)
 }
