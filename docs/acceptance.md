@@ -31,8 +31,12 @@ outcomes and denial of approval/signing/dispatch/financial writes. Signed proof
 lifetimes must cover the complete modeled fleet duration. The reference Terraform
 cohorts validated with **8 mock-provider plan tests** without network or AWS
 credentials; the deployment observer Helm policies passed positive and negative
-credential/network checks. Full exact-commit CI and source scanning remain the
-release acceptance gate; test counts receive no independent progress credit.
+credential/network checks. All seven exact-commit CI jobs passed at
+[e7b0cd7](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086),
+including generated contracts, dependency/security checks, source scanning,
+the Linux local Kubernetes lab and the connected browser/recovery suites.
+Test counts receive no independent progress credit. The fixed-weight ledger
+records **24.4 → 25.0** for the two bounded component packages only.
 
 The real three-node local Kubernetes lab passed **7 connected checks**: read-only
 RBAC, native inventory, exact local Git revision rollout, zero-disruption PDB

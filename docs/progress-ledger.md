@@ -1,18 +1,20 @@
 # Product scope progress ledger
 
-Recorded 18 October 2026. **Approximately 23% → 24%** of the full product, using **23.4 → 24.4 weighted points** across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
+Recorded 18 October 2026. **Approximately 24% → 25%** of the full product, using **24.4 → 25.0 weighted points** across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 
 | Domain | Fixed scope weight | Current area maturity | Contribution |
 | --- | ---: | ---: | ---: |
 | Billing, inventory and telemetry | 18% | 28.33% | 5.1 points |
 | Workload graph, demand and SLO | 12% | 40% | 4.8 points |
 | Optimisation, forecasting and commitments | 18% | 7.22% | 1.3 points |
-| Execution, IaC and GitOps | 18% | 15% | 2.7 points |
+| Execution, IaC and GitOps | 18% | 18.33% | 3.3 points |
 | Reconciliation and verified savings | 10% | 40% | 4.0 points |
 | Identity, tenancy, policy and audit | 10% | 35% | 3.5 points |
 | Console, API and enterprise workflows | 6% | 30% | 1.8 points |
 | Production operations | 8% | 15% | 1.2 points |
-| **Total** | **100%** | | **24.4 points** |
+| **Total** | **100%** | | **25.0 points** |
+
+The fleet/local Kubernetes component review adds **0.6 points** after all seven CI jobs passed at [e7b0cd7](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086). The unaccepted 11.25-point broad IaC/GitOps package is subdivided into 1.5 points of fleet protocol components, 1.5 points of local Kubernetes/GitOps safety components and 8.25 points of remaining broad actions, preserving all previous scope and credit. Only the two bounded components advance from absent to component acceptance. No full fleet workflow, hosted Kubernetes, Azure/GCP parity, customer use, live operation or production credit is awarded. Shared console, identity and storage foundations are not counted again. See [component boundaries](fleet-and-kubernetes-components.md).
 
 Each domain is broken into acceptance packages. Maturity stages are 0 (absent), 20 (component), 40 (deterministic E2E), 70 (supervised live), 90 (production operations), and 100 (contract complete). The retained baseline package weights reproduce the original 17.5 points; all current credits use 0/20/40 only. Contributions multiply package scope weight by accepted stage. Shared foundations count once. No fixture package receives live credit, and incomplete delivery is never rounded to 100%.
 

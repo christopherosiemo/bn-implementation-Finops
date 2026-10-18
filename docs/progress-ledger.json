@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 24.4,
-  "rounded_description": "Approximately 24 percent of the full product",
-  "credit_review": "Accepted bounded native telemetry from real local instrumentation through immutable persisted receipts and console evaluation; accepted bounded capacity/forecast components. No full capacity catalogue, live/customer operation, fleet, Kubernetes or production credit.",
+  "current_weighted_percent": 25,
+  "rounded_description": "Approximately 25 percent of the full product",
+  "credit_review": "Accepted bounded fleet protocol and real local Kubernetes GitOps safety components. No complete fleet/Kubernetes workflow, provider parity, customer/live or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -174,7 +174,7 @@
     {
       "id": "execution_iac_gitops",
       "weight_percent": 18,
-      "contribution_points": 2.7,
+      "contribution_points": 3.3,
       "packages": [
         {
           "id": "bounded_ec2_stop_owned_restore",
@@ -191,8 +191,42 @@
           ]
         },
         {
+          "id": "bounded_fleet_protocol",
+          "scope_weight_percent": 1.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/fleet",
+            "internal/store/fleet_integration_test.go",
+            "internal/deploymentobserver/server_integration_test.go",
+            "examples/terraform-fleet",
+            "docs/fleet-and-kubernetes-components.md"
+          ],
+          "remaining": [
+            "Continuously observed signed-stage health and permanent failure proof factories",
+            "Connected native capacity, authority and financial factories; customer pipeline and full approved canary/rollback/economics journey",
+            "Supervised customer deployment and production operational acceptance"
+          ]
+        },
+        {
+          "id": "bounded_local_kubernetes_gitops",
+          "scope_weight_percent": 1.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/kubernetes",
+            "scripts/kubernetes-lab.mjs",
+            "scripts/kubernetes-bootstrap.mjs",
+            "examples/kubernetes",
+            "docs/fleet-and-kubernetes-components.md"
+          ],
+          "remaining": [
+            "Hosted Argo CD/Flux revision and rollout acceptance; local controller remains an explicit test double",
+            "Requests/limits changes, native autoscaler coordination, node economics and workload-normalized verified savings",
+            "EKS/AKS/GKE live/customer and production operation"
+          ]
+        },
+        {
           "id": "iac_gitops_broad_actions",
-          "scope_weight_percent": 11.25,
+          "scope_weight_percent": 8.25,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md"
@@ -203,7 +237,7 @@
         }
       ],
       "baseline_area_maturity": 15,
-      "current_area_maturity": 15
+      "current_area_maturity": 18.333333333333332
     },
     {
       "id": "reconciliation_verified_savings",
@@ -619,6 +653,61 @@
       ],
       "release_commit": "aec624aca7a28239b41fee5e992f080574760aba",
       "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39139905144",
+      "live_credit_awarded": false
+    },
+    {
+      "id": "fleet-kubernetes-components-2026-10-18",
+      "previous_weighted_percent": 24.4,
+      "weighted_percent": 25,
+      "package_subdivisions": [
+        {
+          "domain": "execution_iac_gitops",
+          "previous_package": "iac_gitops_broad_actions",
+          "previous_scope_weight_percent": 11.25,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_fleet_protocol",
+              "scope_weight_percent": 1.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "bounded_local_kubernetes_gitops",
+              "scope_weight_percent": 1.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "iac_gitops_broad_actions",
+              "scope_weight_percent": 8.25,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_fleet_protocol",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.3,
+          "acceptance": "Separate signed v4 contract, exact Terraform saved-plan checking, shared disruption reservations, uncertain-outcome reconciliation and separate real-JWT/restricted-PostgreSQL deployment observer. Runtime remains disabled; full stage health and connected fleet/financial acceptance are outstanding."
+        },
+        {
+          "capability": "bounded_local_kubernetes_gitops",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.3,
+          "acceptance": "Real isolated three-node Kubernetes lab with exact local Git rollout, native read-only RBAC/inventory, explicit zero-disruption PDB block, failed readiness/owned rollback and HPA total-request growth. Hosted GitOps/node economics and financial acceptance remain outstanding."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/fleet-and-kubernetes-components.md",
+        "scripts/kubernetes-lab.mjs",
+        "internal/deploymentobserver/server_integration_test.go"
+      ],
+      "release_commit": "e7b0cd7a970c8086b0b3b498e29c9cf858e15b38",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086",
       "live_credit_awarded": false
     }
   ]
