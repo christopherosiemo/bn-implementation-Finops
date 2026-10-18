@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { assertBoundFixtureSpec, fixtureApplierRules, fixtureGitEnvironment, fixtureReaderMounts, nativeFluxReady } from '../flux-lab.mjs';
+import { assertBoundFixtureSpec, fixtureApplierRules, fixtureGitEnvironment, fixtureReaderMounts, fixtureWorkingSpec, nativeFluxReady } from '../flux-lab.mjs';
 import { cacheLabel, importedManifestName, localhostAPIPort, normalizedImportedAliases, ownershipLabel, pins, prepareFluxCompilation, prepareFluxRepository, producerIdentity, validateOwnedGit, validateOwnedNetwork, validateOwnedNode } from '../flux-bootstrap.mjs';
 
 test('private Linux mounts use exact invoking UID/GID while Windows keeps native mount semantics', () => {
@@ -32,6 +32,20 @@ test('blocked Git proposal preserves both independently observed approved spec h
     }
     assert.throws(() => assertBoundFixtureSpec(snapshot, ''));
   }
+});
+
+test('fault and replay working specs cannot mutate the original approved plan used for rollback', () => {
+  const plan = { hash: 'a'.repeat(64), desired_spec: { template: { spec: { containers: [{ readinessProbe: { httpGet: { path: '/healthz' } }, resources: { requests: { memory: '167772160' } } }] } } } };
+  const original = JSON.stringify(plan);
+  const working = fixtureWorkingSpec(plan);
+  working.template.spec.containers[0].readinessProbe.httpGet.path = '/never-ready';
+  working.template.spec.containers[0].resources.requests.memory = '176Mi';
+  assert.equal(JSON.stringify(plan), original);
+  const replay = fixtureWorkingSpec(plan);
+  assert.deepEqual(replay, plan.desired_spec);
+  replay.template.spec.containers[0].readinessProbe.httpGet.path = '/another-fault';
+  assert.equal(working.template.spec.containers[0].readinessProbe.httpGet.path, '/never-ready');
+  assert.equal(JSON.stringify(plan), original);
 });
 
 test('Git preflight never adopts a repository and checks actual startup offline with only read-only fixture mounts', () => {

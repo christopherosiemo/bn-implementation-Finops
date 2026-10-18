@@ -41,6 +41,10 @@ export function assertBoundFixtureSpec(snapshot, expectedHash) {
   assert.equal(snapshot?.deployment?.spec_hash, expectedHash);
   assert.equal(snapshot?.git?.deployment_spec_hash, expectedHash);
 }
+export function fixtureWorkingSpec(plan) {
+  // Fault commits must never mutate the approved plan retained for rollback.
+  return structuredClone(plan.desired_spec);
+}
 async function waitFor(check, message, timeout = 120000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = check(); if (value) return value; await pause(1000); }
@@ -152,7 +156,7 @@ export async function runFluxLab() {
     assert.equal(plan.status, 'READY_FOR_GIT_PROPOSAL', plan.reason_codes.join(','));
     assert.equal(head(), plan.base_git_revision);
     assert.equal(cli('authorize', { plan, snapshot: collect() }).status, 'AUTHORIZED_FOR_GIT_RECONCILE');
-    manifest.spec = plan.desired_spec; writeManifest(manifest);
+    manifest.spec = fixtureWorkingSpec(plan); writeManifest(manifest);
     const successful = pushCommit('Local Flux: reviewed memory request change');
     await waitRevision(successful); snapshot = await observe(plan.desired_spec_hash);
     assert.equal(cli('verify', { plan, snapshot, revision: successful }).status, 'ACKNOWLEDGED');

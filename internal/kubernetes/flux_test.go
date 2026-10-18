@@ -101,6 +101,35 @@ func TestFluxObservedNativeRootDirectoryPreservesExactStaticProof(t *testing.T) 
 	}
 }
 
+func TestFluxRollbackStillRequiresOriginalImmutablePlan(t *testing.T) {
+	in := testInput(t)
+	approved := Assess(in)
+	originalHash := Hash(approved)
+	s := in.Snapshot
+	s.Deployment.Spec = clone(approved.DesiredSpec)
+	s.Deployment.SpecHash = approved.DesiredSpecHash
+	s.Git.DeploymentSpecHash = approved.DesiredSpecHash
+	// The recovered spec can be acknowledged at a fresh revert commit. Its
+	// original approval is replayable, but a fault-modified plan is not.
+	s.Git.Revision = strings.Repeat("c", 40)
+	s.Hash = SnapshotHash(s)
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := VerifySync(approved, s, s.Git.Revision, in.Now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tampered := approved
+	tampered.DesiredSpec = clone(approved.DesiredSpec)
+	c := object(array(object(object(tampered.DesiredSpec["template"])["spec"])["containers"])[0])
+	object(object(c["readinessProbe"])["httpGet"])["path"] = "/never-ready"
+	if err := VerifySync(tampered, s, s.Git.Revision, in.Now); err == nil || err.Error() != "K8S_PLAN_HASH_INVALID" {
+		t.Fatalf("fault-modified plan inherited recovered health: %v", err)
+	}
+	if Hash(approved) != originalHash {
+		t.Fatal("working fault changed the original approval")
+	}
+}
+
 func fluxTestDocuments(t *testing.T) (Binding, Document, Document, map[string][]byte) {
 	t.Helper()
 	in := testInput(t)
