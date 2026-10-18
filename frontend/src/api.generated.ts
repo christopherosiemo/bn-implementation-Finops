@@ -81,8 +81,25 @@ export interface paths {
         };
         get: operations["listCapacityAssessments"];
         put?: never;
-        /** @description Selects persisted native observations and the current workload safety profile. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. This increment reports BLOCKED while native provider hardware and contracted prices are unavailable; it never creates or authorizes a change plan. */
+        /** @description Selects persisted native observations, current workload requirements and independently ingested current AWS hardware. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. When hardware is available the private physical-capacity model is evaluated and a NativeCapacityResult is recorded; otherwise the prior unavailable-catalogue CapacityAssessment is recorded. Contracted candidate prices remain unavailable and both results are BLOCKED with no execution authority or change plan. */
         post: operations["assessNativeCapacityEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/native-capacity-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Workload-scoped immutable hardware/model summaries. Full native point populations remain in pinned source objects. Analytical suitability, observed breach frequency and uncalibrated future risk never authorize execution or verified savings. */
+        get: operations["listNativeCapacityResults"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1027,6 +1044,270 @@ export interface components {
         };
         ConfigurationProposalPage: {
             items: components["schemas"]["ConfigurationProposal"][];
+            next_cursor: string | null;
+        };
+        CapacityModelReference: {
+            id: string;
+            version: string;
+            receipt_id: string;
+            sha256: string;
+            binding: components["schemas"]["NativeResourceBinding"];
+        };
+        /** @description Exact decimal physical capacities, respectively vCPU, bytes, sustained bytes/second, operations/second and bytes/second. Unknown remains null. */
+        NativePhysicalCapacity: {
+            cpu: components["schemas"]["NullableDecimal"];
+            memory: components["schemas"]["NullableDecimal"];
+            network: components["schemas"]["NullableDecimal"];
+            storage_iops: components["schemas"]["NullableDecimal"];
+            storage_throughput: components["schemas"]["NullableDecimal"];
+        };
+        NativeHardwareCatalogEntry: {
+            id: string;
+            count: number;
+            capacity: components["schemas"]["NativePhysicalCapacity"];
+            architecture: string;
+            cpu_model: string;
+            operating_system: string;
+            licensing: string;
+            region: string;
+            zones: string[];
+            accelerator: string;
+            local_storage: boolean;
+            disk_types: string[];
+            /** @enum {boolean|null} */
+            commitment_compatible: null;
+            source_ref: components["schemas"]["CapacityModelReference"];
+            /**
+             * @description Candidate native contracted rates are unavailable; no public list or operator price fallback
+             * @enum {object|null}
+             */
+            pricing: never | null;
+        };
+        CapacityObservedQuantile: {
+            lower: components["schemas"]["NullableDecimal"];
+            upper: components["schemas"]["NullableDecimal"];
+            /** @enum {string} */
+            status: "OBSERVED" | "UNAVAILABLE";
+        };
+        CapacityMetricSummary: {
+            /** @enum {string} */
+            name: "cpu" | "memory" | "network" | "storage_iops" | "storage_throughput" | "demand";
+            unit: string;
+            /** @enum {string} */
+            statistic: "RAW_SAMPLE" | "OBSERVED_INTERVAL_RATE" | "DISTRIBUTION" | "INTERVAL_MAXIMUM";
+            cadence_seconds?: number;
+            coverage_ppm: number;
+            time_coverage_ppm: number;
+            sampling_coverage_ppm: number;
+            observed_intervals: number;
+            expected_intervals: number;
+            missing_intervals: number;
+            unknown_seconds: string;
+            observed_samples: string;
+            quantile_method: string;
+            observed_maximum: components["schemas"]["NullableDecimal"];
+            observed_quantiles: {
+                p50: components["schemas"]["CapacityObservedQuantile"];
+                p90: components["schemas"]["CapacityObservedQuantile"];
+                p95: components["schemas"]["CapacityObservedQuantile"];
+                p99: components["schemas"]["CapacityObservedQuantile"];
+                p999: components["schemas"]["CapacityObservedQuantile"];
+            };
+            denominator: {
+                unit: string;
+                value: string;
+            } | null;
+            missing_ranges?: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+            }[];
+            missing_range_count?: number;
+            reason_codes: string[];
+            source_refs?: components["schemas"]["CapacityModelReference"][];
+        };
+        CapacityForecastMetric: {
+            /** @enum {string} */
+            status: "CALIBRATED_BACKTEST" | "UNCALIBRATED";
+            reason_codes: string[];
+            point_peak: components["schemas"]["NullableDecimal"];
+            point_p99: components["schemas"]["NullableDecimal"];
+            declared_event_peak?: string;
+            event_multiplier_peak?: string;
+            /** @enum {integer} */
+            model_time_bucket_seconds?: 3600;
+            prediction_interval: {
+                lower: string;
+                upper: string;
+                nominal_coverage_ppm: number;
+            } | null;
+            backtest: {
+                /** @enum {string} */
+                method: "EXPANDING_ORIGIN_WEEKDAY_HOUR_MEDIAN";
+                block_days: number;
+                residual_day_count: number;
+                nonoverlapping_block_count: number;
+                absolute_block_residuals?: string[];
+                /** @enum {boolean} */
+                uses_future_observations: false;
+            };
+            daily_points?: {
+                /** Format: date */
+                date: string;
+                point_peak: string;
+                point_mean: string;
+            }[];
+        };
+        CapacityCandidateCheck: {
+            /** @enum {string} */
+            dimension: "cpu" | "memory" | "network" | "storage_iops" | "storage_throughput";
+            unit: string;
+            candidate_capacity: string;
+            observed_p99: string;
+            forecast_requirement: string;
+            required_with_reserve: string;
+            reserve_above_forecast_ppm?: number;
+            unused_capacity_ppm?: number;
+            observed_p95_utilization_ppm?: number | null;
+            p95_planning_limit_ppm: number | null;
+            p99_rollback_limit_ppm: number | null;
+            projected_p99_utilization_ppm: number;
+            observed_capacity_breach_ppm?: number | null;
+            /** @enum {string} */
+            status: "PASS" | "FAIL";
+        };
+        CapacityModelResult: {
+            /** @enum {string} */
+            schema_version: "4";
+            /** @enum {string} */
+            model_version: "capacity-weekday-block-v1";
+            binding: components["schemas"]["NativeResourceBinding"];
+            /** @enum {string} */
+            status: "BLOCKED" | "INSUFFICIENT_OBSERVATION";
+            reason_codes: string[];
+            history: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+                timezone: string;
+                /** @enum {string} */
+                environment: "NON_PRODUCTION" | "PRODUCTION";
+                observed_calendar_days: number;
+                required_calendar_days: number;
+            };
+            metrics: components["schemas"]["CapacityMetricSummary"][];
+            forecasts: {
+                /** @enum {string} */
+                horizon: "7_day" | "30_day" | "90_day" | "annual";
+                days: number;
+                /** @enum {string} */
+                status: "CALIBRATED_BACKTEST" | "UNCALIBRATED";
+                metrics: {
+                    [key: string]: components["schemas"]["CapacityForecastMetric"];
+                };
+                /** @enum {integer|null} */
+                future_breach_probability_upper_ppm: null;
+            }[];
+            candidates: {
+                id: string;
+                count: number;
+                /** @description Requires all compatibility and observation gates; individual passing physical checks do not imply suitability */
+                capacity_suitable: boolean;
+                /** @enum {string} */
+                status: "BLOCKED" | "INSUFFICIENT_OBSERVATION";
+                reason_codes: string[];
+                checks: components["schemas"]["CapacityCandidateCheck"][];
+                source_ref: components["schemas"]["CapacityModelReference"];
+                economics: {
+                    /** @enum {string} */
+                    status: "UNAVAILABLE";
+                    reason_codes: string[];
+                    /** @enum {string|null} */
+                    currency: null;
+                    current_cost: components["schemas"]["NullableDecimal"];
+                    candidate_cost: components["schemas"]["NullableDecimal"];
+                    estimated_saving: components["schemas"]["NullableDecimal"];
+                    /** @enum {string|null} */
+                    verified_saving?: null;
+                };
+                future_risk: {
+                    /** @enum {string} */
+                    status: "UNCALIBRATED";
+                    reason_code: string;
+                    required_maximum_ppm: number;
+                    /** @enum {integer|null} */
+                    future_breach_probability_upper_ppm: null;
+                };
+            }[];
+            evidence_refs: components["schemas"]["CapacityModelReference"][];
+            model_assumptions: string[];
+            assessment_hash: string;
+        };
+        NativeCapacityResult: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            binding: components["schemas"]["NativeResourceBinding"];
+            workload_id: string;
+            resource_id: string;
+            connection_id: string;
+            connection_version: number;
+            revision_id: string;
+            config_hash: string;
+            safety_profile_id: string;
+            safety_profile_version: number;
+            safety_profile_hash: string;
+            hardware_receipt_id: string;
+            hardware_raw_sha256: string;
+            resource_snapshot_hash: string;
+            population_hash: string;
+            receipt_ids: string[];
+            source_refs: {
+                receipt_id: string;
+                batch_id: string;
+                config_hash: string;
+                raw_sha256: string;
+                canonical_hash: string;
+            }[];
+            /** @enum {string} */
+            input_kind: "MODEL_REQUEST" | "MAPPING_OBSERVATION";
+            input_hash: string;
+            model_requested: boolean;
+            model_evaluated: boolean;
+            model_evaluation: components["schemas"]["CapacityModelResult"] | null;
+            hardware_mapping: {
+                current: components["schemas"]["NativeHardwareCatalogEntry"];
+                candidates: components["schemas"]["NativeHardwareCatalogEntry"][];
+                reason_codes: string[];
+                candidate_reasons: {
+                    [key: string]: string[];
+                };
+                assumptions: string[];
+            };
+            history: components["schemas"]["CapacityAssessment"]["history"];
+            native_evaluation: components["schemas"]["NativeTelemetryEvaluation"];
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {string} */
+            native_price_status: "UNAVAILABLE";
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string|null} */
+            change_plan_id: null;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            writer_role: string;
+        };
+        NativeCapacityResultPage: {
+            items: components["schemas"]["NativeCapacityResult"][];
             next_cursor: string | null;
         };
         CapacityAssessment: {
@@ -2481,7 +2762,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CapacityAssessment"];
+                    "application/json": components["schemas"]["CapacityAssessment"] | components["schemas"]["NativeCapacityResult"];
                 };
             };
             /** @description Analyst or scoped application owner role required */
@@ -2507,6 +2788,46 @@ export interface operations {
             };
             /** @description Independent native evidence selection unavailable or invalid */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listNativeCapacityResults: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cursor page of independently sourced physical-capacity results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeCapacityResultPage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workload not found in tenant */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

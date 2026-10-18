@@ -10,10 +10,10 @@ if (sections.length !== 233) throw new Error(`Expected 233 normative sections, f
 const between = (id, a, b) => id >= a && id <= b;
 const nativeCoverage = {
   41: 'Registered Prometheus range-vector reads and machine OTLP/HTTP preserve native timestamps, temporality, units and immutable object/ClickHouse provenance. See docs/native-telemetry.md; streaming above explicit bounds and customer instrumentation remain gated.',
-  42: 'Native metric definitions and bounded capacity input preserve missing CPU/memory/network/storage evidence as blockers. Provider hardware and contracted candidate-price catalogues are not yet connected.',
+  42: 'Native metrics and immutable read-only EC2 hardware receipts feed the private capacity worker through server-selected history. Observed historical CPU/memory denominators must match fresh native hardware; missing native candidate economics still blocks execution. See docs/native-hardware-capacity.md.',
   43: 'Native request/error counters and histogram bounds have connected local instrumentation acceptance. Historical queries cannot backfill guarded minute activity/SLO receipts; broader customer SLIs remain gated.',
   46: 'Versioned workload requirements distinguish spare-capacity fractions from additive forecast reserve. Candidate capacity and recovery evidence are required independently; declaring a profile does not authorize execution.',
-  47: 'Bounded capacity components preserve distributions, p95/p99 peaks and independent saturation guards. Wider resource metrics and native candidate-catalogue integration remain gated.',
+  47: 'Bounded capacity components preserve distributions, p95/p99 peaks and independent saturation guards. A constrained Linux/Nitro single-gp3 hardware mapper is connected; wider hardware, candidate economics and executable fleet acceptance remain gated.',
   48: 'Native evaluation requires fourteen complete non-production days, thirty production-analysis days and ninety seasonal days from actual observations. Dense populations above explicit limits remain unavailable pending streaming evaluation.',
   49: 'Explainable weekday/hour forecasts, rolling backtests and prediction intervals have component acceptance. Unsupported horizons and uncalibrated breach probabilities remain unavailable; production forecast acceptance is outstanding.',
   50: 'Versioned demand events and explicit timezone requirements feed bounded capacity components. Customer calendars, genuine history and calibrated seasonal acceptance remain outstanding.',

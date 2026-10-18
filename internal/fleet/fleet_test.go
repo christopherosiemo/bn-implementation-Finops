@@ -9,9 +9,9 @@ import (
 )
 
 func fixturePlan(now time.Time) FleetPlanV4 {
-	p := FleetPlanV4{SchemaVersion: "4", Kind: Kind, ID: "fleet-plan", Binding: Binding{"tenant", "fleet-resource", "workload", "AWS", "asg-blue", "111122223333", "eu-west-1"}, CreatorID: "requester", Environment: "NON_PRODUCTION", IaC: IaCBinding{"TERRAFORM", "https://github.com/customer/config", strings.Repeat("a", 40), "sandbox", "state-lineage", 10, strings.Repeat("b", 64), "1.13.3", "customer-pipeline"}, Governance: Governance{"R2", true, "fleet-policy", 1, strings.Repeat("c", 64), ApproverRole}, Old: Cohort{"asg-blue", "aws_autoscaling_group.blue", "aws_launch_template.blue", 1, "m6i.4xlarge", 20, true, false, false}, Candidate: Cohort{"asg-green", "aws_autoscaling_group.green", "aws_launch_template.green", 2, "m6i.2xlarge", 0, true, false, false}, Traffic: TrafficControl{"CUSTOMER_TERRAFORM_PIPELINE", "aws_lb_listener_rule.app", "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/blue/id", "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/green/id"}, Budget: Budget{20, 2, 2, 100000, 20, "GBP", "24", "0.4", "0.2", 7200}, CreatedAt: now.Add(-time.Minute), ExpiresAt: now.Add(2 * time.Hour), Nonce: "parent-nonce"}
+	p := FleetPlanV4{SchemaVersion: "4", Kind: Kind, ID: "fleet-plan", Binding: Binding{"tenant", "fleet-resource", "workload", "AWS", "asg-blue", "111122223333", "eu-west-1"}, CreatorID: "requester", Environment: "NON_PRODUCTION", IaC: IaCBinding{"TERRAFORM", "https://github.com/customer/config", strings.Repeat("a", 40), "sandbox", "state-lineage", 10, strings.Repeat("b", 64), "1.13.3", "customer-pipeline"}, Governance: Governance{"R2", true, "fleet-policy", 1, strings.Repeat("c", 64), ApproverRole}, Old: Cohort{"asg-blue", "aws_autoscaling_group.blue", "aws_launch_template.blue", 1, "m6i.4xlarge", 20, true, false, false}, Candidate: Cohort{"asg-green", "aws_autoscaling_group.green", "aws_launch_template.green", 2, "m6i.2xlarge", 0, true, false, false}, Traffic: TrafficControl{"CUSTOMER_TERRAFORM_PIPELINE", "aws_lb_listener_rule.app", "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/blue/id", "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/green/id"}, Budget: Budget{20, 2, 2, 100000, 20, "GBP", "60", "0.4", "0.2", 18000}, CreatedAt: now.Add(-time.Minute), ExpiresAt: now.Add(6 * time.Hour), Nonce: "parent-nonce"}
 	for _, kind := range parentProofKinds {
-		p.Proofs = append(p.Proofs, ProofRef{kind, kind + "-id", "1", strings.Repeat("d", 64), now.Add(-2 * time.Minute), now.Add(3 * time.Hour)})
+		p.Proofs = append(p.Proofs, ProofRef{kind, kind + "-id", "1", strings.Repeat("d", 64), now.Add(-2 * time.Minute), now.Add(6 * time.Hour)})
 	}
 	p.Stages = DefaultStages(p, true)
 	return p
@@ -41,7 +41,7 @@ func TestFleetPlanBindsR2EvidenceAuthorityCostAndDistinctStatelessCohorts(t *tes
 		t.Fatal(e)
 	}
 	cost, e := WorstCaseCost(p.Budget)
-	if e != nil || cost != "24.000000000000" {
+	if e != nil || cost != "60.000000000000" {
 		t.Fatal("retained old/surge cost omitted", cost, e)
 	}
 	for name, mutate := range map[string]func(*FleetPlanV4){
@@ -123,6 +123,36 @@ func TestFleetImmutableParentAuthoritiesCoverTheEntireModeledProgram(t *testing.
 	p.ExpiresAt = programEnd.Add(-time.Nanosecond)
 	if e := ValidatePlan(p, p.Binding, now); e == nil || e.Error() != "FLEET_BLAST_OR_COST_BUDGET_INVALID" {
 		t.Fatal("parent expires before its modeled program ends", e)
+	}
+}
+
+func TestFleetProgramDurationIncludesEveryIntermediateHealthAndDelivery(t *testing.T) {
+	now := time.Now().UTC()
+	p := fixturePlan(now)
+	for _, test := range []struct {
+		cleanup bool
+		want    int64
+	}{{false, 12420}, {true, 17400}} {
+		p.Stages = DefaultStages(p, test.cleanup)
+		got, err := MinimumProgramDuration(p)
+		if err != nil || got != test.want {
+			t.Fatal("capacity substeps, traffic dwell, drain or delivery margin omitted", got, err)
+		}
+		p.Budget.MaximumDurationSeconds = test.want - 1
+		if err = ValidatePlan(p, p.Binding, now); err == nil || err.Error() != "FLEET_INTERMEDIATE_HEALTH_AND_DELIVERY_EXCEED_DURATION_BUDGET" {
+			t.Fatal("unfinishable modeled program accepted", err)
+		}
+		p.Budget.MaximumDurationSeconds = test.want
+		if err = ValidatePlan(p, p.Binding, now); err != nil {
+			t.Fatal("exact minimum modeled duration rejected", err)
+		}
+	}
+	// A former two-hour program is short even though its terminal stage dwell
+	// alone fits; hard2-instance expansion increments remain unchanged.
+	p.Stages = DefaultStages(p, false)
+	p.Budget.MaximumDurationSeconds = 7200
+	if err := ValidatePlan(p, p.Binding, now); err == nil {
+		t.Fatal("terminal-only duration estimate accepted")
 	}
 }
 func TestFleetConcurrentBudgetIsPerTenantWorkloadAndNeverNativeTimerBased(t *testing.T) {

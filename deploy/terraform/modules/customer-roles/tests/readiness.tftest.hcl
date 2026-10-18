@@ -84,3 +84,16 @@ run "same_account_executor_rejected" {
   }
   expect_failures = [var.execution_principal_arn]
 }
+run "hardware_reader_is_optional_and_has_no_customer_mutation_role" {
+  command = plan
+  variables { hardware_read_principal_arn = "arn:aws:iam::123456789012:role/hardware-reader" }
+  assert {
+    condition     = length(aws_iam_role.customer) == 1 && length(aws_iam_role_policy.execution) == 0 && strcontains(aws_iam_role.customer["read"].assume_role_policy, "role/hardware-reader") && strcontains(aws_iam_role_policy.read.policy, "ec2:DescribeImages") && strcontains(aws_iam_role_policy.read.policy, "ec2:DescribeInstanceTypeOfferings") && !strcontains(aws_iam_role_policy.read.policy, "StopInstances")
+    error_message = "Additional hardware trust must remain explicit and read-only."
+  }
+}
+run "hardware_reader_cannot_borrow_main_ingester_principal" {
+  command = plan
+  variables { hardware_read_principal_arn = "arn:aws:iam::123456789012:role/reader" }
+  expect_failures = [var.hardware_read_principal_arn]
+}

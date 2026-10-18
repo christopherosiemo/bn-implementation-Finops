@@ -9,6 +9,7 @@ import type {
   Workload,
 } from "./types";
 import { useRemote, RemotePage } from "./RemoteData";
+import { NativeCapacityResults } from "./NativeCapacityResults";
 import {
   Badge,
   Button,
@@ -25,6 +26,8 @@ import {
 const metrics = {
   cpu_utilization: ["GAUGE", "ratio"],
   memory_utilization: ["GAUGE", "ratio"],
+  cpu_capacity: ["GAUGE", "vCPU"],
+  memory_capacity: ["GAUGE", "bytes"],
   gpu_utilization: ["GAUGE", "ratio"],
   network_in: ["SUM", "bytes"],
   network_out: ["SUM", "bytes"],
@@ -726,9 +729,10 @@ function CapacityEvidence({
       <h3>Capacity evidence assessment</h3>
       <p className="form-note">
         The server selects the current source configuration, immutable
-        observations and safety profile. Historical quantiles and forecasts need
-        physical capacity denominators; source registration cannot supply a
-        provider hardware catalog or contracted price. This assessment never
+        observations, safety profile and independently ingested AWS hardware.
+        Historical CPU and memory ratios require matching observed physical
+        denominator metrics throughout the period. Source registration cannot
+        supply provider capacities or contracted prices. This assessment never
         approves or executes a change.
       </p>
       {requirements.loading && (
@@ -775,6 +779,7 @@ function CapacityEvidence({
           Refresh capacity assessments
         </Button>
       </div>
+      <NativeCapacityResults workloadId={workload} refresh={refresh} />
       <RemotePage<components["schemas"]["CapacityAssessment"]>
         key={refresh}
         path={`/workloads/${workload}/capacity-assessments?limit=20`}

@@ -129,7 +129,7 @@ paths:
               schema: { $ref: '#/components/schemas/CapacityAssessmentPage' }
     post:
       operationId: assessNativeCapacityEvidence
-      description: Selects persisted native observations and the current workload safety profile. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. This increment reports BLOCKED while native provider hardware and contracted prices are unavailable; it never creates or authorizes a change plan.
+      description: Selects persisted native observations, current workload requirements and independently ingested current AWS hardware. If-Match binds the safety profile version. Clients cannot submit telemetry, catalogues, prices, history or validation assertions. When hardware is available the private physical-capacity model is evaluated and a NativeCapacityResult is recorded; otherwise the prior unavailable-catalogue CapacityAssessment is recorded. Contracted candidate prices remain unavailable and both results are BLOCKED with no execution authority or change plan.
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody:
         required: true
@@ -141,11 +141,24 @@ paths:
           description: Immutable assessment binds the selected source, profile, observation population and receipts
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/CapacityAssessment' }
+              schema: { oneOf: [ { $ref: '#/components/schemas/CapacityAssessment' }, { $ref: '#/components/schemas/NativeCapacityResult' } ] }
         '403': { description: Analyst or scoped application owner role required }
         '409': { description: Safety profile version changed }
         '422': { description: Missing safety profile, inactive or mismatched source, or caller-supplied evidence }
         '503': { description: Independent native evidence selection unavailable or invalid }
+  /workloads/{id}/native-capacity-results:
+    get:
+      operationId: listNativeCapacityResults
+      description: Workload-scoped immutable hardware/model summaries. Full native point populations remain in pinned source objects. Analytical suitability, observed breach frequency and uncalibrated future risk never authorize execution or verified savings.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Cursor page of independently sourced physical-capacity results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NativeCapacityResultPage' }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Workload not found in tenant }
   /telemetry-connections:
     get:
       operationId: listTelemetryConnections
@@ -890,6 +903,256 @@ components:
       required: [items, next_cursor]
       properties:
         items: { type: array, items: { $ref: '#/components/schemas/ConfigurationProposal' } }
+        next_cursor: { type: string, nullable: true }
+    CapacityModelReference:
+      type: object
+      required: [id, version, receipt_id, sha256, binding]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        receipt_id: { type: string }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        binding: { $ref: '#/components/schemas/NativeResourceBinding' }
+    NativePhysicalCapacity:
+      type: object
+      required: [cpu, memory, network, storage_iops, storage_throughput]
+      description: Exact decimal physical capacities, respectively vCPU, bytes, sustained bytes/second, operations/second and bytes/second. Unknown remains null.
+      properties:
+        cpu: { $ref: '#/components/schemas/NullableDecimal' }
+        memory: { $ref: '#/components/schemas/NullableDecimal' }
+        network: { $ref: '#/components/schemas/NullableDecimal' }
+        storage_iops: { $ref: '#/components/schemas/NullableDecimal' }
+        storage_throughput: { $ref: '#/components/schemas/NullableDecimal' }
+    NativeHardwareCatalogEntry:
+      type: object
+      required: [id, count, capacity, architecture, cpu_model, operating_system, licensing, region, zones, accelerator, local_storage, disk_types, commitment_compatible, source_ref, pricing]
+      properties:
+        id: { type: string }
+        count: { type: integer, minimum: 1 }
+        capacity: { $ref: '#/components/schemas/NativePhysicalCapacity' }
+        architecture: { type: string }
+        cpu_model: { type: string }
+        operating_system: { type: string }
+        licensing: { type: string }
+        region: { type: string }
+        zones: { type: array, items: { type: string } }
+        accelerator: { type: string }
+        local_storage: { type: boolean }
+        disk_types: { type: array, items: { type: string } }
+        commitment_compatible: { type: boolean, nullable: true, enum: [null] }
+        source_ref: { $ref: '#/components/schemas/CapacityModelReference' }
+        pricing: { type: object, nullable: true, enum: [null], description: Candidate native contracted rates are unavailable; no public list or operator price fallback }
+    CapacityObservedQuantile:
+      type: object
+      required: [lower, upper, status]
+      properties:
+        lower: { $ref: '#/components/schemas/NullableDecimal' }
+        upper: { $ref: '#/components/schemas/NullableDecimal' }
+        status: { type: string, enum: [OBSERVED, UNAVAILABLE] }
+    CapacityMetricSummary:
+      type: object
+      required: [name, unit, statistic, coverage_ppm, time_coverage_ppm, sampling_coverage_ppm, observed_intervals, expected_intervals, missing_intervals, unknown_seconds, observed_samples, observed_quantiles, observed_maximum, quantile_method, denominator, reason_codes]
+      properties:
+        name: { type: string, enum: [cpu, memory, network, storage_iops, storage_throughput, demand] }
+        unit: { type: string }
+        statistic: { type: string, enum: [RAW_SAMPLE, OBSERVED_INTERVAL_RATE, DISTRIBUTION, INTERVAL_MAXIMUM] }
+        cadence_seconds: { type: integer }
+        coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
+        time_coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
+        sampling_coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
+        observed_intervals: { type: integer }
+        expected_intervals: { type: integer }
+        missing_intervals: { type: integer }
+        unknown_seconds: { type: string }
+        observed_samples: { type: string, pattern: '^[0-9]+$' }
+        quantile_method: { type: string }
+        observed_maximum: { $ref: '#/components/schemas/NullableDecimal' }
+        observed_quantiles:
+          type: object
+          required: [p50, p90, p95, p99, p999]
+          properties:
+            p50: { $ref: '#/components/schemas/CapacityObservedQuantile' }
+            p90: { $ref: '#/components/schemas/CapacityObservedQuantile' }
+            p95: { $ref: '#/components/schemas/CapacityObservedQuantile' }
+            p99: { $ref: '#/components/schemas/CapacityObservedQuantile' }
+            p999: { $ref: '#/components/schemas/CapacityObservedQuantile' }
+        denominator:
+          type: object
+          nullable: true
+          required: [unit, value]
+          properties: { unit: { type: string }, value: { type: string } }
+        missing_ranges:
+          type: array
+          items: { type: object, required: [start, end], properties: { start: { type: string, format: date-time }, end: { type: string, format: date-time } } }
+        missing_range_count: { type: integer }
+        reason_codes: { type: array, items: { type: string } }
+        source_refs: { type: array, items: { $ref: '#/components/schemas/CapacityModelReference' } }
+    CapacityForecastMetric:
+      type: object
+      required: [status, reason_codes, point_peak, point_p99, prediction_interval, backtest]
+      properties:
+        status: { type: string, enum: [CALIBRATED_BACKTEST, UNCALIBRATED] }
+        reason_codes: { type: array, items: { type: string } }
+        point_peak: { $ref: '#/components/schemas/NullableDecimal' }
+        point_p99: { $ref: '#/components/schemas/NullableDecimal' }
+        declared_event_peak: { type: string }
+        event_multiplier_peak: { type: string }
+        model_time_bucket_seconds: { type: integer, enum: [3600] }
+        prediction_interval:
+          type: object
+          nullable: true
+          required: [lower, upper, nominal_coverage_ppm]
+          properties: { lower: { type: string }, upper: { type: string }, nominal_coverage_ppm: { type: integer } }
+        backtest:
+          type: object
+          required: [method, block_days, residual_day_count, nonoverlapping_block_count, uses_future_observations]
+          properties:
+            method: { type: string, enum: [EXPANDING_ORIGIN_WEEKDAY_HOUR_MEDIAN] }
+            block_days: { type: integer }
+            residual_day_count: { type: integer }
+            nonoverlapping_block_count: { type: integer }
+            absolute_block_residuals: { type: array, items: { type: string } }
+            uses_future_observations: { type: boolean, enum: [false] }
+        daily_points:
+          type: array
+          items: { type: object, required: [date, point_peak, point_mean], properties: { date: { type: string, format: date }, point_peak: { type: string }, point_mean: { type: string } } }
+    CapacityCandidateCheck:
+      type: object
+      required: [dimension, unit, candidate_capacity, observed_p99, forecast_requirement, required_with_reserve, p95_planning_limit_ppm, p99_rollback_limit_ppm, projected_p99_utilization_ppm, status]
+      properties:
+        dimension: { type: string, enum: [cpu, memory, network, storage_iops, storage_throughput] }
+        unit: { type: string }
+        candidate_capacity: { type: string }
+        observed_p99: { type: string }
+        forecast_requirement: { type: string }
+        required_with_reserve: { type: string }
+        reserve_above_forecast_ppm: { type: integer }
+        unused_capacity_ppm: { type: integer }
+        observed_p95_utilization_ppm: { type: integer, nullable: true }
+        p95_planning_limit_ppm: { type: integer, nullable: true }
+        p99_rollback_limit_ppm: { type: integer, nullable: true }
+        projected_p99_utilization_ppm: { type: integer }
+        observed_capacity_breach_ppm: { type: integer, nullable: true }
+        status: { type: string, enum: [PASS, FAIL] }
+    CapacityModelResult:
+      type: object
+      required: [schema_version, model_version, binding, status, reason_codes, history, metrics, forecasts, candidates, evidence_refs, model_assumptions, assessment_hash]
+      properties:
+        schema_version: { type: string, enum: ['4'] }
+        model_version: { type: string, enum: [capacity-weekday-block-v1] }
+        binding: { $ref: '#/components/schemas/NativeResourceBinding' }
+        status: { type: string, enum: [BLOCKED, INSUFFICIENT_OBSERVATION] }
+        reason_codes: { type: array, items: { type: string } }
+        history:
+          type: object
+          required: [start, end, timezone, environment, observed_calendar_days, required_calendar_days]
+          properties:
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
+            timezone: { type: string }
+            environment: { type: string, enum: [NON_PRODUCTION, PRODUCTION] }
+            observed_calendar_days: { type: integer }
+            required_calendar_days: { type: integer }
+        metrics: { type: array, items: { $ref: '#/components/schemas/CapacityMetricSummary' } }
+        forecasts:
+          type: array
+          items:
+            type: object
+            required: [horizon, days, status, metrics, future_breach_probability_upper_ppm]
+            properties:
+              horizon: { type: string, enum: [7_day, 30_day, 90_day, annual] }
+              days: { type: integer }
+              status: { type: string, enum: [CALIBRATED_BACKTEST, UNCALIBRATED] }
+              metrics: { type: object, additionalProperties: { $ref: '#/components/schemas/CapacityForecastMetric' } }
+              future_breach_probability_upper_ppm: { type: integer, nullable: true, enum: [null] }
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [id, count, capacity_suitable, status, reason_codes, checks, economics, future_risk, source_ref]
+            properties:
+              id: { type: string }
+              count: { type: integer }
+              capacity_suitable: { type: boolean, description: Requires all compatibility and observation gates; individual passing physical checks do not imply suitability }
+              status: { type: string, enum: [BLOCKED, INSUFFICIENT_OBSERVATION] }
+              reason_codes: { type: array, items: { type: string } }
+              checks: { type: array, items: { $ref: '#/components/schemas/CapacityCandidateCheck' } }
+              source_ref: { $ref: '#/components/schemas/CapacityModelReference' }
+              economics:
+                type: object
+                required: [status, reason_codes, currency, current_cost, candidate_cost, estimated_saving]
+                properties:
+                  status: { type: string, enum: [UNAVAILABLE] }
+                  reason_codes: { type: array, items: { type: string } }
+                  currency: { type: string, nullable: true, enum: [null] }
+                  current_cost: { $ref: '#/components/schemas/NullableDecimal' }
+                  candidate_cost: { $ref: '#/components/schemas/NullableDecimal' }
+                  estimated_saving: { $ref: '#/components/schemas/NullableDecimal' }
+                  verified_saving: { type: string, nullable: true, enum: [null] }
+              future_risk:
+                type: object
+                required: [status, reason_code, required_maximum_ppm, future_breach_probability_upper_ppm]
+                properties:
+                  status: { type: string, enum: [UNCALIBRATED] }
+                  reason_code: { type: string }
+                  required_maximum_ppm: { type: integer }
+                  future_breach_probability_upper_ppm: { type: integer, nullable: true, enum: [null] }
+        evidence_refs: { type: array, items: { $ref: '#/components/schemas/CapacityModelReference' } }
+        model_assumptions: { type: array, items: { type: string } }
+        assessment_hash: { type: string }
+    NativeCapacityResult:
+      type: object
+      required: [schema_version, id, binding, workload_id, resource_id, connection_id, connection_version, revision_id, config_hash, safety_profile_id, safety_profile_version, safety_profile_hash, hardware_receipt_id, hardware_raw_sha256, resource_snapshot_hash, population_hash, receipt_ids, source_refs, input_kind, input_hash, model_requested, model_evaluated, model_evaluation, hardware_mapping, history, native_evaluation, status, reason_codes, native_price_status, execution_authorized, estimated_saving, verified_saving, change_plan_id, hash, created_at, writer_role]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        binding: { $ref: '#/components/schemas/NativeResourceBinding' }
+        workload_id: { type: string }
+        resource_id: { type: string }
+        connection_id: { type: string }
+        connection_version: { type: integer }
+        revision_id: { type: string }
+        config_hash: { type: string }
+        safety_profile_id: { type: string }
+        safety_profile_version: { type: integer }
+        safety_profile_hash: { type: string }
+        hardware_receipt_id: { type: string }
+        hardware_raw_sha256: { type: string }
+        resource_snapshot_hash: { type: string }
+        population_hash: { type: string }
+        receipt_ids: { type: array, maxItems: 2048, items: { type: string } }
+        source_refs: { type: array, items: { type: object, required: [receipt_id, batch_id, config_hash, raw_sha256, canonical_hash], properties: { receipt_id: { type: string }, batch_id: { type: string }, config_hash: { type: string }, raw_sha256: { type: string }, canonical_hash: { type: string } } } }
+        input_kind: { type: string, enum: [MODEL_REQUEST, MAPPING_OBSERVATION] }
+        input_hash: { type: string }
+        model_requested: { type: boolean }
+        model_evaluated: { type: boolean }
+        model_evaluation: { nullable: true, allOf: [ { $ref: '#/components/schemas/CapacityModelResult' } ] }
+        hardware_mapping:
+          type: object
+          required: [current, candidates, reason_codes, candidate_reasons, assumptions]
+          properties:
+            current: { $ref: '#/components/schemas/NativeHardwareCatalogEntry' }
+            candidates: { type: array, items: { $ref: '#/components/schemas/NativeHardwareCatalogEntry' } }
+            reason_codes: { type: array, items: { type: string } }
+            candidate_reasons: { type: object, additionalProperties: { type: array, items: { type: string } } }
+            assumptions: { type: array, items: { type: string } }
+        history: { $ref: '#/components/schemas/CapacityAssessment/properties/history' }
+        native_evaluation: { $ref: '#/components/schemas/NativeTelemetryEvaluation' }
+        status: { type: string, enum: [BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        native_price_status: { type: string, enum: [UNAVAILABLE] }
+        execution_authorized: { type: boolean, enum: [false] }
+        estimated_saving: { type: string, nullable: true, enum: [null] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        change_plan_id: { type: string, nullable: true, enum: [null] }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    NativeCapacityResultPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/NativeCapacityResult' } }
         next_cursor: { type: string, nullable: true }
     CapacityAssessment:
       type: object

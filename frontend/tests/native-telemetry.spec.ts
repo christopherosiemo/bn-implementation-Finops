@@ -273,7 +273,11 @@ async function open(page: Page, view: "native" | "safety", handler?: Handler) {
           reason_codes: ["SAFETY_PROFILE_REQUIRED"],
         },
       });
-    if (path.endsWith("/evaluations") || path.endsWith("/receipts"))
+    if (
+      path.endsWith("/evaluations") ||
+      path.endsWith("/receipts") ||
+      path.endsWith("/native-capacity-results")
+    )
       return route.fulfill({ json: { items: [], next_cursor: null } });
     return route.fulfill({
       status: 404,
@@ -451,6 +455,352 @@ test("native evidence pagination preserves missing quantiles and bounded immutab
     fullPage: false,
     animations: "disabled",
   });
+});
+
+function physicalCapacityResult(): components["schemas"]["NativeCapacityResult"] {
+  const ref: components["schemas"]["CapacityModelReference"] = {
+    id: "native-batch",
+    version: "1",
+    receipt_id: "hardware-receipt",
+    sha256: "a".repeat(64),
+    binding: connection.binding,
+  };
+  const catalog: components["schemas"]["NativeHardwareCatalogEntry"] = {
+    id: "m6i.xlarge",
+    count: 1,
+    capacity: {
+      cpu: "2.000000000000",
+      memory: "17179869184.000000000000",
+      network: "97625000.000000000000",
+      storage_iops: "3000.000000000000",
+      storage_throughput: "81250000.000000000000",
+    },
+    architecture: "x86_64",
+    cpu_model: "AWS_INSTANCE_FAMILY:m6i:Intel",
+    operating_system: "Linux/UNIX",
+    licensing: "RunInstances",
+    region: "eu-west-1",
+    zones: ["eu-west-1a"],
+    accelerator: "NONE",
+    local_storage: false,
+    disk_types: ["gp3"],
+    commitment_compatible: null,
+    source_ref: ref,
+    pricing: null,
+  };
+  const unavailable = {
+    lower: null,
+    upper: null,
+    status: "UNAVAILABLE" as const,
+  };
+  const model: components["schemas"]["CapacityModelResult"] = {
+    schema_version: "4",
+    model_version: "capacity-weekday-block-v1",
+    binding: connection.binding,
+    status: "BLOCKED",
+    reason_codes: [],
+    history: {
+      start: "2026-10-04T00:00:00Z",
+      end: stamp,
+      timezone: "UTC",
+      environment: "NON_PRODUCTION",
+      observed_calendar_days: 14,
+      required_calendar_days: 14,
+    },
+    metrics: [
+      {
+        name: "cpu",
+        unit: "vCPU",
+        statistic: "RAW_SAMPLE",
+        coverage_ppm: 500000,
+        time_coverage_ppm: 500000,
+        sampling_coverage_ppm: 500000,
+        observed_intervals: 2016,
+        expected_intervals: 4032,
+        missing_intervals: 2016,
+        unknown_seconds: "604800.000000000000",
+        observed_samples: "2016",
+        observed_quantiles: {
+          p50: unavailable,
+          p90: unavailable,
+          p95: unavailable,
+          p99: unavailable,
+          p999: unavailable,
+        },
+        observed_maximum: "0.4",
+        quantile_method: "NEAREST_RANK_OBSERVED_SAMPLES",
+        denominator: { value: "2", unit: "vCPU" },
+        reason_codes: ["CPU_COVERAGE_INCOMPLETE"],
+      },
+    ],
+    forecasts: [
+      {
+        horizon: "7_day",
+        days: 7,
+        status: "UNCALIBRATED",
+        future_breach_probability_upper_ppm: null,
+        metrics: {
+          cpu: {
+            status: "UNCALIBRATED",
+            reason_codes: ["HORIZON_BACKTEST_INSUFFICIENT"],
+            point_peak: "0.4",
+            point_p99: "0.4",
+            event_multiplier_peak: "4.000000000000",
+            prediction_interval: null,
+            backtest: {
+              method: "EXPANDING_ORIGIN_WEEKDAY_HOUR_MEDIAN",
+              block_days: 7,
+              residual_day_count: 7,
+              nonoverlapping_block_count: 1,
+              uses_future_observations: false,
+            },
+          },
+        },
+      },
+    ],
+    candidates: [
+      {
+        id: "m6i.large",
+        count: 1,
+        status: "BLOCKED",
+        capacity_suitable: false,
+        reason_codes: [
+          "MEMORY_P99_ROLLBACK_LIMIT",
+          "NATIVE_AVOIDABLE_CONTRACTED_PRICE_REQUIRED",
+        ],
+        source_ref: ref,
+        economics: {
+          status: "UNAVAILABLE",
+          reason_codes: ["NATIVE_AVOIDABLE_CONTRACTED_PRICE_REQUIRED"],
+          currency: null,
+          current_cost: null,
+          candidate_cost: null,
+          estimated_saving: null,
+        },
+        future_risk: {
+          status: "UNCALIBRATED",
+          reason_code: "FUTURE_PROBABILITY_MODEL_NOT_CALIBRATED",
+          required_maximum_ppm: 10000,
+          future_breach_probability_upper_ppm: null,
+        },
+        checks: [
+          {
+            dimension: "memory",
+            unit: "bytes",
+            candidate_capacity: "8589934592",
+            observed_p99: "8160437862.4",
+            forecast_requirement: "8160437862.4",
+            required_with_reserve: "10608569221.12",
+            reserve_above_forecast_ppm: 300000,
+            unused_capacity_ppm: 0,
+            observed_p95_utilization_ppm: 600000,
+            p95_planning_limit_ppm: 750000,
+            projected_p99_utilization_ppm: 950000,
+            p99_rollback_limit_ppm: 900000,
+            observed_capacity_breach_ppm: 0,
+            status: "FAIL",
+          },
+        ],
+      },
+    ],
+    evidence_refs: [ref],
+    model_assumptions: [
+      "Observed quantiles do not establish a calibrated future breach probability.",
+    ],
+    assessment_hash: "model-assessment-hash",
+  };
+  return {
+    schema_version: "1",
+    id: "native-capacity-1",
+    binding: connection.binding,
+    workload_id: connection.binding.workload_id,
+    resource_id: connection.binding.resource_id,
+    connection_id: connection.id,
+    connection_version: connection.version,
+    revision_id: connection.revision_id,
+    config_hash: connection.config_hash,
+    safety_profile_id: profile.id,
+    safety_profile_version: profile.version,
+    safety_profile_hash: profile.hash,
+    hardware_receipt_id: "hardware-receipt",
+    hardware_raw_sha256: ref.sha256,
+    resource_snapshot_hash: "inventory-hash",
+    population_hash: "population-hash",
+    receipt_ids: ["native-receipt"],
+    source_refs: [],
+    input_kind: "MODEL_REQUEST",
+    input_hash: "input-hash",
+    model_requested: true,
+    model_evaluated: true,
+    model_evaluation: model,
+    hardware_mapping: {
+      current: catalog,
+      candidates: [{ ...catalog, id: "m6i.large" }],
+      reason_codes: [],
+      candidate_reasons: {},
+      assumptions: [],
+    },
+    history: {
+      start: "2026-10-04T00:00:00Z",
+      end: stamp,
+      days: 14,
+      timezone: "UTC",
+      environment: "NON_PRODUCTION",
+    },
+    native_evaluation: result.evaluation,
+    status: "BLOCKED",
+    reason_codes: [
+      "NATIVE_PRICE_UNAVAILABLE",
+      "EXECUTION_AUTHORITY_NOT_GRANTED",
+    ],
+    native_price_status: "UNAVAILABLE",
+    execution_authorized: false,
+    estimated_saving: null,
+    verified_saving: null,
+    change_plan_id: null,
+    hash: "result-hash",
+    created_at: stamp,
+    writer_role: "finops_api",
+  };
+}
+
+test("physical capacity evidence keeps missing quantiles, unknown prices and uncalibrated forecasts distinct", async ({
+  page,
+}) => {
+  const record = physicalCapacityResult();
+  const { writes } = await open(page, "native", async (route, url) => {
+    if (url.pathname.endsWith("/native-capacity-results")) {
+      await route.fulfill({ json: { items: [record], next_cursor: null } });
+      return true;
+    }
+    return false;
+  });
+  const dialog = await inspect(page);
+  await dialog
+    .getByText("Assess historical capacity evidence", { exact: true })
+    .click();
+  const evidence = dialog.getByRole("region", {
+    name: "Native physical capacity result native-capacity-1",
+    exact: true,
+  });
+  await expect(evidence).toContainText("2 vCPU");
+  await expect(evidence).toContainText("97625000 bytes/second");
+  await expect(evidence).toContainText(
+    "Calculated / Unavailable / Not authorized",
+  );
+  await evidence
+    .getByText("Inspect observations, forecasts & candidate checks", {
+      exact: true,
+    })
+    .click();
+  const observations = evidence
+    .getByRole("table")
+    .filter({ hasText: "Observed p95" });
+  await expect(observations).toContainText("2016 / 4032 intervals");
+  await expect(observations).toContainText("Unavailable");
+  await expect(observations).not.toContainText("0 vCPU");
+  await expect(evidence).toContainText("Demand event multiplier 4");
+  await expect(evidence).toContainText("1 independent 7-day blocks");
+  await expect(evidence).toContainText("Insufficient calibration evidence");
+  expect(writes).toHaveLength(0);
+  const alignReport = async () =>
+    dialog.evaluate((element) => {
+      const report = element.querySelector(".native-capacity-result");
+      if (report)
+        element.scrollTop +=
+          report.getBoundingClientRect().top -
+          element.getBoundingClientRect().top -
+          24;
+      window.scrollTo(0, 0);
+    });
+  await alignReport();
+  await page.screenshot({ path: "test-results/native-capacity-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBeTruthy();
+  await expect(
+    dialog.getByRole("button", { name: "Close dialog", exact: true }),
+  ).toBeVisible();
+  await alignReport();
+  await page.screenshot({ path: "test-results/native-capacity-mobile.png" });
+});
+
+test("native candidate checks distinguish planning limits from rollback and never promote a zero observed breach rate", async ({
+  page,
+}) => {
+  const record = physicalCapacityResult();
+  const { reads, writes } = await open(page, "native", async (route, url) => {
+    if (url.pathname.endsWith("/native-capacity-results")) {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              ...record,
+              id: url.searchParams.has("cursor")
+                ? "native-capacity-2"
+                : record.id,
+            },
+          ],
+          next_cursor: url.searchParams.has("cursor")
+            ? null
+            : "native /+cursor=",
+        },
+      });
+      return true;
+    }
+    return false;
+  });
+  const dialog = await inspect(page);
+  await dialog
+    .getByText("Assess historical capacity evidence", { exact: true })
+    .click();
+  const evidence = dialog.getByRole("region", {
+    name: "Native physical capacity result native-capacity-1",
+    exact: true,
+  });
+  await evidence
+    .getByText("Inspect observations, forecasts & candidate checks", {
+      exact: true,
+    })
+    .click();
+  await evidence.getByText("m6i.large × 1 · Blocked", { exact: true }).click();
+  const checks = evidence
+    .getByRole("table")
+    .filter({ hasText: "p95 planning" });
+  await expect(checks).toContainText("60%");
+  await expect(checks).toContainText("Limit 75%");
+  await expect(checks).toContainText("95%");
+  await expect(checks).toContainText("Limit 90%");
+  await expect(checks).toContainText("Observed breach frequency 0%");
+  await expect(evidence).toContainText(
+    "Future breach probability: unavailable (Uncalibrated)",
+  );
+  await expect(
+    evidence.getByRole("button", { name: /approve|execute/i }),
+  ).toHaveCount(0);
+  await dialog
+    .getByRole("button", {
+      name: "Load more native physical capacity results",
+      exact: true,
+    })
+    .click();
+  await expect(
+    dialog.getByRole("region", {
+      name: "Native physical capacity result native-capacity-2",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    reads.some((url) =>
+      url.includes(
+        "native-capacity-results?limit=10&cursor=native%20%2F%2Bcursor%3D",
+      ),
+    ),
+  ).toBeTruthy();
+  expect(writes).toHaveLength(0);
 });
 
 test("native controls bind current versions and show durable publication without claiming coverage", async ({

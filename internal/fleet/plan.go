@@ -189,7 +189,57 @@ func ValidatePlan(p FleetPlanV4, expected Binding, now time.Time) error {
 	if minimumObservation > b.MaximumDurationSeconds {
 		return invalid("FLEET_OBSERVATIONS_EXCEED_DURATION_BUDGET")
 	}
+	minimumProgram, e := MinimumProgramDuration(p)
+	if e != nil {
+		return e
+	}
+	if minimumProgram > b.MaximumDurationSeconds {
+		return invalid("FLEET_INTERMEDIATE_HEALTH_AND_DELIVERY_EXCEED_DURATION_BUDGET")
+	}
 	return nil
+}
+
+const IntermediateHealthSeconds int64 = 120
+const CommandDeliveryMarginSeconds int64 = 300
+
+// MinimumProgramDuration accounts for each independently authorized apply, its
+// bounded delivery/observation margin, and every two-instance capacity substep.
+// It is a feasibility floor, not a promise that a customer pipeline will finish;
+// the existing forward deadline and retained recovery obligations still apply.
+func MinimumProgramDuration(p FleetPlanV4) (int64, error) {
+	b := p.Budget
+	if b.BaselineCount < 1 || b.BaselineCount > 500000 || b.MaxInFlight < 1 || b.MaxInFlight > 2 || b.MaxUnavailable < 1 || b.MaxUnavailable > 2 || len(p.Stages) < 5 || len(p.Stages) > 6 {
+		return 0, invalid("FLEET_DURATION_MODEL_INVALID")
+	}
+	var seconds int64
+	priorCount := 0
+	expectedKinds := []string{Prepare, Canary10, Expand25, Expand50, Expand100, DrainOld}
+	for i, stage := range p.Stages {
+		if stage.Kind != expectedKinds[i] || stage.MinimumObservationSeconds < 0 || stage.MinimumObservationSeconds > 86400 || stage.TargetCandidateCount < priorCount || stage.TargetCandidateCount > b.BaselineCount {
+			return 0, invalid("FLEET_DURATION_MODEL_INVALID")
+		}
+		switch stage.Kind {
+		case Prepare:
+			if i != 0 {
+				return 0, invalid("FLEET_DURATION_MODEL_INVALID")
+			}
+			seconds += CommandDeliveryMarginSeconds
+		case Canary10, Expand25, Expand50, Expand100:
+			steps := int64((stage.TargetCandidateCount - priorCount + b.MaxInFlight - 1) / b.MaxInFlight)
+			seconds += steps * (IntermediateHealthSeconds + CommandDeliveryMarginSeconds)
+			// Capacity is healthy before this separate traffic child. Its full
+			// signed stage dwell must therefore not be counted a second time as
+			// the capacity child's short preparation window.
+			seconds += CommandDeliveryMarginSeconds + max(IntermediateHealthSeconds, stage.MinimumObservationSeconds)
+		case DrainOld:
+			steps := int64((b.BaselineCount + min(b.MaxInFlight, b.MaxUnavailable) - 1) / min(b.MaxInFlight, b.MaxUnavailable))
+			seconds += steps*CommandDeliveryMarginSeconds + (steps-1)*IntermediateHealthSeconds + max(IntermediateHealthSeconds, stage.MinimumObservationSeconds)
+		default:
+			return 0, invalid("FLEET_DURATION_MODEL_INVALID")
+		}
+		priorCount = stage.TargetCandidateCount
+	}
+	return seconds, nil
 }
 
 // ForwardDeadline bounds new forward effects. Owned recovery and continuing

@@ -20,7 +20,7 @@ import (
 
 func (a *API) capacityGet(ctx context.Context, tx *store.Tx, identity auth.Identity, r *http.Request) (any, bool, error) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
-	if len(parts) != 3 || parts[0] != "workloads" || parts[2] != "capacity-assessments" {
+	if len(parts) != 3 || parts[0] != "workloads" || (parts[2] != "capacity-assessments" && parts[2] != "native-capacity-results") {
 		return nil, false, nil
 	}
 	w, err := tx.Get(ctx, "workloads", parts[1])
@@ -30,12 +30,17 @@ func (a *API) capacityGet(ctx context.Context, tx *store.Tx, identity auth.Ident
 	if err = workloadAccess(identity, w); err != nil {
 		return nil, true, err
 	}
-	after, limit, err := nativeCursor(r, identity.Tenant, "capacity-assessments", parts[1])
+	after, limit, err := nativeCursor(r, identity.Tenant, parts[2], parts[1])
 	if err != nil {
 		return nil, true, err
 	}
-	rows, err := tx.CapacityAssessmentPage(ctx, parts[1], after, limit+1)
-	return nativePage(rows, limit, identity.Tenant, "capacity-assessments", parts[1]), true, err
+	var rows []model.Document
+	if parts[2] == "native-capacity-results" {
+		rows, err = tx.NativeCapacityResultPage(ctx, parts[1], after, limit+1)
+	} else {
+		rows, err = tx.CapacityAssessmentPage(ctx, parts[1], after, limit+1)
+	}
+	return nativePage(rows, limit, identity.Tenant, parts[2], parts[1]), true, err
 }
 
 func (a *API) capacityMutate(ctx context.Context, tx *store.Tx, identity auth.Identity, r *http.Request, in model.Document, parts []string) (model.Document, int, bool, error) {
@@ -88,10 +93,24 @@ func (a *API) capacityMutate(ctx context.Context, tx *store.Tx, identity auth.Id
 	if selected.Binding != typed.Binding || selected.ConfigHash != model.String(c, "config_hash") || selected.ConnectionID != typed.ID || selected.ConnectionVersion != typed.Version || selected.SafetyProfileID != model.String(profile, "id") || selected.SafetyProfileVersion != model.Number(profile, "version") || selected.SafetyProfileHash != model.String(profile, "hash") || selected.SchemaVersion != "1" || selected.PopulationHash != native.CapacityPopulationHash(selected) || selected.PopulationHash == "" || selected.SourceRefs == nil || selected.Segments == nil || selected.ReceiptIDs == nil || len(selected.ReceiptIDs) != len(selected.SourceRefs) || len(selected.ReceiptIDs) > 2048 || len(selected.Segments) > telemetry.MaxSamples || selected.AsOf.Before(a.now().Add(-2*time.Minute)) || selected.AsOf.After(a.now().Add(30*time.Second)) || !selected.End.After(selected.Start) {
 		return nil, 0, true, problem(503, "CAPACITY_POPULATION_BINDING_INVALID", "native selection did not preserve current source and requirements")
 	}
-	// A successful native history evaluation does not supply provider hardware
-	// denominators or contracted prices. No caller/environment catalogue is
-	// trusted by this broker. Positive physical-capacity calculation remains a
-	// private economics component until registered provider evidence is wired.
+	// Provider hardware is selected independently from current immutable ingester
+	// receipts. The public contract remains connection_id only. No source receipt
+	// preserves the prior explicit unavailable-catalogue assessment behavior.
+	var hasHardware bool
+	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM source_receipts WHERE tenant_id=$1 AND kind='AWS_EC2_HARDWARE' AND document->'binding'->>'resource_id'=$2)", identity.Tenant, typed.Binding.ResourceID).Scan(&hasHardware); err != nil {
+		return nil, 0, true, err
+	}
+	if hasHardware {
+		p, e := parseSafetyProfile(profile)
+		if e != nil {
+			return nil, 0, true, e
+		}
+		out, e := a.capacityWithNativeHardware(ctx, tx, selected, p)
+		if e == nil {
+			e = tx.Audit(ctx, identity.Subject, "capacity.native_assessment_recorded", model.String(out, "id"), model.Document{"connection_id": typed.ID, "population_hash": selected.PopulationHash, "model_evaluated": out["model_evaluated"], "status": "BLOCKED"})
+		}
+		return out, 201, true, e
+	}
 	reasons := append([]string{"BLOCKED_NATIVE_CAPACITY_CATALOG_REQUIRED", "NATIVE_PRICE_UNAVAILABLE"}, selected.ReasonCodes...)
 	if selected.Evaluation.Status != "READY" {
 		reasons = append(reasons, selected.Evaluation.ReasonCodes...)

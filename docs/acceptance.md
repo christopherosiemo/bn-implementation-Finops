@@ -1,5 +1,52 @@
 # AWS scheduling pilot acceptance record
 
+## 18 October increment: native hardware, capacity integration and encrypted recovery
+
+An optional, separate read-only hardware process captures exact native EC2
+instance, numbered image, instance-type offering and attached-volume evidence.
+Immutable version-pinned raw receipts bind the commissioned tenant, account,
+resource, inventory revision and private candidate allowlist. Historical observed
+CPU/memory capacity denominators must match fresh hardware before conversion to
+physical demand. A restricted native mapper connects the actual Python worker to
+server-selected telemetry and requirements, then persists a separate immutable
+result history. Altered source/worker bindings, forged prices, unavailable memory,
+stale hardware and source revocation fail closed. Native candidate economics and
+commitment compatibility remain unavailable, so execution and verified savings
+remain blocked. See [hardware boundaries](native-hardware-capacity.md).
+
+The full Go suite and vet passed against fresh PostgreSQL through migration 017
+and the actual Python worker. Focused acceptance includes 44,352 historical
+segments through the service/worker/persistence path, direct database forgery and
+tenant tests, and the separate reader's durable poll ownership/restart/backoff.
+Read-only Terraform mock plans passed 5 root, 11 customer-role and 6 isolated
+hardware-IAM checks; they create no cloud resource. Rendered Helm checks include
+13 credential/network confusion cases, destination-bound private PostgreSQL
+egress, and examination of every policy selecting the reader. Hardware collection
+defaults off and never uses native AWS access in fixture mode.
+
+The rebuilt local stack passed 17 scheduling API checks, 6 actual process-recovery,
+6 machine activity, 15 dependency, 15 SLO, 10 native telemetry and 5 official OTel
+collector checks. All 39 Chromium tests passed, retaining actual OIDC, persisted
+telemetry and the complete scheduling/verification fixture loop. Detailed capacity
+presentation tests use explicit contract fixtures; provider-shaped history and
+the real model are joined at the service/database acceptance boundary above.
+They do not constitute genuine customer history or a live fleet action.
+
+Encrypted recovery tooling streams a consistent physical PostgreSQL cluster
+backup directly through gzip and AES-256-GCM. Authentication completes before a
+restore consumer exists; native manifest/WAL verification precedes socket-only
+startup in a network-free disposable container. The recovery drill checks actual
+immutable application rows, signed envelopes, completed ownership, role/RLS/guard
+metadata, Temporal schemas and exact decimal/append-only/active-intent controls.
+No plaintext host archive, cloud resource or recovered application worker is
+created. This is local database readback acceptance, not a production RTO/RPO or
+resumed workflow claim. See [recovery procedure](postgres-recovery-lab.md).
+
+The accepted fixed-weight total remains **25.0 points**. These connections improve
+the accepted component packages without promoting the incomplete capacity/fleet
+or production packages to a higher maturity stage. Exact-commit CI evidence is
+recorded after the complete seven-job validation, including the recovery drill.
+
 ## 18 October increment: fleet protocol and real local Kubernetes components
 
 Read-only Azure/GCP adapter components have also passed isolated, network-disabled

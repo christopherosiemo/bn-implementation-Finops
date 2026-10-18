@@ -1,5 +1,14 @@
 # Commissioning dossier
 
+Native hardware and fleet/GitOps components retain separate commissioning gates;
+see [hardware/capacity](native-hardware-capacity.md) and
+[fleet/local Kubernetes limits](fleet-and-kubernetes-components.md). Optional
+hardware IAM/database principals, exact read bindings and candidate allowlists
+must be reviewed before enabling that reader. The
+[encrypted local PostgreSQL recovery drill](postgres-recovery-lab.md) proves
+quarantined database readback only; it does not establish production recovery
+times, object/analytics recovery, identity backup or resumed workflow safety.
+
 This dossier collects the customer gates for the full preserved product contract. It is a preparation record, not permission to provision, spend, enable Autopilot or mutate a customer workload. Engineering continues while these inputs are unavailable. No cloud resources have been provisioned by the extended delivery increment.
 
 The release candidate is the exact tested head of the existing pilot pull request. Its acceptance record, immutable progress reviews and all 233 requirement gates are maintained in [acceptance](acceptance.md), [progress](progress-ledger.json) and [traceability](traceability.md). Record the approved commit and container digests here before commissioning; a moving branch is insufficient. Native telemetry controls and remaining bounds are documented in [native telemetry](native-telemetry.md), and supervised AWS preparation remains in [sandbox readiness](sandbox-readiness.md).

@@ -64,6 +64,14 @@ variable "enable_execution" {
   default     = false
   description = "Opt in only after read-only acceptance. Existing execution installations must retain true until all owned restorations finish."
 }
+variable "hardware_read_principal_arn" {
+  type    = string
+  default = null
+  validation {
+    condition     = var.hardware_read_principal_arn == null || (can(regex("^arn:aws:iam::[0-9]{12}:role/.+", var.hardware_read_principal_arn)) && try(split(":", var.hardware_read_principal_arn)[4], "") != var.expected_account_id && var.hardware_read_principal_arn != var.read_principal_arn && var.hardware_read_principal_arn != var.execution_principal_arn)
+    error_message = "Optional hardware reader must be a distinct control-plane IAM role."
+  }
+}
 variable "execution_principal_arn" {
   type    = string
   default = null
@@ -125,7 +133,7 @@ resource "aws_iam_role" "customer" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow", Principal = { AWS = each.value }, Action = "sts:AssumeRole"
+      Effect    = "Allow", Principal = { AWS = each.key == "read" ? compact([each.value, var.hardware_read_principal_arn]) : [each.value] }, Action = "sts:AssumeRole"
       Condition = { StringEquals = { "sts:ExternalId" = var.external_id } }
     }]
   })
@@ -135,7 +143,7 @@ resource "aws_iam_role_policy" "read" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat([
-      { Effect = "Allow", Action = ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus", "ec2:DescribeInstanceTypes", "ec2:DescribeVolumes", "ec2:DescribeTags", "autoscaling:DescribeAutoScalingGroups", "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } }
+      { Effect = "Allow", Action = ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus", "ec2:DescribeInstanceTypes", "ec2:DescribeInstanceTypeOfferings", "ec2:DescribeImages", "ec2:DescribeVolumes", "ec2:DescribeTags", "autoscaling:DescribeAutoScalingGroups", "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } }
       ], flatten([for bucket in compact([var.billing_bucket_arn]) : [
         { Effect = "Allow", Action = "s3:ListBucket", Resource = bucket, Condition = { StringLike = { "s3:prefix" = "${var.billing_prefix}*" } } },
         { Effect = "Allow", Action = ["s3:GetBucketVersioning", "s3:GetBucketPolicy", "s3:GetBucketLocation"], Resource = bucket },

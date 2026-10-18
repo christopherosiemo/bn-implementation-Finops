@@ -4,6 +4,7 @@
 CREATE ROLE finops_api NOLOGIN;
 CREATE ROLE finops_worker NOLOGIN;
 CREATE ROLE finops_ingester NOLOGIN;
+CREATE ROLE finops_hardware_reader NOLOGIN IN ROLE finops_ingester;
 CREATE ROLE finops_signer NOLOGIN;
 CREATE ROLE finops_executor NOLOGIN;
 CREATE ROLE finops_activity NOLOGIN;
@@ -14,6 +15,7 @@ CREATE ROLE finops_migrator LOGIN CREATEROLE;
 CREATE ROLE finops_api_login LOGIN IN ROLE finops_api;
 CREATE ROLE finops_worker_login LOGIN IN ROLE finops_worker;
 CREATE ROLE finops_ingester_login LOGIN IN ROLE finops_ingester;
+CREATE ROLE finops_hardware_reader_login LOGIN IN ROLE finops_hardware_reader;
 CREATE ROLE finops_signer_login LOGIN IN ROLE finops_signer;
 CREATE ROLE finops_executor_login LOGIN IN ROLE finops_executor;
 CREATE ROLE finops_activity_login LOGIN IN ROLE finops_activity;
@@ -22,6 +24,7 @@ CREATE ROLE finops_telemetry_ingress_login LOGIN IN ROLE finops_telemetry_ingres
 CREATE ROLE finops_deployment_observer_login LOGIN IN ROLE finops_deployment_observer;
 CREATE ROLE finops_temporal LOGIN;
 GRANT CONNECT ON DATABASE finops TO finops_migrator, finops_api_login, finops_worker_login, finops_ingester_login, finops_signer_login, finops_executor_login, finops_activity_login, finops_telemetry_reader_login, finops_telemetry_ingress_login, finops_deployment_observer_login;
+GRANT CONNECT ON DATABASE finops TO finops_hardware_reader_login;
 GRANT CREATE ON SCHEMA public TO finops_migrator;
 GRANT USAGE ON SCHEMA public TO finops_migrator WITH GRANT OPTION;
 CREATE DATABASE temporal OWNER finops_temporal;

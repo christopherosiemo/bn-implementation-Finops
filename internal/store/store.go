@@ -234,7 +234,7 @@ func (s *Store) Migrate(ctx context.Context, dir string) error {
 			return e
 		}
 	}
-	for _, role := range []string{"api", "worker", "signer", "executor", "ingester", "activity", "telemetry_reader", "telemetry_ingress", "deployment_observer"} {
+	for _, role := range []string{"api", "worker", "signer", "executor", "ingester", "activity", "telemetry_reader", "telemetry_ingress", "deployment_observer", "hardware_reader"} {
 		if p := os.Getenv("DB_" + strings.ToUpper(role) + "_PASSWORD"); p != "" {
 			sql := "ALTER ROLE " + pgx.Identifier{"finops_" + role}.Sanitize() + " LOGIN PASSWORD '" + strings.ReplaceAll(p, "'", "''") + "'"
 			if _, e = tx.Exec(ctx, sql); e != nil {

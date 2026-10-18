@@ -192,13 +192,13 @@ func observerProtocolDocument(v any) model.Document {
 // protocol boundary. They are NOT native factory provenance, billing evidence,
 // a complete customer pipeline, or permission to enable a live R2 execution.
 func (f *observerProtocolFixture) proof(kind, suffix string, b fleet.Binding, now time.Time) fleet.ProofRef {
-	d := model.Document{"id": kind + suffix, "kind": kind, "version": "1", "binding": observerProtocolDocument(b), "expires_at": now.Add(3 * time.Hour), "source_refs": []any{model.Document{"table": "fixture-only-protocol-authority", "id": "not-live"}}}
+	d := model.Document{"id": kind + suffix, "kind": kind, "version": "1", "binding": observerProtocolDocument(b), "expires_at": now.Add(5 * time.Hour), "source_refs": []any{model.Document{"table": "fixture-only-protocol-authority", "id": "not-live"}}}
 	f.must("finops_api", func(tx *store.Tx) error {
 		raw, _ := json.Marshal(d)
 		_, e := tx.Exec(f.ctx, "INSERT INTO fleet_proof_sets(tenant_id,id,kind,version,content_hash,document) VALUES($1,$2,$3,'1',$4,$5)", f.tenant, d["id"], kind, fleet.Digest(d), raw)
 		return e
 	})
-	return fleet.ProofRef{Kind: kind, ID: model.String(d, "id"), Version: "1", SHA256: fleet.Digest(d), ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(3 * time.Hour)}
+	return fleet.ProofRef{Kind: kind, ID: model.String(d, "id"), Version: "1", SHA256: fleet.Digest(d), ObservedAt: now.Add(-time.Minute), ExpiresAt: now.Add(5 * time.Hour)}
 }
 
 func (f *observerProtocolFixture) parent() (fleet.Envelope, string) {
@@ -212,8 +212,8 @@ func (f *observerProtocolFixture) parent() (fleet.Envelope, string) {
 		Old:        fleet.Cohort{ID: "asg-blue", ASGAddress: "aws_autoscaling_group.blue", LaunchTemplateAddress: "aws_launch_template.blue", LaunchTemplateVersion: 1, InstanceType: "m6i.4xlarge", DesiredCount: 20, Stateless: true},
 		Candidate:  fleet.Cohort{ID: "asg-green", ASGAddress: "aws_autoscaling_group.green", LaunchTemplateAddress: "aws_launch_template.green", LaunchTemplateVersion: 2, InstanceType: "m6i.2xlarge", DesiredCount: 0, Stateless: true},
 		Traffic:    fleet.TrafficControl{Authority: "CUSTOMER_TERRAFORM_PIPELINE", Address: "aws_lb_listener_rule.app", OldTargetGroupARN: "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/blue/id", CandidateTargetGroupARN: "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/green/id"},
-		Budget:     fleet.Budget{BaselineCount: 20, MaxInFlight: 2, MaxUnavailable: 2, MaxBlastRadiusPPM: 100000, MaxSurgeCount: 20, Currency: "GBP", MaximumCost: "24", OldInstanceHourlyCost: "0.4", CandidateInstanceHourlyCost: "0.2", MaximumDurationSeconds: 7200},
-		CreatedAt:  now.Add(-time.Minute), ExpiresAt: now.Add(2 * time.Hour), Nonce: "parent-nonce-" + suffix,
+		Budget:     fleet.Budget{BaselineCount: 20, MaxInFlight: 2, MaxUnavailable: 2, MaxBlastRadiusPPM: 100000, MaxSurgeCount: 20, Currency: "GBP", MaximumCost: "48", OldInstanceHourlyCost: "0.4", CandidateInstanceHourlyCost: "0.2", MaximumDurationSeconds: 14400},
+		CreatedAt:  now.Add(-time.Minute), ExpiresAt: now.Add(5 * time.Hour), Nonce: "parent-nonce-" + suffix,
 	}
 	for _, kind := range []string{"NATIVE_HISTORY", "CAPACITY_ASSESSMENT", "WORKLOAD_SAFETY_PROFILE", "CONFIGURATION_AUTHORITY", "DEPENDENCY_REVIEW", "SLO_EVALUATION", "BILLING_PRICE"} {
 		p.Proofs = append(p.Proofs, f.proof(kind, suffix, p.Binding, now))

@@ -26,6 +26,10 @@ const env = Object.fromEntries(readFileSync(envPath, 'utf8').split(/\r?\n/).filt
 for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), DB_ACTIVITY_PASSWORD: random(), ACTIVITY_CLIENT_SECRET: random(), DB_TELEMETRY_READER_PASSWORD: random(), DB_TELEMETRY_INGRESS_PASSWORD: random(), TELEMETRY_READER_TOKEN: random(), TELEMETRY_CLIENT_SECRET: random(), DB_DEPLOYMENT_OBSERVER_PASSWORD: random(), DEPLOYMENT_OBSERVER_CLIENT_SECRET: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
   if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
 }
+if (!env.DB_HARDWARE_READER_PASSWORD) {
+  env.DB_HARDWARE_READER_PASSWORD = random();
+  writeFileSync(envPath, `DB_HARDWARE_READER_PASSWORD=${env.DB_HARDWARE_READER_PASSWORD}\n`, { flag: 'a', mode: 0o600 });
+}
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 const mapper = (name, config) => ({ name, protocol: 'openid-connect', protocolMapper: name === 'tenant_id' ? 'oidc-usermodel-attribute-mapper' : 'oidc-audience-mapper', consentRequired: false, config });
 const realm = {

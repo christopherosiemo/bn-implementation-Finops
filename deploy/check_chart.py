@@ -8,6 +8,23 @@ import ipaddress
 import yaml
 
 
+def selector_matches(selector, labels):
+    if any(labels.get(key) != value for key, value in selector.get("matchLabels", {}).items()):
+        return False
+    for expression in selector.get("matchExpressions", []):
+        key, operator = expression["key"], expression["operator"]
+        if operator == "In" and labels.get(key) not in expression["values"]:
+            return False
+        if operator == "NotIn" and labels.get(key) in expression["values"]:
+            return False
+        if operator == "Exists" and key not in labels:
+            return False
+        if operator == "DoesNotExist" and key in labels:
+            return False
+        assert operator in {"In", "NotIn", "Exists", "DoesNotExist"}
+    return True
+
+
 def check(path):
     with open(path, encoding="utf-8") as source:
         manifests = [doc for doc in yaml.safe_load_all(source) if doc]
@@ -30,6 +47,9 @@ def check(path):
     observer_enabled = "deployment-observer" in deployments
     if observer_enabled:
         required.add("deployment-observer")
+    hardware_enabled = "hardware-reader" in deployments
+    if hardware_enabled:
+        required.add("hardware-reader")
     secret_keys = {}
     envs = {}
     for role in required:
@@ -48,21 +68,69 @@ def check(path):
         assert ("SIGNING_PRIVATE_KEY" in secret_keys[role]) == (role == "signer")
         assert ("SIGNER_TOKEN" in secret_keys[role]) == (role in {"worker", "signer"})
         assert ("EXECUTOR_TOKEN" in secret_keys[role]) == (role in {"worker", "executor"})
+        if role != "signer":
+            assert "SIGNING_PRIVATE_KEY" not in envs[role]
+        if role not in {"worker", "signer"}:
+            assert "SIGNER_TOKEN" not in envs[role]
+        if role not in {"worker", "executor"}:
+            assert "EXECUTOR_TOKEN" not in envs[role]
         assert ("CLICKHOUSE_PASSWORD" in secret_keys[role]) == (role in {"ingester"} | native)
         assert ("ECONOMICS_TOKEN" in secret_keys[role]) == (role in {"api", "ingester", "economics"})
         if role != "worker":
             assert "WEBHOOK_SECRET" not in secret_keys[role]
             assert "WEBHOOK_URL" not in envs[role]
-        if role not in {"ingester", "executor", "signer"} | native:
+        if role not in {"ingester", "executor", "signer", "hardware-reader"} | native:
             assert "eks.amazonaws.com/role-arn" not in accounts[role]["metadata"].get("annotations", {})
-        if role not in {"ingester"} | native:
+        if role not in {"ingester", "hardware-reader"} | native:
             assert not any(key.startswith("OBJECT_") for key in envs[role])
         if role != "ingester":
             assert "AWS_READ_ROLE_ARN" not in envs[role]
+        if role not in {"ingester", "hardware-reader"}:
             assert "AWS_SOURCE_READ_BINDINGS_JSON" not in envs[role]
+        if role != "hardware-reader":
+            assert "AWS_HARDWARE_TARGETS_JSON" not in envs[role]
         if role != "executor":
             assert "AWS_EXECUTION_ROLE_ARN" not in envs[role]
     go_roles = {"api", "worker", "ingester", "signer", "executor", "activity-ingress"}
+    if hardware_enabled:
+        go_roles.add("hardware-reader")
+        hardware = envs["hardware-reader"]
+        assert hardware["APP_ROLE"]["value"] == "hardware-reader"
+        assert hardware["FIXTURE_MODE"]["value"] == "false"
+        assert hardware["AWS_REGION"]["value"] == hardware["OBJECT_REGION"]["value"] == "eu-west-1"
+        assert hardware["AWS_TENANT_ID"]["value"]
+        assert set(secret_keys["hardware-reader"]) == {"DATABASE_URL", "AWS_SOURCE_READ_BINDINGS_JSON", "AWS_HARDWARE_TARGETS_JSON"}
+        assert not {"OBJECT_ACCESS_KEY", "OBJECT_SECRET_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AUDIT_ACCESS_KEY", "AUDIT_SECRET_KEY", "ECONOMICS_TOKEN", "CLICKHOUSE_PASSWORD"} & hardware.keys()
+        assert hardware["OBJECT_ENDPOINT"]["value"].startswith("https://")
+        arn = accounts["hardware-reader"]["metadata"].get("annotations", {}).get("eks.amazonaws.com/role-arn")
+        assert arn and arn not in {accounts[r]["metadata"].get("annotations", {}).get("eks.amazonaws.com/role-arn") for r in required - {"hardware-reader"}}
+        policies = {doc["metadata"]["name"]: doc for doc in manifests if doc["kind"] == "NetworkPolicy"}
+        general = policies["finops-dns-and-https"]["spec"]["podSelector"]["matchExpressions"]
+        assert any(rule["operator"] == "NotIn" and "hardware-reader" in rule["values"] for rule in general)
+        # NetworkPolicy grants are additive. Inspect every policy selecting this
+        # pod, including accidentally widened shared policies, not just its own.
+        for policy in policies.values():
+            spec = policy["spec"]
+            if not selector_matches(spec.get("podSelector", {}), {"finops-role": "hardware-reader"}):
+                continue
+            for rule in spec.get("egress", []):
+                assert rule.get("ports") and rule.get("to"), "hardware egress requires explicit ports and destinations"
+                for port in rule["ports"]:
+                    assert not port.get("endPort"), "hardware egress cannot expand a port range"
+                    number, protocol = port.get("port"), port.get("protocol", "TCP")
+                    assert (number, protocol) in {(53, "UDP"), (53, "TCP"), (443, "TCP"), (5432, "TCP")}
+                    for peer in rule["to"]:
+                        if number == 53:
+                            assert peer == {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}}
+                        else:
+                            assert set(peer) == {"ipBlock"} and set(peer["ipBlock"]) == {"cidr"}
+                            network = ipaddress.ip_network(peer["ipBlock"]["cidr"])
+                            assert network.prefixlen > 0
+                            if number == 5432:
+                                assert any(network.subnet_of(private) for private in (
+                                    ipaddress.ip_network("10.0.0.0/8"), ipaddress.ip_network("172.16.0.0/12"),
+                                    ipaddress.ip_network("192.168.0.0/16"),
+                                ) if private.version == network.version) or (network.version == 6 and network.subnet_of(ipaddress.ip_network("fc00::/7"))), "hardware PostgreSQL egress must stay in reviewed private networks"
     if observer_enabled:
         go_roles.add("deployment-observer")
         observer = envs["deployment-observer"]
@@ -121,7 +189,7 @@ def check(path):
     db_secrets = [secret_keys[role]["DATABASE_URL"]["name"] for role in go_roles]
     assert len(set(db_secrets)) == len(go_roles), "runtime database identities must remain separate"
     for doc in manifests:
-        if doc["kind"] == "Service" and doc["metadata"]["name"] in {"finops-signer", "finops-executor", "finops-telemetry-reader", "finops-telemetry-ingress", "finops-deployment-observer"}:
+        if doc["kind"] == "Service" and doc["metadata"]["name"] in {"finops-signer", "finops-executor", "finops-telemetry-reader", "finops-telemetry-ingress", "finops-deployment-observer", "finops-hardware-reader"}:
             assert doc["spec"].get("type", "ClusterIP") == "ClusterIP"
     for role in ("signer", "executor"):
         policy = next(doc for doc in manifests if doc["kind"] == "NetworkPolicy" and doc["metadata"]["name"] == "finops-ingress-" + role)

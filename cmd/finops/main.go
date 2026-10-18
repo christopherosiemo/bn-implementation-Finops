@@ -29,12 +29,18 @@ func main() {
 }
 func run() error {
 	cfg := service.LoadConfig()
-	mode := flag.String("mode", cfg.Role, "api|worker|ingester|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
+	mode := flag.String("mode", cfg.Role, "api|worker|ingester|hardware-reader|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
 	flag.Parse()
 	cfg.Role = *mode
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	db, e := store.Open(ctx, cfg.DatabaseURL)
+	var db *store.Store
+	var e error
+	if cfg.Role == "hardware-reader" {
+		db, e = store.OpenHardwareReader(ctx, cfg.DatabaseURL)
+	} else {
+		db, e = store.Open(ctx, cfg.DatabaseURL)
+	}
 	if e != nil {
 		return e
 	}
@@ -173,7 +179,7 @@ func run() error {
 			return &service.Problem{Status: 500, Message: "EXECUTOR_TOKEN is required"}
 		}
 		handler = (&service.SecureService{Store: db, Config: cfg, Public: key}).Handler()
-	case "worker", "ingester":
+	case "worker", "ingester", "hardware-reader":
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
 				http.NotFound(w, r)
@@ -206,6 +212,13 @@ func run() error {
 	if cfg.Role == "ingester" {
 		go func() {
 			if e := workflow.RunIngester(ctx, cfg, db); e != nil {
+				errs <- e
+			}
+		}()
+	}
+	if cfg.Role == "hardware-reader" {
+		go func() {
+			if e := workflow.RunHardwareReader(ctx, cfg, db); e != nil {
 				errs <- e
 			}
 		}()
