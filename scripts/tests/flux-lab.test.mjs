@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { fixtureApplierRules, fixtureGitEnvironment, fixtureReaderMounts, nativeFluxReady } from '../flux-lab.mjs';
+import { assertBoundFixtureSpec, fixtureApplierRules, fixtureGitEnvironment, fixtureReaderMounts, nativeFluxReady } from '../flux-lab.mjs';
 import { cacheLabel, importedManifestName, localhostAPIPort, normalizedImportedAliases, ownershipLabel, pins, prepareFluxCompilation, prepareFluxRepository, producerIdentity, validateOwnedGit, validateOwnedNetwork, validateOwnedNode } from '../flux-bootstrap.mjs';
 
 test('private Linux mounts use exact invoking UID/GID while Windows keeps native mount semantics', () => {
@@ -19,6 +19,19 @@ test('Flux applier can observe ReplicaSet health without mutating children or ga
   assert.deepEqual(rules.find(rule => rule.resources.includes('pods')), { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] });
   assert.deepEqual(rules.flatMap(rule => rule.resources).sort(), ['configmaps', 'deployments', 'pods', 'replicasets']);
   for (const rule of rules.filter(rule => rule.verbs.some(verb => ['create', 'patch', 'update', 'delete'].includes(verb)))) assert.ok(rule.resources.every(resource => ['deployments', 'configmaps'].includes(resource)));
+});
+
+test('blocked Git proposal preserves both independently observed approved spec hashes, not quantity spelling', () => {
+  const hash = 'a'.repeat(64), changed = 'b'.repeat(64);
+  for (const memory of ['160Mi', '167772160']) {
+    const snapshot = { problems: [], deployment: { spec_hash: hash, spec: { template: { spec: { containers: [{ resources: { requests: { memory } } }] } } } }, git: { deployment_spec_hash: hash } };
+    assert.doesNotThrow(() => assertBoundFixtureSpec(snapshot, hash));
+    for (const mutate of [s => s.deployment.spec_hash = changed, s => s.git.deployment_spec_hash = changed, s => delete s.deployment.spec_hash, s => delete s.git, s => s.problems.push('K8S_FLUX_AUTHORITY_CHANGED'), s => delete s.problems]) {
+      const drift = structuredClone(snapshot); mutate(drift);
+      assert.throws(() => assertBoundFixtureSpec(drift, hash));
+    }
+    assert.throws(() => assertBoundFixtureSpec(snapshot, ''));
+  }
 });
 
 test('Git preflight never adopts a repository and checks actual startup offline with only read-only fixture mounts', () => {

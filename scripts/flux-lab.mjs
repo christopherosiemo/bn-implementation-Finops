@@ -33,6 +33,14 @@ export function fixtureApplierRules() {
     { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] },
   ];
 }
+export function assertBoundFixtureSpec(snapshot, expectedHash) {
+  // The read-only Go collector normalizes equivalent Kubernetes quantities
+  // while hashing the entire spec. A raw quantity spelling is not authority.
+  assert.match(expectedHash, /^[a-f0-9]{64}$/);
+  assert.deepEqual(snapshot?.problems, []);
+  assert.equal(snapshot?.deployment?.spec_hash, expectedHash);
+  assert.equal(snapshot?.git?.deployment_spec_hash, expectedHash);
+}
 async function waitFor(check, message, timeout = 120000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = check(); if (value) return value; await pause(1000); }
@@ -153,7 +161,7 @@ export async function runFluxLab() {
     apply(pdb(2)); await waitFor(() => get('pdb', 'gateway').status.disruptionsAllowed === 0, 'PDB did not close budget');
     const beforeBlocked = head(), blocked = assess({ ...change, memory_request_bytes: 176 * 1048576 });
     assert.equal(blocked.status, 'BLOCKED'); assert.ok(blocked.reason_codes.includes('K8S_PDB_BLOCKS_DISRUPTION')); assert.equal(head(), beforeBlocked);
-    assert.equal(get('deployment', 'gateway').spec.template.spec.containers[0].resources.requests.memory, '160Mi');
+    assertBoundFixtureSpec(collect(), plan.desired_spec_hash);
     pass('native zero-disruption PDB preflight blocks before a Git commit; no Deployment/PDB enforcement assumption');
     apply(pdb(1)); await waitFor(() => get('pdb', 'gateway').status.disruptionsAllowed === 1, 'PDB did not reopen');
 
