@@ -231,14 +231,16 @@ func TestHardwareRuntimeDurablePollingCrossReplicaLocksAndDedicatedIdentity(t *t
 	if err = restarted.capture(ctx, foreign); err == nil || calls.Load() != 2 {
 		t.Fatal("foreign source reached provider")
 	}
-	if _, err = admin.Pool.Exec(ctx, "GRANT finops_api TO "+pgx.Identifier{login}.Sanitize()); err != nil {
-		t.Fatal(err)
-	}
-	if confused, e := store.OpenHardwareReader(ctx, loginConfig.String()); e == nil {
-		confused.Pool.Close()
-		t.Fatal("mixed approval/API membership accepted")
-	}
-	if _, err = admin.Pool.Exec(ctx, "REVOKE finops_api FROM "+pgx.Identifier{login}.Sanitize()); err != nil {
-		t.Fatal(err)
+	for _, additionalRole := range []string{"finops_api", "finops_activity", "finops_deployment_observer", "pg_write_all_data"} {
+		if _, err = admin.Pool.Exec(ctx, "GRANT "+pgx.Identifier{additionalRole}.Sanitize()+" TO "+pgx.Identifier{login}.Sanitize()); err != nil {
+			t.Fatal(err)
+		}
+		if confused, e := store.OpenHardwareReader(ctx, loginConfig.String()); e == nil {
+			confused.Pool.Close()
+			t.Fatal("mixed process or broad predefined membership accepted", additionalRole)
+		}
+		if _, err = admin.Pool.Exec(ctx, "REVOKE "+pgx.Identifier{additionalRole}.Sanitize()+" FROM "+pgx.Identifier{login}.Sanitize()); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

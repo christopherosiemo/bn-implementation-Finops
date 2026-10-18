@@ -46,8 +46,10 @@ observed capacity from missing native economics and recovery authority.
 The separate `hardware-reader` process uses a distinct PostgreSQL login in the
 `finops_hardware_reader` role. Each connection assumes only the ingestion group,
 preserving immutable source writer provenance. Administrator, role-creation,
-database-creation, RLS-bypass and API/approval/signing/execution/worker memberships
-are rejected. At least three pool connections preserve the cross-replica lock,
+database-creation and RLS-bypass identities are rejected. The complete transitive
+membership set may contain only the login itself, hardware-reader and ingester;
+extra application, machine-observation or predefined broad roles are rejected.
+At least three pool connections preserve the cross-replica lock,
 tenant publication transaction and health probe independently.
 
 The process is never started by default and refuses native AWS access in fixture

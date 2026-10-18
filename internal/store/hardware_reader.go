@@ -26,10 +26,9 @@ func OpenHardwareReader(ctx context.Context, url string) (*Store, error) {
 		var permitted bool
 		err := conn.QueryRow(ctx, `SELECT NOT r.rolsuper AND NOT r.rolcreaterole AND NOT r.rolcreatedb AND NOT r.rolbypassrls
 		 AND pg_has_role(session_user,'finops_hardware_reader','MEMBER')
-		 AND NOT pg_has_role(session_user,'finops_api','MEMBER')
-		 AND NOT pg_has_role(session_user,'finops_signer','MEMBER')
-		 AND NOT pg_has_role(session_user,'finops_executor','MEMBER')
-		 AND NOT pg_has_role(session_user,'finops_worker','MEMBER')
+		 AND NOT EXISTS(SELECT 1 FROM pg_roles other
+		 WHERE other.rolname NOT IN(session_user,'finops_hardware_reader','finops_ingester')
+		 AND pg_has_role(session_user,other.oid,'MEMBER'))
 		 FROM pg_roles r WHERE r.rolname=session_user`).Scan(&permitted)
 		if err != nil || !permitted {
 			return errors.New("HARDWARE_DEDICATED_DATABASE_IDENTITY_REQUIRED")
