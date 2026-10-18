@@ -1,5 +1,55 @@
 # AWS scheduling pilot acceptance record
 
+## 18 October candidate: immutable allocation and private fleet evidence
+
+The bounded allocation API selects persisted source identifiers rather than
+accepting financial amounts or authority. Finance/FinOps roles append versioned
+fixed-share policies and sealed reports; auditors have read access. Reports
+capture current ownership, conserve each signed twelve-decimal source amount,
+keep currencies separate and preserve unknown amounts. Restricted PostgreSQL
+acceptance covers tenant/role boundaries, immutable input/result roots, policy
+concurrency, source corrections, sealed-row rejection and cancellation at the
+seal without partial publication. The full bounded storage case contains 5,000
+observations and 25,000 derived entries; it is not a synchronous API latency
+claim. Public creation has a cancellable 25-second budget and same-key
+idempotency reconciliation. See [allocation boundaries](cost-allocation.md).
+
+The actual OIDC/API browser allocation journey has passed against the rebuilt
+local stack, including persisted source selection, policy creation, sealed
+report, paginated observations/entries and denied cross-tenant/viewer access.
+Five supplementary presentation contracts use visibly labelled fixtures.
+Full-suite and final-commit acceptance for this candidate remain pending; these
+focused results do not by themselves advance the progress ledger.
+
+Billing-source revision selection now compares parsed native instants. Equal
+instants with different execution IDs persist an ambiguity refusal rather than
+inventing an order from opaque IDs. A later poll cannot silently clear that
+refusal by omitting the conflict. New baseline/verification authority and native
+allocation/rate selection refuse an active sync. Sync also persists `SYNCING`
+before provider I/O, so process death cannot expose the previous healthy status
+after partial publication. Actual PostgreSQL/service regressions cover an
+in-flight sync, cancellation with retained refusal, successful recovery and
+retained historical report visibility. Owned START restoration is unchanged.
+
+Two separate private evidence components pass actual isolated local labs. The
+configuration attestor reads a committed local repository and actual Terraform
+1.16 built-in-provider plan/state, then stores an authenticated encrypted bundle
+in versioned MinIO and immutable PostgreSQL records. Its cloud declaration is
+explicitly blocked because the declared native resource was not observed.
+The rate broker binds native-shaped CUR records, current membership, hardware,
+launch-template dimensions and complete zero-commitment scope to conditional
+historical account rates. AWS and archive reads in that rate lab are explicit
+doubles. Its estimates are not a future price guarantee or hard spend cap.
+Both components remain unregistered with execution disabled and verified savings
+unavailable. Neither establishes a connected fleet operating loop. See the
+[artifact lab](configuration-artifact-lab.md) and
+[rate evidence limits](fleet-billing-price-evidence.md).
+
+The labs start from fresh owned module/build caches. Credential-free dependency
+preparation receives only module lockfiles; credentialed acceptance runs without
+outbound network on an internal fixture network. Exact labelled cleanup must
+finish before acceptance is recorded. No cloud resources are provisioned.
+
 ## 18 October increment: native hardware, capacity integration and encrypted recovery
 
 An optional, separate read-only hardware process captures exact native EC2

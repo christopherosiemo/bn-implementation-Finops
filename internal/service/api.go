@@ -130,6 +130,14 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	sum := sha256.Sum256([]byte(i.Subject + "\n" + r.Method + "\n" + r.URL.Path + "\n" + string(body)))
 	hash := hex.EncodeToString(sum[:])
+	allocationReportRequest := r.URL.Path == "/v1/allocation-reports"
+	if allocationReportRequest {
+		// Leave room inside the console's 30s and server's 40s deadlines.
+		// Keep synchronous report work inside the normal response budget.
+		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
+		defer cancel()
+		r = r.WithContext(ctx)
+	}
 	status := 200
 	var output model.Document
 	e = a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
@@ -162,6 +170,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return e
 	})
 	if e != nil {
+		if allocationReportRequest && errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			e = problem(503, "ALLOCATION_REPORT_BUDGET_EXCEEDED", "report exceeded its synchronous request budget; retry with the same Idempotency-Key to reconcile the outcome")
+		}
 		fail(w, e)
 		return
 	}
@@ -175,6 +186,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 	e := a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
 		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
 			return e
+		}
+		if result, handled, err := a.allocationGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
 		}
 		if result, handled, err := a.configurationGet(r.Context(), t, i, r); handled {
 			out = result
@@ -374,6 +389,9 @@ func match(r *http.Request, d model.Document) error {
 func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
+	if out, status, handled, err := a.allocationMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
 	if out, status, handled, err := a.configurationMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}

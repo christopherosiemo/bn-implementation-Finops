@@ -2,10 +2,19 @@ import { expect, test } from "@playwright/test";
 
 test("OIDC sign-in and the complete fixture operating loop", async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(240_000);
   const javascriptErrors: string[] = [];
+  const verificationFailures: string[] = [];
+  const verificationResponses: { status: number; duration_ms: number }[] = [];
   page.on("pageerror", (error) => javascriptErrors.push(error.message));
+  page.on("requestfailed", (request) => {
+    if (
+      request.url().endsWith("/v1/savings/verify") &&
+      request.method() === "POST"
+    )
+      verificationFailures.push(request.failure()?.errorText || "UNKNOWN");
+  });
   await page.goto("/");
   const dashboardResponse = page.waitForResponse(
     (response) => response.url().endsWith("/v1/dashboard") && response.ok(),
@@ -196,16 +205,26 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await expect
     .poll(
       async () => {
+        const verifyButton = page.getByRole("button", {
+          name: "Verify savings",
+          exact: true,
+        });
+        await expect(verifyButton).toBeEnabled();
         const result = page.waitForResponse(
           (response) =>
             response.url().endsWith("/v1/savings/verify") &&
-            response.request().method() === "POST" &&
-            response.ok(),
+            response.request().method() === "POST",
+          { timeout: 35_000 },
         );
-        await page
-          .getByRole("button", { name: "Verify savings", exact: true })
-          .click();
-        const body = (await (await result).json()) as {
+        await verifyButton.click();
+        const response = await result;
+        const responseText = await response.text();
+        verificationResponses.push({
+          status: response.status(),
+          duration_ms: response.request().timing().responseEnd,
+        });
+        expect(response.ok(), responseText).toBeTruthy();
+        const body = (await response.json()) as {
           savings?: {
             id: string;
             execution_id: string;
@@ -300,5 +319,13 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await expect(
     page.getByRole("heading", { name: "Savings you can stand behind." }),
   ).toBeVisible();
+  await testInfo.attach("savings-verification-request-timing", {
+    body: JSON.stringify({
+      responses: verificationResponses,
+      failures: verificationFailures,
+    }),
+    contentType: "application/json",
+  });
+  expect(verificationFailures).toEqual([]);
   expect(javascriptErrors).toEqual([]);
 });

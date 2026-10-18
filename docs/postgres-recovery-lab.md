@@ -57,6 +57,11 @@ guard checks deliberately attempt writes inside a rolled-back transaction.
 Acceptance compares existing application audit/ledger/signed-envelope rows and
 stable completed provider-operation rows by SHA-256. It also checks migration
 checksums, table/role grants, forced RLS, policies, immutable triggers and indexes.
+Function-definition hashes and security-definer/execute privileges are compared
+without displaying function bodies. All twelve product groups are included,
+including the private multicloud publisher and configuration attestor; role
+creation, database creation, replication and RLS-bypass flags are preserved in
+the authority comparison.
 The restored Temporal databases must retain their schema-version readback. Under
 the restored restricted API role, the sentinel proves exact decimal storage,
 cross-tenant isolation, append-only UPDATE/DELETE denial, and unique active stop

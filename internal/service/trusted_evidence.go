@@ -30,6 +30,20 @@ func rejectSubmittedAuthority(in model.Document) error {
 
 // The database only permits the ingester to issue source receipts. A provenance
 // string in an entity, an S3 version, or a caller-supplied proof is insufficient.
+func holdTrustedSourceSnapshot(ctx context.Context, t *store.Tx, connection string) error {
+	if connection == "" {
+		return errors.New("TRUSTED_SOURCE_REQUIRED")
+	}
+	var stable bool
+	if err := t.QueryRow(ctx, "SELECT pg_try_advisory_xact_lock_shared(hashtextextended($1,0))", t.Tenant+":trusted-source:"+connection).Scan(&stable); err != nil {
+		return err
+	}
+	if !stable {
+		return errors.New("SOURCE_SYNC_IN_PROGRESS")
+	}
+	return nil
+}
+
 func trustedJob(ctx context.Context, t *store.Tx, job, res model.Document) (model.Document, error) {
 	if model.String(job, "status") != "PERSISTED" || model.String(job, "source_provenance") != "AWS_CUR2_AUTHENTICATED" {
 		return nil, errors.New("TRUSTED_SOURCE_REQUIRED")
@@ -41,12 +55,21 @@ func trustedJob(ctx context.Context, t *store.Tx, job, res model.Document) (mode
 	if model.String(receipt, "writer_role") != "finops_ingester" {
 		return nil, errors.New("TRUSTED_RECEIPT_ISSUER_INVALID")
 	}
+	if e = holdTrustedSourceSnapshot(ctx, t, model.String(receipt, "registration_id")); e != nil {
+		return nil, e
+	}
 	registration, e := t.SourceGet(ctx, model.String(receipt, "registration_id"))
 	if e != nil {
 		return nil, e
 	}
 	if !model.Bool(registration, "enabled") {
 		return nil, errors.New("SOURCE_REVOKED")
+	}
+	// A retained issued receipt is historical evidence. A failed or ambiguous
+	// current delivery cannot silently reuse it for a new financial authority.
+	// Existing owned restoration does not call this STOP/verification gate.
+	if model.String(registration, "status") != "HEALTHY" {
+		return nil, errors.New("SOURCE_AUTHORITY_UNAVAILABLE")
 	}
 	if model.String(receipt, "config_hash") != source.ConfigurationHash(registration) {
 		return nil, errors.New("SOURCE_CONFIGURATION_CHANGED")
@@ -82,6 +105,9 @@ func trustedJob(ctx context.Context, t *store.Tx, job, res model.Document) (mode
 }
 
 func currentSourceGate(ctx context.Context, t *store.Tx, connection string, binding model.Document, now time.Time) (model.Document, error) {
+	if e := holdTrustedSourceSnapshot(ctx, t, connection); e != nil {
+		return nil, e
+	}
 	registration, e := t.SourceGet(ctx, connection)
 	if e != nil {
 		return nil, e

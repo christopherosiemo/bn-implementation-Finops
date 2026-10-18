@@ -13,6 +13,45 @@ import (
 	"time"
 )
 
+const executionOrderAmbiguous = "SOURCE_EXECUTION_ORDER_AMBIGUOUS"
+
+func executionInstant(raw string) (time.Time, error) {
+	instant, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil || instant.IsZero() {
+		return time.Time{}, errors.New("SOURCE_EXECUTION_TIME_INVALID")
+	}
+	return instant, nil
+}
+
+// Native instants can use different fractional precision or UTC offsets. Their
+// text and opaque execution IDs cannot establish economic revision ordering.
+func successfulExecutionOrder(executions []model.Document, now time.Time) ([]model.Document, error) {
+	type observed struct {
+		document model.Document
+		at       time.Time
+	}
+	items := []observed{}
+	for _, execution := range executions {
+		if model.String(Object(execution["ExecutionStatus"]), "StatusCode") != "DELIVERY_SUCCESS" {
+			continue
+		}
+		if err := ValidateExecutionTime(execution, now); err != nil {
+			return nil, err
+		}
+		at, err := executionInstant(model.String(Object(execution["ExecutionStatus"]), "CreatedAt"))
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, observed{execution, at})
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].at.After(items[j].at) })
+	out := make([]model.Document, len(items))
+	for i, item := range items {
+		out[i] = item.document
+	}
+	return out, nil
+}
+
 func (p *Pipeline) now() time.Time {
 	if p.Now != nil {
 		return p.Now().UTC()
@@ -82,12 +121,24 @@ func (p *Pipeline) Sync(ctx context.Context, tenant, id string) (err error) {
 	defer func() {
 		if err != nil {
 			status["reason_code"] = safeReason(err)
+			if safeReason(err) == executionOrderAmbiguous {
+				status["status"] = "BLOCKED"
+			}
 		}
 		status["last_sync_at"] = p.now().Format(time.RFC3339Nano)
 		if statusErr := p.status(ctx, tenant, id, status); err == nil {
 			err = statusErr
 		}
 	}()
+	// A killed process releases its advisory lock without running defers. Make
+	// the in-progress refusal durable before any provider read/publication so
+	// another process cannot borrow the previous HEALTHY checkpoint after a
+	// partial sync. A later complete sync can recover through the checkpoints.
+	started := model.Clone(status)
+	started["status"], started["reason_code"] = "SYNCING", "SOURCE_SYNC_IN_PROGRESS"
+	if e = p.status(ctx, tenant, id, started); e != nil {
+		return e
+	}
 	reader, e := p.ProviderFactory(ctx, r)
 	if e != nil {
 		return e
@@ -120,15 +171,10 @@ func (p *Pipeline) Sync(ctx context.Context, tenant, id string) (err error) {
 	if e != nil {
 		return e
 	}
-	successful := []model.Document{}
-	for _, x := range executions {
-		if model.String(Object(x["ExecutionStatus"]), "StatusCode") == "DELIVERY_SUCCESS" {
-			successful = append(successful, x)
-		}
+	successful, e := successfulExecutionOrder(executions, p.now())
+	if e != nil {
+		return e
 	}
-	sort.Slice(successful, func(i, j int) bool {
-		return model.String(Object(successful[i]["ExecutionStatus"]), "CreatedAt") > model.String(Object(successful[j]["ExecutionStatus"]), "CreatedAt")
-	})
 	if len(successful) == 0 {
 		return errors.New("SOURCE_NO_SUCCESSFUL_EXECUTION")
 	}
@@ -235,6 +281,17 @@ func (p *Pipeline) Sync(ctx context.Context, tenant, id string) (err error) {
 	if e = p.do(ctx, tenant, func(t *store.Tx) error { return t.SourceCheckpointSet(ctx, id, historyKey, history) }); e != nil {
 		return e
 	}
+	// A later poll may omit the conflicting execution or rotate a different old
+	// month. It cannot make a previously ambiguous same-config month healthy.
+	var unresolved bool
+	if e = p.do(ctx, tenant, func(t *store.Tx) error {
+		return t.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM source_checkpoints WHERE tenant_id=$1 AND source_id=$2 AND starts_with(checkpoint_key,$3) AND document ? 'ambiguous_at')", tenant, id, "month:"+configHash+":").Scan(&unresolved)
+	}); e != nil {
+		return e
+	}
+	if unresolved {
+		return errors.New(executionOrderAmbiguous)
+	}
 	status["status"], status["reason_code"], status["manifest_count"] = "HEALTHY", "SOURCE_AUTHENTICATED", processed
 	pending := 0
 	for _, x := range successful {
@@ -272,7 +329,10 @@ func (p *Pipeline) delivery(ctx context.Context, r Registration, registration mo
 	if e = validateObject(manifestObject, key); e != nil {
 		return nil, e
 	}
-	executionTime, _ := time.Parse(time.RFC3339Nano, model.String(Object(execution["ExecutionStatus"]), "CreatedAt"))
+	executionTime, e := executionInstant(model.String(Object(execution["ExecutionStatus"]), "CreatedAt"))
+	if e != nil {
+		return nil, e
+	}
 	if manifestObject.LastModified.After(p.now().Add(30*time.Second)) || manifestObject.LastModified.Before(executionTime) {
 		return nil, errors.New("SOURCE_MANIFEST_TIME_INVALID")
 	}
@@ -283,6 +343,7 @@ func (p *Pipeline) delivery(ctx context.Context, r Registration, registration mo
 	monthHeadKey := "month:" + ConfigurationHash(registration) + ":" + manifest.Start.Format("2006-01")
 	executedAt := model.String(Object(execution["ExecutionStatus"]), "CreatedAt")
 	var newer model.Document
+	ambiguous := false
 	monthHead := model.Document{}
 	if e = p.do(ctx, r.TenantID, func(t *store.Tx) error {
 		head, e := t.SourceCheckpointGet(ctx, r.ID, monthHeadKey)
@@ -293,13 +354,45 @@ func (p *Pipeline) delivery(ctx context.Context, r Registration, registration mo
 			return e
 		}
 		monthHead = head
-		if model.String(head, "execution_created_at") > executedAt || (model.String(head, "execution_created_at") == executedAt && model.String(head, "execution_id") > executionID) {
+		headTime, err := executionInstant(model.String(head, "execution_created_at"))
+		if err != nil {
+			return err
+		}
+		if marker := model.String(head, "ambiguous_at"); marker != "" {
+			blockedAt, err := executionInstant(marker)
+			if err != nil {
+				return err
+			}
+			if !executionTime.After(blockedAt) {
+				ambiguous = true
+				return nil
+			}
+		}
+		if headTime.Equal(executionTime) && model.String(head, "execution_id") != executionID {
+			// Persist the refusal and source health together. A deferred status
+			// write failing after detection must not expose the old READY receipt.
+			ids := []string{model.String(head, "execution_id"), executionID}
+			sort.Strings(ids)
+			head["ambiguous_at"], head["ambiguous_execution_ids"] = executionTime.UTC().Format(time.RFC3339Nano), ids
+			if err = t.SourceCheckpointSet(ctx, r.ID, monthHeadKey, head); err != nil {
+				return err
+			}
+			if err = t.SourceCheckpointSet(ctx, r.ID, "status", model.Document{"status": "BLOCKED", "reason_code": executionOrderAmbiguous, "config_hash": ConfigurationHash(registration), "last_sync_at": p.now().Format(time.RFC3339Nano), "last_sync_version": r.Version}); err != nil {
+				return err
+			}
+			ambiguous = true
+			return nil
+		}
+		if headTime.After(executionTime) {
 			newer, e = t.SourceReceiptGet(ctx, model.String(head, "receipt_id"))
 			return e
 		}
 		return nil
 	}); e != nil {
 		return nil, e
+	}
+	if ambiguous {
+		return nil, errors.New(executionOrderAmbiguous)
 	}
 	if newer != nil {
 		return newer, nil

@@ -22,6 +22,24 @@ The native increment adds **1.0 point** after all six CI jobs passed at [aec624a
 
 The subsequent native-hardware and encrypted-recovery review records **25.0 → 25.0** after all seven CI jobs passed at [4d9f785](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39148714071). Read-only EC2 hardware, observed historical denominators and the real Python capacity worker are now connected through immutable service/database evidence and scoped result history. Candidate economics remain unknown and execution stays disabled. The encrypted whole-cluster recovery drill proves quarantined PostgreSQL/Temporal schema and authority readback; it does not prove production recovery objectives or workflow resumption. These changes strengthen existing component packages without satisfying their next maturity gate, so fixed weights and historical credit stay unchanged.
 
+The fleet-health and provisional multicloud publication review also records
+**25.0 → 25.0**, after all eight normal CI jobs passed at
+[a0d4771](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39155256473).
+Private signed-window health failures latch independently of rollback authority;
+native-shaped multicloud revisions publish into actual isolated PostgreSQL,
+versioned objects and ClickHouse. Runtime database identities reject inappropriate
+role attributes. These strengthen existing component stages. Full default-duration
+fleet protocol acceptance remains a separate real-clock gate; ordinary CI does
+not establish it. Native multicloud sources, complete invoices/commitments,
+enabled fleet runtime, fleet savings and customer production operation remain
+outstanding.
+
+The allocation/attestor/rate-broker candidate is under final acceptance. Focused
+local passes and additional tests do not yet add credit. Its bounded allocation
+scope, possible subdivision and evidence will be reviewed only after connected
+acceptance and exact-commit CI; shared storage, identity and console foundations
+will not be counted again.
+
 The preceding SLO increment added 1.2 points by advancing the bounded independent-demand/SLO package from component acceptance to deterministic end-to-end acceptance. Registered machine observations feed immutable objectives and sealed pre-plan evaluations. Hard limits and enabled regression are independent; missing intervals, uncertain histogram bounds and incompatible availability windows block stops. A genuine minute-rollover PostgreSQL test records an owned failure and one notification, preserves restoration through expiry/pause, and retains the latch after later good state. Financial correction tests prevent sibling occurrences or re-verification from reviving the disqualified measurement. Collector, API and browser acceptance connect these components. Native instrumentation, longer SLI distributions, CPU/memory headroom, replica/AZ/RTO/RPO breadth, live and production acceptance earned no credit in that review. Shared signing, tenancy, console and restoration foundations are not counted again.
 
 The previous graph increment added 1.2 points for bounded workload mapping through immutable reviews and plan binding. Operator review remains a human trust boundary for undiscovered consumers; complete automatic discovery and customer graph validation remain outstanding.

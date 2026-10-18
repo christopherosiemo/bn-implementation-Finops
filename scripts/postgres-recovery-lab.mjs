@@ -13,7 +13,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const labelKey = 'finops.local-recovery.run';
 const sourceLabelKey = 'finops.local-recovery.source';
 let recoveryStage = 'LOCAL_SOURCE_VALIDATION';
-const coreRoles = ['finops_api', 'finops_worker', 'finops_signer', 'finops_executor', 'finops_ingester', 'finops_activity', 'finops_telemetry_reader', 'finops_telemetry_ingress', 'finops_deployment_observer', 'finops_hardware_reader'];
+const coreRoles = ['finops_api', 'finops_worker', 'finops_signer', 'finops_executor', 'finops_ingester', 'finops_activity', 'finops_telemetry_reader', 'finops_telemetry_ingress', 'finops_deployment_observer', 'finops_hardware_reader', 'finops_multicloud_ingester', 'finops_configuration_attestor'];
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const literal = value => "'" + String(value).replaceAll("'", "''") + "'";
 const identifier = value => { assert.match(value, /^[a-z][a-z0-9_]*$/); return '"' + value + '"'; };
@@ -80,8 +80,9 @@ const metadataSQL = `SELECT json_build_object(
  'relations',(SELECT json_agg(x ORDER BY x.relname) FROM (SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,c.relacl::text FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r') x),
  'policies',(SELECT json_agg(x ORDER BY x.tablename,x.policyname) FROM (SELECT tablename,policyname,roles::text,cmd,qual,with_check FROM pg_policies WHERE schemaname='public') x),
  'guards',(SELECT json_agg(x ORDER BY x.table_name,x.tgname) FROM (SELECT c.relname AS table_name,t.tgname,pg_get_triggerdef(t.oid) AS definition FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal) x),
+ 'functions',(SELECT json_agg(x ORDER BY x.identity) FROM (SELECT p.oid::regprocedure::text AS identity,${digestSQL('pg_get_functiondef(p.oid)')} AS definition_sha256,p.prosecdef,p.proacl::text FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind IN ('f','p')) x),
  'indexes',(SELECT json_agg(x ORDER BY x.indexname) FROM (SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='public') x),
- 'roles',(SELECT json_agg(x ORDER BY x.rolname) FROM (SELECT rolname,rolsuper,rolbypassrls,rolcanlogin,rolinherit FROM pg_roles WHERE rolname IN (${coreRoles.map(literal).join(',')})) x),
+ 'roles',(SELECT json_agg(x ORDER BY x.rolname) FROM (SELECT rolname,rolsuper,rolbypassrls,rolcanlogin,rolinherit,rolcreaterole,rolcreatedb,rolreplication FROM pg_roles WHERE rolname IN (${coreRoles.map(literal).join(',')})) x),
  'memberships',(SELECT json_agg(x ORDER BY x.role_name,x.member_name) FROM (SELECT parent.rolname AS role_name,member.rolname AS member_name,m.admin_option FROM pg_auth_members m JOIN pg_roles parent ON parent.oid=m.roleid JOIN pg_roles member ON member.oid=m.member WHERE parent.rolname IN (${coreRoles.map(literal).join(',')}) OR member.rolname IN (${coreRoles.map(literal).join(',')})) x)
 );`;
 function samples(container, user) {

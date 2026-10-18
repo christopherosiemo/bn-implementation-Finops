@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25,
   "rounded_description": "Approximately 25 percent of the full product",
-  "credit_review": "Native hardware/model integration and encrypted local database readback accepted within existing component maturity. No additional credit, complete fleet workflow, customer/live operation or production acceptance.",
+  "credit_review": "Private continuous fleet-health factories, provisional multicloud publication and strict runtime identities accepted within existing component maturity. All eight normal CI jobs passed at a0d4771; full default-duration protocol acceptance remains separately pending. No additional credit, complete fleet workflow, customer/live operation or production acceptance.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -204,7 +204,7 @@
             "docs/fleet-and-kubernetes-components.md"
           ],
           "remaining": [
-            "Continuously observed signed-stage health and permanent failure proof factories",
+            "Complete default-duration protocol acceptance and registration of the private continuous-health factories",
             "Connected native capacity, authority and financial factories; customer pipeline and full approved canary/rollback/economics journey",
             "Supervised customer deployment and production operational acceptance"
           ]
@@ -729,6 +729,25 @@
       "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39148714071",
       "live_credit_awarded": false,
       "acceptance": "All seven exact-commit CI jobs passed, including actual PostgreSQL/Python, generated contracts, 39 Chromium cases, process recovery, native transports, infrastructure, dependency/source security, real local Kubernetes and encrypted physical PostgreSQL quarantine readback. Native prices, complete fleet proof/runtime/financial integration and customer operational gates remain incomplete; accepted maturity and all fixed weights stay unchanged."
+    },
+    {
+      "id": "fleet-health-multicloud-runtime-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-cohort-health.md",
+        "internal/service/fleet_health_window_test.go",
+        "migrations/022_fleet_forward_observation.sql",
+        "docs/multicloud-observational-publication.md",
+        "scripts/multicloud-publication-lab.mjs",
+        "internal/store/runtime_identity.go",
+        "scripts/lib/kubernetes-observation.mjs"
+      ],
+      "release_commit": "a0d4771c4f3b04433ea6f018f52406c9cd35847e",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39155256473",
+      "live_credit_awarded": false,
+      "acceptance": "All eight normal CI jobs passed, including PostgreSQL 16/17, real Python economics, 39 browser cases, process recovery, native telemetry, actual provisional PostgreSQL/MinIO/ClickHouse publication, encrypted physical backup, Kubernetes, generated contracts and source/dependency security. Private fleet health independently latches full-window failures and preserves owned rollback. The separately dispatched default-duration fleet program is pending and cannot be inferred from normal CI. These improvements strengthen existing component stages without extra progress credit. No live cloud source, enabled fleet runtime, fleet financial claim or customer production acceptance."
     }
   ]
 }

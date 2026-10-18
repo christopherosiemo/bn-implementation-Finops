@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { api } from "./api";
 import { auth } from "./auth";
+import { CostAllocation } from "./CostAllocation";
 import {
   AuditPage,
   ConnectionsPage,
@@ -67,6 +68,7 @@ const navigation: { id: Page; label: string; icon: typeof LayoutDashboard }[] =
     { id: "schedules", label: "Schedules & policies", icon: Timer },
     { id: "executions", label: "Executions", icon: Activity },
     { id: "savings", label: "Savings evidence", icon: CreditCard },
+    { id: "allocation", label: "Cost allocation", icon: Boxes },
     { id: "connections", label: "Connections & quality", icon: Cloud },
     { id: "audit", label: "Audit trail", icon: FileClock },
   ];
@@ -846,6 +848,7 @@ export default function App() {
                 )}
                 {page === "executions" && <ExecutionsPage {...pageProps} />}
                 {page === "savings" && <SavingsPage {...pageProps} />}
+                {page === "allocation" && <CostAllocation {...pageProps} />}
                 {page === "connections" && <ConnectionsPage {...pageProps} />}
                 {page === "audit" && <AuditPage {...pageProps} />}
               </>

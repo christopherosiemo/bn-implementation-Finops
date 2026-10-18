@@ -238,7 +238,15 @@ jobs:
         run: |
           node --test scripts/tests/multicloud-publication-lab.test.mjs
           node scripts/multicloud-publication-lab.mjs
-      - name: Verify encrypted whole-cluster PostgreSQL backup in network quarantine
+      - name: Exercise isolated encrypted Terraform artifact capture with actual local tools
+        run: |
+          node --test scripts/tests/fixture-go-modules.test.mjs scripts/tests/configuration-artifact-lab.test.mjs
+          node scripts/configuration-artifact-lab.mjs
+      - name: Exercise private native historical-rate broker with isolated PostgreSQL
+        run: |
+          node --test scripts/tests/fleet-billing-price-lab.test.mjs
+          node scripts/fleet-billing-price-lab.mjs
+      - name: Verify final encrypted whole-cluster PostgreSQL backup in network quarantine
         run: node scripts/postgres-recovery-lab.mjs
       - name: Collect service diagnostics on failure
         if: failure()

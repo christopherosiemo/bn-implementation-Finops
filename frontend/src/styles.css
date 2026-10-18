@@ -3948,4 +3948,26 @@ th {
 .evidence-binding { padding: 16px 0 1px; margin-bottom: 18px; border-top: 1px solid #e8efdf; }
 .evidence-id { overflow-wrap: anywhere; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 10px; }
 .evidence-refs { padding-left: 17px; margin: 10px 0 0; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 10px; color: #749370; line-height: 1.8; overflow-wrap: anywhere; }
+.allocation-boundary { padding: 18px 22px; margin-bottom: 22px; border: 1px solid #dde8d3; border-left: 3px solid var(--green); border-radius: 7px; background: #f5f8ee; }
+.allocation-boundary strong { font-size: 14px; }
+.allocation-boundary p { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 7px 0 0; }
+.allocation-form, .allocation-evidence { min-width: 0; }
+.allocation-form > .field { margin-bottom: 18px; }
+.allocation-form .form-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e8efdf; }
+.allocation-form .form-footer > span { font-size: 11px; color: var(--muted); }
+.allocation-form .field select[multiple] { min-height: 85px; }
+.allocation-rule { margin: 20px 0; padding: 16px; min-width: 0; border: 1px solid #dde8d3; border-radius: 6px; }
+.allocation-rule legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
+.allocation-recipient { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, .7fr) auto; gap: 10px; align-items: end; margin: 12px 0; }
+.allocation-evidence .table-scroll table { min-width: 760px; }
+.allocation-evidence .money-cell { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 11px; }
+.allocation-evidence .table-scroll td small, .allocation-provenance dd small { display: block; margin-top: 5px; }
+.allocation-evidence .definition-list dd { min-width: 0; overflow-wrap: anywhere; }
+.allocation-provenance { margin-top: 24px; }
+.allocation-hashes { margin: 20px 0; }
+.allocation-hashes summary { cursor: pointer; color: var(--green); font-size: 12px; }
+.allocation-collection { margin-top: 26px; border-top: 1px solid #e8efdf; padding-top: 16px; }
+.allocation-collection h3 { font-size: 14px; }
+.allocation-collection .remote-page-actions { padding-inline: 0; }
+@media(max-width: 760px) { .allocation-recipient { grid-template-columns: minmax(0, 1fr); } .allocation-boundary { padding: 16px; } }
 @media(max-width: 760px) { .readiness-summary { gap: 7px; font-size: 9px; flex-direction: column; } .evidence-id, .evidence-refs { font-size: 9px; } }

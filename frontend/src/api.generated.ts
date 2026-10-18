@@ -4,6 +4,123 @@
  */
 
 export interface paths {
+    "/allocation-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Financial-scope, cursor-paginated metadata for customer imports and deterministic fixture jobs. Raw payloads and canonical facts are never included. Only PERSISTED jobs can be selected; coverage remains unknown. Native AWS sources use the separate registered connection and billing-month selector. */
+        get: operations["listAllocationImportSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Organization financial scope (FINANCE, FINOPS_ADMIN or AUDITOR). Immutable current-ownership allocation policy history, newest first. Application-owner and viewer tokens cannot read organization spend. Initial version is zero. */
+        get: operations["listAllocationPolicyRevisions"];
+        put?: never;
+        /** @description FINANCE or FINOPS_ADMIN appends a policy. If-Match selects the current tenant policy version (initially zero). Explicit resource shares use integer parts per million totaling 1000000. Unmatched resources retain current ownership or remain unallocated. Historical ownership and savings are not asserted. */
+        post: operations["appendAllocationPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAllocationPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cursor-paginated immutable report summaries in organization financial scope. Revisions are separate snapshots and must never be summed together. */
+        get: operations["listAllocationReports"];
+        put?: never;
+        /** @description FINANCE or FINOPS_ADMIN selects the current immutable policy and a persisted source. If-Match binds the current policy version. Native selection uses one authenticated current AWS export revision for the exact month. Customer imports and fixtures remain explicitly labeled with unknown coverage. Amounts, canonical facts, ownership snapshots and totals are selected server-side. At most 5000 observations and 25000 allocation entries; larger scopes require a later streaming reporting contract. No invoice finality, execution authority or savings claim is produced. */
+        post: operations["createAllocationReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAllocationReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-reports/{id}/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAllocationEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-reports/{id}/observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAllocationObservations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployment-callbacks/{command_id}": {
         parameters: {
             query?: never;
@@ -872,6 +989,170 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AllocationImportSource: {
+            id: string;
+            status: string;
+            /** @enum {string} */
+            provenance: "CUSTOMER_IMPORT" | "DETERMINISTIC_FIXTURE";
+            source_id: string;
+            source_version: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            coverage: "UNKNOWN";
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        AllocationImportSourcePage: {
+            items: components["schemas"]["AllocationImportSource"][];
+            next_cursor: string | null;
+        };
+        AllocationPolicyDefinition: {
+            /** @enum {string} */
+            schema_version: "1";
+            name: string;
+            rules: {
+                resource_ids: string[];
+                recipients: {
+                    workload_id: string;
+                    weight_ppm: number;
+                }[];
+            }[];
+        };
+        AllocationPolicy: {
+            id: string;
+            version: number;
+            hash: string;
+            definition: components["schemas"]["AllocationPolicyDefinition"];
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AllocationPolicyPage: {
+            items: components["schemas"]["AllocationPolicy"][];
+            next_cursor: string | null;
+            latest: components["schemas"]["AllocationPolicy"] | null;
+            version: number;
+        };
+        AllocationReportRequest: {
+            policy_id: string;
+            source: {
+                /** @enum {string} */
+                kind: "CUSTOMER_IMPORT";
+                ingestion_job_id: string;
+            } | {
+                /** @enum {string} */
+                kind: "AWS_CUR2_CONNECTION";
+                source_connection_id: string;
+                /**
+                 * Format: date-time
+                 * @description Exact UTC first day of the billing month at midnight
+                 */
+                billing_period_start: string;
+            };
+        };
+        AllocationSourceSnapshot: {
+            /** @enum {string} */
+            kind: "CUSTOMER_IMPORT" | "DETERMINISTIC_FIXTURE" | "AWS_CUR2_CONNECTION";
+            /** @enum {string} */
+            coverage: "UNKNOWN" | "AUTHENTICATED_EXPORT_REVISION";
+            /** @enum {string} */
+            finality: "UNPROVEN";
+            provenance: string;
+            reason_code: string;
+            ingestion_job_id: string;
+            source_id: string;
+            source_version: string;
+            raw_hash: string;
+            canonical_hash: string;
+            source_connection_id?: string;
+            source_receipt_id?: string;
+            source_revision_id?: string;
+            /** Format: date-time */
+            billing_period_start?: string;
+            payer_account_id?: string;
+            source_proof_hash?: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        AllocationCurrencyTotal: {
+            currency: string;
+            observed_billed_total: components["schemas"]["NullableDecimal"];
+            known_billed_subtotal: components["schemas"]["Decimal"];
+            allocated_subtotal: components["schemas"]["Decimal"];
+            unallocated_subtotal: components["schemas"]["Decimal"];
+            unknown_record_count: number;
+        };
+        AllocationReport: {
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            status: "ALLOCATED_OBSERVATIONS" | "PARTIAL_OBSERVATIONS" | "NO_OBSERVATIONS";
+            /** @enum {string} */
+            basis: "CURRENT_OWNERSHIP_VIEW";
+            reason_codes: string[];
+            policy_id: string;
+            source: components["schemas"]["AllocationSourceSnapshot"];
+            /** Format: date-time */
+            mapping_as_of: string;
+            mapping_hash: string;
+            input_hash: string;
+            result_hash: string;
+            record_count: number;
+            line_count: number;
+            totals: components["schemas"]["AllocationCurrencyTotal"][];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AllocationReportPage: {
+            items: components["schemas"]["AllocationReport"][];
+            next_cursor: string | null;
+        };
+        AllocationLine: {
+            id: string;
+            record_id: string;
+            source_id: string;
+            source_version: string;
+            resource_id: string | null;
+            provider_resource_id: string;
+            workload_id: string | null;
+            currency: string;
+            allocated_billed_cost: components["schemas"]["NullableDecimal"];
+            /** @enum {string} */
+            method: "POLICY_FIXED_SHARE" | "CURRENT_RESOURCE_OWNER" | "UNALLOCATED";
+            reason_code: string;
+        };
+        AllocationObservation: {
+            id: string;
+            record_id: string;
+            source_id: string;
+            source_version: string;
+            provider: string;
+            account_id: string;
+            region: string;
+            provider_resource_id: string;
+            currency: string;
+            observed_billed_cost: components["schemas"]["NullableDecimal"];
+        };
+        AllocationLinePage: {
+            items: components["schemas"]["AllocationLine"][];
+            next_cursor: string | null;
+        };
+        AllocationObservationPage: {
+            items: components["schemas"]["AllocationObservation"][];
+            next_cursor: string | null;
+        };
         FleetDeploymentCallback: {
             /** @enum {string} */
             schema_version: "4";
@@ -2372,6 +2653,265 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAllocationImportSources: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bounded import metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationImportSourcePage"];
+                };
+            };
+        };
+    };
+    listAllocationPolicyRevisions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Policy revisions and current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationPolicyPage"];
+                };
+            };
+        };
+    };
+    appendAllocationPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationPolicyDefinition"];
+            };
+        };
+        responses: {
+            /** @description Immutable policy appended */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationPolicy"];
+                };
+            };
+            /** @description Stale current version or conflicting idempotency key */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown resource/workload */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAllocationPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable policy within the caller tenant and financial scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationPolicy"];
+                };
+            };
+        };
+    };
+    listAllocationReports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sealed report summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationReportPage"];
+                };
+            };
+        };
+    };
+    createAllocationReport: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Report and conserved signed currency totals sealed atomically */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationReport"];
+                };
+            };
+            /** @description Policy changed or conflicting idempotency key */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Synchronous report exceeded its 25-second request budget. Retry the same Idempotency-Key to reconcile the outcome; asynchronous provider-scale reports remain a later contract. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAllocationReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sealed immutable summary; line and observation details are paginated separately */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationReport"];
+                };
+            };
+        };
+    };
+    listAllocationEntries: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Derived entries, ascending immutable ordinal. Sum allocated_billed_cost only; observed charges are a distinct collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationLinePage"];
+                };
+            };
+        };
+    };
+    listAllocationObservations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exactly one observed billing amount per canonical source record, separate from derived allocation entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationObservationPage"];
+                };
+            };
+        };
+    };
     receiveDeploymentAttestation: {
         parameters: {
             query?: never;

@@ -44,4 +44,17 @@ approving a fleet program. A future fleet financial scope must cover the whole
 owned program and prevent overlap with other action families; the current
 private health failure latch alone is not financial ledger enforcement.
 
+The private local Terraform attestor and rate broker require separate production
+integration review. A local built-in-provider plan does not attest a cloud
+address, and current member billing does not prove historical ASG ownership.
+Select the customer pipeline's exact remote Git/state authority, approved
+encrypted artifact destination, machine subject and native dimension/rate scope
+before connecting either component to a fleet program.
+
+For allocation commissioning, confirm the fixed-share recipients and the current
+resource/workload mapping. A sealed current-ownership report is an observed-cost
+view with provisional finality, not historical chargeback or verified savings.
+Unknown amounts, unallocated charges, credits and each native currency need
+explicit customer review before any business chargeback process is accepted.
+
 After an approved intervention, retain actual work-preservation and cost evidence through the complete observation period. Keep results provisional until native invoice finality, commitment exposure, workload normalization, attributable transition/continuing costs and reconciliation gates pass. Rollback permanently excludes the affected measurement from positive verified savings. Customer usability, security assurance and sustained production operation remain separate acceptance gates. Only evidence of the complete contractual workflow in customer use can earn 100%.

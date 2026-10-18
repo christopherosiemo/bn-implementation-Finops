@@ -182,5 +182,6 @@ export type Page =
   | "schedules"
   | "executions"
   | "savings"
+  | "allocation"
   | "connections"
   | "audit";
