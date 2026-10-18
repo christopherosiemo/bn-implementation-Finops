@@ -185,7 +185,7 @@ func (t *Tx) Evidence(ctx context.Context, table string) ([]model.Document, erro
 	}
 	return r, rows.Err()
 }
-func (s *Store) Migrate(ctx context.Context, dir string) error {
+func (s *Store) migrateOnce(ctx context.Context, dir string) error {
 	files, e := filepath.Glob(filepath.Join(dir, "*.sql"))
 	if e != nil {
 		return e
@@ -198,9 +198,10 @@ func (s *Store) Migrate(ctx context.Context, dir string) error {
 		return e
 	}
 	defer tx.Rollback(ctx)
-	// One transaction and one connection serialize schema changes across deploys
-	// and independent package integration tests; no partially applied role boundary
-	// can become visible between migration files.
+	// One transaction and one connection serialize this database's schema changes;
+	// no partially applied role boundary becomes visible between migration files.
+	// PostgreSQL role names are cluster-wide, while advisory locks are database-
+	// scoped. Migrate retries the specific concurrent global role-creation race.
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('finops:schema-migrations',0))"); e != nil {
 		return e
 	}
