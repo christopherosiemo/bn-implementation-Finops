@@ -26,11 +26,13 @@ class WorkerContractTests(unittest.TestCase):
         cls.thread.join()
 
     def test_versioned_route_requires_worker_identity(self):
-        request = Request(self.url, data=json.dumps(evidence("BASELINE")).encode(), headers={"Content-Type": "application/json"})
+        # Early authentication rejection can close the socket while a client is
+        # still uploading a large body. Keep the unauthenticated probe bounded.
+        unauthorized = Request(self.url, data=b'{}', headers={"Content-Type": "application/json"})
         with patch.dict("os.environ", {"ECONOMICS_TOKEN": "local-test-only"}):
-            with self.assertRaises(HTTPError) as caught: urlopen(request)
+            with self.assertRaises(HTTPError) as caught: urlopen(unauthorized)
             self.assertEqual(caught.exception.code, 401)
-            request.add_header("Authorization", "Bearer local-test-only")
+            request = Request(self.url, data=json.dumps(evidence("BASELINE")).encode(), headers={"Authorization": "Bearer local-test-only", "Content-Type": "application/json"})
             with urlopen(request) as response:
                 result = json.load(response)
             self.assertTrue(result["pre_execution_ready"])
