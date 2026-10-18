@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SourceTrust } from "./SourceTrust";
 import {
   Activity,
   ArrowDownRight,
@@ -2101,6 +2102,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
+      <SourceTrust data={data} run={run} busy={busy} />
       <div className="two-column">
         <Panel title="Read, approve, execute">
           <div className="boundary-list">

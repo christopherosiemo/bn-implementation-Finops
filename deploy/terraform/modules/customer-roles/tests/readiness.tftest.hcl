@@ -22,6 +22,24 @@ run "read_only_creates_no_execution_identity" {
     error_message = "Fresh read-only onboarding must create no execution role or mutation policy."
   }
 }
+run "trusted_billing_permissions_are_opt_in" {
+  command = plan
+  assert {
+    condition     = length(aws_iam_role_policy.trusted_billing) == 0 && length(aws_iam_role_policy.commitment_inventory) == 0 && output.billing_writer_boundary_policy == null
+    error_message = "Discovery defaults must not grant global financial-source capabilities."
+  }
+}
+run "trusted_billing_remains_read_only" {
+  command = plan
+  variables {
+    billing_export_arns         = ["arn:aws:bcm-data-exports:us-east-1:111122223333:export/registered-export"]
+    enable_commitment_inventory = true
+  }
+  assert {
+    condition     = length(aws_iam_role_policy.trusted_billing) == 1 && strcontains(aws_iam_role_policy.trusted_billing[0].policy, "bcm-data-exports:GetExecution") && !strcontains(aws_iam_role_policy.trusted_billing[0].policy, "CreateExport") && strcontains(aws_iam_role_policy.commitment_inventory[0].policy, "ec2:DescribeRegions") && !strcontains(aws_iam_role_policy.commitment_inventory[0].policy, "Purchase") && strcontains(output.billing_writer_boundary_policy, "StringNotEqualsIfExists") && length(aws_iam_role_policy.execution) == 0
+    error_message = "Billing must bind the exact existing export and complete read-only scope without adding mutation authority."
+  }
+}
 run "execution_is_explicit_and_scoped" {
   command = plan
   variables {

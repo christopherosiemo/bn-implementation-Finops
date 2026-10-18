@@ -23,9 +23,16 @@ jobs:
         options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
+      - name: Start isolated real economics worker for provider-shaped acceptance
+        run: |
+          docker run --detach --name economics-tests --network host -e PORT=8001 -v "$PWD/economics:/app:ro" -w /app python:3.13-slim python -m autopilot.server
+          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
       - name: Go tests and vet in container
         run: |
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... && go vet ./...'
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... && go vet ./...'
+      - name: Stop isolated economics worker
+        if: always()
+        run: docker rm -f economics-tests || true
   economics:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -46,6 +53,8 @@ jobs:
         run: git diff --exit-code -- frontend/src/api.generated.ts
       - name: All specification sections have traceability coverage
         run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
+      - name: Fixed product progress weights and acceptance credit reconcile
+        run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/progress.mjs --check
       - name: Linux fixture realm is readable without exposing service secrets
         run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace node:22-bookworm-slim node scripts/bootstrap-permissions.mjs
       - name: Scan tracked source for secrets
@@ -73,9 +82,10 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml > /tmp/finops-readonly.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set notifications.webhookUrl=https://hooks.example.invalid/finops > /tmp/finops-notifications.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set activity.issuer=https://machine.example.invalid --set sources.readBindingsSecret=finops-source-read-bindings > /tmp/finops-sources.yaml
       - name: Check rendered credential and network isolation
         run: |
-          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -98,6 +108,8 @@ jobs:
         run: node scripts/smoke.mjs
       - name: Restart API and worker during an owned stop
         run: node scripts/recovery-smoke.mjs
+      - name: Exercise dedicated machine OIDC and activity-ingress isolation
+        run: node scripts/activity-smoke.mjs
       # Run after API smoke: both tests intentionally use/reset the same fixture tenant.
       - name: Exercise OIDC login and console journey in Chromium
         working-directory: frontend

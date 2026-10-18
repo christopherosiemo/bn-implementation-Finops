@@ -23,7 +23,7 @@ if (!existsSync(envPath)) {
   writeFileSync(envPath, Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
 }
 const env = Object.fromEntries(readFileSync(envPath, 'utf8').split(/\r?\n/).filter(s => s && !s.startsWith('#')).map(s => { const i = s.indexOf('='); return [s.slice(0, i), s.slice(i + 1)]; }));
-for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
+for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), DB_ACTIVITY_PASSWORD: random(), ACTIVITY_CLIENT_SECRET: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
   if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
 }
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
@@ -39,6 +39,14 @@ const realm = {
     webOrigins: [`http://localhost:${env.WEB_PORT}`, 'http://localhost:5173'],
     attributes: { 'pkce.code.challenge.method': 'S256', 'post.logout.redirect.uris': `http://localhost:${env.WEB_PORT}/*` },
     protocolMappers: [mapper('tenant_id', { 'user.attribute': 'tenant_id', 'claim.name': 'tenant_id', 'jsonType.label': 'String', 'access.token.claim': 'true', 'id.token.claim': 'true', 'userinfo.token.claim': 'true' }), mapper('finops-audience', { 'included.custom.audience': 'finops', 'access.token.claim': 'true', 'id.token.claim': 'false' })],
+  }, {
+    clientId: 'activity-collector', name: 'Independent workload activity collector', enabled: true,
+    protocol: 'openid-connect', publicClient: false, secret: env.ACTIVITY_CLIENT_SECRET,
+    standardFlowEnabled: false, directAccessGrantsEnabled: false, serviceAccountsEnabled: true,
+    protocolMappers: [
+      mapper('activity-audience', { 'included.custom.audience': 'finops-activity', 'access.token.claim': 'true', 'id.token.claim': 'false' }),
+      { name: 'activity-tenant', protocol: 'openid-connect', protocolMapper: 'oidc-hardcoded-claim-mapper', consentRequired: false, config: { 'claim.name': 'tenant_id', 'claim.value': 'tenant-demo', 'jsonType.label': 'String', 'access.token.claim': 'true', 'id.token.claim': 'false' } },
+    ],
   }],
   users: [
     { username: env.DEMO_USERNAME, firstName: 'Pilot', lastName: 'Owner', email: 'owner@fixture.invalid', emailVerified: true, enabled: true, attributes: { tenant_id: ['tenant-demo'] }, credentials: [{ type: 'password', value: env.DEMO_PASSWORD, temporary: false }], realmRoles: roles },

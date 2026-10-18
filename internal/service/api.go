@@ -27,7 +27,18 @@ type API struct {
 	Config Config
 	Auth   *auth.Validator
 	Client *http.Client
+	// Clock is injected by deterministic acceptance tests, never configured by
+	// requests or environment. Production always uses the process UTC clock.
+	Clock func() time.Time
 }
+
+func (a *API) now() time.Time {
+	if a.Clock != nil {
+		return a.Clock().UTC()
+	}
+	return time.Now().UTC()
+}
+
 type Problem struct {
 	Status  int
 	Code    string
@@ -181,6 +192,16 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				reports = append(reports, row)
 			}
 			d["readiness"] = reports
+			connections, err := t.SourceList(r.Context())
+			if err != nil {
+				return err
+			}
+			d["source_connections"] = connections
+			collectors, err := activitySources(r.Context(), t)
+			if err != nil {
+				return err
+			}
+			d["activity_sources"] = collectors
 			for _, k := range []string{"cloud_accounts", "resources", "workloads", "recommendations", "policies", "schedules", "change_plans", "executions", "data_quality"} {
 				rows, e := t.List(r.Context(), k)
 				if e != nil {
@@ -203,6 +224,15 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return problem(403, "WORKLOAD_SCOPE_DENIED", "application owners use the scoped dashboard")
 		}
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+		if len(parts) == 1 && parts[0] == "activity-sources" {
+			d, err := activitySources(r.Context(), t)
+			out = d
+			return err
+		}
+		if d, handled, err := sourceGet(r.Context(), t, r.URL.Path); handled {
+			out = d
+			return err
+		}
 		if len(parts) == 3 && parts[0] == "resources" && parts[2] == "readiness" {
 			d, err := a.readiness(r.Context(), t, parts[1], false)
 			out = d

@@ -46,4 +46,6 @@ func restrictDashboard(i auth.Identity, d model.Document) {
 	d["audit"] = []model.Document{}
 	d["savings"] = []model.Document{}
 	d["cloud_accounts"] = []model.Document{}
+	d["source_connections"] = []model.Document{}
+	d["activity_sources"] = []model.Document{}
 }

@@ -24,6 +24,12 @@ spec:
     - host: {{ $host | quote }}
       http:
         paths:
+          - path: /v1/activity/intervals
+            pathType: Exact
+            backend:
+              service:
+                name: finops-activity-ingress
+                port: { number: 8080 }
           - path: /
             pathType: Prefix
             backend:
@@ -43,4 +49,20 @@ spec:
     - from:
         - ipBlock: { cidr: {{ .Values.ingress.vpcCidr }} }
       ports: [{ protocol: TCP, port: {{ .Values.web.containerPort }} }]
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-alb-activity-ingress
+spec:
+  podSelector:
+    matchLabels: { finops-role: activity-ingress }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: {{ .Values.ingress.vpcCidr }} }
+      ports: [{ protocol: TCP, port: 8080 }]
 {{- end }}

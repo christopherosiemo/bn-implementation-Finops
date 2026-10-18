@@ -104,7 +104,10 @@ export function isTrustedPlan(record: Document & EvidenceFields): boolean {
       payload &&
       typeof payload === "object" &&
       "schema_version" in payload &&
-      payload.schema_version === "2",
+      (payload.schema_version === "2" ||
+        (payload.schema_version === "3" &&
+          "proof_set_id" in payload &&
+          Boolean(payload.proof_set_id))),
     )
   );
 }
@@ -253,7 +256,9 @@ export function Badge({
     tone ||
     (status === "UNVERIFIED"
       ? "neutral"
-      : /FAIL|BLOCK|ERROR|ACTIVE|UNHEALTHY|UNKNOWN|FROZEN|CONFOUNDED/.test(status)
+      : /FAIL|BLOCK|ERROR|ACTIVE|UNHEALTHY|UNKNOWN|FROZEN|CONFOUNDED/.test(
+            status,
+          )
         ? "red"
         : /PENDING|PROVISIONAL|MEASURING|RECOMMEND|WAIT|RESTOR|STOPPING|STARTING/.test(
               status,

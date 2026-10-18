@@ -12,7 +12,8 @@
 {{- if eq .Values.health.allowedHosts "" }}{{ fail "health.allowedHosts must list exact HTTPS health hostnames when AWS execution is configured" }}{{ end }}
 {{- end }}
 {{- end }}
-{{- range $role := list "api" "worker" "ingester" "signer" "executor" "economics" "web" }}
+{{- if eq .Values.activity.audience .Values.oidc.audience }}{{ fail "activity.audience must differ from the human API audience" }}{{ end }}
+{{- range $role := list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "economics" "web" }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -79,7 +80,7 @@ spec:
             - { name: AWS_STS_REGIONAL_ENDPOINTS, value: regional }
             - { name: DATA_MODE, value: {{ $.Values.dataMode | quote }} }
             - { name: FIXTURE_MODE, value: {{ eq $.Values.dataMode "fixture" | quote }} }
-            {{- if has $role (list "api" "worker" "ingester" "signer" "executor") }}
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
             - { name: APP_ROLE, value: {{ $role | quote }} }
             - { name: PORT, value: "8080" }
             - name: DATABASE_URL
@@ -93,6 +94,15 @@ spec:
             {{- if $.Values.oidc.jwksUrl }}
             - { name: OIDC_JWKS_URL, value: {{ $.Values.oidc.jwksUrl | quote }} }
             {{- end }}
+            {{- if eq $role "activity-ingress" }}
+            - { name: ACTIVITY_OIDC_AUDIENCE, value: {{ $.Values.activity.audience | quote }} }
+            {{- if $.Values.activity.jwksUrl }}
+            - { name: ACTIVITY_OIDC_JWKS_URL, value: {{ $.Values.activity.jwksUrl | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- if has $role (list "api" "activity-ingress") }}
+            - { name: ACTIVITY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.activity.issuer | quote }} }
+            {{- end }}
             {{- end }}
             {{- if eq $role "worker" }}
             - { name: SIGNER_URL, value: "http://finops-signer:8080" }
@@ -105,6 +115,11 @@ spec:
             {{- end }}
             {{- end }}
             {{- if eq $role "ingester" }}
+            {{- if $.Values.sources.readBindingsSecret }}
+            - name: AWS_SOURCE_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.readBindingsSecret }}, key: AWS_SOURCE_READ_BINDINGS_JSON }
+            {{- end }}
             - { name: AWS_READ_ROLE_ARN, value: {{ $.Values.aws.readRoleArn | quote }} }
             - { name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }} }
             - { name: OBJECT_REGION, value: {{ $.Values.aws.region | quote }} }
@@ -163,13 +178,13 @@ spec:
           resources: {{ toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
-            {{- if has $role (list "api" "worker" "ingester" "signer" "executor") }}
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
             - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
             {{- end }}
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 128Mi }
-        {{- if has $role (list "api" "worker" "ingester" "signer" "executor") }}
+        {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
         - name: rds-ca
           configMap: { name: {{ $.Values.database.caConfigMap }} }
         {{- end }}

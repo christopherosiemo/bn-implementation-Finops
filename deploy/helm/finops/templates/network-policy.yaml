@@ -32,7 +32,7 @@ spec:
     matchExpressions:
       - key: finops-role
         operator: In
-        values: [api, worker, ingester, signer, executor, migrate, temporal]
+        values: [api, worker, ingester, signer, executor, activity-ingress, migrate, temporal]
   policyTypes: [Egress]
   egress:
     - ports: [{ protocol: TCP, port: 5432 }]

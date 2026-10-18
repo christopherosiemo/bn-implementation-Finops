@@ -4,6 +4,103 @@
  */
 
 export interface paths {
+    "/source-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSourceConnections"];
+        put?: never;
+        post: operations["registerSourceConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/source-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["inspectSourceConnection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/source-connections/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["syncSourceConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/source-connections/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revokeSourceConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/activity-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listActivitySources"];
+        put?: never;
+        post: operations["registerActivitySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/activity/intervals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Served by the isolated activity-ingress service. Dedicated machine OIDC audience required; console tokens cannot authorize ingestion. Sequence and content hash provide idempotency. */
+        post: operations["ingestActivityInterval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard": {
         parameters: {
             query?: never;
@@ -376,6 +473,126 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_CUR2";
+            payer_account_id: string;
+            usage_account_ids: string[];
+            /** @enum {string} */
+            region: "eu-west-1";
+            export_arn: string;
+            /** @description Server-approved binding identifier; never a caller supplied role or credentials */
+            read_role_binding_id: string;
+            bucket: string;
+            bucket_owner: string;
+            prefix: string;
+        };
+        SourceConnection: components["schemas"]["Document"] & components["schemas"]["SourceConnectionRequest"] & {
+            enabled?: boolean;
+            status?: string;
+            reason_code?: string;
+            /** Format: date-time */
+            last_sync_at?: string;
+            latest_revision_id?: string;
+            receipts?: components["schemas"]["TrustedReceipt"][];
+        };
+        TrustedReceipt: components["schemas"]["Document"] & {
+            /** @enum {string} */
+            kind: "AWS_CUR2" | "AWS_INVOICE" | "AWS_COMMITMENT";
+            source_id: string;
+            registration_id?: string;
+            revision_id?: string;
+            source_proof?: components["schemas"]["SourceProof"];
+            commitment_scope?: components["schemas"]["CommitmentScope"];
+        };
+        SourceObjectReference: {
+            key: string;
+            version_id: string;
+            sha256: string;
+            size_bytes: number;
+        };
+        SourceProof: {
+            receipt_id: string;
+            revision_id: string;
+            source_id?: string;
+            source_version?: string;
+            manifest_hash: string;
+            payer_account_id: string;
+            usage_account_id: string;
+            /** @enum {string} */
+            region: "eu-west-1";
+            currency: string;
+            invoice_entity: string;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            /** @enum {string} */
+            state: "COMPLETE" | "FINAL";
+            object_count: number;
+            verified_object_count: number;
+            row_count: number;
+            verified_row_count: number;
+        };
+        CommitmentScope: {
+            receipt_id: string;
+            payer_account_id: string;
+            usage_account_ids: string[];
+            /** @enum {string} */
+            scope: "PAYER_ALL_LINKED_ACCOUNTS_ALL_REGIONS";
+            complete: boolean;
+            /** Format: date-time */
+            observed_at: string;
+            reserved_instance_count?: number;
+            savings_plan_count?: number;
+        };
+        ActivitySignal: {
+            /** @enum {string} */
+            status: "CLEAR" | "ACTIVE" | "UNKNOWN";
+            reason_code: string;
+            receipt_id: string;
+            source_id: string;
+            /** Format: date-time */
+            received_at: string;
+            /** Format: date-time */
+            interval_end: string;
+        };
+        MetricDefinition: {
+            id: string;
+            version: string;
+            unit: string;
+        };
+        ActivitySourceRequest: {
+            resource_id: string;
+            subject: string;
+            metric_definition: components["schemas"]["MetricDefinition"];
+        };
+        ActivityInterval: {
+            /** @enum {string} */
+            schema_version: "1";
+            source_id: string;
+            resource_id: string;
+            workload_id: string;
+            sequence: number;
+            /** Format: date-time */
+            interval_start: string;
+            /** Format: date-time */
+            interval_end: string;
+            metric_definition: components["schemas"]["MetricDefinition"];
+            accepted: number;
+            completed: number;
+            rejected: number;
+            backlog: number;
+            inflight: number;
+            /** @enum {boolean} */
+            heartbeat: true;
+            /** @enum {string} */
+            incident: "CLEAR" | "ACTIVE" | "UNKNOWN";
+            /** @enum {string} */
+            deployment: "CLEAR" | "ACTIVE" | "UNKNOWN";
+            /** @enum {string} */
+            job: "CLEAR" | "ACTIVE" | "UNKNOWN";
+        };
         Decimal: string;
         NullableDecimal: string | null;
         Document: {
@@ -477,6 +694,8 @@ export interface components {
             audit: components["schemas"]["AuditEvent"][];
             data_quality: components["schemas"]["Document"][];
             readiness: components["schemas"]["Readiness"][];
+            source_connections?: components["schemas"]["SourceConnection"][];
+            activity_sources?: components["schemas"]["Document"][];
         };
         EvidenceBinding: {
             tenant_id: string;
@@ -507,6 +726,11 @@ export interface components {
             blockers?: string[];
             evidence_refs?: string[];
             source_refs?: components["schemas"]["SourceReference"][];
+            proof_set_id?: string | null;
+            source_proof?: components["schemas"]["SourceProof"];
+            commitment_scope?: components["schemas"]["CommitmentScope"];
+            activity_signal?: components["schemas"]["ActivitySignal"];
+            pricing_basis?: ("NET_UNBLENDED" | "UNBLENDED")[];
         };
         SourceReference: {
             /** @enum {string} */
@@ -518,11 +742,16 @@ export interface components {
             source_hash: string;
             /** @description SHA-256 of persisted canonical snapshot JSON */
             canonical_hash: string;
+            /** @description Ingester-issued immutable version 3 receipt */
+            source_receipt_id?: string;
+            source_revision_id?: string;
             binding: components["schemas"]["EvidenceBinding"];
         };
         PlanPayload: components["schemas"]["Document"] & {
             /** @enum {string} */
-            schema_version: "2";
+            schema_version: "2" | "3";
+            /** @description Required for all new live stops; signed immutable proof set */
+            proof_set_id?: string;
             baseline_id: string;
             measurement_id: string;
             readiness_id: string;
@@ -561,25 +790,25 @@ export interface components {
             total: components["schemas"]["Decimal"];
         };
         BaselineRequest: {
+            /** @enum {string} */
+            schema_version: "3";
             resource_id: string;
-            ingestion_job_id: string;
+            source_connection_id: string;
             schedule_id: string;
             /** Format: date-time */
             start: string;
             /** Format: date-time */
             end: string;
-            workload_samples: components["schemas"]["WorkloadSample"][];
         };
         MeasurementRequest: {
+            /** @enum {string} */
+            schema_version: "3";
             measurement_id: string;
-            ingestion_job_id: string;
+            source_connection_id: string;
             /** Format: date-time */
             start: string;
             /** Format: date-time */
             end: string;
-            workload_samples: components["schemas"]["WorkloadSample"][];
-            /** @description Optional consistency assertion only; must exactly equal invoice metadata in the immutable imported source. Canonical reconciliation totals are always derived by the server. */
-            invoice?: components["schemas"]["SourceInvoice"];
         };
         ConnectAccountRequest: {
             /** @enum {string} */
@@ -638,6 +867,207 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listSourceConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant source health and trusted ingestion status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceConnection"][];
+                };
+            };
+        };
+    };
+    registerSourceConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description AWS location registered; trust requires successful independent ingestion */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    inspectSourceConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration, immutable receipts and source-specific blockers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceConnection"];
+                };
+            };
+        };
+    };
+    syncSourceConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["Document"];
+        responses: {
+            /** @description Durable ingestion request queued; no execution permission granted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeSourceConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["Document"];
+        responses: {
+            /** @description New stops blocked; existing owned restoration remains authorized */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listActivitySources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registered independent workload collectors */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    registerActivitySource: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivitySourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Exact machine subject and metric definition registered for the resource */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ingestActivityInterval: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityInterval"];
+            };
+        };
+        responses: {
+            /** @description Exact replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated immutable minute observation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicting sequence or interval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     dashboard: {
         parameters: {
             query?: never;

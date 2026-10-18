@@ -36,6 +36,7 @@ database:
     ingester: finops-db-ingester
     signer: finops-db-signer
     executor: finops-db-executor
+    activity-ingress: finops-db-activity
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -51,9 +52,18 @@ secrets:
 health:
   # Comma-delimited exact hostnames; AWS pilot probes use HTTPS (egress 443).
   allowedHosts: ""
+sources:
+  # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
+  # ingester receives it; leave empty for discovery-only installations.
+  readBindingsSecret: ""
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+activity:
+  # Dedicated machine tokens; never configure the browser/API audience here.
+  audience: finops-activity
+  issuer: ""
+  jwksUrl: ""
 objectStorage:
   # Empty endpoint selects regional AWS S3 and SDK IRSA credentials.
   endpoint: ""
@@ -78,6 +88,7 @@ replicas:
   ingester: 1
   signer: 1
   executor: 1
+  activity-ingress: 1
   economics: 1
   web: 1
 resources:

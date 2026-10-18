@@ -19,7 +19,7 @@ def check(path):
         doc["metadata"]["name"].removeprefix("finops-"): doc
         for doc in manifests if doc["kind"] == "ServiceAccount"
     }
-    required = {"api", "worker", "ingester", "signer", "executor", "economics", "web"}
+    required = {"api", "worker", "ingester", "signer", "executor", "activity-ingress", "economics", "web"}
     assert required <= deployments.keys(), "missing isolated application deployment"
     secret_keys = {}
     envs = {}
@@ -49,9 +49,12 @@ def check(path):
         if role != "ingester":
             assert not any(key.startswith("OBJECT_") for key in envs[role])
             assert "AWS_READ_ROLE_ARN" not in envs[role]
+            assert "AWS_SOURCE_READ_BINDINGS_JSON" not in envs[role]
         if role != "executor":
             assert "AWS_EXECUTION_ROLE_ARN" not in envs[role]
-    go_roles = {"api", "worker", "ingester", "signer", "executor"}
+    go_roles = {"api", "worker", "ingester", "signer", "executor", "activity-ingress"}
+    assert envs["activity-ingress"]["ACTIVITY_OIDC_AUDIENCE"]["value"] != envs["api"]["OIDC_AUDIENCE"]["value"]
+    assert envs["activity-ingress"]["ACTIVITY_OIDC_ISSUER"]["value"] == envs["api"]["ACTIVITY_OIDC_ISSUER"]["value"], "collector registration and ingress must bind the same issuer"
     webhook_url = envs["worker"].get("WEBHOOK_URL", {}).get("value", "")
     assert ("WEBHOOK_SECRET" in secret_keys["worker"]) == bool(webhook_url)
     if webhook_url:

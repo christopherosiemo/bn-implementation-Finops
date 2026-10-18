@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/activity"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/service"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -162,6 +163,15 @@ func (a *Activities) Control(ctx context.Context, in model.WorkflowInput) (Contr
 			return e
 		}
 		c.Restore = model.Bool(d, "start_now") || model.Bool(org, "paused") || model.Bool(s, "paused") || model.String(w, "incident") != "CLEAR" || model.String(w, "job") == "ACTIVE" || model.String(w, "deployment") == "ACTIVE"
+		payload := model.Document{}
+		encoded, _ := json.Marshal(p["payload"])
+		_ = json.Unmarshal(encoded, &payload)
+		if model.String(payload, "schema_version") == "3" {
+			latest, err := t.ActivityLatest(ctx, model.String(d, "resource_id"))
+			// Lost trusted inputs are restoration requests, never cancellation of
+			// the executor's already persisted ownership obligation.
+			c.Restore = model.Bool(d, "start_now") || model.Bool(org, "paused") || model.Bool(s, "paused") || err != nil || activity.FreshActivity(time.Now(), latest, 2*time.Minute).Status != "CLEAR"
+		}
 		return nil
 	})
 	return c, e

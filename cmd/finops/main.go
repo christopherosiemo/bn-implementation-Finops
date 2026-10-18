@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/activity"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/safety"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/service"
@@ -44,6 +45,27 @@ func run() error {
 	}
 	var handler http.Handler
 	switch cfg.Role {
+	case "activity-ingress":
+		issuer := os.Getenv("ACTIVITY_OIDC_ISSUER")
+		if issuer == "" {
+			issuer = cfg.Issuer
+		}
+		audience := os.Getenv("ACTIVITY_OIDC_AUDIENCE")
+		if audience == "" {
+			audience = "finops-activity"
+		}
+		if audience == cfg.Audience {
+			return &service.Problem{Status: 500, Message: "activity audience must differ from console audience"}
+		}
+		jwks := os.Getenv("ACTIVITY_OIDC_JWKS_URL")
+		if jwks == "" && issuer == cfg.Issuer {
+			jwks = cfg.JWKSURL
+		}
+		v, e := auth.New(ctx, issuer, audience, jwks)
+		if e != nil {
+			return e
+		}
+		handler = activity.NewServer(db, v, issuer).Handler()
 	case "api":
 		v, e := auth.New(ctx, cfg.Issuer, cfg.Audience, cfg.JWKSURL)
 		if e != nil {

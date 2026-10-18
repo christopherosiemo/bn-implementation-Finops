@@ -166,6 +166,62 @@ async function openContract(page: Page, data: Dashboard) {
   return writes;
 }
 
+test("trusted source and collector gaps remain visible without implying zero spend", async ({
+  page,
+}) => {
+  const data = dashboard();
+  data.source_connections = [
+    {
+      id: "source-v3",
+      version: 2,
+      kind: "AWS_CUR2",
+      payer_account_id: "111122223333",
+      usage_account_ids: ["111122223333"],
+      region: "eu-west-1",
+      export_arn: "arn:aws:bcm-data-exports:us-east-1:111122223333:export/cur",
+      read_role_binding_id: "approved-read",
+      bucket: "regional-cur-evidence",
+      bucket_owner: "111122223333",
+      prefix: "cur/",
+      enabled: true,
+      status: "DEGRADED",
+      reason_code: "SOURCE_MANIFEST_FILES_REQUIRED",
+    },
+  ];
+  data.activity_sources = [
+    {
+      id: "collector-v3",
+      version: 1,
+      resource_id: "resource-ui",
+      subject: "independent-machine",
+      status: "UNKNOWN",
+      reason_code: "ACTIVITY_COVERAGE_GAP",
+    },
+  ];
+  data.readiness![0].status = "BLOCKED";
+  data.readiness![0].pre_execution_ready = false;
+  data.readiness![0].reason_code = "WORKLOAD_EVIDENCE_MISSING";
+  const writes = await openContract(page, data);
+  await page.getByRole("link", { name: "Connections & quality" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Trusted billing sources" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Source manifest files required", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Activity coverage gap", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Register billing source" }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Register trusted billing source",
+  });
+  await expect(dialog.getByLabel("Approved read binding ID")).toBeVisible();
+  await expect(dialog.getByLabel("Versioned delivery bucket")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(writes).toEqual([]);
+});
+
 test("a ready baseline permits plan creation while savings are still measuring", async ({
   page,
 }) => {
@@ -338,14 +394,20 @@ test("verified totals preserve negative results while excluding legacy and super
   ).toContainText("-£5.16");
   await page.getByRole("link", { name: "Savings evidence" }).click();
   await expect(
-    page.locator(".metric").filter({ hasText: "Verified period savings · GBP" }),
+    page
+      .locator(".metric")
+      .filter({ hasText: "Verified period savings · GBP" }),
   ).toContainText("-£5.16");
   await expect(
-    page.locator(".metric").filter({ hasText: "Verified period savings · USD" }),
+    page
+      .locator(".metric")
+      .filter({ hasText: "Verified period savings · USD" }),
   ).toContainText("Unavailable");
   await expect(page.getByRole("table")).toContainText(
     "Superseded · retained history",
   );
-  await expect(page.getByRole("table")).toContainText("Legacy / unbound history");
+  await expect(page.getByRole("table")).toContainText(
+    "Legacy / unbound history",
+  );
   expect(writes).toEqual([]);
 });

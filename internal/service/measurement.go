@@ -12,6 +12,12 @@ import (
 )
 
 func (a *API) createMeasurement(ctx context.Context, t *store.Tx, in model.Document) (model.Document, error) {
+	if model.String(in, "schema_version") == "3" {
+		return a.createTrustedMeasurement(ctx, t, in)
+	}
+	if !a.Config.Fixture {
+		return nil, problem(422, "EVIDENCE_V3_REQUIRED", "live measurements require authenticated receipts")
+	}
 	m, e := t.EvidenceGet(ctx, "measurement", model.String(in, "measurement_id"))
 	if e != nil {
 		return nil, e
@@ -117,7 +123,7 @@ func (a *API) measurementInput(ctx context.Context, t *store.Tx, x model.Documen
 	if e != nil {
 		return nil, e
 	}
-	if p.SchemaVersion != "2" {
+	if p.SchemaVersion != "2" && p.SchemaVersion != "3" {
 		return nil, problem(422, "READINESS_V2_REQUIRED", "legacy execution lacks attributable measurement contract")
 	}
 	b, e := t.EvidenceGet(ctx, "baseline", p.BaselineID)
@@ -151,6 +157,9 @@ func (a *API) measurementInput(ctx context.Context, t *store.Tx, x model.Documen
 		}
 	}
 	input := baselineInput(b)
+	if p.SchemaVersion == "3" {
+		input["proof_set_id"] = p.ProofSetID
+	}
 	input["phase"], input["measurement_id"], input["activation_at"] = "MEASUREMENT", p.MeasurementID, m["activation_at"]
 	if snapshot == nil {
 		input["phase"] = "BASELINE"
@@ -160,7 +169,11 @@ func (a *API) measurementInput(ctx context.Context, t *store.Tx, x model.Documen
 	if e != nil {
 		return nil, e
 	}
-	if e = trustedSource(job, a.Config.Fixture); e != nil {
+	if p.SchemaVersion == "3" {
+		if _, e = trustedJob(ctx, t, job, res); e != nil {
+			return nil, e
+		}
+	} else if e = trustedSource(job, a.Config.Fixture); e != nil {
 		return nil, e
 	}
 	bind, _, e := evidence.Source(job, res, t.Tenant)
@@ -171,10 +184,18 @@ func (a *API) measurementInput(ctx context.Context, t *store.Tx, x model.Documen
 		return nil, problem(422, "MEASUREMENT_SOURCE_CHANGED", "measurement source differs from sealed evidence")
 	}
 	snapshot = model.Clone(snapshot)
+	if p.SchemaVersion == "3" {
+		if e = validateSnapshotSources(ctx, t, snapshot, res); e != nil {
+			return nil, evidenceProblem(e)
+		}
+	}
 	if !a.Config.Fixture && len(evidence.Object(snapshot["financial_clock"])) > 0 {
 		return nil, problem(422, "LIVE_LOGICAL_CLOCK_FORBIDDEN", "logical financial clocks are permitted only for deterministic fixture evidence")
 	}
 	input["as_of"] = snapshot["created_at"]
+	if p.SchemaVersion == "3" {
+		input["as_of"] = snapshot["evidence_as_of"]
+	}
 	snapshot["owned_intervals"] = owned
 	if clock := evidence.Object(snapshot["financial_clock"]); len(clock) > 0 {
 		// Logical intervals require an executor receipt for every mapped occurrence.
@@ -194,6 +215,17 @@ func (a *API) measurementInput(ctx context.Context, t *store.Tx, x model.Documen
 		}
 		snapshot["owned_intervals"] = mapped
 		input["financial_clock"], input["as_of"] = clock, clock["as_of"]
+	}
+	if p.SchemaVersion == "3" {
+		start, err := inputTime(snapshot, "start")
+		if err != nil {
+			return nil, err
+		}
+		end, err := inputTime(snapshot, "end")
+		if err != nil {
+			return nil, err
+		}
+		snapshot["billing_observations"] = billingObservations(evidence.Rows(snapshot["billing_records"]), evidence.Rows(snapshot["source_proofs"]), evidence.Rows(snapshot["owned_intervals"]), start, end)
 	}
 	input["measurement"], input["measurement_snapshot_id"] = snapshot, snapshot["id"]
 	refs, err := evidence.IncrementalReferences(evidence.Rows(b["billing_records"]), evidence.Rows(snapshot["billing_records"]), evidence.Rows(snapshot["owned_intervals"]))

@@ -73,6 +73,12 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if e != nil {
 		return nil, e
 	}
+	if model.String(baseline, "schema_version") == "3" {
+		w, e = trustedWorkload(ctx, t, res, w)
+		if e != nil {
+			return nil, evidenceProblem(e)
+		}
+	}
 	policy, e := t.Get(ctx, "policies", "policy-default")
 	if e != nil {
 		return nil, e
@@ -124,6 +130,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 		return nil, e
 	}
 	p.SchemaVersion, p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt = "2", model.String(ready, "id"), model.String(baseline, "id"), model.String(m, "id"), model.String(m, "activation_at")
+	if model.String(baseline, "schema_version") == "3" {
+		p.SchemaVersion, p.ProofSetID = "3", model.String(ready, "proof_set_id")
+	}
 	if e = readinessPlanCheck(ctx, t, p, res); e != nil {
 		return nil, e
 	}
@@ -132,6 +141,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	_ = json.Unmarshal(b, &payload)
 	d := model.Document{"id": p.ID, "recommendation_id": recID, "schedule_id": scheduleID, "resource_id": res["id"], "workload_id": w["id"], "policy_version": p.PolicyVersion, "risk_class": "R1", "status": "AWAITING_APPROVAL", "operations": p.Operations, "payload": payload, "stop_at": stop.Format(time.RFC3339Nano), "restore_at": start.Format(time.RFC3339Nano), "expires_at": expiry.Format(time.RFC3339Nano), "created_at": model.Now(), "restoration_authorized": true, "fixture": fixture}
 	d["readiness_id"], d["baseline_id"], d["measurement_id"], d["activation_at"] = p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt
+	d["proof_set_id"] = p.ProofSetID
 	return t.Create(ctx, "change_plans", d)
 }
 func decodePlan(d model.Document) (model.Plan, error) {
@@ -159,7 +169,14 @@ func (a *API) economics(ctx context.Context, endpoint string, input model.Docume
 		return nil, problem(503, "ECONOMICS_UNAVAILABLE", "economics service unavailable")
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 4<<20))
+	limit := int64(4 << 20)
+	if endpoint == "v3/normalize" {
+		limit = 64 << 20
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if readErr != nil || int64(len(raw)) > limit {
+		return nil, problem(503, "ECONOMICS_RESPONSE_LIMIT", "economics response exceeded bounded ingestion capacity")
+	}
 	if res.StatusCode/100 != 2 {
 		return nil, problem(422, "ECONOMICS_REJECTED", string(raw))
 	}
@@ -181,19 +198,29 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 			continue
 		}
 		evidence, e := a.measurementInput(ctx, t, x)
+		var d model.Document
 		if e != nil {
-			var p *Problem
-			if errors.As(e, &p) {
-				return nil, 0, p
+			d, e = a.invalidatedTrustedClaim(ctx, t, x, e)
+			if e != nil {
+				var p *Problem
+				if errors.As(e, &p) {
+					return nil, 0, p
+				}
+				return nil, 0, problem(422, "BILLING_EVIDENCE_REQUIRED", e.Error())
 			}
-			return nil, 0, problem(422, "BILLING_EVIDENCE_REQUIRED", e.Error())
-		}
-		d, e := a.economics(ctx, "v2/evaluate", evidence)
-		if e != nil {
-			return nil, 0, e
+		} else {
+			d, e = a.economics(ctx, "v2/evaluate", evidence)
+			if e != nil {
+				d, e = a.invalidatedTrustedClaim(ctx, t, x, e)
+				if e != nil {
+					return nil, 0, e
+				}
+			}
 		}
 		d["id"], d["execution_id"], d["recommendation_id"], d["created_at"], d["fixture"] = model.ID(), x["id"], x["recommendation_id"], model.Now(), a.Config.Fixture
-		d["baseline_id"], d["measurement_id"], d["measurement_snapshot_id"], d["activation_at"], d["financial_clock"] = evidence["baseline_id"], evidence["measurement_id"], evidence["measurement_snapshot_id"], evidence["activation_at"], evidence["financial_clock"]
+		if evidence != nil {
+			d["baseline_id"], d["measurement_id"], d["measurement_snapshot_id"], d["activation_at"], d["financial_clock"] = evidence["baseline_id"], evidence["measurement_id"], evidence["measurement_snapshot_id"], evidence["activation_at"], evidence["financial_clock"]
+		}
 		fingerprint := model.String(d, "fingerprint")
 		if fingerprint == "" {
 			return nil, 0, errors.New("economics response missing evidence fingerprint")
@@ -225,11 +252,35 @@ func (a *API) verifySavings(ctx context.Context, t *store.Tx, i interface{}, in 
 			if e = json.Unmarshal(existing, &prior); e != nil {
 				return nil, 0, e
 			}
-			prior["is_current"] = existingCurrent
-			results = append(results, prior)
-			continue
+			if existingCurrent {
+				prior["is_current"] = true
+				results = append(results, prior)
+				continue
+			}
+			// Returning an obsolete identical payload must not leave a newer,
+			// different financial head in force. Revivals append a correction.
+			headID, _, err := previousSavingsRevision(ctx, t, key, model.String(d, "measurement_id"))
+			if err != nil {
+				return nil, 0, err
+			}
+			var headRaw []byte
+			if e = t.QueryRow(ctx, "SELECT document FROM savings_ledger WHERE tenant_id=$1 AND id=$2", t.Tenant, headID).Scan(&headRaw); e != nil {
+				return nil, 0, e
+			}
+			var head model.Document
+			if e = json.Unmarshal(headRaw, &head); e != nil {
+				return nil, 0, e
+			}
+			if model.String(head, "evidence_fingerprint") == fingerprint {
+				head["is_current"] = true
+				results = append(results, head)
+				continue
+			}
+			d["evidence_fingerprint"] = fingerprint
+			fingerprint = evidencepkg.Hash(model.Document{"evidence_fingerprint": fingerprint, "supersedes_id": headID})
+			d["fingerprint"] = fingerprint
 		}
-		if existingErr != pgx.ErrNoRows {
+		if existingErr != nil && existingErr != pgx.ErrNoRows {
 			return nil, 0, existingErr
 		}
 		coverage, _ := json.Marshal(windows)

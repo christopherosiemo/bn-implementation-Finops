@@ -29,6 +29,16 @@ var tenantKey = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
 
 func evidenceHash(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 
+// ArchiveSourceObject preserves exact native bytes before authenticated receipt
+// publication. Product evidence keys and storage remain in the Ireland cell.
+func ArchiveSourceObject(ctx context.Context, tenant, source, key string, b []byte) error {
+	return putEvidence(ctx, tenant, "raw", source+":"+key, b)
+}
+
+func (a *API) NormalizeTrustedSource(ctx context.Context, raw model.Document) (model.Document, error) {
+	return a.economics(ctx, "v3/normalize", raw)
+}
+
 // putEvidence uses a content-addressed, tenant-qualified key. The raw/audit bucket
 // policies and Object Lock, not application DELETE conventions, protect history.
 func putEvidence(ctx context.Context, tenant, kind, id string, b []byte) error {

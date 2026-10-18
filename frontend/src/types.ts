@@ -14,6 +14,7 @@ export interface EvidenceFields {
   baseline_id?: string | null;
   measurement_id?: string | null;
   readiness_id?: string | null;
+  proof_set_id?: string | null;
   activation_at?: string | null;
   evidence_refs?: unknown[];
   source_refs?: components["schemas"]["SourceReference"][];
@@ -127,6 +128,8 @@ export interface Dashboard {
   audit: Audit[];
   data_quality: Document[];
   readiness?: Readiness[];
+  source_connections?: (Document & components["schemas"]["SourceConnection"])[];
+  activity_sources?: Document[];
 }
 export type Page =
   | "overview"

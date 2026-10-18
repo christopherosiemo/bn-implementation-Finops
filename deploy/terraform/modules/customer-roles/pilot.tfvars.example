@@ -8,6 +8,11 @@ read_principal_arn  = "arn:aws:iam::123456789012:role/finops-pilot-ingester"
 external_id         = "REPLACE-with-unique-32-character-minimum-value"
 billing_bucket_arn  = null # Discovery only; later arn:aws:s3:::YOUR-customer-billing
 billing_prefix      = "cur/"
+# Trusted billing is separately opt-in; these grant read operations only.
+# billing_export_arns           = ["arn:aws:bcm-data-exports:us-east-1:111122223333:export/EXACT-EXISTING-EXPORT"]
+# enable_commitment_inventory   = true # Also enable in every linked-account reader.
+# Existing bucket must already have versioning and the reviewed writer-boundary
+# output policy; this module creates/changes neither bucket nor export.
 enable_execution    = false
 # Add only after read-only acceptance, or retain for an existing live deployment:
 # enable_execution        = true

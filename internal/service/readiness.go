@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/activity"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/evidence"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
@@ -29,6 +30,9 @@ func inputTime(d model.Document, k string) (time.Time, error) {
 func baselineInput(b model.Document) model.Document {
 	clock := evidence.Object(b["financial_clock"])
 	asof := model.String(b, "created_at")
+	if model.String(b, "schema_version") == "3" {
+		asof = model.String(b, "evidence_as_of")
+	}
 	if asof == "" {
 		asof = model.Now()
 	}
@@ -37,9 +41,19 @@ func baselineInput(b model.Document) model.Document {
 		asof = model.String(clock, "as_of")
 		activation = model.String(clock, "activation_at")
 	}
-	return model.Document{"schema_version": "2", "phase": "BASELINE", "binding": b["binding"], "baseline_id": b["id"], "activation_at": activation, "as_of": asof, "baseline": b, "financial_clock": clock}
+	version := "2"
+	if model.String(b, "schema_version") == "3" {
+		version = "3"
+	}
+	return model.Document{"schema_version": version, "phase": "BASELINE", "binding": b["binding"], "baseline_id": b["id"], "proof_set_id": b["proof_set_id"], "activation_at": activation, "as_of": asof, "baseline": b, "financial_clock": clock}
 }
 func (a *API) createBaseline(ctx context.Context, t *store.Tx, in model.Document) (model.Document, error) {
+	if model.String(in, "schema_version") == "3" {
+		return a.createTrustedBaseline(ctx, t, in)
+	}
+	if !a.Config.Fixture {
+		return nil, problem(422, "EVIDENCE_V3_REQUIRED", "live baselines require server-selected authenticated receipts")
+	}
 	res, e := t.Get(ctx, "resources", model.String(in, "resource_id"))
 	if e != nil {
 		return nil, e
@@ -134,7 +148,7 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 	if e != nil {
 		return nil, e
 	}
-	now := time.Now().UTC()
+	now := a.now()
 	d := model.Document{"id": model.ID(), "resource_id": resource, "tenant_id": t.Tenant, "workload_id": res["workload_id"], "status": "BLOCKED", "pre_execution_ready": false, "verification_status": "MEASURING", "reason_code": "BASELINE_REQUIRED", "checked_at": now.Format(time.RFC3339Nano), "expires_at": now.Add(5 * time.Minute).Format(time.RFC3339Nano), "baseline_id": nil, "measurement_id": nil, "activation_at": nil, "binding": evidence.Binding(t.Tenant, res, model.String(res, "currency")), "blockers": []string{}, "evidence_refs": []string{}}
 	if !a.Config.Fixture {
 		d["reason_code"] = "TRUSTED_SOURCE_REQUIRED"
@@ -164,6 +178,11 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 				if err != nil {
 					return nil, err
 				}
+				if model.String(b, "schema_version") == "3" {
+					if trusted, err := trustedWorkload(ctx, t, res, w); err == nil {
+						w = trusted
+					}
+				}
 				p, err := t.Get(ctx, "policies", "policy-default")
 				if err != nil {
 					return nil, err
@@ -184,6 +203,23 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 					}
 				}
 				d["blockers"] = blocked
+				if model.String(b, "schema_version") == "3" {
+					if err := trustedActivityGate(ctx, t, res, now); err != nil {
+						blocked = append(blocked, err.Error())
+					}
+					d["blockers"] = blocked
+					d["source_proof"], d["commitment_scope"] = b["source_proof"], b["commitment_scope"]
+					if scope, err := currentSourceGate(ctx, t, model.String(b, "source_connection_id"), binding, now); err != nil {
+						blocked = append(blocked, err.Error())
+						d["blockers"] = blocked
+					} else {
+						d["commitment_scope"] = scope
+					}
+					if latest, err := t.ActivityLatest(ctx, resource); err == nil {
+						d["activity_signal"] = activity.FreshActivity(now, latest, 2*time.Minute)
+					}
+					d["pricing_basis"] = result["pricing_basis"]
+				}
 				if len(blocked) == 0 {
 					d["status"], d["pre_execution_ready"], d["reason_code"] = "READY", true, "BASELINE_READY"
 				} else {
@@ -194,6 +230,13 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 	}
 	if seal {
 		if model.Bool(d, "pre_execution_ready") {
+			if model.String(b, "schema_version") == "3" {
+				proof, err := sealProofSet(ctx, t, b, res, now)
+				if err != nil {
+					return nil, err
+				}
+				d["proof_set_id"] = proof["id"]
+			}
 			m, err := reserveMeasurement(ctx, t, model.String(d, "baseline_id"), resource, model.String(d, "activation_at"))
 			if err != nil {
 				return nil, err
@@ -209,7 +252,7 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 	if len(prior) > 0 {
 		last := prior[len(prior)-1]
 		if model.String(last, "baseline_id") == model.String(d, "baseline_id") {
-			for _, k := range []string{"id", "checked_at", "expires_at", "measurement_id"} {
+			for _, k := range []string{"id", "checked_at", "expires_at", "measurement_id", "proof_set_id"} {
 				d[k] = last[k]
 			}
 			checked, err := time.Parse(time.RFC3339Nano, model.String(last, "checked_at"))
@@ -224,11 +267,19 @@ func sourceForBaseline(ctx context.Context, t *store.Tx, b, res model.Document, 
 	if !fixture && len(evidence.Object(b["financial_clock"])) > 0 {
 		return nil, nil, errors.New("LIVE_LOGICAL_CLOCK_FORBIDDEN")
 	}
+	if model.String(b, "schema_version") == "3" {
+		e := validateSnapshotSources(ctx, t, b, res)
+		return evidence.Object(b["binding"]), evidence.Rows(b["billing_records"]), e
+	}
 	job, e := t.Get(ctx, "ingestion_jobs", model.String(b, "ingestion_job_id"))
 	if e != nil {
 		return nil, nil, e
 	}
-	if e = trustedSource(job, fixture); e != nil {
+	if model.String(b, "schema_version") == "3" {
+		if _, e = trustedJob(ctx, t, job, res); e != nil {
+			return nil, nil, e
+		}
+	} else if e = trustedSource(job, fixture); e != nil {
 		return nil, nil, e
 	}
 	binding, records, e := evidence.Source(job, res, t.Tenant)
@@ -262,12 +313,18 @@ func reserveMeasurement(ctx context.Context, t *store.Tx, baseline, resource, ac
 }
 
 func readinessPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, res model.Document) error {
-	if p.SchemaVersion != "2" || p.BaselineID == "" || p.MeasurementID == "" || p.ReadinessID == "" || p.ActivationAt == "" {
+	if (p.SchemaVersion != "2" && p.SchemaVersion != "3") || (!p.Fixture && p.SchemaVersion != "3") || p.BaselineID == "" || p.MeasurementID == "" || p.ReadinessID == "" || p.ActivationAt == "" {
 		return problem(422, "READINESS_V2_REQUIRED", "new stops require a sealed baseline and measurement contract")
 	}
 	b, e := t.EvidenceGet(ctx, "baseline", p.BaselineID)
 	if e != nil {
 		return e
+	}
+	if model.String(b, "schema_version") == "3" && (p.SchemaVersion != "3" || p.ProofSetID == "") {
+		return problem(422, "PROOF_SET_REQUIRED", "version 3 baselines require an exact signed version 3 proof set")
+	}
+	if p.SchemaVersion == "3" && model.String(b, "schema_version") != "3" {
+		return problem(422, "BASELINE_SCHEMA_MISMATCH", "version 3 plans cannot reference legacy baselines")
 	}
 	if _, _, e = sourceForBaseline(ctx, t, b, res, p.Fixture); e != nil {
 		return evidenceProblem(e)
@@ -281,6 +338,11 @@ func readinessPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, res mode
 	}
 	if !model.Bool(ready, "pre_execution_ready") || model.String(ready, "baseline_id") != p.BaselineID || model.String(ready, "resource_id") != p.Operations[0].ResourceID {
 		return problem(422, "READINESS_BINDING_INVALID", "readiness report differs from plan")
+	}
+	if p.SchemaVersion == "3" {
+		if e = proofPlanCheck(ctx, t, p, b, res, ready); e != nil {
+			return evidenceProblem(e)
+		}
 	}
 	checked, err := time.Parse(time.RFC3339Nano, model.String(ready, "checked_at"))
 	expires, expiryErr := time.Parse(time.RFC3339Nano, model.String(ready, "expires_at"))

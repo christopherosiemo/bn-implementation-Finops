@@ -1,13 +1,78 @@
 openapi: 3.0.3
 info:
   title: Cloud Cost Autopilot AWS Pilot
-  version: 0.1.0
+  version: 0.3.0
   description: Tenant identity comes exclusively from the validated OIDC token. Monetary values are decimal strings. All POSTs require Idempotency-Key; resource updates also require If-Match.
 servers:
   - url: /v1
 security:
   - bearerAuth: []
 paths:
+  /source-connections:
+    get:
+      operationId: listSourceConnections
+      responses:
+        '200':
+          description: Tenant source health and trusted ingestion status
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/SourceConnection' } }
+    post:
+      operationId: registerSourceConnection
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SourceConnectionRequest' }
+      responses: { '201': { description: AWS location registered; trust requires successful independent ingestion } }
+  /source-connections/{id}:
+    get:
+      operationId: inspectSourceConnection
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Registration, immutable receipts and source-specific blockers
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourceConnection' }
+  /source-connections/{id}/sync:
+    post:
+      operationId: syncSourceConnection
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '202': { description: Durable ingestion request queued; no execution permission granted } }
+  /source-connections/{id}/revoke:
+    post:
+      operationId: revokeSourceConnection
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { $ref: '#/components/requestBodies/Document' }
+      responses: { '202': { description: New stops blocked; existing owned restoration remains authorized } }
+  /activity-sources:
+    get:
+      operationId: listActivitySources
+      responses: { '200': { description: Registered independent workload collectors } }
+    post:
+      operationId: registerActivitySource
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivitySourceRequest' }
+      responses: { '201': { description: Exact machine subject and metric definition registered for the resource } }
+  /activity/intervals:
+    post:
+      operationId: ingestActivityInterval
+      description: Served by the isolated activity-ingress service. Dedicated machine OIDC audience required; console tokens cannot authorize ingestion. Sequence and content hash provide idempotency.
+      security: [ { activityMachineAuth: [] } ]
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivityInterval' }
+      responses: { '201': { description: Authenticated immutable minute observation }, '200': { description: Exact replay }, '409': { description: Conflicting sequence or interval }, '422': { description: Stale, incomplete or incorrectly bound observation } }
   /dashboard:
     get:
       operationId: dashboard
@@ -190,6 +255,7 @@ paths:
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    activityMachineAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Dedicated finops-activity audience and registered machine subject }
   parameters:
     Id: { name: id, in: path, required: true, schema: { type: string } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 200 } }
@@ -210,6 +276,133 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    SourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, payer_account_id, usage_account_ids, region, export_arn, read_role_binding_id, bucket, bucket_owner, prefix]
+      properties:
+        kind: { type: string, enum: [AWS_CUR2] }
+        payer_account_id: { type: string, pattern: '^[0-9]{12}$' }
+        usage_account_ids: { type: array, minItems: 1, items: { type: string, pattern: '^[0-9]{12}$' } }
+        region: { type: string, enum: [eu-west-1] }
+        export_arn: { type: string }
+        read_role_binding_id: { type: string, description: Server-approved binding identifier; never a caller supplied role or credentials }
+        bucket: { type: string }
+        bucket_owner: { type: string, pattern: '^[0-9]{12}$' }
+        prefix: { type: string }
+    SourceConnection:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - { $ref: '#/components/schemas/SourceConnectionRequest' }
+        - type: object
+          properties:
+            enabled: { type: boolean }
+            status: { type: string }
+            reason_code: { type: string }
+            last_sync_at: { type: string, format: date-time }
+            latest_revision_id: { type: string }
+            receipts: { type: array, items: { $ref: '#/components/schemas/TrustedReceipt' } }
+    TrustedReceipt:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          required: [kind, source_id]
+          properties:
+            kind: { type: string, enum: [AWS_CUR2, AWS_INVOICE, AWS_COMMITMENT] }
+            source_id: { type: string }
+            registration_id: { type: string }
+            revision_id: { type: string }
+            source_proof: { $ref: '#/components/schemas/SourceProof' }
+            commitment_scope: { $ref: '#/components/schemas/CommitmentScope' }
+    SourceObjectReference:
+      type: object
+      required: [key, version_id, sha256, size_bytes]
+      properties:
+        key: { type: string }
+        version_id: { type: string }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        size_bytes: { type: integer, minimum: 0 }
+    SourceProof:
+      type: object
+      required: [receipt_id, revision_id, manifest_hash, payer_account_id, usage_account_id, region, currency, invoice_entity, period_start, period_end, state, object_count, verified_object_count, row_count, verified_row_count]
+      properties:
+        receipt_id: { type: string }
+        revision_id: { type: string }
+        source_id: { type: string }
+        source_version: { type: string }
+        manifest_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        payer_account_id: { type: string }
+        usage_account_id: { type: string }
+        region: { type: string, enum: [eu-west-1] }
+        currency: { type: string }
+        invoice_entity: { type: string }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        state: { type: string, enum: [COMPLETE, FINAL] }
+        object_count: { type: integer, minimum: 1 }
+        verified_object_count: { type: integer, minimum: 1 }
+        row_count: { type: integer, minimum: 0 }
+        verified_row_count: { type: integer, minimum: 0 }
+    CommitmentScope:
+      type: object
+      required: [receipt_id, payer_account_id, usage_account_ids, scope, complete, observed_at]
+      properties:
+        receipt_id: { type: string }
+        payer_account_id: { type: string }
+        usage_account_ids: { type: array, items: { type: string } }
+        scope: { type: string, enum: [PAYER_ALL_LINKED_ACCOUNTS_ALL_REGIONS] }
+        complete: { type: boolean }
+        observed_at: { type: string, format: date-time }
+        reserved_instance_count: { type: integer, minimum: 0 }
+        savings_plan_count: { type: integer, minimum: 0 }
+    ActivitySignal:
+      type: object
+      required: [status, reason_code, receipt_id, source_id, received_at, interval_end]
+      properties:
+        status: { type: string, enum: [CLEAR, ACTIVE, UNKNOWN] }
+        reason_code: { type: string }
+        receipt_id: { type: string }
+        source_id: { type: string }
+        received_at: { type: string, format: date-time }
+        interval_end: { type: string, format: date-time }
+    MetricDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, version, unit]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        unit: { type: string }
+    ActivitySourceRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, subject, metric_definition]
+      properties:
+        resource_id: { type: string }
+        subject: { type: string }
+        metric_definition: { $ref: '#/components/schemas/MetricDefinition' }
+    ActivityInterval:
+      type: object
+      additionalProperties: false
+      required: [schema_version, source_id, resource_id, workload_id, sequence, interval_start, interval_end, metric_definition, accepted, completed, rejected, backlog, inflight, heartbeat, incident, deployment, job]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        source_id: { type: string }
+        resource_id: { type: string }
+        workload_id: { type: string }
+        sequence: { type: integer, minimum: 1 }
+        interval_start: { type: string, format: date-time }
+        interval_end: { type: string, format: date-time }
+        metric_definition: { $ref: '#/components/schemas/MetricDefinition' }
+        accepted: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        rejected: { type: integer, minimum: 0 }
+        backlog: { type: integer, minimum: 0 }
+        inflight: { type: integer, minimum: 0 }
+        heartbeat: { type: boolean, enum: [true] }
+        incident: { type: string, enum: [CLEAR, ACTIVE, UNKNOWN] }
+        deployment: { type: string, enum: [CLEAR, ACTIVE, UNKNOWN] }
+        job: { type: string, enum: [CLEAR, ACTIVE, UNKNOWN] }
     Decimal: { type: string, pattern: '^-?[0-9]+(\.[0-9]{1,12})?$' }
     NullableDecimal: { type: string, nullable: true, pattern: '^-?[0-9]+(\.[0-9]{1,12})?$' }
     Document:
@@ -321,6 +514,8 @@ components:
         audit: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
         data_quality: { type: array, items: { $ref: '#/components/schemas/Document' } }
         readiness: { type: array, items: { $ref: '#/components/schemas/Readiness' } }
+        source_connections: { type: array, items: { $ref: '#/components/schemas/SourceConnection' } }
+        activity_sources: { type: array, items: { $ref: '#/components/schemas/Document' } }
     EvidenceBinding:
       type: object
       required: [tenant_id, resource_id, provider_resource_id, account_id, region, currency]
@@ -352,6 +547,11 @@ components:
             blockers: { type: array, items: { type: string } }
             evidence_refs: { type: array, items: { type: string } }
             source_refs: { type: array, items: { $ref: '#/components/schemas/SourceReference' } }
+            proof_set_id: { type: string, nullable: true }
+            source_proof: { $ref: '#/components/schemas/SourceProof' }
+            commitment_scope: { $ref: '#/components/schemas/CommitmentScope' }
+            activity_signal: { $ref: '#/components/schemas/ActivitySignal' }
+            pricing_basis: { type: array, items: { type: string, enum: [NET_UNBLENDED, UNBLENDED] } }
     SourceReference:
       type: object
       required: [kind, ingestion_job_id, source_id, source_version, source_hash, canonical_hash, binding]
@@ -362,6 +562,8 @@ components:
         source_version: { type: string }
         source_hash: { type: string, description: SHA-256 of immutable imported raw source JSON }
         canonical_hash: { type: string, description: SHA-256 of persisted canonical snapshot JSON }
+        source_receipt_id: { type: string, description: Ingester-issued immutable version 3 receipt }
+        source_revision_id: { type: string }
         binding: { $ref: '#/components/schemas/EvidenceBinding' }
     PlanPayload:
       allOf:
@@ -369,7 +571,8 @@ components:
         - type: object
           required: [schema_version, baseline_id, measurement_id, readiness_id, activation_at]
           properties:
-            schema_version: { type: string, enum: ['2'] }
+            schema_version: { type: string, enum: ['2', '3'] }
+            proof_set_id: { type: string, description: Required for all new live stops; signed immutable proof set }
             baseline_id: { type: string }
             measurement_id: { type: string }
             readiness_id: { type: string }
@@ -409,26 +612,25 @@ components:
         total: { $ref: '#/components/schemas/Decimal' }
     BaselineRequest:
       type: object
-      required: [resource_id, ingestion_job_id, schedule_id, start, end, workload_samples]
+      additionalProperties: false
+      required: [schema_version, resource_id, source_connection_id, schedule_id, start, end]
       properties:
+        schema_version: { type: string, enum: ['3'] }
         resource_id: { type: string }
-        ingestion_job_id: { type: string }
+        source_connection_id: { type: string }
         schedule_id: { type: string }
         start: { type: string, format: date-time }
         end: { type: string, format: date-time }
-        workload_samples: { type: array, items: { $ref: '#/components/schemas/WorkloadSample' } }
     MeasurementRequest:
       type: object
-      required: [measurement_id, ingestion_job_id, start, end, workload_samples]
+      additionalProperties: false
+      required: [schema_version, measurement_id, source_connection_id, start, end]
       properties:
+        schema_version: { type: string, enum: ['3'] }
         measurement_id: { type: string }
-        ingestion_job_id: { type: string }
+        source_connection_id: { type: string }
         start: { type: string, format: date-time }
         end: { type: string, format: date-time }
-        workload_samples: { type: array, items: { $ref: '#/components/schemas/WorkloadSample' } }
-        invoice:
-          allOf: [ { $ref: '#/components/schemas/SourceInvoice' } ]
-          description: Optional consistency assertion only; must exactly equal invoice metadata in the immutable imported source. Canonical reconciliation totals are always derived by the server.
     ConnectAccountRequest:
       type: object
       required: [provider, name, account_id, region]

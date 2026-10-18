@@ -1,0 +1,461 @@
+{
+  "schema_version": "1",
+  "recorded_at": "2026-10-18",
+  "scope": "Full preserved 233-section specification, including commercial GA obligations",
+  "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
+  "baseline_weighted_percent": 17.5,
+  "current_weighted_percent": 21,
+  "rounded_description": "Approximately 21 percent of the full product",
+  "credit_review": "Accepted deterministic v3 source-to-claim/correction flow and separate machine OIDC acceptance; no live, production or customer-use credit",
+  "live_aws_validated": false,
+  "customer_verified_savings": false,
+  "commercial_ga_accepted": false,
+  "maturity_stages": {
+    "0": "Absent",
+    "20": "Component",
+    "40": "Deterministic E2E",
+    "70": "Supervised live",
+    "90": "Production operations",
+    "100": "Contract complete"
+  },
+  "domains": [
+    {
+      "id": "billing_inventory_telemetry",
+      "weight_percent": 18,
+      "contribution_points": 4.5,
+      "packages": [
+        {
+          "id": "inventory_adapters",
+          "scope_weight_percent": 13.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/provider",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Live inventory/IAM and broader resources"
+          ]
+        },
+        {
+          "id": "billing_mapping_ingestion",
+          "scope_weight_percent": 4.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/source/pipeline_integration_test.go",
+            "internal/service/trusted_integration_test.go",
+            "economics/tests/test_v3.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Authentic AWS manifest, invoice issuance and payer/member IAM acceptance",
+            "Provider-scale exports, wider FOCUS coverage and multi-cloud billing"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 25
+    },
+    {
+      "id": "workload_graph_demand_slo",
+      "weight_percent": 12,
+      "contribution_points": 2.4,
+      "packages": [
+        {
+          "id": "bounded_workload_mapping",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/service",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Customer demand, dependency graph and SLO completeness"
+          ]
+        },
+        {
+          "id": "independent_demand_and_slo",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/activity",
+            "internal/store/activity_integration_test.go",
+            "internal/service/trusted_integration_test.go",
+            "scripts/activity-smoke.mjs"
+          ],
+          "remaining": [
+            "Deploy independent customer collector and collect genuine history",
+            "Complete workload graph, demand integrations and hard SLO validation"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 10,
+      "current_area_maturity": 20
+    },
+    {
+      "id": "optimisation_forecast_commitments",
+      "weight_percent": 18,
+      "contribution_points": 0.9,
+      "packages": [
+        {
+          "id": "idle_schedule_model",
+          "scope_weight_percent": 4.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "economics/tests/test_v2.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Supervised native-data scheduling acceptance and additional actions/simulation"
+          ]
+        },
+        {
+          "id": "forecast_commitment_portfolio",
+          "scope_weight_percent": 13.5,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/traceability.md"
+          ],
+          "remaining": [
+            "Portfolio allocation, forecasting and broader optimisation"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 5,
+      "current_area_maturity": 5
+    },
+    {
+      "id": "execution_iac_gitops",
+      "weight_percent": 18,
+      "contribution_points": 2.7,
+      "packages": [
+        {
+          "id": "bounded_ec2_stop_owned_restore",
+          "scope_weight_percent": 6.75,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/workflow",
+            "internal/safety",
+            "scripts/recovery-smoke.mjs",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Supervised AWS canary, owned restoration/pause and live outage escalation"
+          ]
+        },
+        {
+          "id": "iac_gitops_broad_actions",
+          "scope_weight_percent": 11.25,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/traceability.md"
+          ],
+          "remaining": [
+            "IaC/GitOps authority, broad action families and Azure/GCP parity"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 15
+    },
+    {
+      "id": "reconciliation_verified_savings",
+      "weight_percent": 10,
+      "contribution_points": 4,
+      "packages": [
+        {
+          "id": "bounded_financial_verification",
+          "scope_weight_percent": 7.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "economics/tests/test_v2.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Genuine post-change history, live native invoice finality and customer assurance"
+          ]
+        },
+        {
+          "id": "ledger_claim_corrections",
+          "scope_weight_percent": 2.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/service/trusted_integration_test.go",
+            "internal/service/claim_corrections_integration_test.go",
+            "economics/tests/test_v3.py"
+          ],
+          "remaining": [
+            "Live invoice revisions and customer financial assurance"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 35,
+      "current_area_maturity": 40
+    },
+    {
+      "id": "identity_tenancy_policy_audit",
+      "weight_percent": 10,
+      "contribution_points": 3.5,
+      "packages": [
+        {
+          "id": "pilot_identity_policy",
+          "scope_weight_percent": 7.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/service/secure.go",
+            "migrations",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Live trust/isolation validation and enterprise identity/policy breadth"
+          ]
+        },
+        {
+          "id": "audit_storage_components",
+          "scope_weight_percent": 2.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/store",
+            "migrations",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "External security, enterprise audit/compliance and certification"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 35,
+      "current_area_maturity": 35
+    },
+    {
+      "id": "console_api_enterprise",
+      "weight_percent": 6,
+      "contribution_points": 1.8,
+      "packages": [
+        {
+          "id": "pilot_console_api",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 40,
+          "evidence": [
+            "frontend/tests",
+            "contracts/openapi.yaml",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Customer usability/accessibility and wider enterprise workflows"
+          ]
+        },
+        {
+          "id": "api_contracts",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 20,
+          "evidence": [
+            "contracts/openapi.yaml",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Enterprise finance/admin/support workflows and broad integrations"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 30,
+      "current_area_maturity": 30
+    },
+    {
+      "id": "production_operations",
+      "weight_percent": 8,
+      "contribution_points": 1.2,
+      "packages": [
+        {
+          "id": "deployment_assets_operator_controls",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 20,
+          "evidence": [
+            "deploy",
+            "docs/operations.md",
+            "docs/sandbox-readiness.md"
+          ],
+          "remaining": [
+            "Approved provisioned AWS pilot, measured cost, backup/restore and incident drills"
+          ]
+        },
+        {
+          "id": "production_release_slo",
+          "scope_weight_percent": 2,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/product-specification.md",
+            "docs/traceability.md"
+          ],
+          "remaining": [
+            "Measured SLO, capacity, recovery and commercial GA release/support"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 15
+    }
+  ],
+  "next_credit_gates": [
+    "Approve exact two-account deployment plan, budget, owner and expiry",
+    "Deploy read-only first and validate authentic source/activity receipts",
+    "Collect genuine fourteen-day baseline, latest complete day within forty-eight hours of activation",
+    "Approve one eligible canary, supervise owned stop/restore and confirm schedule pause",
+    "Wait for genuine post-change history and finalized reconciled native billing"
+  ],
+  "reviews": [
+    {
+      "id": "baseline-2026-10-18",
+      "weighted_percent": 17.5,
+      "source_revision": "063a27a229820c70406579c89a4739f5b473eaad",
+      "capability_credit": [
+        {
+          "id": "billing_inventory_telemetry",
+          "contribution_points": 2.7,
+          "packages": [
+            {
+              "id": "inventory_adapters",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "billing_mapping_ingestion",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "workload_graph_demand_slo",
+          "contribution_points": 1.2,
+          "packages": [
+            {
+              "id": "bounded_workload_mapping",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "independent_demand_and_slo",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "optimisation_forecast_commitments",
+          "contribution_points": 0.9,
+          "packages": [
+            {
+              "id": "idle_schedule_model",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "execution_iac_gitops",
+          "contribution_points": 2.7,
+          "packages": [
+            {
+              "id": "bounded_ec2_stop_owned_restore",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "iac_gitops_broad_actions",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "reconciliation_verified_savings",
+          "contribution_points": 3.5,
+          "packages": [
+            {
+              "id": "bounded_financial_verification",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "ledger_claim_corrections",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "identity_tenancy_policy_audit",
+          "contribution_points": 3.5,
+          "packages": [
+            {
+              "id": "pilot_identity_policy",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "audit_storage_components",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "console_api_enterprise",
+          "contribution_points": 1.8,
+          "packages": [
+            {
+              "id": "pilot_console_api",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "api_contracts",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "production_operations",
+          "contribution_points": 1.2,
+          "packages": [
+            {
+              "id": "deployment_assets_operator_controls",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "production_release_slo",
+              "accepted_maturity": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trusted-evidence-v3-2026-10-18",
+      "previous_weighted_percent": 17.5,
+      "weighted_percent": 21,
+      "contribution_changes": [
+        {
+          "capability": "billing_mapping_ingestion",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 1.8,
+          "acceptance": "Provider-shaped delivery through immutable baseline, owned execution and a current native-invoice claim with actual PostgreSQL roles and Python worker; storage callbacks are deterministic doubles."
+        },
+        {
+          "capability": "independent_demand_and_slo",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 1.2,
+          "acceptance": "Independent machine OIDC and append-only guarded minute receipts; full SLO/graph package remains partial."
+        },
+        {
+          "capability": "ledger_claim_corrections",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.5,
+          "acceptance": "Native invoice cancellation appends one null current head, preserves verified history and deduplicates; historical fingerprint revival regression passes."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "scripts/activity-smoke.mjs",
+        "frontend/tests/readiness.spec.ts"
+      ],
+      "live_credit_awarded": false
+    }
+  ]
+}

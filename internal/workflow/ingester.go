@@ -63,6 +63,12 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if e != nil {
 			slog.Error("tenant ingestion failed", "tenant", tenant, "error", e)
 		}
+		if e == nil {
+			e = trustedSourceTick(ctx, a, tenant)
+			if e != nil {
+				slog.Error("trusted source ingestion unavailable", "tenant", tenant)
+			}
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

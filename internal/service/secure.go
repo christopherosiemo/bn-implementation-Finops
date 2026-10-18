@@ -223,6 +223,12 @@ func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) err
 	if e != nil {
 		return e
 	}
+	if p.SchemaVersion == "3" {
+		w, e = trustedWorkload(ctx, t, res, w)
+		if e != nil {
+			return evidenceProblem(e)
+		}
+	}
 	if blocked := safety.Eligibility(res, w, policy, now); len(blocked) > 0 {
 		return problem(422, blocked[0], "stop precondition failed")
 	}
