@@ -350,6 +350,13 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				return e
 			}
 		}
+		// Completion consumes restoration authority permanently. A replayed
+		// HEALTH/DESCRIBE may observe a later manual stop, but must not rewrite
+		// the completed receipt and make an old START capability usable again.
+		if restored && restoring {
+			out = current
+			return nil
+		}
 		dispatched := false
 		switch in.Operation {
 		case "STOP":
@@ -464,7 +471,7 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 			if owned && current.State == "running" && model.String(state, "stopped_at") != "" && model.String(state, "running_at") == "" {
 				state["running_at"] = model.Now()
 			}
-			if in.Operation == "HEALTH" {
+			if in.Operation == "HEALTH" && !restored {
 				if current.State == "running" && current.Healthy {
 					since, e := time.Parse(time.RFC3339Nano, model.String(state, "healthy_since"))
 					if e != nil {

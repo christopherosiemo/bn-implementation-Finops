@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -87,13 +88,35 @@ func TestConsumedRestorationCannotRestartManuallyStoppedInstance(t *testing.T) {
 	defer pool.Close()
 	svc := SecureService{Store: &store.Store{Pool: pool}, Config: Config{Fixture: true, Role: "executor"}, Public: pub}
 	// Fixture state represents an independent manual stop after the successful
-	// occurrence. Replaying its expired recovery capability must not start it.
-	state, e := svc.dispatch(ctx, model.Dispatch{Envelope: envelope, ExecutionID: execution, Operation: "START"})
-	if e != nil {
-		t.Fatal(e)
+	// occurrence. An old HEALTH must not clear consumption before old DESCRIBE
+	// and START replay the same expired recovery capability.
+	readAuthority := func() (bool, []byte) {
+		t.Helper()
+		var consumed bool
+		var document []byte
+		if err := admin.Do(ctx, tenant, func(tx *store.Tx) error {
+			if _, err := tx.Exec(ctx, "SET LOCAL ROLE finops_executor"); err != nil {
+				return err
+			}
+			return tx.QueryRow(ctx, "SELECT restored,document FROM provider_operations WHERE tenant_id=$1 AND execution_id=$2", tenant, execution).Scan(&consumed, &document)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return consumed, document
 	}
-	if state.State != "stopped" {
-		t.Fatalf("consumed restoration restarted instance: %+v", state)
+	_, original := readAuthority()
+	for _, operation := range []string{"HEALTH", "DESCRIBE", "START"} {
+		state, err := svc.dispatch(ctx, model.Dispatch{Envelope: envelope, ExecutionID: execution, Operation: operation})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.State != "stopped" {
+			t.Fatalf("old %s changed a manually stopped instance: %+v", operation, state)
+		}
+		consumed, document := readAuthority()
+		if !consumed || !bytes.Equal(original, document) {
+			t.Fatalf("old %s revived or rewrote consumed restoration authority", operation)
+		}
 	}
 	// Pending application-health verification can observe an already-running
 	// instance repeatedly. These observations must not fabricate provider starts.
