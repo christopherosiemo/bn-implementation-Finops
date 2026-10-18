@@ -41,6 +41,7 @@ services:
     restart: 'no'
     environment:
       APP_ROLE: migrate
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/finops?sslmode=disable
       DB_API_PASSWORD: ${DB_API_PASSWORD}
       DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD}

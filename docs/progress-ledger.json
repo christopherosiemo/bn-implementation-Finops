@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25,
   "rounded_description": "Approximately 25 percent of the full product",
-  "credit_review": "Accepted bounded fleet protocol and real local Kubernetes GitOps safety components. No complete fleet/Kubernetes workflow, provider parity, customer/live or production credit.",
+  "credit_review": "Native hardware/model integration and encrypted local database readback accepted within existing component maturity. No additional credit, complete fleet workflow, customer/live operation or production acceptance.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -148,10 +148,12 @@
             "economics/tests/test_capacity.py",
             "internal/native/capacity_test.go",
             "internal/service/capacity_integration_test.go",
-            "docs/acceptance.md"
+            "docs/acceptance.md",
+            "internal/service/capacity_native_integration_test.go",
+            "docs/native-hardware-capacity.md"
           ],
           "remaining": [
-            "Native hardware and contracted candidate-price catalogue integration; public endpoint remains blocked",
+            "Native contracted candidate economics and complete commitment compatibility; wider hardware and the public execution gate remain blocked",
             "Calibrated production breach probabilities, unsupported horizons and larger seasonal populations",
             "Connected approved fleet/action execution, supervised customer backtests and production outcomes"
           ]
@@ -709,6 +711,24 @@
       "release_commit": "e7b0cd7a970c8086b0b3b498e29c9cf858e15b38",
       "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086",
       "live_credit_awarded": false
+    },
+    {
+      "id": "native-hardware-recovery-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/native-hardware-capacity.md",
+        "internal/workflow/hardware_reader_test.go",
+        "internal/service/capacity_native_integration_test.go",
+        "docs/postgres-recovery-lab.md",
+        "scripts/postgres-recovery-lab.mjs",
+        "frontend/tests/native-telemetry.spec.ts"
+      ],
+      "release_commit": "4d9f785fda0acb7b77ca8c6a9377730d6f8b4695",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39148714071",
+      "live_credit_awarded": false,
+      "acceptance": "All seven exact-commit CI jobs passed, including actual PostgreSQL/Python, generated contracts, 39 Chromium cases, process recovery, native transports, infrastructure, dependency/source security, real local Kubernetes and encrypted physical PostgreSQL quarantine readback. Native prices, complete fleet proof/runtime/financial integration and customer operational gates remain incomplete; accepted maturity and all fixed weights stay unchanged."
     }
   ]
 }

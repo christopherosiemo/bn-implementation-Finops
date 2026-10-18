@@ -13,9 +13,14 @@ jobs:
   go:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Match both the RDS reference major and the local Compose major.
+        postgres: ["16", "17"]
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:${{ matrix.postgres }}-alpine
         env:
           POSTGRES_PASSWORD: ephemeral-ci-only
           POSTGRES_DB: finops_ci

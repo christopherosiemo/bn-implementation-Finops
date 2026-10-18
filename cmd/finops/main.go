@@ -32,6 +32,11 @@ func run() error {
 	mode := flag.String("mode", cfg.Role, "api|worker|ingester|hardware-reader|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
 	flag.Parse()
 	cfg.Role = *mode
+	if !cfg.Fixture {
+		if err := store.ValidateDatabaseTransport(cfg.DatabaseURL); err != nil {
+			return err
+		}
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 	var db *store.Store

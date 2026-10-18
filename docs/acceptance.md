@@ -42,10 +42,18 @@ No plaintext host archive, cloud resource or recovered application worker is
 created. This is local database readback acceptance, not a production RTO/RPO or
 resumed workflow claim. See [recovery procedure](postgres-recovery-lab.md).
 
+All seven exact-commit CI jobs passed at
+[4d9f785](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39148714071),
+including clean Linux Compose, all browser/transport/recovery checks and the
+encrypted physical backup drill. Completed ownership samples require confirmed
+terminal executions and consumed restoration rather than an arbitrary minimum
+age; the faster Linux journey exercises this condition. Failure diagnostics emit
+only a fixed stage code, never raw database/command data.
+
 The accepted fixed-weight total remains **25.0 points**. These connections improve
 the accepted component packages without promoting the incomplete capacity/fleet
 or production packages to a higher maturity stage. Exact-commit CI evidence is
-recorded after the complete seven-job validation, including the recovery drill.
+retained in the immutable zero-credit review alongside the recovery drill.
 
 ## 18 October increment: fleet protocol and real local Kubernetes components
 
