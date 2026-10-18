@@ -31,6 +31,6 @@ Schedules require a named timezone. DST may skip a nonexistent stop, never dupli
 
 ## Economics interpretation
 
-The first model compares calendar-matched idle windows over 14 complete baseline and verification days, using observed prior runtime and effective contracted compute prices. Running hours are the intervention, not a workload-output denominator. Observed zero activity is valid; absent activity observations are not zero. Non-idle or confounded work requires a richer model and cannot be verified by this pilot.
+The first model compares calendar-matched idle windows over 14 complete baseline and verification days, using observed prior runtime and native `NET_UNBLENDED` costs, or explicitly supported `UNBLENDED` costs where native evidence establishes that basis. These are historical native billing observations; they do not invent `ContractedCost` or guarantee future prices. Running hours are the intervention, not a workload-output denominator. Observed zero activity is valid; absent activity observations are not zero. Non-idle or confounded work requires a richer model and cannot be verified by this pilot.
 
 All source currencies remain separate. Retained storage/IP charges are visible but not claimed as savings; startup and incremental charges reduce the claim. Provider-final billing and reconciliation ≥99.5% gate verification. Annualized run-rate is an estimate separate from the verified period amount. A corrected bill can append a negative adjustment.

@@ -51,11 +51,18 @@ function privateDirectory(runID){
 }
 export function validateOwnedPublicationContainer(object,runID){assert.equal(object.Config?.Labels?.['finops.local-publication.run'],runID);assert.equal(object.Name?.replace(/^\//,''),'finops-multicloud-publication-'+runID.replaceAll('-',''));}
 export function publicationSourceNames(names){return names.filter(name=>/^[a-z][a-z0-9_]*\.go$/.test(name)).sort();}
-function sourceSnapshot(directory){
+export function publicationSourceSnapshot(directory){
   const snapshot=path.join(directory,'source');mkdirSync(path.join(snapshot,'internal','multicloud'),{recursive:true,mode:0o700});mkdirSync(path.join(snapshot,'migrations'),{mode:0o700});
   const copy=relative=>{const source=path.join(root,relative),suffix=path.relative(realpathSync(root),realpathSync(source));assert.ok(suffix&&!suffix.startsWith('..')&&!path.isAbsolute(suffix)&&lstatSync(source).isFile()&&!lstatSync(source).isSymbolicLink(),'Only ordinary workspace source files may be staged');copyFileSync(source,path.join(snapshot,relative));};
   for(const file of ['go.mod','go.sum','migrations/001_control_plane.sql','migrations/019_multicloud_observations.sql'])copy(file);
   for(const file of publicationSourceNames(readdirSync(path.join(root,'internal','multicloud'))))copy(path.join('internal','multicloud',file));
+  // This allowlisted snapshot contains public source only. On Linux the host
+  // runner owns it, whereas the test runs as container root with ALL capabilities
+  // dropped. UID0 then has no DAC_OVERRIDE and cannot read host-owned0700 dirs.
+  // Keep the enclosing private run/credentials0700/0600, and make only source
+  // readable/searchable without granting writes or adding a capability.
+  const readonly=directory=>{for(const entry of readdirSync(directory,{withFileTypes:true})){const name=path.join(directory,entry.name);assert.ok(!entry.isSymbolicLink(),'Source snapshot cannot contain symbolic links');if(entry.isDirectory())readonly(name);else{assert.ok(entry.isFile(),'Source snapshot must contain ordinary files only');chmodSync(name,0o444);}}chmodSync(directory,0o555);};
+  readonly(snapshot);
   return snapshot;
 }
 export async function publicationLab(){
@@ -67,7 +74,7 @@ export async function publicationLab(){
   // credentials or fixture mutations to another daemon.
   const run=(args,options)=>invoke(['--context',contextName,...args],options);
   const sources={};for(const service of ['api','postgres','minio','clickhouse']){const id=run(['compose','ps','-q',service]);assert.match(id,/^[a-f0-9]{64}$/);sources[service]=JSON.parse(run(['inspect','--type','container',id]))[0];}
-  const network=validatePublicationSources(sources,root);const runID=randomUUID();const directory=privateDirectory(runID);const stagedSource=sourceSnapshot(directory);const envFile=path.join(directory,'acceptance.env');writeFileSync(envFile,privatePublicationEnvironment(sources),{flag:'wx',mode:0o600});chmodSync(envFile,0o600);
+  const network=validatePublicationSources(sources,root);const runID=randomUUID();const directory=privateDirectory(runID);const stagedSource=publicationSourceSnapshot(directory);const envFile=path.join(directory,'acceptance.env');writeFileSync(envFile,privatePublicationEnvironment(sources),{flag:'wx',mode:0o600});chmodSync(envFile,0o600);
   let image;try{image=JSON.parse(run(['image','inspect',goImage]))[0];}catch{run(['pull',goImage],{timeout:180_000});image=JSON.parse(run(['image','inspect',goImage]))[0];}assert.match(image.Id,/^sha256:[a-f0-9]{64}$/);
   const container='finops-multicloud-publication-'+runID.replaceAll('-','');const started=Date.now();let passed=false;
   try{
