@@ -8,6 +8,61 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /resource-graph:
+    get:
+      operationId: getResourceGraph
+      responses:
+        '200':
+          description: Current inventory-derived mappings, operator declarations and immutable reviews. DECLARED is not automatic dependency discovery.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceGraph' }
+    post:
+      operationId: reviseResourceGraph
+      description: PLATFORM_ADMIN records a complete declared edge set as an immutable graph revision. All edges are hard dependencies; discovered mappings remain server-derived. If-Match is the graph version, including zero for the initial unknown graph.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResourceGraphRequest' }
+      responses:
+        '201':
+          description: Immutable operator-declared revision recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceGraph' }
+        '403': { description: PLATFORM_ADMIN required }
+        '409': { description: Graph version or inventory changed; refresh before retrying }
+        '422': { description: Invalid graph fields, missing reason, unsupported edge type, unresolved endpoint, self edge, cycle or edge limit }
+  /resources/{id}/dependency-reviews:
+    get:
+      operationId: listDependencyReviews
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Current dependency assessment and immutable review history for the resource
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DependencyReviews' }
+    post:
+      operationId: reviewResourceDependencies
+      description: PLATFORM_ADMIN explicitly reviews discovered and external dependencies. If-Match is the resource version. Validity is at most 24 hours. A recorded review can remain BLOCKED; it never approves or executes a change plan.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DependencyReviewRequest' }
+      responses:
+        '201':
+          description: Immutable review bound to graph and inventory hashes, including blocking reasons
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DependencyReview' }
+        '403': { description: PLATFORM_ADMIN required }
+        '409': { description: Resource version, graph or inventory changed; refresh before retrying }
+        '422': { description: Invalid review fields, acknowledgement, note, expiry or unresolved dependency graph }
   /source-connections:
     get:
       operationId: listSourceConnections
@@ -411,6 +466,96 @@ components:
       properties:
         id: { type: string }
         version: { type: integer, format: int64 }
+    DependencyEdgeType:
+      type: string
+      enum: [RUNS_ON, ATTACHED_TO, ROUTES_TO, DEPENDS_ON, BACKED_BY, MEMBER_OF, MANAGED_BY, SCALES_WITH, PROTECTED_BY, CONFIGURED_BY, PAID_BY_COMMITMENT]
+    DependencyNode:
+      type: object
+      required: [id, kind, name]
+      properties:
+        id: { type: string, description: Server-selected resource:<id> or workload:<id> inventory identity }
+        kind: { type: string, enum: [RESOURCE, WORKLOAD] }
+        resource_id: { type: string }
+        workload_id: { type: string }
+        name: { type: string }
+        owner: { type: string, nullable: true }
+        environment: { type: string, nullable: true }
+        provider: { type: string, nullable: true }
+        provider_resource_id: { type: string, nullable: true }
+        account_id: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        configuration_authority: { type: string, nullable: true }
+    DependencyEdgeInput:
+      type: object
+      additionalProperties: false
+      required: [from, to, type]
+      properties:
+        from: { type: string, description: Existing server-selected graph node ID }
+        to: { type: string, description: Existing server-selected graph node ID }
+        type: { $ref: '#/components/schemas/DependencyEdgeType' }
+    DependencyEdge:
+      type: object
+      required: [from, to, type, source]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        type: { $ref: '#/components/schemas/DependencyEdgeType' }
+        source: { type: string, enum: [DISCOVERED_MAPPING, OPERATOR_DECLARED] }
+    ResourceGraph:
+      type: object
+      required: [version, nodes, edges, inventory_hash, graph_hash, status, reasons, reviews]
+      properties:
+        version: { type: integer, minimum: 0 }
+        nodes: { type: array, items: { $ref: '#/components/schemas/DependencyNode' } }
+        edges: { type: array, items: { $ref: '#/components/schemas/DependencyEdge' } }
+        inventory_hash: { type: string }
+        graph_hash: { type: string }
+        status: { type: string, enum: [UNKNOWN, DECLARED, BLOCKED] }
+        reasons: { type: array, items: { type: string } }
+        reviews: { type: array, items: { $ref: '#/components/schemas/DependencyReview' } }
+    ResourceGraphRequest:
+      type: object
+      additionalProperties: false
+      required: [edges, reason]
+      properties:
+        edges: { type: array, maxItems: 1024, items: { $ref: '#/components/schemas/DependencyEdgeInput' } }
+        reason: { type: string, minLength: 1, maxLength: 2000, description: Auditable explanation for the complete declared edge set }
+    DependencyReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [graph_version, valid_until, acknowledgement, note]
+      properties:
+        graph_version: { type: integer, minimum: 1, description: Current declared graph revision; the initial unknown graph cannot be reviewed }
+        valid_until: { type: string, format: date-time, description: UTC timestamp after now and no more than 24 hours ahead }
+        acknowledgement: { type: string, enum: [REVIEWED_DISCOVERED_AND_EXTERNAL_DEPENDENCIES] }
+        note: { type: string, minLength: 1, maxLength: 2000, description: Auditable review of discovered mappings, declared hard edges and external dependencies }
+    DependencyReview:
+      type: object
+      required: [id, resource_id, graph_version, graph_hash, inventory_hash, reviewed_by, reviewed_at, expires_at, note, status, reasons]
+      properties:
+        id: { type: string }
+        resource_id: { type: string }
+        graph_version: { type: integer, minimum: 1 }
+        graph_hash: { type: string }
+        inventory_hash: { type: string }
+        reviewed_by: { type: string }
+        reviewed_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        note: { type: string }
+        status: { type: string, enum: [READY, BLOCKED] }
+        reasons: { type: array, items: { type: string } }
+    DependencyReviews:
+      type: object
+      required: [resource_id, latest, reviews, status, reasons, current_graph_version]
+      properties:
+        resource_id: { type: string }
+        latest:
+          allOf: [ { $ref: '#/components/schemas/DependencyReview' } ]
+          nullable: true
+        reviews: { type: array, items: { $ref: '#/components/schemas/DependencyReview' } }
+        status: { type: string, enum: [READY, BLOCKED, UNKNOWN] }
+        reasons: { type: array, items: { type: string } }
+        current_graph_version: { type: integer, minimum: 0 }
     Resource:
       allOf:
         - { $ref: '#/components/schemas/Document' }
@@ -461,6 +606,8 @@ components:
             measurement_id: { type: string }
             activation_at: { type: string, format: date-time }
             payload: { $ref: '#/components/schemas/PlanPayload' }
+            dependency_review_id: { type: string, nullable: true }
+            dependency_graph_hash: { type: string, nullable: true }
     Execution:
       allOf:
         - { $ref: '#/components/schemas/Document' }
@@ -516,6 +663,7 @@ components:
         readiness: { type: array, items: { $ref: '#/components/schemas/Readiness' } }
         source_connections: { type: array, items: { $ref: '#/components/schemas/SourceConnection' } }
         activity_sources: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        dependency_graph: { $ref: '#/components/schemas/ResourceGraph' }
     EvidenceBinding:
       type: object
       required: [tenant_id, resource_id, provider_resource_id, account_id, region, currency]
@@ -551,6 +699,10 @@ components:
             source_proof: { $ref: '#/components/schemas/SourceProof' }
             commitment_scope: { $ref: '#/components/schemas/CommitmentScope' }
             activity_signal: { $ref: '#/components/schemas/ActivitySignal' }
+            dependency_status: { type: string, enum: [READY, BLOCKED, UNKNOWN] }
+            dependency_reasons: { type: array, items: { type: string } }
+            dependency_review_id: { type: string, nullable: true }
+            dependency_graph_hash: { type: string, nullable: true }
             pricing_basis: { type: array, items: { type: string, enum: [NET_UNBLENDED, UNBLENDED] } }
     SourceReference:
       type: object
@@ -573,6 +725,8 @@ components:
           properties:
             schema_version: { type: string, enum: ['2', '3'] }
             proof_set_id: { type: string, description: Required for all new live stops; signed immutable proof set }
+            dependency_review_id: { type: string, description: Required for new schema-3 stops; immutable explicit dependency review }
+            dependency_graph_hash: { type: string, description: Required for new schema-3 stops; binds the reviewed graph revision }
             baseline_id: { type: string }
             measurement_id: { type: string }
             readiness_id: { type: string }

@@ -204,6 +204,14 @@ func (a *API) readiness(ctx context.Context, t *store.Tx, resource string, seal 
 				}
 				d["blockers"] = blocked
 				if model.String(b, "schema_version") == "3" {
+					review, dependencyErr := currentDependencyReview(ctx, t, resource, "", "", time.Now())
+					d["dependency_status"], d["dependency_reasons"] = "READY", []string{}
+					if dependencyErr != nil {
+						blocked = append(blocked, dependencyErr.Error())
+						d["dependency_status"], d["dependency_reasons"] = "BLOCKED", []string{dependencyErr.Error()}
+					} else {
+						d["dependency_review_id"], d["dependency_graph_hash"] = review["id"], review["graph_hash"]
+					}
 					if err := trustedActivityGate(ctx, t, res, now); err != nil {
 						blocked = append(blocked, err.Error())
 					}
@@ -340,6 +348,12 @@ func readinessPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, res mode
 		return problem(422, "READINESS_BINDING_INVALID", "readiness report differs from plan")
 	}
 	if p.SchemaVersion == "3" {
+		if p.DependencyReviewID == "" || p.DependencyReviewID != model.String(ready, "dependency_review_id") || p.DependencyGraphHash == "" || p.DependencyGraphHash != model.String(ready, "dependency_graph_hash") {
+			return problem(422, "DEPENDENCY_REVIEW_REQUIRED", "new version 3 stops require the exact reviewed dependency graph")
+		}
+		if err := DependencyPlanReady(ctx, t, model.String(res, "id"), p.DependencyReviewID, p.DependencyGraphHash, time.Now()); err != nil {
+			return evidenceProblem(err)
+		}
 		if e = proofPlanCheck(ctx, t, p, b, res, ready); e != nil {
 			return evidenceProblem(e)
 		}

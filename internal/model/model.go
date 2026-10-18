@@ -71,6 +71,8 @@ type Plan struct {
 	MeasurementID        string      `json:"measurement_id,omitempty"`
 	ActivationAt         string      `json:"activation_at,omitempty"`
 	ProofSetID           string      `json:"proof_set_id,omitempty"`
+	DependencyReviewID   string      `json:"dependency_review_id,omitempty"`
+	DependencyGraphHash  string      `json:"dependency_graph_hash,omitempty"`
 	ID                   string      `json:"id"`
 	TenantID             string      `json:"tenant_id"`
 	RecommendationID     string      `json:"recommendation_id"`

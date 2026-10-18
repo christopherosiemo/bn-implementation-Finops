@@ -102,12 +102,16 @@ export function isTrustedPlan(record: Document & EvidenceFields): boolean {
     Boolean(record.readiness_id) &&
     Boolean(
       payload &&
-      typeof payload === "object" &&
-      "schema_version" in payload &&
-      (payload.schema_version === "2" ||
-        (payload.schema_version === "3" &&
-          "proof_set_id" in payload &&
-          Boolean(payload.proof_set_id))),
+        typeof payload === "object" &&
+        "schema_version" in payload &&
+        (payload.schema_version === "2" ||
+          (payload.schema_version === "3" &&
+            "proof_set_id" in payload &&
+            Boolean(payload.proof_set_id) &&
+            "dependency_review_id" in payload &&
+            Boolean(payload.dependency_review_id) &&
+            "dependency_graph_hash" in payload &&
+            Boolean(payload.dependency_graph_hash))),
     )
   );
 }
@@ -142,13 +146,16 @@ export function EvidenceSummary({
 }) {
   const hasBinding = Boolean(
     record.baseline_id ||
-    record.measurement_id ||
-    record.readiness_id ||
-    record.activation_at ||
-    record.evidence_refs?.length ||
-    record.source_refs?.length ||
-    record.verification_status ||
-    record.pre_execution_ready !== undefined,
+      record.measurement_id ||
+      record.readiness_id ||
+      record.dependency_review_id ||
+      record.dependency_graph_hash ||
+      record.dependency_status ||
+      record.activation_at ||
+      record.evidence_refs?.length ||
+      record.source_refs?.length ||
+      record.verification_status ||
+      record.pre_execution_ready !== undefined,
   );
   if (!hasBinding) return null;
   return (
@@ -184,6 +191,29 @@ export function EvidenceSummary({
           <div>
             <dt>Readiness reference</dt>
             <dd className="evidence-id">{record.readiness_id}</dd>
+          </div>
+        )}
+        {record.dependency_status && (
+          <div>
+            <dt>Dependency assessment</dt>
+            <dd>
+              <Badge value={record.dependency_status} />
+              {record.dependency_reasons?.map((reason) => (
+                <small key={reason}>{readable(reason)}</small>
+              ))}
+            </dd>
+          </div>
+        )}
+        {record.dependency_review_id && (
+          <div>
+            <dt>Dependency review reference</dt>
+            <dd className="evidence-id">{record.dependency_review_id}</dd>
+          </div>
+        )}
+        {record.dependency_graph_hash && (
+          <div>
+            <dt>Dependency graph hash</dt>
+            <dd className="evidence-id">{record.dependency_graph_hash}</dd>
           </div>
         )}
         {record.activation_at && (
@@ -460,12 +490,19 @@ export function TextLink({
 export function Table({
   headings,
   children,
+  scrollLabel,
 }: {
   headings: string[];
   children: ReactNode;
+  scrollLabel?: string;
 }) {
   return (
-    <div className="table-scroll">
+    <div
+      className="table-scroll"
+      role={scrollLabel ? "region" : undefined}
+      aria-label={scrollLabel}
+      tabIndex={scrollLabel ? 0 : undefined}
+    >
       <table>
         <thead>
           <tr>

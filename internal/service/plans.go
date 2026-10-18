@@ -132,6 +132,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	p.SchemaVersion, p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt = "2", model.String(ready, "id"), model.String(baseline, "id"), model.String(m, "id"), model.String(m, "activation_at")
 	if model.String(baseline, "schema_version") == "3" {
 		p.SchemaVersion, p.ProofSetID = "3", model.String(ready, "proof_set_id")
+		p.DependencyReviewID, p.DependencyGraphHash = model.String(ready, "dependency_review_id"), model.String(ready, "dependency_graph_hash")
 	}
 	if e = readinessPlanCheck(ctx, t, p, res); e != nil {
 		return nil, e
@@ -142,6 +143,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	d := model.Document{"id": p.ID, "recommendation_id": recID, "schedule_id": scheduleID, "resource_id": res["id"], "workload_id": w["id"], "policy_version": p.PolicyVersion, "risk_class": "R1", "status": "AWAITING_APPROVAL", "operations": p.Operations, "payload": payload, "stop_at": stop.Format(time.RFC3339Nano), "restore_at": start.Format(time.RFC3339Nano), "expires_at": expiry.Format(time.RFC3339Nano), "created_at": model.Now(), "restoration_authorized": true, "fixture": fixture}
 	d["readiness_id"], d["baseline_id"], d["measurement_id"], d["activation_at"] = p.ReadinessID, p.BaselineID, p.MeasurementID, p.ActivationAt
 	d["proof_set_id"] = p.ProofSetID
+	d["dependency_review_id"], d["dependency_graph_hash"] = p.DependencyReviewID, p.DependencyGraphHash
 	return t.Create(ctx, "change_plans", d)
 }
 func decodePlan(d model.Document) (model.Plan, error) {

@@ -48,4 +48,8 @@ func restrictDashboard(i auth.Identity, d model.Document) {
 	d["cloud_accounts"] = []model.Document{}
 	d["source_connections"] = []model.Document{}
 	d["activity_sources"] = []model.Document{}
+	// A partial graph must not imply that hidden external consumers are absent.
+	// Application owners receive their scoped inventory, without tenant graph
+	// topology, review identities, hashes or relationships to other workloads.
+	d["dependency_graph"] = model.Document{"version": 0, "nodes": []model.Document{}, "edges": []model.Document{}, "reviews": []model.Document{}, "status": "UNKNOWN", "reasons": []string{"WORKLOAD_SCOPE_DENIED"}}
 }

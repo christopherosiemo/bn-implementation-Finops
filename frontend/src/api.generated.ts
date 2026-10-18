@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/resource-graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getResourceGraph"];
+        put?: never;
+        /** @description PLATFORM_ADMIN records a complete declared edge set as an immutable graph revision. All edges are hard dependencies; discovered mappings remain server-derived. If-Match is the graph version, including zero for the initial unknown graph. */
+        post: operations["reviseResourceGraph"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/dependency-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDependencyReviews"];
+        put?: never;
+        /** @description PLATFORM_ADMIN explicitly reviews discovered and external dependencies. If-Match is the resource version. Validity is at most 24 hours. A recorded review can remain BLOCKED; it never approves or executes a change plan. */
+        post: operations["reviewResourceDependencies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/source-connections": {
         parameters: {
             query?: never;
@@ -602,6 +636,92 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @enum {string} */
+        DependencyEdgeType: "RUNS_ON" | "ATTACHED_TO" | "ROUTES_TO" | "DEPENDS_ON" | "BACKED_BY" | "MEMBER_OF" | "MANAGED_BY" | "SCALES_WITH" | "PROTECTED_BY" | "CONFIGURED_BY" | "PAID_BY_COMMITMENT";
+        DependencyNode: {
+            /** @description Server-selected resource:<id> or workload:<id> inventory identity */
+            id: string;
+            /** @enum {string} */
+            kind: "RESOURCE" | "WORKLOAD";
+            resource_id?: string;
+            workload_id?: string;
+            name: string;
+            owner?: string | null;
+            environment?: string | null;
+            provider?: string | null;
+            provider_resource_id?: string | null;
+            account_id?: string | null;
+            region?: string | null;
+            configuration_authority?: string | null;
+        };
+        DependencyEdgeInput: {
+            /** @description Existing server-selected graph node ID */
+            from: string;
+            /** @description Existing server-selected graph node ID */
+            to: string;
+            type: components["schemas"]["DependencyEdgeType"];
+        };
+        DependencyEdge: {
+            from: string;
+            to: string;
+            type: components["schemas"]["DependencyEdgeType"];
+            /** @enum {string} */
+            source: "DISCOVERED_MAPPING" | "OPERATOR_DECLARED";
+        };
+        ResourceGraph: {
+            version: number;
+            nodes: components["schemas"]["DependencyNode"][];
+            edges: components["schemas"]["DependencyEdge"][];
+            inventory_hash: string;
+            graph_hash: string;
+            /** @enum {string} */
+            status: "UNKNOWN" | "DECLARED" | "BLOCKED";
+            reasons: string[];
+            reviews: components["schemas"]["DependencyReview"][];
+        };
+        ResourceGraphRequest: {
+            edges: components["schemas"]["DependencyEdgeInput"][];
+            /** @description Auditable explanation for the complete declared edge set */
+            reason: string;
+        };
+        DependencyReviewRequest: {
+            /** @description Current declared graph revision; the initial unknown graph cannot be reviewed */
+            graph_version: number;
+            /**
+             * Format: date-time
+             * @description UTC timestamp after now and no more than 24 hours ahead
+             */
+            valid_until: string;
+            /** @enum {string} */
+            acknowledgement: "REVIEWED_DISCOVERED_AND_EXTERNAL_DEPENDENCIES";
+            /** @description Auditable review of discovered mappings */
+            note: string;
+        };
+        DependencyReview: {
+            id: string;
+            resource_id: string;
+            graph_version: number;
+            graph_hash: string;
+            inventory_hash: string;
+            reviewed_by: string;
+            /** Format: date-time */
+            reviewed_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            note: string;
+            /** @enum {string} */
+            status: "READY" | "BLOCKED";
+            reasons: string[];
+        };
+        DependencyReviews: {
+            resource_id: string;
+            latest: components["schemas"]["DependencyReview"] | null;
+            reviews: components["schemas"]["DependencyReview"][];
+            /** @enum {string} */
+            status: "READY" | "BLOCKED" | "UNKNOWN";
+            reasons: string[];
+            current_graph_version: number;
+        };
         Resource: components["schemas"]["Document"] & {
             name?: string;
             provider_resource_id?: string;
@@ -648,6 +768,8 @@ export interface components {
             /** Format: date-time */
             activation_at?: string;
             payload?: components["schemas"]["PlanPayload"];
+            dependency_review_id?: string | null;
+            dependency_graph_hash?: string | null;
         };
         Execution: components["schemas"]["Document"] & {
             change_plan_id?: string;
@@ -696,6 +818,7 @@ export interface components {
             readiness: components["schemas"]["Readiness"][];
             source_connections?: components["schemas"]["SourceConnection"][];
             activity_sources?: components["schemas"]["Document"][];
+            dependency_graph?: components["schemas"]["ResourceGraph"];
         };
         EvidenceBinding: {
             tenant_id: string;
@@ -730,6 +853,11 @@ export interface components {
             source_proof?: components["schemas"]["SourceProof"];
             commitment_scope?: components["schemas"]["CommitmentScope"];
             activity_signal?: components["schemas"]["ActivitySignal"];
+            /** @enum {string} */
+            dependency_status?: "READY" | "BLOCKED" | "UNKNOWN";
+            dependency_reasons?: string[];
+            dependency_review_id?: string | null;
+            dependency_graph_hash?: string | null;
             pricing_basis?: ("NET_UNBLENDED" | "UNBLENDED")[];
         };
         SourceReference: {
@@ -752,6 +880,10 @@ export interface components {
             schema_version: "2" | "3";
             /** @description Required for all new live stops; signed immutable proof set */
             proof_set_id?: string;
+            /** @description Required for new schema-3 stops; immutable explicit dependency review */
+            dependency_review_id?: string;
+            /** @description Required for new schema-3 stops; binds the reviewed graph revision */
+            dependency_graph_hash?: string;
             baseline_id: string;
             measurement_id: string;
             readiness_id: string;
@@ -867,6 +999,148 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getResourceGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current inventory-derived mappings, operator declarations and immutable reviews. DECLARED is not automatic dependency discovery. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceGraph"];
+                };
+            };
+        };
+    };
+    reviseResourceGraph: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceGraphRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable operator-declared revision recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceGraph"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Graph version or inventory changed; refresh before retrying */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid graph fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listDependencyReviews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current dependency assessment and immutable review history for the resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyReviews"];
+                };
+            };
+        };
+    };
+    reviewResourceDependencies: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DependencyReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable review bound to graph and inventory hashes, including blocking reasons */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyReview"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource version */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid review fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listSourceConnections: {
         parameters: {
             query?: never;

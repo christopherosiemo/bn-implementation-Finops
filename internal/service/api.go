@@ -216,6 +216,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				}
 				d[k] = rows
 			}
+			graph, err := dependencyGraph(r.Context(), t)
+			if err != nil {
+				return err
+			}
+			d["dependency_graph"] = graph
 			restrictDashboard(i, d)
 			out = d
 			return nil
@@ -224,6 +229,19 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return problem(403, "WORKLOAD_SCOPE_DENIED", "application owners use the scoped dashboard")
 		}
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+		if len(parts) == 1 && parts[0] == "resource-graph" {
+			d, e := dependencyGraph(r.Context(), t)
+			out = d
+			if e == nil {
+				w.Header().Set("ETag", fmt.Sprintf("\"%d\"", model.Number(d, "version")))
+			}
+			return e
+		}
+		if len(parts) == 3 && parts[0] == "resources" && parts[2] == "dependency-reviews" {
+			d, e := dependencyReviews(r.Context(), t, parts[1], time.Now())
+			out = d
+			return e
+		}
 		if len(parts) == 1 && parts[0] == "activity-sources" {
 			d, err := activitySources(r.Context(), t)
 			out = d

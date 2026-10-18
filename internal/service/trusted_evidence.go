@@ -542,6 +542,11 @@ func sealProofSet(ctx context.Context, t *store.Tx, b, res model.Document, now t
 		return nil, e
 	}
 	d := model.Document{"schema_version": "3", "resource_id": res["id"], "baseline_id": b["id"], "binding": b["binding"], "source_receipt_id": receipt["id"], "activity_receipt": latest, "commitment_scope": scope, "checked_at": now.UTC().Format(time.RFC3339Nano)}
+	review, e := currentDependencyReview(ctx, t, model.String(res, "id"), "", "", time.Now())
+	if e != nil {
+		return nil, e
+	}
+	d["dependency_review_id"], d["dependency_graph_hash"] = review["id"], review["graph_hash"]
 	return t.EvidenceCreate(ctx, "proof_set", d)
 }
 
@@ -555,6 +560,9 @@ func proofPlanCheck(ctx context.Context, t *store.Tx, p model.Plan, b, res, read
 	}
 	if model.String(proof, "baseline_id") != p.BaselineID || model.String(proof, "resource_id") != model.String(res, "id") || !evidence.SameBindingV3(evidence.Object(proof["binding"]), evidence.Object(b["binding"])) {
 		return errors.New("PROOF_SET_BINDING_INVALID")
+	}
+	if model.String(proof, "dependency_review_id") != p.DependencyReviewID || model.String(proof, "dependency_graph_hash") != p.DependencyGraphHash {
+		return errors.New("DEPENDENCY_PROOF_SET_INVALID")
 	}
 	_, receipt, e := selectedTrustedSource(ctx, t, model.String(b, "source_connection_id"), res)
 	if e != nil {

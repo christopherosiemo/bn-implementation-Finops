@@ -178,6 +178,11 @@ func validateApproval(ctx context.Context, t *store.Tx, d model.Document, p mode
 	return problem(422, "APPROVAL_INVALID", "approval does not match immutable payload")
 }
 func precheck(ctx context.Context, t *store.Tx, p model.Plan, now time.Time) error {
+	if p.SchemaVersion == "3" {
+		if _, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
+			return e
+		}
+	}
 	if p.TenantID != t.Tenant || len(p.Operations) != 2 {
 		return problem(422, "PLAN_BINDING_INVALID", "invalid target binding")
 	}
@@ -422,6 +427,9 @@ func (s *SecureService) dispatch(ctx context.Context, in model.Dispatch) (model.
 				if restored || !intent || owned {
 					return problem(409, "OCCURRENCE_COMPLETED", "stop authority was consumed while intent was persisted")
 				}
+				if e = precheck(ctx, t, p, time.Now()); e != nil {
+					return consumeUnissuedStop(ctx, t, in.ExecutionID, state, op, "STOP_PRECONDITIONS_CHANGED", e)
+				}
 				intent = true
 			}
 			if s.Config.Fixture {
@@ -531,8 +539,14 @@ func finalizeStopError(ctx context.Context, t *store.Tx, executionID string, sta
 	if !firstDispatch || !provider.StopDefinitelyRejected(cause) {
 		return cause
 	}
+	return consumeUnissuedStop(ctx, t, executionID, state, op, "STOP_DEFINITIVELY_REJECTED", cause)
+}
+
+// Only call when this occurrence has not issued a provider mutation. Earlier
+// uncertain attempts retain their recovery obligation and never enter here.
+func consumeUnissuedStop(ctx context.Context, t *store.Tx, executionID string, state model.Document, op model.Operation, reason string, cause error) error {
 	state = model.Clone(state)
-	state["stop_rejected"], state["reason_code"] = true, "STOP_DEFINITIVELY_REJECTED"
+	state["stop_rejected"], state["reason_code"] = true, reason
 	b, e := json.Marshal(state)
 	if e != nil {
 		return e
@@ -544,7 +558,7 @@ func finalizeStopError(ctx context.Context, t *store.Tx, executionID string, sta
 	if updated.RowsAffected() != 1 {
 		return problem(409, "STOP_OWNERSHIP_CHANGED", "stop authority changed before rejection was persisted")
 	}
-	if e = t.Audit(ctx, "executor", "provider.stop.rejected", op.ResourceID, model.Document{"execution_id": executionID, "provider_resource_id": op.ProviderResourceID, "reason_code": "STOP_DEFINITIVELY_REJECTED"}); e != nil {
+	if e = t.Audit(ctx, "executor", "provider.stop.rejected", op.ResourceID, model.Document{"execution_id": executionID, "provider_resource_id": op.ProviderResourceID, "reason_code": reason}); e != nil {
 		return e
 	}
 	if e = t.Commit(ctx); e != nil {

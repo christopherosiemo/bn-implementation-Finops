@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 21,
-  "rounded_description": "Approximately 21 percent of the full product",
-  "credit_review": "Accepted deterministic v3 source-to-claim/correction flow and separate machine OIDC acceptance; no live, production or customer-use credit",
+  "current_weighted_percent": 22.2,
+  "rounded_description": "Approximately 22 percent of the full product",
+  "credit_review": "Accepted bounded workload mapping through typed dependency reviews, proof-bound STOP and owned restoration using deterministic fixtures and restricted PostgreSQL roles; no complete-discovery, SLO, live, production or customer-use credit",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -58,18 +58,24 @@
     {
       "id": "workload_graph_demand_slo",
       "weight_percent": 12,
-      "contribution_points": 2.4,
+      "contribution_points": 3.6,
       "packages": [
         {
           "id": "bounded_workload_mapping",
           "scope_weight_percent": 6,
-          "accepted_maturity": 20,
+          "accepted_maturity": 40,
           "evidence": [
-            "internal/service",
+            "internal/dependency/graph_test.go",
+            "internal/service/dependencies_integration_test.go",
+            "internal/service/dependencies_concurrency_test.go",
+            "internal/service/trusted_integration_test.go",
+            "scripts/dependency-smoke.mjs",
+            "frontend/tests/dependencies.spec.ts",
             "docs/acceptance.md"
           ],
           "remaining": [
-            "Customer demand, dependency graph and SLO completeness"
+            "Complete automatic topology and dependency reconciliation, including additional resource types",
+            "Supervised customer graph, ownership and external-consumer validation"
           ]
         },
         {
@@ -89,7 +95,7 @@
         }
       ],
       "baseline_area_maturity": 10,
-      "current_area_maturity": 20
+      "current_area_maturity": 30
     },
     {
       "id": "optimisation_forecast_commitments",
@@ -296,6 +302,7 @@
     }
   ],
   "next_credit_gates": [
+    "Complete independent hard-SLO telemetry and action-specific evaluation without substituting hourly maxima for quantiles",
     "Approve exact two-account deployment plan, budget, owner and expiry",
     "Deploy read-only first and validate authentic source/activity receipts",
     "Collect genuine fourteen-day baseline, latest complete day within forty-eight hours of activation",
@@ -454,6 +461,28 @@
         "internal/service/trusted_integration_test.go",
         "scripts/activity-smoke.mjs",
         "frontend/tests/readiness.spec.ts"
+      ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "dependency-safety-2026-10-18",
+      "previous_weighted_percent": 21,
+      "weighted_percent": 22.2,
+      "contribution_changes": [
+        {
+          "capability": "bounded_workload_mapping",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 1.2,
+          "acceptance": "Server-selected inventory mappings and typed operator declarations through expiring immutable reviews, signed schema-3 plan/proof binding, concurrent-writer exclusion, guarded fixture execution and owned restoration after invalidation. Automatic complete discovery, hard-SLO validation and customer operation remain unaccepted."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "internal/service/dependencies_concurrency_test.go",
+        "scripts/dependency-smoke.mjs",
+        "frontend/tests/dependencies.spec.ts"
       ],
       "live_credit_awarded": false
     }

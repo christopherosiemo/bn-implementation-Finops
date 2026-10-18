@@ -106,6 +106,11 @@ func (t *Tx) List(ctx context.Context, kind string) ([]model.Document, error) {
 	return out, r.Err()
 }
 func (t *Tx) Create(ctx context.Context, kind string, d model.Document) (model.Document, error) {
+	if kind == "resources" || kind == "workloads" {
+		if _, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
+			return nil, e
+		}
+	}
 	id := model.String(d, "id")
 	if id == "" {
 		id = model.ID()
@@ -120,6 +125,11 @@ func (t *Tx) Create(ctx context.Context, kind string, d model.Document) (model.D
 	return d, e
 }
 func (t *Tx) Update(ctx context.Context, kind, id string, version int64, d model.Document) (model.Document, error) {
+	if kind == "resources" || kind == "workloads" {
+		if _, e := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
+			return nil, e
+		}
+	}
 	d = model.Clone(d)
 	d["id"], d["version"], d["tenant_id"] = id, version+1, t.Tenant
 	b, e := json.Marshal(d)

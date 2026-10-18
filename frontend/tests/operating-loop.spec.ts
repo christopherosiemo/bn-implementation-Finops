@@ -51,8 +51,24 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await expect(
     page.getByRole("heading", { name: "Know what you run." }),
   ).toBeVisible();
-  await expect(page.getByText("dev-api-01", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Update signals" }).first().click();
+  const inventory = page.getByRole("table").filter({
+    has: page.getByRole("columnheader", {
+      name: "Monthly compute",
+      exact: true,
+    }),
+  });
+  await expect(
+    inventory.getByRole("cell").filter({
+      has: page.getByText("dev-api-01", { exact: true }),
+    }),
+  ).toBeVisible();
+  const workload = page.locator(".workload-card").filter({
+    has: page.getByRole("heading", {
+      name: "Developer API sandbox",
+      exact: true,
+    }),
+  });
+  await workload.getByRole("button", { name: "Update signals" }).click();
   const signals = page.getByRole("dialog", { name: "Update workload signals" });
   for (const label of ["Incident", "Deployment", "Job"])
     await signals.getByLabel(label, { exact: true }).selectOption("CLEAR");
@@ -97,7 +113,6 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await page
     .getByRole("button", { name: "Create change plan" })
     .and(page.locator(":enabled"))
-    .first()
     .click();
   const plan = page.getByRole("dialog", {
     name: "Create immutable change plan",
@@ -110,11 +125,24 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
     plan.getByRole("button", { name: "Create signed plan" }),
   ).toBeDisabled();
   await plan.getByRole("checkbox").check();
+  const planResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/v1/change-plans") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+  );
   await plan.getByRole("button", { name: "Create signed plan" }).click();
+  const createdPlan = (await (await planResponse).json()) as { id: string };
   await expect(
     page.getByRole("heading", { name: "Set the right rhythm." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Review & approve" }).first().click();
+  const planRow = page.getByRole("row").filter({
+    has: page.getByRole("button", {
+      name: `Inspect ${createdPlan.id}`,
+      exact: true,
+    }),
+  });
+  await planRow.getByRole("button", { name: "Review & approve" }).click();
   const approval = page.getByRole("dialog", {
     name: "Review & approve change plan",
   });
@@ -127,16 +155,21 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
       response.request().method() === "POST" &&
       response.ok(),
   );
-  await page
-    .getByRole("button", { name: "Execute approved plan" })
-    .first()
-    .click();
+  await planRow.getByRole("button", { name: "Execute approved plan" }).click();
   const execution = (await (await executionResponse).json()) as { id: string };
   await expect(
     page.getByRole("heading", { name: "Every change, in view." }),
   ).toBeVisible();
+  const executionCard = page.locator(".execution-card").filter({
+    has: page.getByRole("button", {
+      name: `Inspect ${execution.id}`,
+      exact: true,
+    }),
+  });
   await expect(
-    page.getByText("Execution completed · evidence retained").first(),
+    executionCard.getByText("Execution completed · evidence retained", {
+      exact: true,
+    }),
   ).toBeVisible({ timeout: 90_000 });
 
   await page
@@ -215,7 +248,25 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   await expect(
     page.getByRole("heading", { name: "An unbroken trail." }),
   ).toBeVisible();
-  await expect(page.getByText(/approval|approved/i).first()).toBeVisible();
+  const auditRefresh = page.waitForResponse(
+    (response) => response.url().endsWith("/v1/dashboard") && response.ok(),
+  );
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  const auditData = (await (await auditRefresh).json()) as {
+    audit: { id: string; action: string; resource: string }[];
+  };
+  const approvalAudit = auditData.audit.find(
+    (item) =>
+      item.action === "approval.completed" && item.resource === createdPlan.id,
+  );
+  expect(approvalAudit).toBeDefined();
+  const approvalRow = page.getByRole("row").filter({
+    has: page.getByRole("button", {
+      name: `Inspect ${approvalAudit!.id}`,
+      exact: true,
+    }),
+  });
+  await expect(approvalRow).toContainText("Approval.completed");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export visible records" }).click();
   expect((await download).suggestedFilename()).toMatch(/^finops-audit-/);

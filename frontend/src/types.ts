@@ -15,11 +15,21 @@ export interface EvidenceFields {
   measurement_id?: string | null;
   readiness_id?: string | null;
   proof_set_id?: string | null;
+  dependency_status?: "READY" | "BLOCKED" | "UNKNOWN";
+  dependency_reasons?: string[];
+  dependency_review_id?: string | null;
+  dependency_graph_hash?: string | null;
   activation_at?: string | null;
   evidence_refs?: unknown[];
   source_refs?: components["schemas"]["SourceReference"][];
 }
 export type Readiness = components["schemas"]["Readiness"];
+export type DependencyNode = components["schemas"]["DependencyNode"];
+export type DependencyEdge = components["schemas"]["DependencyEdge"];
+export type DependencyEdgeInput = components["schemas"]["DependencyEdgeInput"];
+export type DependencyEdgeType = components["schemas"]["DependencyEdgeType"];
+export type DependencyReview = components["schemas"]["DependencyReview"];
+export type ResourceGraph = components["schemas"]["ResourceGraph"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;
@@ -130,6 +140,7 @@ export interface Dashboard {
   readiness?: Readiness[];
   source_connections?: (Document & components["schemas"]["SourceConnection"])[];
   activity_sources?: Document[];
+  dependency_graph?: ResourceGraph;
 }
 export type Page =
   | "overview"

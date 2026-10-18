@@ -12,11 +12,14 @@ function fixture() {
   const dashboard = { fixture: false, org: { id: env.FINOPS_SANDBOX_TENANT_ID }, resources: [resource], workloads: [workload], recommendations: [rec] };
   const readiness = { id: 'ready-test', status: 'READY', pre_execution_ready: true, checked_at: iso(-1000), expires_at: iso(240_000), baseline_id: 'baseline-test', measurement_id: 'measurement-test', activation_at: iso(-500), binding: { tenant_id: env.FINOPS_SANDBOX_TENANT_ID, resource_id: resource.id, provider_resource_id: resource.provider_resource_id, account_id: resource.account_id, region: resource.region } };
   readiness.proof_set_id = 'proof-test';
+  readiness.dependency_status = 'READY';
+  readiness.dependency_review_id = 'dependency-review-test';
+  readiness.dependency_graph_hash = 'a'.repeat(64);
   readiness.activity_signal = { status: 'CLEAR', source_id: 'activity-source', receipt_id: 'minute-receipt', received_at: iso(-1000), interval_end: iso(-1000) };
   readiness.commitment_scope = { complete: true, reserved_instance_count: 0, savings_plan_count: 0 };
   const op = { resource_id: resource.id, provider_resource_id: resource.provider_resource_id, account_id: resource.account_id, region: resource.region };
   const schedule = { id: 'schedule-test', workload_id: workload.id, paused: false, version: 7 };
-  const plan = { id: env.FINOPS_APPROVED_PLAN_ID, version: 2, status: 'APPROVED', fixture: false, schedule_id: schedule.id, resource_id: resource.id, workload_id: workload.id, recommendation_id: rec.id, payload: { id: env.FINOPS_APPROVED_PLAN_ID, schema_version: '3', proof_set_id: readiness.proof_set_id, tenant_id: env.FINOPS_SANDBOX_TENANT_ID, fixture: false, schedule_id: schedule.id, workload_id: workload.id, recommendation_id: rec.id, readiness_id: readiness.id, baseline_id: readiness.baseline_id, measurement_id: readiness.measurement_id, activation_at: readiness.activation_at, stop_at: iso(0), restore_at: iso(3_600_000), expires_at: iso(900_000), operations: [{ ...op, type: 'EC2_STOP' }, { ...op, type: 'EC2_START' }] } };
+  const plan = { id: env.FINOPS_APPROVED_PLAN_ID, version: 2, status: 'APPROVED', fixture: false, schedule_id: schedule.id, resource_id: resource.id, workload_id: workload.id, recommendation_id: rec.id, payload: { id: env.FINOPS_APPROVED_PLAN_ID, schema_version: '3', proof_set_id: readiness.proof_set_id, dependency_review_id: readiness.dependency_review_id, dependency_graph_hash: readiness.dependency_graph_hash, tenant_id: env.FINOPS_SANDBOX_TENANT_ID, fixture: false, schedule_id: schedule.id, workload_id: workload.id, recommendation_id: rec.id, readiness_id: readiness.id, baseline_id: readiness.baseline_id, measurement_id: readiness.measurement_id, activation_at: readiness.activation_at, stop_at: iso(0), restore_at: iso(3_600_000), expires_at: iso(900_000), operations: [{ ...op, type: 'EC2_STOP' }, { ...op, type: 'EC2_START' }] } };
   const calls = []; let polls = 0;
   const fetchImpl = async (url, options) => {
     calls.push({ path: url.pathname, ...options }); let body;
@@ -39,6 +42,8 @@ function fixture() {
 }
 test('default inspection: one GET, no workload/economics/execution prerequisites', async () => {
   const f = fixture(); delete f.env.FINOPS_LIVE_ACK; delete f.env.FINOPS_APPROVED_PLAN_ID; f.dashboard.workloads = []; f.dashboard.recommendations = []; delete f.resource.workload_id; delete f.resource.commitment_known;
+  delete f.readiness.dependency_status; delete f.readiness.dependency_review_id; delete f.readiness.dependency_graph_hash;
+  delete f.plan.payload.dependency_review_id; delete f.plan.payload.dependency_graph_hash;
   assert.equal((await runSandboxSmoke({ ...f, args: [] })).mode, 'inspection'); assert.equal(f.calls.length, 1); assert.ok(f.calls.every(c => c.method === 'GET'));
 });
 test('explicit execution: approved plan, owned restoration, then confirmed schedule pause', async () => {
@@ -53,6 +58,13 @@ for (const [name, mutate] of [
   ['unapproved plan', f => { f.plan.status = 'AWAITING_APPROVAL'; }], ['wrong signed tenant', f => { f.plan.payload.tenant_id = 'other'; }],
   ['legacy plan', f => { f.plan.payload.schema_version = '2'; }], ['extra operation', f => { f.plan.payload.operations.push(f.plan.payload.operations[0]); }],
   ['missing proof set', f => { delete f.plan.payload.proof_set_id; }], ['different proof set', f => { f.readiness.proof_set_id = 'other'; }],
+  ['missing dependency status', f => { delete f.readiness.dependency_status; }], ['blocked dependency status', f => { f.readiness.dependency_status = 'BLOCKED'; }],
+  ['missing signed dependency review', f => { delete f.plan.payload.dependency_review_id; }], ['missing readiness dependency review', f => { delete f.readiness.dependency_review_id; }],
+  ['different dependency review', f => { f.readiness.dependency_review_id = 'other-review'; }], ['empty dependency review', f => { f.readiness.dependency_review_id = f.plan.payload.dependency_review_id = ''; }],
+  ['blank dependency review', f => { f.readiness.dependency_review_id = f.plan.payload.dependency_review_id = ' '; }],
+  ['missing signed dependency graph hash', f => { delete f.plan.payload.dependency_graph_hash; }], ['missing readiness dependency graph hash', f => { delete f.readiness.dependency_graph_hash; }],
+  ['different dependency graph hash', f => { f.readiness.dependency_graph_hash = 'b'.repeat(64); }], ['empty dependency graph hash', f => { f.readiness.dependency_graph_hash = f.plan.payload.dependency_graph_hash = ''; }],
+  ['blank dependency graph hash', f => { f.readiness.dependency_graph_hash = f.plan.payload.dependency_graph_hash = ' '; }],
   ['missing trusted activity', f => { delete f.readiness.activity_signal; }], ['incomplete commitment scope', f => { f.readiness.commitment_scope.complete = false; }],
   ['missing signed schedule', f => { delete f.plan.payload.schedule_id; }], ['mismatched signed schedule', f => { f.plan.payload.schedule_id = 'other'; }],
   ['wrong signed target', f => { f.plan.payload.operations[1].account_id = '999988887777'; }], ['not-ready recommendation', f => { f.rec.pre_execution_ready = false; }],

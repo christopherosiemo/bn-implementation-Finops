@@ -110,6 +110,8 @@ jobs:
         run: node scripts/recovery-smoke.mjs
       - name: Exercise dedicated machine OIDC and activity-ingress isolation
         run: node scripts/activity-smoke.mjs
+      - name: Exercise tenant-isolated dependency graph and review safety
+        run: node scripts/dependency-smoke.mjs
       # Run after API smoke: both tests intentionally use/reset the same fixture tenant.
       - name: Exercise OIDC login and console journey in Chromium
         working-directory: frontend

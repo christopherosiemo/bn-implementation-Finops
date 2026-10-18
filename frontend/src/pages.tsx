@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SourceTrust } from "./SourceTrust";
+import { DependencySafety } from "./DependencySafety";
 import {
   Activity,
   ArrowDownRight,
@@ -380,6 +381,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
+      <DependencySafety data={data} run={run} busy={busy} />
       {inspect && (
         <Evidence record={inspect} onClose={() => setInspect(null)} />
       )}

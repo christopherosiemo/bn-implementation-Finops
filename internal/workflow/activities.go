@@ -171,6 +171,9 @@ func (a *Activities) Control(ctx context.Context, in model.WorkflowInput) (Contr
 			// Lost trusted inputs are restoration requests, never cancellation of
 			// the executor's already persisted ownership obligation.
 			c.Restore = model.Bool(d, "start_now") || model.Bool(org, "paused") || model.Bool(s, "paused") || err != nil || activity.FreshActivity(time.Now(), latest, 2*time.Minute).Status != "CLEAR"
+			if err := service.DependencyPlanReady(ctx, t, model.String(d, "resource_id"), model.String(payload, "dependency_review_id"), model.String(payload, "dependency_graph_hash"), time.Now()); err != nil {
+				c.Restore = true
+			}
 		}
 		return nil
 	})

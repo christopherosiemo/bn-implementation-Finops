@@ -256,6 +256,7 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 		t.Fatal(err)
 	}
 	refreshTrustedActivity(t, apiDB, admin, tenant, activitySource.ID)
+	seedDependencyReview(t, ctx, &api, apiDB, tenant, "resource-dev-api")
 	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
 		var e error
 		ready, e = api.readiness(ctx, tx, "resource-dev-api", true)
@@ -278,7 +279,7 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.SchemaVersion != "3" || p.ProofSetID == "" || p.BaselineID != model.String(baseline, "id") {
+	if p.SchemaVersion != "3" || p.ProofSetID == "" || p.DependencyReviewID == "" || p.DependencyGraphHash == "" || p.BaselineID != model.String(baseline, "id") {
 		t.Fatalf("unbound v3 plan:%+v", p)
 	}
 	legacy := p
@@ -302,9 +303,28 @@ func TestTrustedProviderReceiptsSelectBaselineBindPlanAndPreserveRecovery(t *tes
 	}); err != nil {
 		t.Fatal(err)
 	}
+	assertStaleDependencyServices := trustedDependencyServiceBoundaries(t, ctx, apiDB, executorDB, tenant, &api, p)
 	if os.Getenv("ECONOMICS_TEST_URL") != "" {
 		trustedNativeClaim(t, ctx, admin, apiDB, ingesterDB, executorDB, tenant, &api, &pipeline, reader, parsed, p)
 	}
+	// A graph revision cannot change an approved new stop, while its old signed
+	// restoration below remains valid after graph/source revocation and expiry.
+	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
+		g, e := tx.DependencyGraph(ctx)
+		if e != nil {
+			return e
+		}
+		_, e = tx.DependencyGraphAppend(ctx, model.Number(g, "version"), model.Document{"edges": []model.Document{}, "changed_by": "test-reviewer", "reason": "explicit re-review required"})
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
+		return DependencyPlanReady(ctx, tx, "resource-dev-api", p.DependencyReviewID, p.DependencyGraphHash, time.Now())
+	}); err == nil {
+		t.Fatal("graph revision retained old plan authority")
+	}
+	assertStaleDependencyServices()
 	if err = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
 		d, e := tx.SourceGet(ctx, parsed.ID)
 		if e != nil {

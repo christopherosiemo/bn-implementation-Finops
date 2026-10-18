@@ -43,6 +43,8 @@ npm run test:e2e
 
 The smoke and browser acceptance suites use the owner fixture tenant and must run sequentially. The browser suite requires `npx playwright install chromium` once. Do not use fixture reset commands against live mode; they are rejected there.
 
+The [dependency-safety guide](docs/dependency-safety.md) covers the implemented typed graph, operator declarations, expiring review and signed schema-3 new-stop binding. Run `node scripts/dependency-smoke.mjs` for the 15-check fixture API journey. Contract checks use `go test ./internal/dependency ./internal/store ./internal/service ./internal/workflow`; PostgreSQL cases require a disposable `TEST_DATABASE_URL`, and full source-to-claim integration uses the real Python worker. A unit-only pass does not establish the complete graph/review operating loop.
+
 ## What is in the pilot
 
 - OIDC/PKCE console and tenant-scoped API, forced PostgreSQL row-level security, scoped roles and versioned mutations.
@@ -51,6 +53,8 @@ The smoke and browser acceptance suites use the owner fixture tenant and must ru
 - Exact decimal economics, explicit commitment exclusions, workload evidence and invoice-finality gates, and append-only savings/audit history.
 - CUR 2.0 normalization with explicit FOCUS 1.4 mapping gaps, raw evidence in versioned object storage and canonical facts in ClickHouse.
 - AWS pilot Terraform/Helm assets, CI and operating instructions. Provisioning assets is separate from a verified live customer deployment.
+
+Dependency safety is a bounded capability: current workload `RUNS_ON` mappings plus operator-declared relationships, with review expiry and graph/inventory changes blocking new schema-3 stops. It does not establish automatic complete dependency discovery. An inbound external consumer blocks the pilot's stop, without an inferred SLO exception; existing owned restoration retains authority. Hard-SLO telemetry/evaluation, full topology/EBS graph integration and production fleet canary behavior remain outstanding. The [acceptance record](docs/acceptance.md) and [progress ledger](docs/progress-ledger.md) distinguish deterministic capability from the remaining live and product-wide gates.
 
 ```mermaid
 flowchart LR
@@ -70,7 +74,7 @@ flowchart LR
 
 ## Live AWS pilot
 
-Live infrastructure is opt-in and is **not deployed by local startup**. Read [sandbox readiness](docs/sandbox-readiness.md), [evidence contracts](docs/readiness-evidence.md), [deployment](docs/deployment.md), [operations](docs/operations.md), and [acceptance](docs/acceptance.md) before using live mode. A configured customer identity is bound to exactly one `AWS_TENANT_ID`; the pilot never shares that identity with another tenant. Fresh customer installations create a read role only. API-uploaded financial evidence stays provisional; live execution requires trusted provider and workload evidence integration alongside ownership, configuration authority, fresh safety inputs and uncovered economics. No commissioning bypass is provided.
+Live infrastructure is opt-in and is **not deployed by local startup**. Read [sandbox readiness](docs/sandbox-readiness.md), [evidence contracts](docs/readiness-evidence.md), [dependency safety](docs/dependency-safety.md), [deployment](docs/deployment.md), [operations](docs/operations.md), and [acceptance](docs/acceptance.md) before using live mode. A configured customer identity is bound to exactly one `AWS_TENANT_ID`; the pilot never shares that identity with another tenant. Fresh customer installations create a read role only. API-uploaded financial evidence stays provisional; live execution requires trusted provider and workload evidence integration alongside ownership, configuration authority, fresh safety inputs and uncovered economics. No commissioning bypass is provided.
 
 Optional operator webhooks use `WEBHOOK_URL` and the independently generated `WEBHOOK_SECRET`, supplied only to the worker. An empty URL retains events in the transactional outbox. Live delivery requires HTTPS; receiver configuration and signature verification are described in [deployment](docs/deployment.md).
 

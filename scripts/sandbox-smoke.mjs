@@ -76,6 +76,8 @@ export async function runSandboxSmoke({ env = process.env, args = process.argv.s
   const readiness = await call('/v1/resources/' + encodeURIComponent(resource.id) + '/readiness');
   insist(readiness.status === 'READY' && readiness.pre_execution_ready === true, 'Fresh readiness must explicitly permit execution');
   insist(readiness.proof_set_id === payload.proof_set_id, 'Signed proof set must match current readiness');
+  insist(readiness.dependency_status === 'READY', 'Current dependency review must explicitly permit execution');
+  for (const key of ['dependency_review_id', 'dependency_graph_hash']) insist(typeof readiness[key] === 'string' && readiness[key].trim().length > 0 && payload[key] === readiness[key], `Signed ${key} must match current dependency readiness`);
   const activity = readiness.activity_signal;
   insist(activity?.status === 'CLEAR' && activity.receipt_id && activity.source_id, 'Independent authenticated workload signals must be CLEAR');
   const signalsAt = timestamp(activity.received_at, 'activity received_at');
