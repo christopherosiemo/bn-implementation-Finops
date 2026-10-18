@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 23.4,
-  "rounded_description": "Approximately 23 percent of the full product",
-  "credit_review": "Accepted bounded independent SLO receipts, objective/plan binding, owned rollback and permanent measurement disqualification with deterministic acceptance; no full-SLO, native instrumentation, live, production or customer-use credit",
+  "current_weighted_percent": 24.4,
+  "rounded_description": "Approximately 24 percent of the full product",
+  "credit_review": "Accepted bounded native telemetry from real local instrumentation through immutable persisted receipts and console evaluation; accepted bounded capacity/forecast components. No full capacity catalogue, live/customer operation, fleet, Kubernetes or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -22,11 +22,11 @@
     {
       "id": "billing_inventory_telemetry",
       "weight_percent": 18,
-      "contribution_points": 4.5,
+      "contribution_points": 5.1,
       "packages": [
         {
           "id": "inventory_adapters",
-          "scope_weight_percent": 13.5,
+          "scope_weight_percent": 10.5,
           "accepted_maturity": 20,
           "evidence": [
             "internal/provider",
@@ -34,6 +34,25 @@
           ],
           "remaining": [
             "Live inventory/IAM and broader resources"
+          ]
+        },
+        {
+          "id": "bounded_native_telemetry",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/telemetry",
+            "internal/native/runtime_integration_test.go",
+            "internal/store/telemetry_integration_test.go",
+            "scripts/native-smoke.mjs",
+            "scripts/native-otel-smoke.mjs",
+            "frontend/tests/native-live.spec.ts",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Genuine customer history and independently commissioned instrumentation",
+            "Streaming dense populations above explicit bounds, additional native histogram/statistic formats and broader provider metrics",
+            "Hosted/live and sustained production acceptance"
           ]
         },
         {
@@ -53,7 +72,7 @@
         }
       ],
       "baseline_area_maturity": 15,
-      "current_area_maturity": 25
+      "current_area_maturity": 28.333333333333332
     },
     {
       "id": "workload_graph_demand_slo",
@@ -95,8 +114,8 @@
           ],
           "remaining": [
             "Deploy independently instrumented customer collectors and collect genuine history",
-            "Native OTel/Prometheus integrations, longer SLI distributions and seasonality",
-            "Complete CPU/memory headroom, replica/AZ/RTO/RPO and broader action-specific SLO gates"
+            "Longer native application distributions, dense seasonal populations and full instrumentation commissioning",
+            "Complete candidate capacity, replica/AZ/RTO/RPO recovery proof and broader action-specific SLO gates"
           ]
         }
       ],
@@ -106,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 0.9,
+      "contribution_points": 1.3,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -121,8 +140,25 @@
           ]
         },
         {
+          "id": "bounded_capacity_forecast",
+          "scope_weight_percent": 2,
+          "accepted_maturity": 20,
+          "evidence": [
+            "economics/autopilot/capacity.py",
+            "economics/tests/test_capacity.py",
+            "internal/native/capacity_test.go",
+            "internal/service/capacity_integration_test.go",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Native hardware and contracted candidate-price catalogue integration; public endpoint remains blocked",
+            "Calibrated production breach probabilities, unsupported horizons and larger seasonal populations",
+            "Connected approved fleet/action execution, supervised customer backtests and production outcomes"
+          ]
+        },
+        {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 13.5,
+          "scope_weight_percent": 11.5,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md"
@@ -133,7 +169,7 @@
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 5
+      "current_area_maturity": 7.222222222222223
     },
     {
       "id": "execution_iac_gitops",
@@ -513,6 +549,76 @@
         "scripts/slo-smoke.mjs",
         "frontend/tests/slo.spec.ts"
       ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "native-capacity-2026-10-18",
+      "previous_weighted_percent": 23.4,
+      "weighted_percent": 24.4,
+      "package_subdivisions": [
+        {
+          "domain": "billing_inventory_telemetry",
+          "previous_package": "inventory_adapters",
+          "previous_scope_weight_percent": 13.5,
+          "previous_maturity": 20,
+          "children": [
+            {
+              "id": "inventory_adapters",
+              "scope_weight_percent": 10.5,
+              "previous_maturity": 20
+            },
+            {
+              "id": "bounded_native_telemetry",
+              "scope_weight_percent": 3,
+              "previous_maturity": 20
+            }
+          ]
+        },
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 13.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_capacity_forecast",
+              "scope_weight_percent": 2,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 11.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_telemetry",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.6,
+          "acceptance": "Registered native Prometheus and real OTel collector through separate machine OIDC, actual versioned objects/ClickHouse facts, tenant-isolated PostgreSQL, durable history jobs and connected console. Customer history, dense streaming and hosted operation remain unaccepted."
+        },
+        {
+          "capability": "bounded_capacity_forecast",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.4,
+          "acceptance": "Exact-unit capacity distributions, headroom, peak/seasonal analysis, rolling backtests and prediction intervals with server-selected immutable input. Missing catalogue/native pricing keeps the public assessment blocked; no execution or verified-money claim."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/native-telemetry.md",
+        "scripts/native-smoke.mjs",
+        "scripts/native-otel-smoke.mjs",
+        "frontend/tests/native-live.spec.ts",
+        "economics/tests/test_capacity.py"
+      ],
+      "release_commit": "aec624aca7a28239b41fee5e992f080574760aba",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39139905144",
       "live_credit_awarded": false
     }
   ]
