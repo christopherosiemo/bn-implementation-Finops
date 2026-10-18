@@ -25,6 +25,14 @@ export function fixtureGitEnvironment(environment, home) {
 export function fixtureReaderMounts(directory) {
   return [['k8s-safety', '/usr/local/bin/k8s-safety'], ['reader.token', '/fixture/reader.token'], ['ca.crt', '/fixture/ca.crt']].flatMap(([source, destination]) => ['-v', `${path.join(directory, source)}:${destination}:ro`]);
 }
+export function fixtureApplierRules() {
+  return [
+    { apiGroups: ['apps'], resources: ['deployments'], verbs: ['get', 'list', 'watch', 'create', 'patch', 'update'] },
+    { apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list', 'watch', 'create', 'patch', 'update'] },
+    { apiGroups: ['apps'], resources: ['replicasets'], verbs: ['get', 'list', 'watch'] },
+    { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] },
+  ];
+}
 async function waitFor(check, message, timeout = 120000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = check(); if (value) return value; await pause(1000); }
@@ -61,7 +69,7 @@ export async function runFluxLab() {
     for (const component of ['source-controller', 'kustomize-controller']) kube(['rollout', 'status', 'deployment/' + component, '-n', controllerNS, '--timeout=120s']);
     apply({ apiVersion: 'v1', kind: 'Namespace', metadata: { name: ns, labels: { 'finops.autopilot/environment': 'NON_PRODUCTION', 'finops.autopilot/owner': 'local-flux-operator' } } });
     apply({ apiVersion: 'v1', kind: 'ServiceAccount', metadata: { name: 'workload-applier', namespace: controllerNS }, automountServiceAccountToken: false });
-    apply({ apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'Role', metadata: { name: 'workload-applier', namespace: ns }, rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get', 'list', 'watch', 'create', 'patch', 'update'] }, { apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list', 'watch', 'create', 'patch', 'update'] }] });
+    apply({ apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'Role', metadata: { name: 'workload-applier', namespace: ns }, rules: fixtureApplierRules() });
     apply({ apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'RoleBinding', metadata: { name: 'workload-applier', namespace: ns }, roleRef: { apiGroup: 'rbac.authorization.k8s.io', kind: 'Role', name: 'workload-applier' }, subjects: [{ kind: 'ServiceAccount', name: 'workload-applier', namespace: controllerNS }] });
     apply({ apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'Role', metadata: { name: 'workload-impersonation', namespace: controllerNS }, rules: [{ apiGroups: [''], resources: ['serviceaccounts'], resourceNames: ['workload-applier'], verbs: ['impersonate'] }] });
     apply({ apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'RoleBinding', metadata: { name: 'workload-impersonation', namespace: controllerNS }, roleRef: { apiGroup: 'rbac.authorization.k8s.io', kind: 'Role', name: 'workload-impersonation' }, subjects: [{ kind: 'ServiceAccount', name: 'kustomize-controller', namespace: controllerNS }] });
@@ -119,6 +127,8 @@ export async function runFluxLab() {
     }
     deny(`system:serviceaccount:${controllerNS}:workload-applier`, 'patch', 'deployments', 'kube-system');
     deny(`system:serviceaccount:${controllerNS}:workload-applier`, 'get', 'secrets', ns);
+    deny(`system:serviceaccount:${controllerNS}:workload-applier`, 'patch', 'replicasets', ns);
+    deny(`system:serviceaccount:${controllerNS}:workload-applier`, 'delete', 'pods', ns);
     deny(`system:serviceaccount:${controllerNS}:kustomize-controller`, 'patch', 'deployments', ns);
     pass('separate real reader and namespace-limited impersonated applier cannot read Secrets or mutate unrelated workloads');
 

@@ -53,8 +53,10 @@ on the dedicated bridge. The node has the native CNI return routes needed by
 controller pods. This changes no global routes or firewall rules. The server has no published host
 port, Kubernetes token, administrator configuration, or writable repository.
 The controller applies committed resources through a dedicated namespaced
-service account. The safety reader can read native inventory and the exact Flux
-source/controller objects. Its only artifact transport is GET through the
+service account. The applier observes ReplicaSets and Pods with GET/LIST/WATCH
+for the controller's native deployment health checks; it cannot mutate those
+children or read Secrets. The safety reader can read native inventory and the
+exact Flux source/controller objects. Its only artifact transport is GET through the
 Kubernetes API proxy for `source-controller:80`; it has no write, secret-read, or
 other Service-proxy permission.
 The driver initializes a fresh synthetic bare repository, then writes its exact
@@ -119,5 +121,6 @@ Primary references:
 - [Flux installation prerequisites](https://fluxcd.io/flux/installation/)
 - [GitRepository native artifact and status](https://fluxcd.io/flux/components/source/gitrepositories/)
 - [Kustomization reconciliation, impersonation and status](https://fluxcd.io/flux/components/kustomize/kustomizations/)
+- [Pinned deployment health reader](https://github.com/fluxcd/cli-utils/blob/v1.2.3/pkg/kstatus/polling/statusreaders/deployment.go) and [ReplicaSet/Pod traversal](https://github.com/fluxcd/cli-utils/blob/v1.2.3/pkg/kstatus/polling/statusreaders/replicaset.go)
 - [Flux security practices](https://fluxcd.io/flux/security/best-practices/)
 - [KIND 0.33.0 release](https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0)

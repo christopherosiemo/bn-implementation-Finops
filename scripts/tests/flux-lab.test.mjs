@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { fixtureGitEnvironment, fixtureReaderMounts, nativeFluxReady } from '../flux-lab.mjs';
+import { fixtureApplierRules, fixtureGitEnvironment, fixtureReaderMounts, nativeFluxReady } from '../flux-lab.mjs';
 import { cacheLabel, importedManifestName, localhostAPIPort, normalizedImportedAliases, ownershipLabel, pins, prepareFluxCompilation, prepareFluxRepository, producerIdentity, validateOwnedGit, validateOwnedNetwork, validateOwnedNode } from '../flux-bootstrap.mjs';
 
 test('private Linux mounts use exact invoking UID/GID while Windows keeps native mount semantics', () => {
@@ -11,6 +11,14 @@ test('private Linux mounts use exact invoking UID/GID while Windows keeps native
   assert.deepEqual(producerIdentity('linux', 1001, 1002), ['--user', '1001:1002']);
   assert.deepEqual(producerIdentity('linux', 0, 0), ['--user', '0:0']);
   for (const [uid, gid] of [[null, 1], [1, null], [-1, 1], [1, 0.5], ['1001', 1001], [2147483648, 1]]) assert.throws(() => producerIdentity('linux', uid, gid));
+});
+
+test('Flux applier can observe ReplicaSet health without mutating children or gaining Secret access', () => {
+  const rules = fixtureApplierRules();
+  assert.deepEqual(rules.find(rule => rule.resources.includes('replicasets')), { apiGroups: ['apps'], resources: ['replicasets'], verbs: ['get', 'list', 'watch'] });
+  assert.deepEqual(rules.find(rule => rule.resources.includes('pods')), { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] });
+  assert.deepEqual(rules.flatMap(rule => rule.resources).sort(), ['configmaps', 'deployments', 'pods', 'replicasets']);
+  for (const rule of rules.filter(rule => rule.verbs.some(verb => ['create', 'patch', 'update', 'delete'].includes(verb)))) assert.ok(rule.resources.every(resource => ['deployments', 'configmaps'].includes(resource)));
 });
 
 test('Git preflight never adopts a repository and checks actual startup offline with only read-only fixture mounts', () => {
