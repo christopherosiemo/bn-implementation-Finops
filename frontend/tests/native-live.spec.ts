@@ -225,5 +225,141 @@ test("real OIDC and UI register exact native units and inspect persisted telemet
   await expect(
     page.getByRole("button", { name: `Inspect native telemetry ${source.id}` }),
   ).toBeVisible();
+
+  // Continue the same real evidence journey. A declaration is configuration
+  // metadata only; even a persisted proposal must remain blocked and unpriced.
+  await page.getByRole("link", { name: "Workloads & resources" }).click();
+  await page
+    .getByLabel("Configuration authority workload")
+    .selectOption("workload-dev");
+  await page
+    .getByLabel("Configuration authority resource")
+    .selectOption("resource-dev-api");
+  const authorityPanel = page
+    .locator(".panel")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Configuration ownership & proposal evidence",
+        exact: true,
+      }),
+    });
+  await authorityPanel
+    .getByRole("button", {
+      name: /^(Declare Terraform ownership|Revise ownership declaration)$/,
+    })
+    .click();
+  const declaration = page.getByRole("dialog", {
+    name: "Declare Terraform configuration authority",
+  });
+  for (const [label, value] of Object.entries({
+    "Repository HTTPS URL":
+      "https://github.com/example/fixture-infrastructure.git",
+    "Declared Git branch or tag": "main",
+    "Repository relative directory": "envs/development",
+    "Pipeline issuer HTTPS URL": "https://token.actions.githubusercontent.com",
+    "Exact pipeline machine subject":
+      "repo:example/fixture-infrastructure:ref:refs/heads/main",
+    "Stable pipeline identifier": ".github/workflows/deploy.yml",
+    "Terraform workspace": "fixture-development",
+    "Declared Terraform state lineage UUID":
+      "0f5a34b0-a480-4cda-9f6a-9b205ced7937",
+    "Managed Terraform resource addresses":
+      'module.api["development"].aws_instance.api[0]',
+  }))
+    await declaration.getByLabel(label, { exact: true }).fill(value);
+  await declaration.getByRole("checkbox", { name: /I acknowledge/ }).check();
+  const declared = page.waitForResponse(
+    (response) =>
+      response
+        .url()
+        .endsWith("/resources/resource-dev-api/configuration-authorities") &&
+      response.request().method() === "POST",
+  );
+  await declaration
+    .getByRole("button", { name: "Save ownership declaration" })
+    .click();
+  const declarationResponse = await declared;
+  expect(declarationResponse.status()).toBe(201);
+  const authority =
+    (await declarationResponse.json()) as components["schemas"]["ConfigurationAuthority"];
+  expect(authority.status).toBe("DECLARED_NOT_ATTESTED");
+  expect(authority.execution_authorized).toBe(false);
+  expect(authority.observed_commit).toBeNull();
+  expect(authority.observed_state_serial).toBeNull();
+  expect(authority.binding.resource_id).toBe("resource-dev-api");
+  expect(authority.binding.provider_resource_id).toBe(
+    source.binding.provider_resource_id,
+  );
+  expect(authority.binding.resource_snapshot_hash).toMatch(/^[a-f0-9]{64}$/);
+  await expect(declaration).not.toBeVisible();
+  await authorityPanel
+    .getByRole("button", { name: "Review proposal evidence" })
+    .click();
+  const proposalDialog = page.getByRole("dialog", {
+    name: "Record a blocked configuration proposal",
+  });
+  const selection = proposalDialog.getByRole("radio", {
+    name: `Select capacity assessment ${capacity.id}`,
+    exact: true,
+  });
+  await expect(
+    proposalDialog.getByRole("region", {
+      name: "Scrollable capacity assessment selection",
+    }),
+  ).toBeVisible();
+  for (
+    let pageNumber = 0;
+    !(await selection.count()) && pageNumber < 20;
+    pageNumber++
+  ) {
+    const more = proposalDialog.getByRole("button", {
+      name: "Load more capacity assessments for proposal",
+      exact: true,
+    });
+    await expect(more).toBeVisible();
+    const loaded = page.waitForResponse(
+      (response) =>
+        response
+          .url()
+          .includes("/workloads/workload-dev/capacity-assessments?") &&
+        response.url().includes("cursor=") &&
+        response.request().method() === "GET",
+    );
+    await more.click();
+    await loaded;
+    if (await more.count())
+      await expect(more).toHaveAttribute("aria-busy", "false");
+  }
+  await selection.check();
+  const proposed = page.waitForResponse(
+    (response) =>
+      response
+        .url()
+        .endsWith("/workloads/workload-dev/configuration-proposals") &&
+      response.request().method() === "POST",
+  );
+  await proposalDialog
+    .getByRole("button", { name: "Record blocked proposal", exact: true })
+    .click();
+  const proposalResponse = await proposed;
+  expect(proposalResponse.status()).toBe(201);
+  const proposal =
+    (await proposalResponse.json()) as components["schemas"]["ConfigurationProposal"];
+  expect(proposal.authority_id).toBe(authority.id);
+  expect(proposal.authority_hash).toBe(authority.hash);
+  expect(proposal.capacity_assessment_id).toBe(capacity.id);
+  expect(proposal.capacity_assessment_hash).toBe(capacity.hash);
+  expect(proposal.population_hash).toBe(capacity.population_hash);
+  expect(proposal.status).toBe("BLOCKED");
+  expect(proposal.execution_authorized).toBe(false);
+  expect(proposal.estimated_saving).toBeNull();
+  expect(proposal.verified_saving).toBeNull();
+  expect(proposal.change_plan_id).toBeNull();
+  await expect(proposalDialog).not.toBeVisible();
+  const proposalRow = authorityPanel
+    .getByRole("row")
+    .filter({ hasText: proposal.id });
+  await expect(proposalRow).toContainText("Execution disabled");
+  await expect(proposalRow).toContainText("Estimated savings: unavailable");
   expect(errors).toEqual([]);
 });

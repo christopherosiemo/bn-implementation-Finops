@@ -1,5 +1,43 @@
 # AWS scheduling pilot acceptance record
 
+## 18 October increment: fleet protocol and real local Kubernetes components
+
+The additive fleet/configuration package keeps scheduling signatures and Temporal
+histories separate. It adds typed v4 fleet plans, exact saved-plan validation,
+two-of-twenty disruption reservations across overlapping executions, immutable
+pipeline receipts and a separate machine-only deployment observer. Tenant-isolated
+configuration APIs and the connected console record declarations as
+`DECLARED_NOT_ATTESTED`; proposals select existing assessments and remain blocked.
+They cannot mint trusted prices, native observations, plans or execution authority.
+
+Local acceptance passed the full Go suite and vet against fresh PostgreSQL and
+the actual Python economics worker, all **37 Chromium tests**, **17 scheduling API
+checks** and **6 actual API/worker restart recovery checks**. Additional real-JWT,
+fresh-PostgreSQL observer acceptance exercises restricted database credentials,
+exact-body replay/conflict, source/tenant/audience isolation, durable uncertain
+outcomes and denial of approval/signing/dispatch/financial writes. Signed proof
+lifetimes must cover the complete modeled fleet duration. The reference Terraform
+cohorts validated with **8 mock-provider plan tests** without network or AWS
+credentials; the deployment observer Helm policies passed positive and negative
+credential/network checks. Full exact-commit CI and source scanning remain the
+release acceptance gate; test counts receive no independent progress credit.
+
+The real three-node local Kubernetes lab passed **7 connected checks**: read-only
+RBAC, native inventory, exact local Git revision rollout, zero-disruption PDB
+blocking before mutation, failed readiness and owned Git rollback, and an HPA
+example where smaller per-pod requests increase total requests. Post-rollout
+rechecks bind controller generation, ownership/classification, exact spec and
+replica/zone health. Official KIND/node/application digests are pinned; only a
+private local kubeconfig and explicitly named local cluster are used. The GitOps
+controller is labelled `LOCAL_GITOPS_TEST_DOUBLE`, and no hosted cluster or cloud
+resource was provisioned or changed.
+
+This establishes bounded components, not the full fleet or Kubernetes contractual
+workflow. The v4 workflow remains unregistered. Continuously observed signed-stage
+health, private authority/capacity/economics factories, actual customer pipeline
+dispatch, complete rollback/economics acceptance, hosted Argo/Flux and customer
+operation remain gates. See [component contracts and explicit limits](fleet-and-kubernetes-components.md).
+
 Recorded 17 October 2026. This record covers the first operational slice: an approved, reversible stop/start schedule for a standalone, EBS-backed, non-production EC2 instance. The local stack uses labelled deterministic AWS and billing fixtures with real OIDC, PostgreSQL, Temporal, object-storage and ClickHouse services.
 
 This is a pilot acceptance record. It does not establish commercial GA, FOCUS certification, SOC 2/ISO certification, measured production SLOs, platform-scale capacity or realised savings for a customer.

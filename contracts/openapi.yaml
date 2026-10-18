@@ -8,6 +8,115 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /deployment-callbacks/{command_id}:
+    post:
+      operationId: receiveDeploymentAttestation
+      description: Separate deployment-observer service. Dedicated machine OIDC and an exact registered issuer/subject/audience/pipeline binding are required. The exact body is retained. APPLIED establishes owned state change; it never releases a disruption reservation or proves health, source membership, savings or permission to expand. Console tokens cannot submit attestations. The optional service is disabled by default.
+      security: [ { deploymentMachineAuth: [] } ]
+      parameters:
+        - { name: command_id, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { name: X-Finops-Source-ID, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FleetDeploymentCallback' }
+      responses:
+        '201':
+          description: Immutable authenticated callback persisted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FleetDeploymentCallbackResult' }
+        '200':
+          description: Exact original callback replay
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FleetDeploymentCallbackResult' }
+        '401': { description: Dedicated machine authentication required; human roles are rejected }
+        '403': { description: Registered source or command binding does not match }
+        '409': { description: Conflicting raw-body replay }
+        '413': { description: Body exceeds 64 KiB }
+        '415': { description: Uncompressed application/json required }
+        '422': { description: Invalid exact artifact, state, ownership or outcome binding }
+        '503': { description: Observer or persistence unavailable; outcome must remain unknown }
+  /resources/{id}/configuration-authorities:
+    get:
+      operationId: listConfigurationAuthorityRevisions
+      description: Current operator declaration and immutable cursor-paginated history within the resource's authorized workload. A declaration is not machine evidence or execution permission.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Latest version zero and null latest before the first declaration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationAuthorityPage' }
+        '403': { description: Resource workload is outside the caller's scope }
+        '404': { description: Resource not found within tenant }
+        '422': { description: Invalid or differently scoped cursor }
+    post:
+      operationId: declareConfigurationAuthority
+      description: PLATFORM_ADMIN appends a Terraform declaration. If-Match binds the latest declaration version, initially zero. Tenant, inventory binding, resource version and hash are selected by the server. Repository and issuer URLs are metadata only and are never fetched. Credentials, observed commits, state serials, proofs and execution permissions are not accepted. Execution remains disabled until separate machine evidence and action-specific gates exist.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationAuthorityRequest' }
+      responses:
+        '201':
+          description: Immutable DECLARED_NOT_ATTESTED revision with no execution authority
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationAuthority' }
+        '403': { description: PLATFORM_ADMIN and resource workload scope required }
+        '409': { description: Declaration version changed or idempotency key conflicts }
+        '422': { description: Invalid metadata, dedicated pipeline identity, state lineage, managed address or provider binding }
+        '428': { description: Latest declaration version required in If-Match }
+  /workloads/{id}/configuration-proposals:
+    get:
+      operationId: listConfigurationProposals
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200':
+          description: Workload-scoped immutable blocked proposals, preserving their original evidence references
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationProposalPage' }
+        '403': { description: Workload outside caller scope }
+        '422': { description: Invalid or differently scoped cursor }
+    post:
+      operationId: recordBlockedConfigurationProposal
+      description: PLATFORM_ADMIN selects only existing declaration and capacity-assessment IDs. If-Match binds the selected authority version. The server rechecks the latest declaration, exact inventory snapshot, workload safety profile and active native source. No patch, plan, price, arbitrary evidence or trusted pipeline assertion can be submitted. The result remains BLOCKED with null monetary estimates and no change plan.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false, required: [authority_id, capacity_assessment_id], properties: { authority_id: { type: string, minLength: 1 }, capacity_assessment_id: { type: string, minLength: 1 } } }
+      responses:
+        '201':
+          description: Immutable blocked proposal; no execution plan or claimed savings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationProposal' }
+        '403': { description: PLATFORM_ADMIN and workload scope required }
+        '404': { description: Referenced evidence not found within tenant }
+        '409': { description: Declaration superseded, stale If-Match or idempotency conflict }
+        '422': { description: Resource, safety profile, assessment or native source no longer matches }
+        '428': { description: Current authority version required in If-Match }
+  /workloads/{id}/configuration-proposals/{proposalId}:
+    get:
+      operationId: getConfigurationProposal
+      parameters: [ { $ref: '#/components/parameters/Id' }, { name: proposalId, in: path, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: Immutable proposal within the selected authorized workload
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationProposal' }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Proposal not found in tenant or selected workload }
   /workloads/{id}/capacity-assessments:
     get:
       operationId: listCapacityAssessments
@@ -600,6 +709,7 @@ paths:
       responses: { '200': { description: Fixture healthy/incident/job/deployment/stale/unhealthy scenario selected } }
 components:
   securitySchemes:
+    deploymentMachineAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Dedicated finops-deployment-observer audience and exact registered machine issuer/subject; no human roles }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
     activityMachineAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Dedicated finops-activity audience and registered machine subject }
   parameters:
@@ -624,6 +734,163 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetDeploymentCallback:
+      type: object
+      additionalProperties: false
+      required: [schema_version, command_id, child_id, child_sha256, saved_plan_sha256, child_nonce, state_lineage, before_state_serial, after_state_serial, outcome, observed_at, old_instance_ids, candidate_instance_ids]
+      properties:
+        schema_version: { type: string, enum: ['4'] }
+        command_id: { type: string, minLength: 1 }
+        child_id: { type: string, minLength: 1 }
+        child_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        saved_plan_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        child_nonce: { type: string, minLength: 1 }
+        state_lineage: { type: string, minLength: 1 }
+        before_state_serial: { type: integer, minimum: 0, description: Exact Terraform state serial; machine clients must retain integer precision. }
+        after_state_serial: { type: integer, minimum: 0, description: Applied changes must advance the exact state serial. }
+        outcome: { type: string, enum: [APPLIED, DEFINITELY_NOT_APPLIED, UNKNOWN, NO_OP] }
+        observed_at: { type: string, format: date-time }
+        old_instance_ids: { type: array, uniqueItems: true, items: { type: string, pattern: '^i-([a-f0-9]{8}|[a-f0-9]{17})$' } }
+        candidate_instance_ids: { type: array, uniqueItems: true, items: { type: string, pattern: '^i-([a-f0-9]{8}|[a-f0-9]{17})$' } }
+        reason_code: { type: string }
+    FleetDeploymentCallbackResult:
+      type: object
+      required: [receipt, replayed]
+      properties:
+        receipt:
+          type: object
+          additionalProperties: true
+          description: Original callback plus server-generated immutable identity and authenticated provenance. No saved Terraform plan, state payload or credentials are returned.
+          required: [id, tenant_id, source_id, body_sha256, received_at, writer_role, schema_version, command_id, child_id, outcome]
+          properties:
+            id: { type: string }
+            tenant_id: { type: string }
+            source_id: { type: string }
+            body_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+            received_at: { type: string, format: date-time }
+            writer_role: { type: string, enum: [finops_deployment_observer] }
+            schema_version: { type: string, enum: ['4'] }
+            command_id: { type: string }
+            child_id: { type: string }
+            outcome: { type: string, enum: [APPLIED, DEFINITELY_NOT_APPLIED, UNKNOWN, NO_OP] }
+        replayed: { type: boolean }
+    ConfigurationRepository:
+      type: object
+      additionalProperties: false
+      required: [url, ref, directory]
+      properties:
+        url: { type: string, format: uri, maxLength: 2048, description: HTTPS repository metadata without credentials, query or fragment; no network fetch }
+        ref: { type: string, minLength: 1, maxLength: 255, description: Declared Git branch or tag; not an observed commit or receipt }
+        directory: { type: string, minLength: 1, maxLength: 512, description: Canonical repository-relative directory, or dot for root; no traversal }
+    ConfigurationPipelineIdentity:
+      type: object
+      additionalProperties: false
+      required: [issuer, audience, subject, pipeline_id]
+      properties:
+        issuer: { type: string, format: uri, maxLength: 2048, description: HTTPS issuer metadata without credentials, query or fragment }
+        audience: { type: string, enum: [finops-deployment-observer] }
+        subject: { type: string, minLength: 1, maxLength: 512, description: Exact machine subject; no wildcard or whitespace }
+        pipeline_id: { type: string, minLength: 1, maxLength: 256, description: Stable exact pipeline identity; no secret }
+    ConfigurationPipeline:
+      type: object
+      additionalProperties: false
+      required: [system, identity]
+      properties:
+        system: { type: string, enum: [GITHUB_ACTIONS, GITLAB_CI, BITBUCKET_PIPELINES, OTHER] }
+        identity: { $ref: '#/components/schemas/ConfigurationPipelineIdentity' }
+    ConfigurationTerraform:
+      type: object
+      additionalProperties: false
+      required: [workspace, state_lineage, addresses]
+      properties:
+        workspace: { type: string, pattern: '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$' }
+        state_lineage: { type: string, format: uuid, pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', description: Declared canonical Terraform state lineage, not independently observed state }
+        addresses: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 512 }, description: Exact managed-resource addresses; indexed module paths supported, data sources and wildcards rejected }
+    ConfigurationAuthorityRequest:
+      type: object
+      additionalProperties: false
+      required: [schema_version, authority, repository, pipeline, terraform]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        authority: { type: string, enum: [TERRAFORM] }
+        repository: { $ref: '#/components/schemas/ConfigurationRepository' }
+        pipeline: { $ref: '#/components/schemas/ConfigurationPipeline' }
+        terraform: { $ref: '#/components/schemas/ConfigurationTerraform' }
+    ConfigurationBinding:
+      allOf:
+        - { $ref: '#/components/schemas/NativeResourceBinding' }
+        - type: object
+          required: [resource_version, resource_snapshot_hash]
+          properties:
+            resource_version: { type: integer, minimum: 1 }
+            resource_snapshot_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+    ConfigurationAuthority:
+      type: object
+      required: [schema_version, id, version, authority, repository, pipeline, terraform, binding, status, reason_codes, execution_authorized, observed_commit, observed_state_serial, declared_by, hash, created_at, writer_role]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        authority: { type: string, enum: [TERRAFORM] }
+        repository: { $ref: '#/components/schemas/ConfigurationRepository' }
+        pipeline: { $ref: '#/components/schemas/ConfigurationPipeline' }
+        terraform: { $ref: '#/components/schemas/ConfigurationTerraform' }
+        binding: { $ref: '#/components/schemas/ConfigurationBinding' }
+        status: { type: string, enum: [DECLARED_NOT_ATTESTED] }
+        reason_codes: { type: array, minItems: 2, items: { type: string } }
+        execution_authorized: { type: boolean, enum: [false] }
+        observed_commit: { type: string, nullable: true, enum: [null], description: No operator assertion can populate a machine-observed commit }
+        observed_state_serial: { type: integer, nullable: true, enum: [null], description: No operator assertion can populate an observed Terraform state serial }
+        declared_by: { type: string }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    ConfigurationAuthorityPage:
+      type: object
+      required: [version, latest, items, next_cursor]
+      properties:
+        version: { type: integer, minimum: 0 }
+        latest: { nullable: true, allOf: [ { $ref: '#/components/schemas/ConfigurationAuthority' } ] }
+        items: { type: array, items: { $ref: '#/components/schemas/ConfigurationAuthority' } }
+        next_cursor: { type: string, nullable: true }
+    ConfigurationProposal:
+      type: object
+      required: [schema_version, id, binding, workload_id, resource_id, authority_id, authority_version, authority_hash, capacity_assessment_id, capacity_assessment_hash, population_hash, connection_id, connection_version, revision_id, config_hash, safety_profile_id, safety_profile_version, safety_profile_hash, status, reason_codes, execution_authorized, estimated_saving, verified_saving, change_plan_id, proposed_by, hash, created_at, writer_role]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        binding: { $ref: '#/components/schemas/ConfigurationBinding' }
+        workload_id: { type: string }
+        resource_id: { type: string }
+        authority_id: { type: string }
+        authority_version: { type: integer, minimum: 1 }
+        authority_hash: { type: string }
+        capacity_assessment_id: { type: string }
+        capacity_assessment_hash: { type: string }
+        population_hash: { type: string }
+        connection_id: { type: string }
+        connection_version: { type: integer, minimum: 1 }
+        revision_id: { type: string }
+        config_hash: { type: string }
+        safety_profile_id: { type: string }
+        safety_profile_version: { type: integer, minimum: 1 }
+        safety_profile_hash: { type: string }
+        status: { type: string, enum: [BLOCKED] }
+        reason_codes: { type: array, minItems: 1, items: { type: string } }
+        execution_authorized: { type: boolean, enum: [false] }
+        estimated_saving: { type: string, nullable: true, enum: [null] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        change_plan_id: { type: string, nullable: true, enum: [null] }
+        proposed_by: { type: string }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string }
+    ConfigurationProposalPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ConfigurationProposal' } }
+        next_cursor: { type: string, nullable: true }
     CapacityAssessment:
       type: object
       required: [schema_version, id, workload_id, resource_id, connection_id, connection_version, revision_id, config_hash, safety_profile_id, safety_profile_version, safety_profile_hash, population_hash, receipt_ids, source_refs, history, native_evaluation, status, reason_codes, execution_authorized, hardware_catalog_status, native_price_status, estimated_saving, verified_saving, hash, created_at, writer_role]

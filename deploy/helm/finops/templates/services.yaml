@@ -13,7 +13,15 @@
 {{- end }}
 {{- end }}
 {{- if eq .Values.activity.audience .Values.oidc.audience }}{{ fail "activity.audience must differ from the human API audience" }}{{ end }}
-{{- range $role := list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "economics" "web" }}
+{{- $roles := list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "economics" "web" }}
+{{- if .Values.deploymentObserver.enabled }}
+{{- if has .Values.deploymentObserver.audience (list .Values.oidc.audience .Values.activity.audience .Values.telemetry.audience) }}{{ fail "deployment observer requires a separate machine audience" }}{{ end }}
+{{- if eq (len .Values.deploymentObserver.httpsEgressCidrs) 0 }}{{ fail "deployment observer requires approved JWKS HTTPS destination CIDRs" }}{{ end }}
+{{- range .Values.deploymentObserver.httpsEgressCidrs }}{{ if regexMatch "/0+$" . }}{{ fail "deployment observer egress cannot be world-open" }}{{ end }}{{ end }}
+{{- if eq (len .Values.deploymentObserver.pipelinePodSelector) 0 }}{{ fail "deployment observer requires an explicit local pipeline selector" }}{{ end }}
+{{- $roles = append $roles "deployment-observer" }}
+{{- end }}
+{{- range $role := $roles }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -80,7 +88,7 @@ spec:
             - { name: AWS_STS_REGIONAL_ENDPOINTS, value: regional }
             - { name: DATA_MODE, value: {{ $.Values.dataMode | quote }} }
             - { name: FIXTURE_MODE, value: {{ eq $.Values.dataMode "fixture" | quote }} }
-            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
             - { name: APP_ROLE, value: {{ $role | quote }} }
             - { name: PORT, value: "8080" }
             - name: DATABASE_URL
@@ -98,6 +106,13 @@ spec:
             - { name: ACTIVITY_OIDC_AUDIENCE, value: {{ $.Values.activity.audience | quote }} }
             {{- if $.Values.activity.jwksUrl }}
             - { name: ACTIVITY_OIDC_JWKS_URL, value: {{ $.Values.activity.jwksUrl | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- if eq $role "deployment-observer" }}
+            - {name: DEPLOYMENT_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.deploymentObserver.issuer | quote }}}
+            - {name: DEPLOYMENT_OIDC_AUDIENCE, value: {{ $.Values.deploymentObserver.audience | quote }}}
+            {{- if or $.Values.deploymentObserver.jwksUrl $.Values.oidc.jwksUrl }}
+            - {name: DEPLOYMENT_OIDC_JWKS_URL, value: {{ default $.Values.oidc.jwksUrl $.Values.deploymentObserver.jwksUrl | quote }}}
             {{- end }}
             {{- end }}
             {{- if has $role (list "api" "activity-ingress") }}
@@ -190,13 +205,13 @@ spec:
           resources: {{ toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
-            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
             - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
             {{- end }}
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 128Mi }
-        {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress") }}
+        {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
         - name: rds-ca
           configMap: { name: {{ $.Values.database.caConfigMap }} }
         {{- end }}

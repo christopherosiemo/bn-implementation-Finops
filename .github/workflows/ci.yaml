@@ -82,6 +82,10 @@ jobs:
       - name: Terraform init and validate without AWS credentials
         run: |
           docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform test -no-color && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate && terraform -chdir=modules/customer-roles test -no-color && terraform -chdir=modules/native-telemetry init -backend=false -input=false && terraform -chdir=modules/native-telemetry validate && terraform -chdir=modules/native-telemetry test -no-color'
+      - name: Validate explicit blue-green workload reference without applying
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src/examples/terraform-fleet --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform fmt -check -recursive && terraform init -backend=false -input=false && terraform validate'
+          docker run --rm --network none -v "$PWD:/src" -w /src/examples/terraform-fleet hashicorp/terraform:1.9.8 test -no-color
       - name: Sandbox acceptance and non-destructive plan checker regressions (mock API, no AWS)
         run: docker run --rm -v "$PWD:/src:ro" -w /src node:22-bookworm-slim sh -ec 'node --test scripts/tests/*.test.mjs'
       - name: Helm lint and render
@@ -95,10 +99,37 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set activity.issuer=https://machine.example.invalid --set sources.readBindingsSecret=finops-source-read-bindings > /tmp/finops-sources.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/native-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/native-values.yaml > /tmp/finops-native.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/fleet-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/fleet-values.yaml > /tmp/finops-fleet.yaml
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-native.yaml:/native.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /native.yaml && python deploy/tests/test_native_chart.py /native.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet.yaml:/fleet.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /fleet.yaml && python deploy/tests/test_fleet_chart.py /fleet.yaml'
+  kubernetes-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create pinned isolated local Kubernetes lab
+        run: node scripts/kubernetes-bootstrap.mjs
+      - name: Exercise Git rollout, zero-disruption blocking and owned rollback
+        run: node scripts/kubernetes-lab.mjs
+      - name: Retain bounded local lab acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-kubernetes-acceptance
+          path: work/kubernetes-lab/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Remove only the named CI-owned local lab
+        if: always()
+        run: |
+          if [ -x work/tools/kind ]; then work/tools/kind delete cluster --name finops-autopilot-lab; fi
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45

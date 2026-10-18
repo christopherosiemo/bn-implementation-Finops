@@ -1,0 +1,34 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {"name": "gateway", "namespace": "finops-k8s-lab", "labels": {"app": "finops-k8s-gateway"}},
+  "spec": {
+    "replicas": 2,
+    "revisionHistoryLimit": 3,
+    "progressDeadlineSeconds": 30,
+    "selector": {"matchLabels": {"app": "finops-k8s-gateway"}},
+    "strategy": {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1}},
+    "template": {
+      "metadata": {"labels": {"app": "finops-k8s-gateway"}},
+      "spec": {
+        "automountServiceAccountToken": false,
+        "terminationGracePeriodSeconds": 5,
+        "securityContext": {"runAsNonRoot": true, "runAsUser": 10001, "runAsGroup": 10001, "seccompProfile": {"type": "RuntimeDefault"}},
+        "containers": [{
+          "name": "gateway",
+          "image": "python:3.13-slim",
+          "imagePullPolicy": "Never",
+          "command": ["python", "-B", "/app/gateway.py"],
+          "ports": [{"name": "http", "containerPort": 8096}],
+          "securityContext": {"allowPrivilegeEscalation": false, "readOnlyRootFilesystem": true, "capabilities": {"drop": ["ALL"]}},
+          "resources": {"requests": {"cpu": "50m", "memory": "128Mi"}, "limits": {"cpu": "250m", "memory": "256Mi"}},
+          "readinessProbe": {"httpGet": {"path": "/healthz", "port": "http"}, "periodSeconds": 2, "timeoutSeconds": 1, "failureThreshold": 2},
+          "livenessProbe": {"httpGet": {"path": "/healthz", "port": "http"}, "periodSeconds": 5, "timeoutSeconds": 1, "failureThreshold": 3},
+          "volumeMounts": [{"name": "gateway", "mountPath": "/app", "readOnly": true}]
+        }],
+        "volumes": [{"name": "gateway", "configMap": {"name": "gateway-code"}}],
+        "topologySpreadConstraints": [{"maxSkew": 1, "topologyKey": "topology.kubernetes.io/zone", "whenUnsatisfiable": "DoNotSchedule", "labelSelector": {"matchLabels": {"app": "finops-k8s-gateway"}}}]
+      }
+    }
+  }
+}

@@ -24,6 +24,14 @@ spec:
     - host: {{ $host | quote }}
       http:
         paths:
+          {{- if and .Values.deploymentObserver.enabled .Values.deploymentObserver.ingressEnabled }}
+          - path: /v1/deployment-callbacks/
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-deployment-observer
+                port: {number: 8080}
+          {{- end }}
           {{- if and .Values.telemetry.enabled .Values.telemetry.ingressEnabled }}
           - path: /v1/metrics
             pathType: Exact

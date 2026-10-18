@@ -1,0 +1,40 @@
+# Documentation placeholders only. Not loaded automatically, not commissioned,
+# and not permission to create/import/update a fleet. Copy exact existing state
+# only after a separate customer commissioning review.
+runtime_updates_enabled = false
+expected_account_id     = "111122223333"
+region                  = "eu-west-1"
+tenant_id               = "tenant-reference"
+owner                   = "REPLACE_WITH_WORKLOAD_OWNER"
+old = {
+  asg_name                = "EXISTING-old-ASG"
+  launch_template_name    = "EXISTING-old-template"
+  launch_template_id      = "lt-0123456789abcdef0"
+  launch_template_version = 1
+  instance_type           = "m6i.4xlarge"
+  target_group_arn         = "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/EXISTING-old/0123456789abcdef"
+}
+candidate = {
+  asg_name                = "EXISTING-empty-candidate-ASG"
+  launch_template_name    = "EXISTING-reviewed-candidate-template"
+  launch_template_id      = "lt-1123456789abcdef0"
+  launch_template_version = 2
+  instance_type           = "m6i.2xlarge"
+  target_group_arn         = "arn:aws:elasticloadbalancing:eu-west-1:111122223333:targetgroup/EXISTING-candidate/1123456789abcdef"
+}
+old_desired_capacity       = 20
+candidate_desired_capacity = 0
+candidate_traffic_percent  = 0
+application_ami_id         = "ami-0123456789abcdef0"
+image_owner_account_id     = "111122223333"
+vpc_id                    = "vpc-0123456789abcdef0"
+private_subnet_ids         = ["subnet-0123456789abcdef0", "subnet-1123456789abcdef0"]
+security_group_ids         = ["sg-0123456789abcdef0"]
+instance_profile_arn       = "arn:aws:iam::111122223333:instance-profile/EXISTING-application"
+root_kms_key_arn           = "arn:aws:kms:eu-west-1:111122223333:key/01234567-89ab-cdef-0123-456789abcdef"
+root_volume_gib            = 20
+user_data_base64           = null
+listener_arn              = "arn:aws:elasticloadbalancing:eu-west-1:111122223333:listener/app/EXISTING/0123456789abcdef/1123456789abcdef"
+listener_rule_arn         = "arn:aws:elasticloadbalancing:eu-west-1:111122223333:listener-rule/app/EXISTING/0123456789abcdef/1123456789abcdef/2123456789abcdef"
+listener_priority        = 100
+host_header              = "fleet.example.invalid"

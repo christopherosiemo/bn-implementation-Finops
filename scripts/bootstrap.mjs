@@ -23,7 +23,7 @@ if (!existsSync(envPath)) {
   writeFileSync(envPath, Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
 }
 const env = Object.fromEntries(readFileSync(envPath, 'utf8').split(/\r?\n/).filter(s => s && !s.startsWith('#')).map(s => { const i = s.indexOf('='); return [s.slice(0, i), s.slice(i + 1)]; }));
-for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), DB_ACTIVITY_PASSWORD: random(), ACTIVITY_CLIENT_SECRET: random(), DB_TELEMETRY_READER_PASSWORD: random(), DB_TELEMETRY_INGRESS_PASSWORD: random(), TELEMETRY_READER_TOKEN: random(), TELEMETRY_CLIENT_SECRET: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
+for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), DB_ACTIVITY_PASSWORD: random(), ACTIVITY_CLIENT_SECRET: random(), DB_TELEMETRY_READER_PASSWORD: random(), DB_TELEMETRY_INGRESS_PASSWORD: random(), TELEMETRY_READER_TOKEN: random(), TELEMETRY_CLIENT_SECRET: random(), DB_DEPLOYMENT_OBSERVER_PASSWORD: random(), DEPLOYMENT_OBSERVER_CLIENT_SECRET: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
   if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
 }
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
@@ -54,6 +54,14 @@ const realm = {
     protocolMappers: [
       mapper('telemetry-audience', { 'included.custom.audience': 'finops-telemetry', 'access.token.claim': 'true', 'id.token.claim': 'false' }),
       { name: 'telemetry-tenant', protocol: 'openid-connect', protocolMapper: 'oidc-hardcoded-claim-mapper', consentRequired: false, config: { 'claim.name': 'tenant_id', 'claim.value': 'tenant-demo', 'jsonType.label': 'String', 'access.token.claim': 'true', 'id.token.claim': 'false' } },
+    ],
+  }, {
+    clientId: 'deployment-observer', name: 'Customer pipeline receipt observer (local fixture)', enabled: true,
+    protocol: 'openid-connect', publicClient: false, secret: env.DEPLOYMENT_OBSERVER_CLIENT_SECRET,
+    standardFlowEnabled: false, directAccessGrantsEnabled: false, serviceAccountsEnabled: true,
+    protocolMappers: [
+      mapper('deployment-audience', { 'included.custom.audience': 'finops-deployment-observer', 'access.token.claim': 'true', 'id.token.claim': 'false' }),
+      { name: 'deployment-tenant', protocol: 'openid-connect', protocolMapper: 'oidc-hardcoded-claim-mapper', consentRequired: false, config: { 'claim.name': 'tenant_id', 'claim.value': 'tenant-demo', 'jsonType.label': 'String', 'access.token.claim': 'true', 'id.token.claim': 'false' } },
     ],
   }],
   users: [

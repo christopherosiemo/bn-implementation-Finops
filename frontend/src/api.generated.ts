@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/deployment-callbacks/{command_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Separate deployment-observer service. Dedicated machine OIDC and an exact registered issuer/subject/audience/pipeline binding are required. The exact body is retained. APPLIED establishes owned state change; it never releases a disruption reservation or proves health, source membership, savings or permission to expand. Console tokens cannot submit attestations. The optional service is disabled by default. */
+        post: operations["receiveDeploymentAttestation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/configuration-authorities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current operator declaration and immutable cursor-paginated history within the resource's authorized workload. A declaration is not machine evidence or execution permission. */
+        get: operations["listConfigurationAuthorityRevisions"];
+        put?: never;
+        /** @description PLATFORM_ADMIN appends a Terraform declaration. If-Match binds the latest declaration version, initially zero. Tenant, inventory binding, resource version and hash are selected by the server. Repository and issuer URLs are metadata only and are never fetched. Credentials, observed commits, state serials, proofs and execution permissions are not accepted. Execution remains disabled until separate machine evidence and action-specific gates exist. */
+        post: operations["declareConfigurationAuthority"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/configuration-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listConfigurationProposals"];
+        put?: never;
+        /** @description PLATFORM_ADMIN selects only existing declaration and capacity-assessment IDs. If-Match binds the selected authority version. The server rechecks the latest declaration, exact inventory snapshot, workload safety profile and active native source. No patch, plan, price, arbitrary evidence or trusted pipeline assertion can be submitted. The result remains BLOCKED with null monetary estimates and no change plan. */
+        post: operations["recordBlockedConfigurationProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/configuration-proposals/{proposalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConfigurationProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workloads/{id}/capacity-assessments": {
         parameters: {
             query?: never;
@@ -787,6 +855,180 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetDeploymentCallback: {
+            /** @enum {string} */
+            schema_version: "4";
+            command_id: string;
+            child_id: string;
+            child_sha256: string;
+            saved_plan_sha256: string;
+            child_nonce: string;
+            state_lineage: string;
+            /** @description Exact Terraform state serial; machine clients must retain integer precision. */
+            before_state_serial: number;
+            /** @description Applied changes must advance the exact state serial. */
+            after_state_serial: number;
+            /** @enum {string} */
+            outcome: "APPLIED" | "DEFINITELY_NOT_APPLIED" | "UNKNOWN" | "NO_OP";
+            /** Format: date-time */
+            observed_at: string;
+            old_instance_ids: string[];
+            candidate_instance_ids: string[];
+            reason_code?: string;
+        };
+        FleetDeploymentCallbackResult: {
+            /** @description Original callback plus server-generated immutable identity and authenticated provenance. No saved Terraform plan, state payload or credentials are returned. */
+            receipt: {
+                id: string;
+                tenant_id: string;
+                source_id: string;
+                body_sha256: string;
+                /** Format: date-time */
+                received_at: string;
+                /** @enum {string} */
+                writer_role: "finops_deployment_observer";
+                /** @enum {string} */
+                schema_version: "4";
+                command_id: string;
+                child_id: string;
+                /** @enum {string} */
+                outcome: "APPLIED" | "DEFINITELY_NOT_APPLIED" | "UNKNOWN" | "NO_OP";
+            } & {
+                [key: string]: unknown;
+            };
+            replayed: boolean;
+        };
+        ConfigurationRepository: {
+            /**
+             * Format: uri
+             * @description HTTPS repository metadata without credentials
+             */
+            url: string;
+            /** @description Declared Git branch or tag; not an observed commit or receipt */
+            ref: string;
+            /** @description Canonical repository-relative directory */
+            directory: string;
+        };
+        ConfigurationPipelineIdentity: {
+            /**
+             * Format: uri
+             * @description HTTPS issuer metadata without credentials
+             */
+            issuer: string;
+            /** @enum {string} */
+            audience: "finops-deployment-observer";
+            /** @description Exact machine subject; no wildcard or whitespace */
+            subject: string;
+            /** @description Stable exact pipeline identity; no secret */
+            pipeline_id: string;
+        };
+        ConfigurationPipeline: {
+            /** @enum {string} */
+            system: "GITHUB_ACTIONS" | "GITLAB_CI" | "BITBUCKET_PIPELINES" | "OTHER";
+            identity: components["schemas"]["ConfigurationPipelineIdentity"];
+        };
+        ConfigurationTerraform: {
+            workspace: string;
+            /**
+             * Format: uuid
+             * @description Declared canonical Terraform state lineage
+             */
+            state_lineage: string;
+            /** @description Exact managed-resource addresses; indexed module paths supported */
+            addresses: string[];
+        };
+        ConfigurationAuthorityRequest: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            authority: "TERRAFORM";
+            repository: components["schemas"]["ConfigurationRepository"];
+            pipeline: components["schemas"]["ConfigurationPipeline"];
+            terraform: components["schemas"]["ConfigurationTerraform"];
+        };
+        ConfigurationBinding: components["schemas"]["NativeResourceBinding"] & {
+            resource_version: number;
+            resource_snapshot_hash: string;
+        };
+        ConfigurationAuthority: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            version: number;
+            /** @enum {string} */
+            authority: "TERRAFORM";
+            repository: components["schemas"]["ConfigurationRepository"];
+            pipeline: components["schemas"]["ConfigurationPipeline"];
+            terraform: components["schemas"]["ConfigurationTerraform"];
+            binding: components["schemas"]["ConfigurationBinding"];
+            /** @enum {string} */
+            status: "DECLARED_NOT_ATTESTED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /**
+             * @description No operator assertion can populate a machine-observed commit
+             * @enum {string|null}
+             */
+            observed_commit: null;
+            /**
+             * @description No operator assertion can populate an observed Terraform state serial
+             * @enum {integer|null}
+             */
+            observed_state_serial: null;
+            declared_by: string;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            writer_role: string;
+        };
+        ConfigurationAuthorityPage: {
+            version: number;
+            latest: components["schemas"]["ConfigurationAuthority"] | null;
+            items: components["schemas"]["ConfigurationAuthority"][];
+            next_cursor: string | null;
+        };
+        ConfigurationProposal: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            binding: components["schemas"]["ConfigurationBinding"];
+            workload_id: string;
+            resource_id: string;
+            authority_id: string;
+            authority_version: number;
+            authority_hash: string;
+            capacity_assessment_id: string;
+            capacity_assessment_hash: string;
+            population_hash: string;
+            connection_id: string;
+            connection_version: number;
+            revision_id: string;
+            config_hash: string;
+            safety_profile_id: string;
+            safety_profile_version: number;
+            safety_profile_hash: string;
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string|null} */
+            change_plan_id: null;
+            proposed_by: string;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            writer_role: string;
+        };
+        ConfigurationProposalPage: {
+            items: components["schemas"]["ConfigurationProposal"][];
+            next_cursor: string | null;
+        };
         CapacityAssessment: {
             /** @enum {string} */
             schema_version: "1";
@@ -1849,6 +2091,343 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    receiveDeploymentAttestation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Finops-Source-ID": string;
+            };
+            path: {
+                command_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetDeploymentCallback"];
+            };
+        };
+        responses: {
+            /** @description Exact original callback replay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDeploymentCallbackResult"];
+                };
+            };
+            /** @description Immutable authenticated callback persisted */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDeploymentCallbackResult"];
+                };
+            };
+            /** @description Dedicated machine authentication required; human roles are rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registered source or command binding does not match */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicting raw-body replay */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Body exceeds 64 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Uncompressed application/json required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid exact artifact */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Observer or persistence unavailable; outcome must remain unknown */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listConfigurationAuthorityRevisions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest version zero and null latest before the first declaration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationAuthorityPage"];
+                };
+            };
+            /** @description Resource workload is outside the caller's scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or differently scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    declareConfigurationAuthority: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigurationAuthorityRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable DECLARED_NOT_ATTESTED revision with no execution authority */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationAuthority"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and resource workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Declaration version changed or idempotency key conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid metadata */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Latest declaration version required in If-Match */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listConfigurationProposals: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workload-scoped immutable blocked proposals, preserving their original evidence references */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationProposalPage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or differently scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    recordBlockedConfigurationProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    authority_id: string;
+                    capacity_assessment_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Immutable blocked proposal; no execution plan or claimed savings */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationProposal"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Referenced evidence not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Declaration superseded */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current authority version required in If-Match */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getConfigurationProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                proposalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable proposal within the selected authorized workload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationProposal"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Proposal not found in tenant or selected workload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listCapacityAssessments: {
         parameters: {
             query?: {

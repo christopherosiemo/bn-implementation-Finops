@@ -54,6 +54,12 @@ export type WorkloadSafetyProfile =
   components["schemas"]["WorkloadSafetyProfile"];
 export type WorkloadSafetyRequest =
   components["schemas"]["WorkloadSafetyRequest"];
+export type ConfigurationAuthority =
+  components["schemas"]["ConfigurationAuthority"];
+export type ConfigurationAuthorityRequest =
+  components["schemas"]["ConfigurationAuthorityRequest"];
+export type ConfigurationProposal =
+  components["schemas"]["ConfigurationProposal"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;

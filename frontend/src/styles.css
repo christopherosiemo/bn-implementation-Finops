@@ -3935,6 +3935,14 @@ th {
 .native-subheading { margin: 22px 0 12px; font-size: 14px; }
 @media(max-width: 760px) { .selector-row { grid-template-columns: minmax(0, 1fr); } .native-intro { margin-inline: 16px; } .native-workload-picker { margin-inline: 16px; } .native-section, .native-evaluation { padding-inline: 16px; } }
 .binding-caption .mono { margin-left: 6px; }
+.configuration-authority > .configuration-stack { padding: 0 22px 22px; }
+.configuration-authority > .form-note { padding: 0 22px; }
+.configuration-stack { min-width: 0; }
+.configuration-stack .table-scroll table { min-width: 640px; }
+.configuration-stack textarea { width: 100%; min-height: 100px; padding: 10px 11px; border: 1px solid #dde8d3; border-radius: 5px; background: #fdfefa; color: inherit; font: inherit; resize: vertical; }
+.configuration-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+.configuration-stack details > summary { cursor: pointer; }
+@media(max-width: 760px) { .configuration-authority > .configuration-stack { padding-inline: 16px; } .configuration-authority > .form-note { padding-inline: 16px; } }
 .resource-readiness { min-width: 155px; max-width: 220px; white-space: normal; }
 .resource-readiness .button { margin-top: 8px; }
 .evidence-binding { padding: 16px 0 1px; margin-bottom: 18px; border-top: 1px solid #e8efdf; }

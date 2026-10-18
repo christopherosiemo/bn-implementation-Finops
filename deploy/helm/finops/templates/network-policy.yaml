@@ -14,7 +14,7 @@ metadata:
 spec:
   podSelector:
     matchExpressions:
-      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress]}
+      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress, deployment-observer]}
   policyTypes: [Egress]
   egress:
     - to:
@@ -34,7 +34,7 @@ spec:
     matchExpressions:
       - key: finops-role
         operator: In
-        values: [api, worker, ingester, signer, executor, activity-ingress, telemetry-reader, telemetry-ingress, migrate, temporal]
+        values: [api, worker, ingester, signer, executor, activity-ingress, telemetry-reader, telemetry-ingress, deployment-observer, migrate, temporal]
   policyTypes: [Egress]
   egress:
     - ports: [{ protocol: TCP, port: 5432 }]

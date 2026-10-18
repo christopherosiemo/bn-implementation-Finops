@@ -12,6 +12,7 @@ import (
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/activity"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/deploymentobserver"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/native"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/safety"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/service"
@@ -28,7 +29,7 @@ func main() {
 }
 func run() error {
 	cfg := service.LoadConfig()
-	mode := flag.String("mode", cfg.Role, "api|worker|ingester|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|migrate")
+	mode := flag.String("mode", cfg.Role, "api|worker|ingester|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
 	flag.Parse()
 	cfg.Role = *mode
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -48,6 +49,24 @@ func run() error {
 	var handler http.Handler
 	var nativeServer *native.Server
 	switch cfg.Role {
+	case "deployment-observer":
+		issuer := os.Getenv("DEPLOYMENT_OIDC_ISSUER")
+		if issuer == "" {
+			issuer = cfg.Issuer
+		}
+		jwks := os.Getenv("DEPLOYMENT_OIDC_JWKS_URL")
+		if jwks == "" && issuer == cfg.Issuer {
+			jwks = cfg.JWKSURL
+		}
+		audience := os.Getenv("DEPLOYMENT_OIDC_AUDIENCE")
+		if audience == "" {
+			audience = "finops-deployment-observer"
+		}
+		observer, err := deploymentobserver.New(ctx, db, issuer, audience, jwks, cfg.Fixture, cfg.Audience, os.Getenv("ACTIVITY_OIDC_AUDIENCE"), os.Getenv("TELEMETRY_OIDC_AUDIENCE"))
+		if err != nil {
+			return err
+		}
+		handler = observer.Handler()
 	case "telemetry-reader", "telemetry-ingress":
 		storage, err := native.StorageFromEnvironment(ctx, cfg.Fixture)
 		if err != nil {

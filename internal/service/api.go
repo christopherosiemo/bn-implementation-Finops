@@ -176,6 +176,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
 			return e
 		}
+		if result, handled, err := a.configurationGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.capacityGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
@@ -370,6 +374,9 @@ func match(r *http.Request, d model.Document) error {
 func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
+	if out, status, handled, err := a.configurationMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
 	if out, status, handled, err := a.capacityMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}

@@ -4,6 +4,7 @@ Usage: python deploy/check_chart.py rendered.yaml  (requires PyYAML)
 This accepts only manifests; never pass a values file containing secret values.
 """
 import sys
+import ipaddress
 import yaml
 
 
@@ -26,6 +27,9 @@ def check(path):
     if native_enabled:
         assert native <= deployments.keys(), "native transports must both have separate deployments"
         required |= native
+    observer_enabled = "deployment-observer" in deployments
+    if observer_enabled:
+        required.add("deployment-observer")
     secret_keys = {}
     envs = {}
     for role in required:
@@ -59,6 +63,26 @@ def check(path):
         if role != "executor":
             assert "AWS_EXECUTION_ROLE_ARN" not in envs[role]
     go_roles = {"api", "worker", "ingester", "signer", "executor", "activity-ingress"}
+    if observer_enabled:
+        go_roles.add("deployment-observer")
+        observer = envs["deployment-observer"]
+        assert observer["APP_ROLE"]["value"] == "deployment-observer"
+        reserved = {envs["api"]["OIDC_AUDIENCE"]["value"], envs["activity-ingress"]["ACTIVITY_OIDC_AUDIENCE"]["value"], "finops-telemetry"}
+        if native_enabled:
+            reserved.add(envs["telemetry-ingress"]["TELEMETRY_OIDC_AUDIENCE"]["value"])
+        assert observer["DEPLOYMENT_OIDC_AUDIENCE"]["value"] not in reserved
+        assert observer["DEPLOYMENT_OIDC_ISSUER"]["value"].startswith("https://")
+        assert set(secret_keys["deployment-observer"]) == {"DATABASE_URL"}, "observer receives only its restricted database secret"
+        assert not accounts["deployment-observer"]["metadata"].get("annotations", {}).get("eks.amazonaws.com/role-arn")
+        policies = {doc["metadata"]["name"]: doc for doc in manifests if doc["kind"] == "NetworkPolicy"}
+        general = policies["finops-dns-and-https"]["spec"]["podSelector"]["matchExpressions"]
+        assert any(rule["operator"] == "NotIn" and "deployment-observer" in rule["values"] for rule in general)
+        for rule in policies["finops-deployment-observer-egress"]["spec"]["egress"]:
+            if any(port.get("port") == 443 for port in rule.get("ports", [])):
+                assert rule.get("to"), "observer HTTPS egress must target approved JWKS networks"
+                assert all(ipaddress.ip_network(peer["ipBlock"]["cidr"]).prefixlen > 0 for peer in rule["to"])
+        ingress = policies["finops-deployment-observer-ingress"]["spec"]["ingress"]
+        assert ingress[0]["from"][0]["podSelector"]["matchLabels"], "observer requires an explicit local pipeline selector"
     if native_enabled:
         go_roles |= native
         assert envs["telemetry-ingress"]["TELEMETRY_OIDC_AUDIENCE"]["value"] not in {
@@ -97,7 +121,7 @@ def check(path):
     db_secrets = [secret_keys[role]["DATABASE_URL"]["name"] for role in go_roles]
     assert len(set(db_secrets)) == len(go_roles), "runtime database identities must remain separate"
     for doc in manifests:
-        if doc["kind"] == "Service" and doc["metadata"]["name"] in {"finops-signer", "finops-executor", "finops-telemetry-reader", "finops-telemetry-ingress"}:
+        if doc["kind"] == "Service" and doc["metadata"]["name"] in {"finops-signer", "finops-executor", "finops-telemetry-reader", "finops-telemetry-ingress", "finops-deployment-observer"}:
             assert doc["spec"].get("type", "ClusterIP") == "ClusterIP"
     for role in ("signer", "executor"):
         policy = next(doc for doc in manifests if doc["kind"] == "NetworkPolicy" and doc["metadata"]["name"] == "finops-ingress-" + role)

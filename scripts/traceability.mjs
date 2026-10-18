@@ -21,6 +21,8 @@ const nativeCoverage = {
 };
 function gate(id) {
   if (nativeCoverage[id]) return ['M2 native evidence / M3 capacity gates', nativeCoverage[id]];
+  if ([62,63,156,157,205,206,209].includes(id)) return ['M3 — Fleet/IaC components; runtime acceptance gated', 'Separate signed FleetPlanV4, exact saved-plan validation, workload-wide disruption reservations and machine deployment receipts have component acceptance. Configuration declarations remain not attested; the v4 workflow is not enabled. Full-window health factories, customer pipeline, rollback and financial end-to-end acceptance remain required. See docs/fleet-and-kubernetes-components.md.'];
+  if ([65,67,68,69,71,72,73,158,207,208].includes(id)) return ['M4 — Local Kubernetes components; hosted acceptance gated', 'Native read-only inventory/safety and a real isolated local Kubernetes lab cover exact Git revision rollout, explicit PDB blocking, failed readiness/owned Git rollback and HPA cost-growth simulation. The local controller is a labelled test double; hosted Argo/Flux execution, node economics and verified savings remain required. See docs/fleet-and-kubernetes-components.md.'];
   if ([24,28,29,30,31,32,33,170,171].includes(id)) return ['M5 — Azure/GCP', 'Native billing, inventory, telemetry and execution parity; shared pilot contracts retained.'];
   if (between(id,65,73) || [207,208].includes(id)) return ['M4 — Kubernetes', 'Requests/HPA/VPA/node economics, GitOps rollout and PDB safety.'];
   if (between(id,58,64) || between(id,156,158) || [202,203,204,205,206,209,219].includes(id)) return ['M3 — Fleet/IaC', 'Stateless fleet rightsizing, Terraform pipeline, canary and rollback; no production mutation in M2.'];

@@ -39,6 +39,7 @@ database:
     activity-ingress: finops-db-activity
     telemetry-reader: finops-db-telemetry-reader
     telemetry-ingress: finops-db-telemetry-ingress
+    deployment-observer: finops-db-deployment-observer
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -93,6 +94,15 @@ telemetry:
   ingressResources:
     requests: {cpu: 100m, memory: 128Mi}
     limits: {cpu: "1", memory: 512Mi}
+deploymentObserver:
+  # Receipt ingestion only; no deployment dispatch or customer mutations.
+  enabled: false
+  audience: finops-deployment-observer
+  issuer: ""
+  jwksUrl: ""
+  httpsEgressCidrs: []
+  ingressEnabled: false
+  pipelinePodSelector: {app: finops-customer-pipeline}
 objectStorage:
   # Empty endpoint selects regional AWS S3 and SDK IRSA credentials.
   endpoint: ""
@@ -118,6 +128,7 @@ replicas:
   signer: 1
   executor: 1
   activity-ingress: 1
+  deployment-observer: 1
   economics: 1
   web: 1
 resources:
