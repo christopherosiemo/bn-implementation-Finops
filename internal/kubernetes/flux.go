@@ -186,6 +186,7 @@ func fluxManifest(raw []byte, b Binding) (string, error) {
 	expanded := &io.LimitedReader{R: gz, N: 8<<20 + 1}
 	tr := tar.NewReader(expanded)
 	files := map[string][]byte{}
+	directories := map[string]bool{}
 	var total int64
 	for count := 0; ; count++ {
 		h, e := tr.Next()
@@ -195,10 +196,17 @@ func fluxManifest(raw []byte, b Binding) (string, error) {
 		if e != nil || count >= 16 || path.Clean(strings.TrimSuffix(h.Name, "/")) != strings.TrimSuffix(h.Name, "/") || strings.HasPrefix(h.Name, "/") || strings.Contains(h.Name, "\\") || strings.HasPrefix(h.Name, "../") {
 			return "", errors.New("K8S_FLUX_ARTIFACT_ENTRY_INVALID")
 		}
+		if h.Linkname != "" || len(h.PAXRecords) != 0 || len(h.Xattrs) != 0 {
+			return "", errors.New("K8S_FLUX_ARTIFACT_METADATA_UNSUPPORTED")
+		}
 		if h.Typeflag == tar.TypeDir {
-			if strings.TrimSuffix(h.Name, "/") != directory {
+			name := strings.TrimSuffix(h.Name, "/")
+			// The pinned native Flux archiver emits its walked root as an empty
+			// directory named exactly '.'. It carries no rendered resource.
+			if h.Size != 0 || directories[name] || name != directory && h.Name != "." {
 				return "", errors.New("K8S_FLUX_ARTIFACT_ENTRY_UNSUPPORTED")
 			}
+			directories[name] = true
 			continue
 		}
 		if h.Typeflag != tar.TypeReg || h.Size < 0 || h.Size > 2<<20 || files[h.Name] != nil || h.Name != directory+"/kustomization.yaml" && h.Name != b.Git.ManifestPath && h.Name != directory+"/gateway-code.json" {

@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-func fluxTestArchive(t *testing.T, files map[string][]byte, extra *tar.Header) []byte {
+func fluxTestArchive(t *testing.T, files map[string][]byte, extras ...*tar.Header) []byte {
 	t.Helper()
 	var buffer bytes.Buffer
 	gz := gzip.NewWriter(&buffer)
@@ -26,7 +27,10 @@ func fluxTestArchive(t *testing.T, files map[string][]byte, extra *tar.Header) [
 			t.Fatal(e)
 		}
 	}
-	if extra != nil {
+	for _, extra := range extras {
+		if extra == nil {
+			continue
+		}
 		if e := tarWriter.WriteHeader(extra); e != nil {
 			t.Fatal(e)
 		}
@@ -38,6 +42,63 @@ func fluxTestArchive(t *testing.T, files map[string][]byte, extra *tar.Header) [
 		t.Fatal(e)
 	}
 	return buffer.Bytes()
+}
+
+func TestFluxObservedNativeRootDirectoryPreservesExactStaticProof(t *testing.T) {
+	b, _, _, files := fluxTestDocuments(t)
+	root := &tar.Header{Name: ".", Typeflag: tar.TypeDir, Mode: 0755}
+	dir := &tar.Header{Name: "workload", Typeflag: tar.TypeDir, Mode: 0755}
+	hash, err := fluxManifest(fluxTestArchive(t, files, root, dir), b)
+	if err != nil || hash != testInput(t).Snapshot.Deployment.SpecHash {
+		t.Fatalf("observed empty native directories changed proof: %s, %v", hash, err)
+	}
+	for _, tc := range []struct {
+		name    string
+		headers []*tar.Header
+		paxKey  string
+	}{
+		{"duplicate-root", []*tar.Header{root, root}, ""},
+		{"duplicate-workload-directory", []*tar.Header{dir, dir}, ""},
+		{"root-alias", []*tar.Header{{Name: "./", Typeflag: tar.TypeDir, Mode: 0755}}, ""},
+		{"root-regular-file", []*tar.Header{{Name: ".", Typeflag: tar.TypeReg, Mode: 0444}}, ""},
+		{"root-symlink", []*tar.Header{{Name: ".", Typeflag: tar.TypeSymlink, Linkname: "workload"}}, ""},
+		{"root-link-metadata", []*tar.Header{{Name: ".", Typeflag: tar.TypeDir, Linkname: "../outside"}}, ""},
+		{"root-parent", []*tar.Header{{Name: "..", Typeflag: tar.TypeDir}}, ""},
+		// Long names force real standard PAX records. archive/tar deliberately
+		// ignores caller-provided path/linkpath overrides in PAXRecords.
+		{"pax-path", []*tar.Header{{Name: "../" + strings.Repeat("x", 101), Typeflag: tar.TypeDir, Format: tar.FormatPAX}}, "path"},
+		{"pax-linkpath", []*tar.Header{{Name: ".", Typeflag: tar.TypeSymlink, Linkname: "../" + strings.Repeat("x", 101), Format: tar.FormatPAX}}, "linkpath"},
+		{"pax-unknown-metadata", []*tar.Header{{Name: ".", Typeflag: tar.TypeDir, Format: tar.FormatPAX, PAXRecords: map[string]string{"fixture.unapproved": "true"}}}, "fixture.unapproved"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := fluxTestArchive(t, files, tc.headers...)
+			if tc.paxKey != "" {
+				gz, err := gzip.NewReader(bytes.NewReader(raw))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer gz.Close()
+				tr := tar.NewReader(gz)
+				found := false
+				for {
+					h, err := tr.Next()
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					found = found || h.PAXRecords[tc.paxKey] != ""
+				}
+				if !found {
+					t.Fatal("fixture did not emit the required PAX record")
+				}
+			}
+			if _, err := fluxManifest(raw, b); err == nil {
+				t.Fatal("unsafe root or metadata became rendered authority")
+			}
+		})
+	}
 }
 
 func fluxTestDocuments(t *testing.T) (Binding, Document, Document, map[string][]byte) {
