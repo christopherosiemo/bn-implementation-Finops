@@ -110,7 +110,7 @@ func (a *Activities) Stage(ctx context.Context, in StageInput) error {
 		if e != nil {
 			return e
 		}
-		if in.Stage == "STOPPED" || in.Status == "COMPLETED" {
+		if in.Stage == "STOPPED" || in.Status == "COMPLETED" || (in.Stage == "ROLLED_BACK" && !in.Owned) {
 			r, e := t.Get(ctx, "resources", model.String(d, "resource_id"))
 			if e != nil {
 				return e
