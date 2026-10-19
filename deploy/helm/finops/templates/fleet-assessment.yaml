@@ -1,4 +1,5 @@
 {{- if .Values.fleetAssessment.enabled }}
+{{- if and .Values.fleetCapacity.roleArn (eq .Values.fleetAssessment.roleArn .Values.fleetCapacity.roleArn) }}{{ fail "capacity and financial assessment require distinct IRSA identities" }}{{ end }}
 {{- if not .Values.networkPolicy.enabled }}{{ fail "fleet assessment requires default-deny network policy" }}{{ end }}
 {{- if ne .Values.dataMode "aws" }}{{ fail "hosted fleet assessment requires explicit AWS read-only mode" }}{{ end }}
 {{- $_ := required "fleet assessment requires a commissioned tenant" .Values.aws.tenantId }}

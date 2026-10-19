@@ -29,7 +29,7 @@ function proxyLabel(model: Model, name: string, metric: ProxyMetadata) {
     : "Demand semantics unavailable";
 }
 
-function ModelEvidence({ model }: { model: Model }) {
+export function ModelEvidence({ model }: { model: Model }) {
   return (
     <>
       <h4>Observed capacity & request proxy</h4>

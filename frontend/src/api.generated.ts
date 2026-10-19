@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+    "/workloads/{id}/fleet-native-capacity-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Historical bounded metadata. Current workload access is checked independently of source availability; no group capacity, business-work preservation, execution or savings authority is granted. */
+        get: operations["listFleetNativeCapacityBatches"];
+        put?: never;
+        /** @description IDs-only current025/027 group selection. If-Match pins the current safety profile; a separate evaluator captures an immutable point roster and independently evaluates each real mapped member. Missing inputs remain explicit gaps. */
+        post: operations["requestFleetNativeCapacityBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-native-capacity-batches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Historical bounded metadata. Current workload access is checked independently of source availability; no group capacity, business-work preservation, execution or savings authority is granted. */
+        get: operations["getFleetNativeCapacityBatch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-native-capacity-batches/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Historical bounded metadata. Current workload access is checked independently of source availability; no group capacity, business-work preservation, execution or savings authority is granted. */
+        get: operations["listFleetNativeCapacityMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-native-capacity-members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Historical bounded metadata. Current workload access is checked independently of source availability; no group capacity, business-work preservation, execution or savings authority is granted. */
+        get: operations["getFleetNativeCapacityMember"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workloads/{id}/fleet-native-assessments": {
         parameters: {
             query?: never;
@@ -1416,6 +1485,189 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetNativeCapacityBatchRequest: components["schemas"]["FleetNativeAssessmentRequest"];
+        FleetNativeCapacityScope: {
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            snapshot_sha256: string;
+            /** @enum {string} */
+            population_status: "OBSERVED_POINT" | "UNAVAILABLE";
+            /** Format: date-time */
+            observed_at: string;
+            membership_pins: components["schemas"]["FleetNativeSourcePin"][];
+            current_member_ids: string[];
+        };
+        FleetNativeCapacityCandidateTemplate: {
+            id: string;
+            /** @description Exact native uint64 launch-template version as a decimal string. */
+            version: string;
+            instance_type: string;
+            image_id: string;
+            source_pin: components["schemas"]["FleetNativeSourcePin"];
+            definition_sha256: string;
+            reason_codes: string[];
+        };
+        FleetNativeCapacityScopeRecord: {
+            /** @enum {string} */
+            schema_version: "1";
+            request_id: string;
+            scope: components["schemas"]["FleetNativeCapacityScope"];
+            candidate_template: components["schemas"]["FleetNativeCapacityCandidateTemplate"] | null;
+            source_pins: components["schemas"]["FleetNativeSourcePin"][];
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetNativeCapacityTelemetry: {
+            connection_id: string;
+            /** Format: int64 */
+            connection_version: number;
+            revision_id: string;
+            config_hash: string;
+            population_hash: string;
+            receipt_ids: string[];
+            source_refs: components["schemas"]["NativeCapacityResult"]["source_refs"];
+        };
+        FleetNativeCapacityHardware: {
+            receipt_id: string;
+            source_id: string;
+            revision_id: string;
+            /** Format: int64 */
+            registration_version: number;
+            config_hash: string;
+            raw_sha256: string;
+            resource_snapshot_hash: string;
+            /** Format: int64 */
+            resource_version: number;
+            source_pin: components["schemas"]["FleetNativeSourcePin"];
+        };
+        FleetNativeCapacityMember: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            batch_id: string;
+            scope: components["schemas"]["FleetNativeCapacityScope"];
+            instance_id: string;
+            resource_id: string;
+            binding: components["schemas"]["NativeResourceBinding"] | null;
+            /** Format: date-time */
+            observed_at: string;
+            telemetry: components["schemas"]["FleetNativeCapacityTelemetry"] | null;
+            hardware: components["schemas"]["FleetNativeCapacityHardware"] | null;
+            candidate_template: components["schemas"]["FleetNativeCapacityCandidateTemplate"] | null;
+            /** @enum {string} */
+            input_kind: "UNAVAILABLE" | "MAPPING_OBSERVATION" | "MODEL_REQUEST";
+            input_hash: string;
+            hardware_mapping: components["schemas"]["NativeCapacityResult"]["hardware_mapping"] | null;
+            model_requested: boolean;
+            model_evaluated: boolean;
+            model_evaluation: components["schemas"]["CapacityModelResult"] | null;
+            capacity_suitable: boolean | null;
+            /** @enum {string} */
+            status: "BLOCKED" | "UNAVAILABLE";
+            reason_codes: string[];
+            /** @enum {string} */
+            demand_meaning: "REQUEST_THROUGHPUT_PROXY" | "UNAVAILABLE";
+            /** @enum {boolean} */
+            group_capacity_authorized: false;
+            /** @enum {boolean|null} */
+            completed_business_work_preserved: null;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string|null} */
+            change_plan_id: null;
+        };
+        FleetNativeCapacityMemberReference: {
+            instance_id: string;
+            result_id: string;
+            sha256: string;
+            /** @enum {string} */
+            status: "BLOCKED" | "UNAVAILABLE";
+            model_evaluated: boolean;
+            capacity_suitable: boolean | null;
+        };
+        FleetNativeCapacityBatch: {
+            /** @enum {string} */
+            schema_version: "1";
+            scope: components["schemas"]["FleetNativeCapacityScope"];
+            members: components["schemas"]["FleetNativeCapacityMemberReference"][];
+            /** @enum {string} */
+            coverage: "UNAVAILABLE" | "EMPTY_POINT" | "PARTIAL" | "ALL_MEMBER_RESULTS_OBSERVED";
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            group_capacity_authorized: false;
+            /** @enum {boolean|null} */
+            completed_business_work_preserved: null;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetNativeCapacityMemberRecord: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            kind: "FLEET_NATIVE_CAPACITY_MEMBER_V1";
+            id: string;
+            request_id: string;
+            instance_id: string;
+            sha256: string;
+            member: components["schemas"]["FleetNativeCapacityMember"];
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_group_capacity";
+        };
+        FleetNativeCapacityMemberSummary: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            request_id: string;
+            instance_id: string;
+            sha256: string;
+            /** @enum {string} */
+            status: "BLOCKED" | "UNAVAILABLE";
+            model_evaluated: boolean;
+            capacity_suitable: boolean | null;
+            reason_codes: string[];
+            /** Format: date-time */
+            created_at: string;
+        };
+        FleetNativeCapacityBatchRecord: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            workload_id: string;
+            creator_id: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED";
+            scope: components["schemas"]["FleetNativeCapacityScopeRecord"] | null;
+            batch: components["schemas"]["FleetNativeCapacityBatch"] | null;
+        };
+        FleetNativeCapacityBatchPage: {
+            items: components["schemas"]["FleetNativeCapacityBatchRecord"][];
+            next_cursor: string | null;
+        };
+        FleetNativeCapacityMemberPage: {
+            items: components["schemas"]["FleetNativeCapacityMemberSummary"][];
+            next_cursor: string | null;
+        };
         FleetNativeAssessmentRequest: {
             old_configuration_proposal_id: string;
             candidate_configuration_proposal_id: string;
@@ -4291,6 +4543,286 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetNativeCapacityBatches: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable capacity batch or member metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeCapacityBatchPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestFleetNativeCapacityBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetNativeCapacityBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued analytical batch */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeCapacityBatchRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FINOPS_ADMIN, PLATFORM_ADMIN or APPLICATION_OWNER and current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection or requirements unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current selection, source or safety-profile CAS differs */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BODY_TOO_LARGE; complete control-plane body exceeds 4MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Only two current proposal IDs are accepted */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetNativeCapacityBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable capacity batch or member metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeCapacityBatchRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetNativeCapacityMembers: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable capacity batch or member metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeCapacityMemberPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetNativeCapacityMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable capacity batch or member metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeCapacityMemberRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetNativeAssessments: {
         parameters: {
             query?: {

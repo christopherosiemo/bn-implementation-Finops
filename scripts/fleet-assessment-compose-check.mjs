@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 
 export function validateAssessmentCompose(ordinary,enabled){
+ assert.match(enabled.name,/^[a-z0-9][a-z0-9_-]{0,127}$/);
+ assert.equal(ordinary.name,enabled.name,'Both configurations must belong to the same local project');
+ assert.deepEqual(enabled.volumes['fleet-assessment-secrets'],{name:enabled.name+'_fleet-assessment-secrets'},'The initializer can write only its own ordinary project volume');
  assert.ok(!ordinary.services['fleet-assessment'],'Optional assessment worker must be absent by default');
  assert.ok(!ordinary.services['fleet-assessment-secrets-init'],'Secret initialization must be absent by default');
  const worker=enabled.services['fleet-assessment'];assert.ok(worker);
@@ -23,6 +27,8 @@ export function validateAssessmentCompose(ordinary,enabled){
  const initializer=enabled.services['fleet-assessment-secrets-init'];assert.ok(initializer);
  assert.equal(initializer.image,worker.image);assert.equal(initializer.user,'0:0');
  assert.deepEqual(initializer.entrypoint,['/bin/sh','-ec']);
+ assert.ok(Array.isArray(initializer.command)&&initializer.command.length===1&&typeof initializer.command[0]==='string');
+ assert.equal(createHash('sha256').update(initializer.command[0]).digest('hex'),'8974c10a1762e309ada4f1148744f07e7705422f9800ddfda3db8af8eef958f4','Only the reviewed three-file initialization body may execute');
  assert.equal(initializer.network_mode,'none');assert.equal(initializer.read_only,true);
  assert.equal(Number(initializer.mem_limit),64*1024*1024);assert.equal(Number(initializer.cpus),0.1);
  assert.deepEqual(initializer.volumes.map(({type,source,target,read_only})=>({type,source,target,read_only:read_only===true})),[{type:'volume',source:'fleet-assessment-secrets',target:'/assessment-secrets',read_only:false}]);

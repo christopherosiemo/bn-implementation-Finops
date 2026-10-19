@@ -89,3 +89,79 @@ Provisioning, account access and costs remain subject to the consolidated
 [commissioning dossier](commissioning-dossier.md). Begin read-only, commission
 independent telemetry and genuine history, and keep customer mutations disabled
 until the entire action-specific pipeline and recovery acceptance pass.
+
+## Group-selected member evaluation
+
+Migration 036 adds a separate analytical queue and immutable scope/member/batch
+records. It does not rewrite migration 017 results, migration 035 comparisons,
+existing signed plans or owned restoration. The new public request contains only
+`old_configuration_proposal_id` and `candidate_configuration_proposal_id`:
+
+- `POST/GET /v1/workloads/{id}/fleet-native-capacity-batches`
+- `GET /v1/fleet-native-capacity-batches/{id}`
+- `GET /v1/fleet-native-capacity-batches/{id}/members`
+- `GET /v1/fleet-native-capacity-members/{id}`
+
+Mutations require an idempotency key, the current safety-profile revision in
+`If-Match`, and scoped capacity-analysis permission. The server selects the exact
+group registrations, native ASG membership, candidate launch-template identity
+and profile. The worker rereads both immutable receipt/revision object versions
+and verifies their hashes. Concrete launch-template type, image, storage and
+effective CPU/network options must agree with native hardware. Template versions
+are decimal strings, preserving values above JavaScript's safe integer range.
+An unsupported effective template preserves its source pins and reasons with no
+usable candidate.
+
+The original membership point is frozen before evaluating members. Missing
+membership is `UNAVAILABLE`; an authenticated empty point is distinct. Missing
+inventory, hardware, connections or historical statistics cannot remove an
+instance from the roster. Each member uses the registered native population and
+actual `/v4/capacity` model. Historical denominators and units retain the existing
+017 checks. A passing physical dimension does not establish complete suitability:
+commitment exposure, native avoidable economics, recovery requirements, group
+safety and completed business work remain independent gates. Request throughput
+is explicitly a proxy. All execution, plan and verified-saving fields remain
+false or null.
+
+The `finops_group_capacity` identity can issue only the new analytical records.
+It cannot write 017 results, source receipts, signing authority or execution
+state. Ordinary migrations leave it `NOLOGIN`; only an explicitly supplied local
+password or separately commissioned restricted login enables a process. Scope
+and member publication repeat current authority and exact membership/template
+pin checks in PostgreSQL. A changed or revoked source yields explicit remaining
+gaps. Previously published members remain immutable. A per-request session lock,
+bounded five-minute job and refs-only resume prevent duplicate member results
+after interruption. Failed authenticated object readback remains an integrity/I/O
+failure and never substitutes invented observations.
+
+The console loads workload batch history through scoped cursors, then small
+member summaries. Full model evidence is fetched only when a member is selected.
+It displays missing population, independent physical checks and unavailable
+financial/authority gates. Refreshing a historical result does not renew it.
+
+For the optional local process:
+
+```powershell
+node scripts/bootstrap-fleet-capacity.mjs
+docker compose build api economics minio buckets
+node scripts/fleet-capacity-compose-check.mjs
+docker compose --profile fleet-capacity up -d fleet-capacity
+```
+
+The explicit bootstrap creates a distinct database/archive principal and five
+files under ignored, owner-only `work/private/fleet-capacity-secrets`. A separate
+network-isolated initializer publishes regular Linux `0444` files; the worker
+mounts only its dedicated volume read-only. Reader and economics tokens use
+separate files and fixed private service paths. Redirects, proxies, public IPs,
+ambiguous secret paths and equal tokens are refused. Re-run the initializer and
+restart the worker after credential rotation. Ordinary bootstrap and Compose
+keep this worker disabled.
+
+Hosted `fleetCapacity.enabled` also defaults false. It requires the commissioned
+native reader, a distinct version-reader IRSA identity, verified-TLS PostgreSQL,
+an existing CA bundle, exact bucket owner and reviewed regional/private egress.
+Its only internal HTTP destinations are the installed reader and economics
+services. It receives no source-write, signing, execution or deployment token.
+The chart provisions no IAM role or customer workload. Deployment approval,
+authentic history, native financial finality and customer operation remain in the
+commissioning dossier.

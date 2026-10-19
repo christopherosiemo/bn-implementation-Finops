@@ -32,6 +32,63 @@ async function signIn(page: Page, username: string) {
   return { dashboard, authorization };
 }
 
+async function inspectHistoricalRequest(
+  page: Page,
+  options: {
+    id: string;
+    prefix: string;
+    history: string;
+    more: string;
+    path: string;
+  },
+) {
+  const short = (id: string) => `${id.slice(0, 12)}…${id.slice(-6)}`;
+  await expect(
+    page.getByRole("region", { name: options.history, exact: true }),
+  ).toBeVisible();
+  const target = page.getByRole("button", {
+    name: options.prefix + short(options.id),
+    exact: true,
+  });
+  const cursors = new Set<string>();
+  for (let attempt = 0; attempt < 256; attempt++) {
+    if (await target.isVisible()) {
+      await target.click();
+      return;
+    }
+    const more = page.getByRole("button", { name: options.more, exact: true });
+    await expect(
+      more,
+      "Persisted request must remain reachable through scoped history pages.",
+    ).toBeVisible();
+    const [response] = await Promise.all([
+      page.waitForResponse((reply) => {
+        const url = new URL(reply.url());
+        return (
+          url.pathname === options.path &&
+          url.searchParams.has("cursor") &&
+          reply.ok()
+        );
+      }),
+      more.click(),
+    ]);
+    const cursor = new URL(response.url()).searchParams.get("cursor")!;
+    expect(cursors.has(cursor), "History cursor must advance.").toBe(false);
+    cursors.add(cursor);
+    const next = (await response.json()) as { items: { id: string }[] };
+    expect(next.items.length).toBeGreaterThan(0);
+    await expect(
+      page.getByRole("button", {
+        name: options.prefix + short(next.items.at(-1)!.id),
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  throw new Error(
+    "Persisted request was not reachable within the bounded history traversal.",
+  );
+}
+
 // Follow actual scoped cursor responses, including when retained prior test
 // registrations put a newly created UUID beyond the first page.
 async function chooseGroup(
@@ -305,60 +362,65 @@ test("real OIDC two registered groups produce a persisted isolated fixture selec
     name: "Compare observed fleet compute rates",
     exact: true,
   });
-  for (const [index, side] of (["Original", "Candidate"] as const).entries()) {
-    const group = assessmentDialog.getByRole("group", {
-      name: `${side} group for assessment`,
-      exact: true,
-    });
-    await expect(
-      group.getByRole("region", {
-        name: `${side} assessment group choices`,
-        exact: true,
-      }),
-    ).toBeVisible();
-    const target = group.getByRole("button", {
-      name: `Assess ${side.toLowerCase()} group ${names[index]}`,
-      exact: true,
-    });
-    for (;;) {
-      if (await target.isVisible()) {
-        await target.click();
-        break;
-      }
-      const more = group.getByRole("button", {
-        name: `Load more ${side.toLowerCase()} assessment groups`,
+  const chooseAssessmentProposals = async (selectionDialog: Locator) => {
+    for (const [index, side] of (
+      ["Original", "Candidate"] as const
+    ).entries()) {
+      const group = selectionDialog.getByRole("group", {
+        name: `${side} group for assessment`,
         exact: true,
       });
-      await expect(more).toBeVisible();
-      const [response] = await Promise.all([
-        page.waitForResponse((reply) => {
-          const u = new URL(reply.url());
-          return (
-            u.pathname === "/v1/fleet-history-registrations" &&
-            u.searchParams.has("cursor") &&
-            reply.ok()
-          );
-        }),
-        more.click(),
-      ]);
-      const next = (await response.json()) as {
-        items: FleetHistoryRegistration[];
-      };
-      expect(next.items.length).toBeGreaterThan(0);
       await expect(
-        group.getByRole("button", {
-          name: `Assess ${side.toLowerCase()} group ${next.items.at(-1)!.registration.fleet_id}`,
+        group.getByRole("region", {
+          name: `${side} assessment group choices`,
           exact: true,
         }),
       ).toBeVisible();
-    }
-    await group
-      .getByRole("button", {
-        name: `Compare ${side.toLowerCase()} proposal ${pairs[index].proposal.id.slice(0, 12)}…${pairs[index].proposal.id.slice(-6)}`,
+      const target = group.getByRole("button", {
+        name: `Assess ${side.toLowerCase()} group ${names[index]}`,
         exact: true,
-      })
-      .click();
-  }
+      });
+      for (;;) {
+        if (await target.isVisible()) {
+          await target.click();
+          break;
+        }
+        const more = group.getByRole("button", {
+          name: `Load more ${side.toLowerCase()} assessment groups`,
+          exact: true,
+        });
+        await expect(more).toBeVisible();
+        const [response] = await Promise.all([
+          page.waitForResponse((reply) => {
+            const u = new URL(reply.url());
+            return (
+              u.pathname === "/v1/fleet-history-registrations" &&
+              u.searchParams.has("cursor") &&
+              reply.ok()
+            );
+          }),
+          more.click(),
+        ]);
+        const next = (await response.json()) as {
+          items: FleetHistoryRegistration[];
+        };
+        expect(next.items.length).toBeGreaterThan(0);
+        await expect(
+          group.getByRole("button", {
+            name: `Assess ${side.toLowerCase()} group ${next.items.at(-1)!.registration.fleet_id}`,
+            exact: true,
+          }),
+        ).toBeVisible();
+      }
+      await group
+        .getByRole("button", {
+          name: `Compare ${side.toLowerCase()} proposal ${pairs[index].proposal.id.slice(0, 12)}…${pairs[index].proposal.id.slice(-6)}`,
+          exact: true,
+        })
+        .click();
+    }
+  };
+  await chooseAssessmentProposals(assessmentDialog);
   const [assessmentResponse] = await Promise.all([
     page.waitForResponse(
       (reply) =>
@@ -420,6 +482,80 @@ test("real OIDC two registered groups produce a persisted isolated fixture selec
       exact: true,
     }),
   ).toBeVisible();
+  // The per-member worker separately freezes the group point. These particular
+  // public registrations have no native membership receipts; the server must
+  // retain unknown population, never manufacture an empty observed fleet.
+  await page.getByText("Native fleet member capacity", { exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Evaluate fleet member capacity",
+      exact: true,
+    })
+    .click();
+  const capacityDialog = page.getByRole("dialog", {
+    name: "Evaluate fleet member capacity",
+    exact: true,
+  });
+  await chooseAssessmentProposals(capacityDialog);
+  const [capacityResponse] = await Promise.all([
+    page.waitForResponse(
+      (reply) =>
+        new URL(reply.url()).pathname ===
+          `/v1/workloads/${workload!.id}/fleet-native-capacity-batches` &&
+        reply.request().method() === "POST",
+    ),
+    capacityDialog
+      .getByRole("button", {
+        name: "Request fleet member evaluation",
+        exact: true,
+      })
+      .click(),
+  ]);
+  expect(capacityResponse.status()).toBe(202);
+  expect(capacityResponse.request().postDataJSON()).toEqual({
+    old_configuration_proposal_id: pairs[0].proposal.id,
+    candidate_configuration_proposal_id: pairs[1].proposal.id,
+  });
+  expect(capacityResponse.request().headers()["if-match"]).toBe(
+    `"${safety.latest!.version}"`,
+  );
+  expect(capacityResponse.request().headers()["idempotency-key"]).toBeTruthy();
+  const capacityRequest =
+    (await capacityResponse.json()) as components["schemas"]["FleetNativeCapacityBatchRecord"];
+  expect(capacityRequest.status).toBe("QUEUED");
+  expect(capacityRequest.batch).toBeNull();
+  let capacityResult = capacityRequest;
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `/v1/fleet-native-capacity-batches/${capacityRequest.id}`,
+          { headers: { Authorization: authorization } },
+        );
+        expect(response.status()).toBe(200);
+        capacityResult = await response.json();
+        return capacityResult.status;
+      },
+      { timeout: 60_000, intervals: [500, 1000, 2000] },
+    )
+    .toBe("ASSESSED");
+  expect(capacityResult.scope!.scope.population_status).toBe("UNAVAILABLE");
+  expect(capacityResult.scope!.scope.current_member_ids).toEqual([]);
+  expect(capacityResult.batch!.coverage).toBe("UNAVAILABLE");
+  expect(capacityResult.batch!.execution_authorized).toBe(false);
+  expect(capacityResult.batch!.verified_saving).toBeNull();
+  await page
+    .getByRole("button", {
+      name: "Refresh selected capacity batch",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("region", {
+      name: "Selected fleet capacity batch",
+      exact: true,
+    }),
+  ).toContainText("Original membership: unavailable");
   await expect(
     assessmentPanel.getByRole("row", {
       name: "Verified savings Unavailable",
@@ -442,12 +578,13 @@ test("real OIDC two registered groups produce a persisted isolated fixture selec
       exact: true,
     })
     .click();
-  await page
-    .getByRole("button", {
-      name: `Inspect native assessment ${requested.id.slice(0, 12)}…${requested.id.slice(-6)}`,
-      exact: true,
-    })
-    .click();
+  await inspectHistoricalRequest(page, {
+    id: requested.id,
+    prefix: "Inspect native assessment ",
+    history: "Native fleet assessment history",
+    more: "Load more native fleet assessments",
+    path: `/v1/workloads/${workload!.id}/fleet-native-assessments`,
+  });
   await expect(
     page
       .getByRole("region", {
@@ -456,6 +593,20 @@ test("real OIDC two registered groups produce a persisted isolated fixture selec
       })
       .getByRole("row", { name: "Verified savings Unavailable", exact: true }),
   ).toBeVisible();
+  await page.getByText("Native fleet member capacity", { exact: true }).click();
+  await inspectHistoricalRequest(page, {
+    id: capacityRequest.id,
+    prefix: "Inspect capacity batch ",
+    history: "Fleet capacity batch history",
+    more: "Load more fleet capacity batches",
+    path: `/v1/workloads/${workload!.id}/fleet-native-capacity-batches`,
+  });
+  await expect(
+    page.getByRole("region", {
+      name: "Selected fleet capacity batch",
+      exact: true,
+    }),
+  ).toContainText("Original membership: unavailable");
   await page
     .getByRole("button", {
       name: "Propose isolated group fixture",

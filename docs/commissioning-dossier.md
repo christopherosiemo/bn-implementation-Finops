@@ -9,6 +9,16 @@ egress. Native capacity, historical interval ownership, contracted avoidable
 economics and financial authority still need independent acceptance. The local
 worker's healthy startup and fixture estimates do not enable customer execution.
 
+The separate [036 per-member capacity queue](native-hardware-capacity.md#group-selected-member-evaluation)
+also defaults off. Commission its own restricted database login and version-reader
+IRSA role, existing reader/model token files, verified database trust and exact
+regional destinations. It must not reuse the financial assessor, source ingester,
+signer or executor identity. Review the complete observed roster, historical
+denominators, missing member results and exact native candidate configuration.
+Calculated physical checks do not establish commitment compatibility, contracted
+avoidable cost, completed business work, group safety or execution permission.
+Synthetic local history earns no elapsed-history or customer acceptance.
+
 The [connected isolated fleet fixture](connected-fleet-fixture.md) keeps exact
 program, journal and continuation approvals separate. Private key commissioning,
 dedicated process identities, native artifact inspection and durable ownership

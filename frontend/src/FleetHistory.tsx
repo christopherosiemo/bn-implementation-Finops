@@ -32,6 +32,11 @@ const FleetNativeAssessment = lazy(() =>
     default: module.FleetNativeAssessment,
   })),
 );
+const FleetNativeCapacity = lazy(() =>
+  import("./FleetNativeCapacity").then((module) => ({
+    default: module.FleetNativeCapacity,
+  })),
+);
 type RegistrationRequest =
   components["schemas"]["FleetHistoryRegistrationRequest"];
 type DefinitionRequest = components["schemas"]["FleetDemandDefinitionRequest"];
@@ -1032,6 +1037,17 @@ export function FleetHistory({ data, run, busy }: Props) {
             fallback={<p role="status">Loading native fleet assessment…</p>}
           >
             <FleetNativeAssessment
+              key={workload.id}
+              workload={workload.id}
+              fixture={data.fixture}
+              run={run}
+              busy={busy}
+            />
+          </Suspense>
+          <Suspense
+            fallback={<p role="status">Loading fleet member capacity…</p>}
+          >
+            <FleetNativeCapacity
               key={workload.id}
               workload={workload.id}
               fixture={data.fixture}

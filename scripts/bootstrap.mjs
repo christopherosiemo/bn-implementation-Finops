@@ -41,10 +41,11 @@ if (!env.FLEET_ASSESSMENT_DATABASE_URL) {
 // Compose file secrets work with a read-only service and are readable by its
 // dedicated UID. The enclosing host directories retain owner-only access.
 // Publish each file atomically; an existing symlink is never followed.
-function assessmentSecretDirectory() {
+function assessmentSecretDirectory(leaf = 'fleet-assessment-secrets') {
+  if (!['fleet-assessment-secrets', 'fleet-capacity-secrets'].includes(leaf)) throw new Error('Private secret directory refused');
   const base = realpathSync(root);
   let directory = base;
-  for (const part of ['work', 'private', 'fleet-assessment-secrets']) {
+  for (const part of ['work', 'private', leaf]) {
     directory = path.join(directory, part);
     // The public fixture realm shares work/. Keep only the private subtree
     // owner-only so an unprivileged Keycloak can still traverse its own path.
@@ -62,7 +63,7 @@ function assessmentSecretDirectory() {
   return directory;
 }
 function atomicAssessmentSecret(directory, name, value) {
-  if (!['database', 'access-key', 'secret-key'].includes(name) || typeof value !== 'string' || !value || value.length > 32768 || /[\0\r\n]/.test(value)) throw new Error('Assessment secret value invalid');
+  if (!['database', 'access-key', 'secret-key', 'reader-token', 'model-token'].includes(name) || typeof value !== 'string' || !value || value.length > 32768 || /[\0\r\n]/.test(value)) throw new Error('Assessment secret value invalid');
   const file = path.join(directory, name), temporary = path.join(directory, '.' + name + '-' + randomBytes(16).toString('hex'));
   const parent = lstatSync(directory);
   const parentMatches = () => {
@@ -104,6 +105,19 @@ function atomicAssessmentSecret(directory, name, value) {
 }
 const assessmentSecrets = assessmentSecretDirectory();
 for (const [name, value] of [['database', env.FLEET_ASSESSMENT_DATABASE_URL], ['access-key', env.ASSESSMENT_ACCESS_KEY], ['secret-key', env.ASSESSMENT_SECRET_KEY]]) atomicAssessmentSecret(assessmentSecrets, name, value);
+// Optional local analytical worker. Ordinary bootstrap installs no new capacity
+// LOGIN or storage identity; the explicit wrapper opts in to these credentials.
+if (process.env.FINOPS_BOOTSTRAP_FLEET_CAPACITY === 'true') {
+  for (const [key, value] of Object.entries({ DB_GROUP_CAPACITY_PASSWORD: random(), CAPACITY_ACCESS_KEY: 'group-capacity', CAPACITY_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+  if (!env.FLEET_CAPACITY_DATABASE_URL) {
+    env.FLEET_CAPACITY_DATABASE_URL = `postgres://finops_group_capacity:${encodeURIComponent(env.DB_GROUP_CAPACITY_PASSWORD)}@postgres:5432/finops?sslmode=disable`;
+    writeFileSync(envPath, `FLEET_CAPACITY_DATABASE_URL=${env.FLEET_CAPACITY_DATABASE_URL}\n`, { flag: 'a', mode: 0o600 });
+  }
+  const directory = assessmentSecretDirectory('fleet-capacity-secrets');
+  for (const [name, value] of [['database', env.FLEET_CAPACITY_DATABASE_URL], ['access-key', env.CAPACITY_ACCESS_KEY], ['secret-key', env.CAPACITY_SECRET_KEY], ['reader-token', env.TELEMETRY_READER_TOKEN], ['model-token', env.ECONOMICS_TOKEN]]) atomicAssessmentSecret(directory, name, value);
+}
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
 const userProfile = {

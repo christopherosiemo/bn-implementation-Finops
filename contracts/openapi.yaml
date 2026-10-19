@@ -8,6 +8,141 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /workloads/{id}/fleet-native-capacity-batches:
+    get:
+      operationId: listFleetNativeCapacityBatches
+      description: >-
+        Historical bounded metadata. Current workload access is checked independently of source
+        availability; no group capacity, business-work preservation, execution or savings authority is
+        granted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Immutable capacity batch or member metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeCapacityBatchPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload scope required
+        '404':
+          description: Selection unavailable in tenant
+        '422':
+          description: Scoped cursor invalid
+    post:
+      operationId: requestFleetNativeCapacityBatch
+      description: >-
+        IDs-only current025/027 group selection. If-Match pins the current safety profile; a separate
+        evaluator captures an immutable point roster and independently evaluates each real mapped member.
+        Missing inputs remain explicit gaps.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetNativeCapacityBatchRequest'
+      responses:
+        '202':
+          description: Queued analytical batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeCapacityBatchRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: FINOPS_ADMIN, PLATFORM_ADMIN or APPLICATION_OWNER and current workload scope required
+        '404':
+          description: Selection or requirements unavailable in tenant
+        '409':
+          description: Current selection, source or safety-profile CAS differs
+        '413':
+          description: BODY_TOO_LARGE; complete control-plane body exceeds 4MiB
+        '422':
+          description: Only two current proposal IDs are accepted
+  /fleet-native-capacity-batches/{id}:
+    get:
+      operationId: getFleetNativeCapacityBatch
+      description: >-
+        Historical bounded metadata. Current workload access is checked independently of source
+        availability; no group capacity, business-work preservation, execution or savings authority is
+        granted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable capacity batch or member metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeCapacityBatchRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload scope required
+        '404':
+          description: Selection unavailable in tenant
+        '422':
+          description: Scoped cursor invalid
+  /fleet-native-capacity-batches/{id}/members:
+    get:
+      operationId: listFleetNativeCapacityMembers
+      description: >-
+        Historical bounded metadata. Current workload access is checked independently of source
+        availability; no group capacity, business-work preservation, execution or savings authority is
+        granted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Immutable capacity batch or member metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeCapacityMemberPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload scope required
+        '404':
+          description: Selection unavailable in tenant
+        '422':
+          description: Scoped cursor invalid
+  /fleet-native-capacity-members/{id}:
+    get:
+      operationId: getFleetNativeCapacityMember
+      description: >-
+        Historical bounded metadata. Current workload access is checked independently of source
+        availability; no group capacity, business-work preservation, execution or savings authority is
+        granted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable capacity batch or member metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeCapacityMemberRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload scope required
+        '404':
+          description: Selection unavailable in tenant
+        '422':
+          description: Scoped cursor invalid
   /workloads/{id}/fleet-native-assessments:
     get:
       operationId: listFleetNativeAssessments
@@ -1560,6 +1695,574 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetNativeCapacityBatchRequest:
+      $ref: '#/components/schemas/FleetNativeAssessmentRequest'
+    FleetNativeCapacityScope:
+      type: object
+      additionalProperties: false
+      required:
+        - selection
+        - snapshot_sha256
+        - population_status
+        - observed_at
+        - membership_pins
+        - current_member_ids
+      properties:
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        snapshot_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        population_status:
+          type: string
+          enum:
+            - OBSERVED_POINT
+            - UNAVAILABLE
+        observed_at:
+          type: string
+          format: date-time
+        membership_pins:
+          type: array
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/FleetNativeSourcePin'
+        current_member_ids:
+          type: array
+          maxItems: 256
+          items:
+            type: string
+    FleetNativeCapacityCandidateTemplate:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - instance_type
+        - image_id
+        - source_pin
+        - definition_sha256
+        - reason_codes
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+          pattern: ^[1-9][0-9]{0,19}$
+          description: Exact native uint64 launch-template version as a decimal string.
+        instance_type:
+          type: string
+        image_id:
+          type: string
+        source_pin:
+          $ref: '#/components/schemas/FleetNativeSourcePin'
+        definition_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        reason_codes:
+          type: array
+          items:
+            type: string
+    FleetNativeCapacityScopeRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - request_id
+        - scope
+        - candidate_template
+        - source_pins
+        - reason_codes
+        - execution_authorized
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        request_id:
+          type: string
+        scope:
+          $ref: '#/components/schemas/FleetNativeCapacityScope'
+        candidate_template:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityCandidateTemplate'
+        source_pins:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/FleetNativeSourcePin'
+        reason_codes:
+          type: array
+          items:
+            type: string
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetNativeCapacityTelemetry:
+      type: object
+      additionalProperties: false
+      required:
+        - connection_id
+        - connection_version
+        - revision_id
+        - config_hash
+        - population_hash
+        - receipt_ids
+        - source_refs
+      properties:
+        connection_id:
+          type: string
+        connection_version:
+          type: integer
+          format: int64
+        revision_id:
+          type: string
+        config_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        population_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        receipt_ids:
+          type: array
+          maxItems: 2048
+          items:
+            type: string
+        source_refs:
+          $ref: '#/components/schemas/NativeCapacityResult/properties/source_refs'
+    FleetNativeCapacityHardware:
+      type: object
+      additionalProperties: false
+      required:
+        - receipt_id
+        - source_id
+        - revision_id
+        - registration_version
+        - config_hash
+        - raw_sha256
+        - resource_snapshot_hash
+        - resource_version
+        - source_pin
+      properties:
+        receipt_id:
+          type: string
+        source_id:
+          type: string
+        revision_id:
+          type: string
+        registration_version:
+          type: integer
+          format: int64
+        config_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        raw_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        resource_snapshot_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        resource_version:
+          type: integer
+          format: int64
+        source_pin:
+          $ref: '#/components/schemas/FleetNativeSourcePin'
+    FleetNativeCapacityMember:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - batch_id
+        - scope
+        - instance_id
+        - resource_id
+        - binding
+        - observed_at
+        - telemetry
+        - hardware
+        - candidate_template
+        - input_kind
+        - input_hash
+        - hardware_mapping
+        - model_requested
+        - model_evaluated
+        - model_evaluation
+        - capacity_suitable
+        - status
+        - reason_codes
+        - demand_meaning
+        - group_capacity_authorized
+        - completed_business_work_preserved
+        - execution_authorized
+        - estimated_saving
+        - verified_saving
+        - change_plan_id
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        batch_id:
+          type: string
+        scope:
+          $ref: '#/components/schemas/FleetNativeCapacityScope'
+        instance_id:
+          type: string
+        resource_id:
+          type: string
+        binding:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/NativeResourceBinding'
+        observed_at:
+          type: string
+          format: date-time
+        telemetry:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityTelemetry'
+        hardware:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityHardware'
+        candidate_template:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityCandidateTemplate'
+        input_kind:
+          type: string
+          enum:
+            - UNAVAILABLE
+            - MAPPING_OBSERVATION
+            - MODEL_REQUEST
+        input_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        hardware_mapping:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/NativeCapacityResult/properties/hardware_mapping'
+        model_requested:
+          type: boolean
+        model_evaluated:
+          type: boolean
+        model_evaluation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CapacityModelResult'
+        capacity_suitable:
+          type: boolean
+          nullable: true
+        status:
+          type: string
+          enum:
+            - BLOCKED
+            - UNAVAILABLE
+        reason_codes:
+          type: array
+          items:
+            type: string
+        demand_meaning:
+          type: string
+          enum:
+            - REQUEST_THROUGHPUT_PROXY
+            - UNAVAILABLE
+        group_capacity_authorized:
+          type: boolean
+          enum:
+            - false
+        completed_business_work_preserved:
+          type: boolean
+          nullable: true
+          enum:
+            - null
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        change_plan_id:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetNativeCapacityMemberReference:
+      type: object
+      additionalProperties: false
+      required:
+        - instance_id
+        - result_id
+        - sha256
+        - status
+        - model_evaluated
+        - capacity_suitable
+      properties:
+        instance_id:
+          type: string
+        result_id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        status:
+          type: string
+          enum:
+            - BLOCKED
+            - UNAVAILABLE
+        model_evaluated:
+          type: boolean
+        capacity_suitable:
+          type: boolean
+          nullable: true
+    FleetNativeCapacityBatch:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - scope
+        - members
+        - coverage
+        - status
+        - reason_codes
+        - group_capacity_authorized
+        - completed_business_work_preserved
+        - execution_authorized
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        scope:
+          $ref: '#/components/schemas/FleetNativeCapacityScope'
+        members:
+          type: array
+          maxItems: 256
+          items:
+            $ref: '#/components/schemas/FleetNativeCapacityMemberReference'
+        coverage:
+          type: string
+          enum:
+            - UNAVAILABLE
+            - EMPTY_POINT
+            - PARTIAL
+            - ALL_MEMBER_RESULTS_OBSERVED
+        status:
+          type: string
+          enum:
+            - BLOCKED
+        reason_codes:
+          type: array
+          items:
+            type: string
+        group_capacity_authorized:
+          type: boolean
+          enum:
+            - false
+        completed_business_work_preserved:
+          type: boolean
+          nullable: true
+          enum:
+            - null
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetNativeCapacityMemberRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - kind
+        - id
+        - request_id
+        - instance_id
+        - sha256
+        - member
+        - created_at
+        - writer_role
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        kind:
+          type: string
+          enum:
+            - FLEET_NATIVE_CAPACITY_MEMBER_V1
+        id:
+          type: string
+        request_id:
+          type: string
+        instance_id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        member:
+          $ref: '#/components/schemas/FleetNativeCapacityMember'
+        created_at:
+          type: string
+          format: date-time
+        writer_role:
+          type: string
+          enum:
+            - finops_group_capacity
+    FleetNativeCapacityMemberSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - request_id
+        - instance_id
+        - sha256
+        - status
+        - model_evaluated
+        - capacity_suitable
+        - reason_codes
+        - created_at
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        request_id:
+          type: string
+        instance_id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        status:
+          type: string
+          enum:
+            - BLOCKED
+            - UNAVAILABLE
+        model_evaluated:
+          type: boolean
+        capacity_suitable:
+          type: boolean
+          nullable: true
+        reason_codes:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+    FleetNativeCapacityBatchRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - selection
+        - execution_authorized
+        - verified_saving
+        - created_at
+        - status
+        - scope
+        - batch
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+        scope:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityScopeRecord'
+        batch:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeCapacityBatch'
+    FleetNativeCapacityBatchPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeCapacityBatchRecord'
+        next_cursor:
+          type: string
+          nullable: true
+    FleetNativeCapacityMemberPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeCapacityMemberSummary'
+        next_cursor:
+          type: string
+          nullable: true
     FleetNativeAssessmentRequest:
       type: object
       additionalProperties: false

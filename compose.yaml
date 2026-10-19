@@ -54,6 +54,7 @@ services:
       DB_DEPLOYMENT_OBSERVER_PASSWORD: ${DB_DEPLOYMENT_OBSERVER_PASSWORD:-}
       DB_HARDWARE_READER_PASSWORD: ${DB_HARDWARE_READER_PASSWORD:-}
       DB_GROUP_ASSESSOR_PASSWORD: ${DB_GROUP_ASSESSOR_PASSWORD:-}
+      DB_GROUP_CAPACITY_PASSWORD: ${DB_GROUP_CAPACITY_PASSWORD:-}
     depends_on:
       postgres: {condition: service_healthy}
 
@@ -135,6 +136,8 @@ services:
       AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
       ASSESSMENT_ACCESS_KEY: ${ASSESSMENT_ACCESS_KEY:-}
       ASSESSMENT_SECRET_KEY: ${ASSESSMENT_SECRET_KEY:-}
+      CAPACITY_ACCESS_KEY: ${CAPACITY_ACCESS_KEY:-}
+      CAPACITY_SECRET_KEY: ${CAPACITY_SECRET_KEY:-}
     volumes: ['./config/minio:/config:ro']
     depends_on: [minio]
     restart: on-failure
@@ -308,6 +311,97 @@ services:
       buckets: {condition: service_completed_successfully}
       fleet-assessment-secrets-init: {condition: service_completed_successfully}
 
+  fleet-capacity-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [fleet-capacity]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        test -d /capacity-secrets
+        test ! -L /capacity-secrets
+        chmod 0755 /capacity-secrets
+        temporary=''
+        trap 'test -z "$$temporary" || rm -f -- "$$temporary"' EXIT
+        for name in group-capacity-database group-capacity-access-key group-capacity-secret-key group-capacity-reader-token group-capacity-model-token; do
+          source="/run/secrets/$$name"
+          target="/capacity-secrets/$$name"
+          test -f "$$source"
+          test ! -L "$$source"
+          test -r "$$source"
+          maximum=256
+          test "$$name" != group-capacity-database || maximum=8192
+          bytes=$$(wc -c < "$$source")
+          test "$$bytes" -gt 0
+          test "$$bytes" -le "$$maximum"
+          if test -e "$$target" || test -L "$$target"; then
+            test -f "$$target"
+            test ! -L "$$target"
+            test "$$(stat -c '%h' "$$target")" = 1
+          fi
+          temporary=$$(mktemp /capacity-secrets/.secret.XXXXXX)
+          cat "$$source" > "$$temporary"
+          chmod 0444 "$$temporary"
+          test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+          sync -f "$$temporary"
+          mv -fT -- "$$temporary" "$$target"
+          temporary=''
+          test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+        done
+        sync -f /capacity-secrets
+        printf '%s\n' FLEET_CAPACITY_SECRET_FILES_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [group-capacity-database, group-capacity-access-key, group-capacity-secret-key, group-capacity-reader-token, group-capacity-model-token]
+    volumes: ['fleet-capacity-secrets:/capacity-secrets']
+    restart: 'no'
+
+  fleet-capacity:
+    <<: *go
+    profiles: [fleet-capacity]
+    entrypoint: [/app/fleet-capacity-worker]
+    environment:
+      FLEET_CAPACITY_ENABLED: 'true'
+      FLEET_CAPACITY_TENANT_ID: tenant-demo
+      FLEET_CAPACITY_DATABASE_FILE: /run/secrets/group-capacity-database
+      FLEET_CAPACITY_ARCHIVE_REGION: eu-west-1
+      FLEET_CAPACITY_ARCHIVE_MODE: LOCAL_VERSIONED_S3
+      FLEET_CAPACITY_ARCHIVE_ENDPOINT: http://minio:9000
+      FLEET_CAPACITY_ARCHIVE_BUCKET: finops-raw
+      FLEET_CAPACITY_ARCHIVE_ACCESS_KEY_FILE: /run/secrets/group-capacity-access-key
+      FLEET_CAPACITY_ARCHIVE_SECRET_KEY_FILE: /run/secrets/group-capacity-secret-key
+      FLEET_CAPACITY_SERVICE_MODE: PRIVATE_SERVICES
+      FLEET_CAPACITY_READER_URL: http://telemetry-reader:8095
+      FLEET_CAPACITY_READER_TOKEN_FILE: /run/secrets/group-capacity-reader-token
+      FLEET_CAPACITY_MODEL_URL: http://economics:8000
+      FLEET_CAPACITY_MODEL_TOKEN_FILE: /run/secrets/group-capacity-model-token
+    volumes: ['fleet-capacity-secrets:/run/secrets:ro']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/fleet-capacity-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      fleet-capacity-secrets-init: {condition: service_completed_successfully}
+      telemetry-reader: {condition: service_started}
+      economics: {condition: service_healthy}
+
   activity-ingress:
     <<: *go
     environment:
@@ -445,7 +539,19 @@ secrets:
   group-assessment-secret-key:
     file: ./work/private/fleet-assessment-secrets/secret-key
 
+  group-capacity-database:
+    file: ./work/private/fleet-capacity-secrets/database
+  group-capacity-access-key:
+    file: ./work/private/fleet-capacity-secrets/access-key
+  group-capacity-secret-key:
+    file: ./work/private/fleet-capacity-secrets/secret-key
+  group-capacity-reader-token:
+    file: ./work/private/fleet-capacity-secrets/reader-token
+  group-capacity-model-token:
+    file: ./work/private/fleet-capacity-secrets/model-token
+
 volumes:
+  fleet-capacity-secrets: {}
   fleet-assessment-secrets: {}
   postgres: {}
   keycloak: {}

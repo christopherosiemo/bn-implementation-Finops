@@ -107,6 +107,8 @@ jobs:
         run: git diff --exit-code -- frontend/src/api.generated.ts
       - name: Audit locked frontend production and development dependencies
         run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace/frontend node:22-bookworm-slim npm audit --audit-level=low
+      - name: Audit locked native capacity browser dependencies
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace/examples/fleet-capacity-browser node:22-bookworm-slim npm audit --audit-level=low
       - name: All specification sections have traceability coverage
         run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
       - name: Fixed product progress weights and acceptance credit reconcile
@@ -164,6 +166,8 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml > /tmp/finops-fleet-history.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml > /tmp/finops-fleet-assessment.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml > /tmp/finops-fleet-capacity.yaml
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
@@ -180,6 +184,17 @@ jobs:
               exit 1
             fi
             grep -Eq 'finops/templates/(fleet-assessment|services).yaml' /tmp/finops-assessment-negative/rejected.log
+          done
+      - name: Check optional capacity identity, service access and refused deployment inputs
+        run: |
+          mkdir -p /tmp/finops-capacity-negative
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-capacity.yaml:/capacity.yaml:ro -v /tmp/finops-capacity-negative:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /capacity.yaml && python deploy/tests/test_fleet_capacity_chart.py /capacity.yaml --write-negative-values /checks'
+          for invalid in /tmp/finops-capacity-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml -f /invalid.json > /tmp/finops-capacity-negative/rejected.log 2>&1; then
+              echo "Unsafe capacity configuration unexpectedly rendered"
+              exit 1
+            fi
+            grep -Eq 'finops/templates/(fleet-capacity|fleet-assessment|native-telemetry|services).yaml' /tmp/finops-capacity-negative/rejected.log
           done
       - name: Check optional history-reader identity, additive policies and fail-closed configuration
         run: |
@@ -340,6 +355,63 @@ jobs:
       - name: Stop only this fresh job's source fixture
         if: always()
         run: docker compose down --volumes --remove-orphans
+  fleet-native-capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate native capacity source, daemon recovery and browser isolation
+        run: node --test scripts/tests/fleet-native-capacity-lab.test.mjs scripts/tests/fleet-capacity-daemon.test.mjs scripts/tests/fleet-capacity-browser.test.mjs scripts/tests/fleet-capacity-compose.test.mjs
+      - name: Prepare pinned native, browser and identity toolchains
+        run: |
+          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+          docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
+          docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
+          docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          docker pull node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+          docker pull nginxinc/nginx-unprivileged@sha256:782bb89768cc87b7f95c18b95baa1af250e5d451f26794f59363540161147c01
+      - name: Generate local-only fixture keys and separate service credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build and start the inspected source fixture
+        run: |
+          docker compose config --quiet
+          docker compose build minio buckets
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise actual native telemetry, capacity model, daemon replacement and OIDC console
+        run: node scripts/fleet-native-capacity-lab.mjs
+      - name: Retain bounded capacity evidence after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-native-capacity-acceptance
+          path: |
+            work/private/fleet-native-capacity/*/acceptance.json
+            work/private/fleet-native-capacity/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
   fleet-workspace-health:
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -455,7 +527,7 @@ jobs:
         with:
           node-version: "22"
       - name: Generate local-only keys and service secrets
-        run: node scripts/bootstrap.mjs
+        run: node scripts/bootstrap-fleet-capacity.mjs
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Build and start fixture pilot
@@ -502,6 +574,9 @@ jobs:
           node scripts/fleet-assessment-compose-check.mjs
           docker compose --profile fleet-assessment run --rm --no-deps fleet-assessment-secrets-init
           docker compose --profile fleet-assessment up -d --no-build --no-deps --wait --wait-timeout 90 fleet-assessment
+          node scripts/fleet-capacity-compose-check.mjs
+          docker compose --profile fleet-capacity run --rm --no-deps fleet-capacity-secrets-init
+          docker compose --profile fleet-capacity up -d --no-build --no-deps --wait --wait-timeout 90 fleet-capacity
           node --test scripts/tests/group-fixture-commission.test.mjs
           node --test scripts/tests/group-fixture-preparer-job.test.mjs scripts/tests/group-fixture-program-review.test.mjs scripts/tests/group-fixture-review-sequence.test.mjs
           node scripts/group-fixture-review-sequence.mjs

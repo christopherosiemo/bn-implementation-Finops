@@ -1,4 +1,4 @@
-// NEXT fixture-only CI sequence. Ordinary74 must already have completed; its
+// Fixture-only CI sequence. Ordinary browser cases must have completed; their
 // demo/reset would invalidate an active commissioning/preparation selection.
 import assert from 'node:assert/strict';
 import {createHash,randomUUID} from 'node:crypto';

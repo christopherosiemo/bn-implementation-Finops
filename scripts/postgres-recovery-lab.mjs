@@ -82,8 +82,8 @@ const metadataSQL = `SELECT json_build_object(
  'guards',(SELECT json_agg(x ORDER BY x.table_name,x.tgname) FROM (SELECT c.relname AS table_name,t.tgname,pg_get_triggerdef(t.oid) AS definition FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal) x),
  'functions',(SELECT json_agg(x ORDER BY x.identity) FROM (SELECT p.oid::regprocedure::text AS identity,${digestSQL('pg_get_functiondef(p.oid)')} AS definition_sha256,p.prosecdef,p.proacl::text FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind IN ('f','p')) x),
  'indexes',(SELECT json_agg(x ORDER BY x.indexname) FROM (SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='public') x),
- 'roles',(SELECT json_agg(x ORDER BY x.rolname) FROM (SELECT rolname,rolsuper,rolbypassrls,rolcanlogin,rolinherit,rolcreaterole,rolcreatedb,rolreplication FROM pg_roles WHERE rolname IN (${coreRoles.map(literal).join(',')})) x),
- 'memberships',(SELECT json_agg(x ORDER BY x.role_name,x.member_name) FROM (SELECT parent.rolname AS role_name,member.rolname AS member_name,m.admin_option FROM pg_auth_members m JOIN pg_roles parent ON parent.oid=m.roleid JOIN pg_roles member ON member.oid=m.member WHERE parent.rolname IN (${coreRoles.map(literal).join(',')}) OR member.rolname IN (${coreRoles.map(literal).join(',')})) x)
+ 'roles',(SELECT json_agg(x ORDER BY x.rolname) FROM (SELECT rolname,rolsuper,rolbypassrls,rolcanlogin,rolinherit,rolcreaterole,rolcreatedb,rolreplication FROM pg_roles) x),
+ 'memberships',(SELECT json_agg(x ORDER BY x.role_name,x.member_name) FROM (SELECT parent.rolname AS role_name,member.rolname AS member_name,m.admin_option FROM pg_auth_members m JOIN pg_roles parent ON parent.oid=m.roleid JOIN pg_roles member ON member.oid=m.member) x)
 );`;
 function samples(container, user) {
   const groups = [];
@@ -174,7 +174,10 @@ export async function recoveryLab() {
     recoveryStage='SOURCE_EVIDENCE_CAPTURE';
     seedSentinel(source,user,database,runID,()=>{sentinel=true;});
     const metadata=jsonSQL(metadataSQL,source,user,'finops'),sampled=samples(source,user),temporal=temporalMetadata(source,user,true);
-    assert.equal(metadata.roles.length,coreRoles.length);assert.ok(metadata.relations.filter(r=>r.relrowsecurity&&r.relforcerowsecurity).length>10);
+    // Physical recovery preserves every actor, including newly added restricted
+    // workers and separately commissioned login memberships. Keep the original
+    // core prerequisites while comparing the complete source authority roster.
+    assert.ok(coreRoles.every(name=>metadata.roles.some(role=>role.rolname===name)));assert.ok(metadata.relations.filter(r=>r.relrowsecurity&&r.relforcerowsecurity).length>10);
     pass('explicit local fixture primary and test-owned sentinel; application rows remain read-only');
     recoveryStage='ENCRYPTED_PHYSICAL_BACKUP';
     const backup=child(['exec','--user','postgres',source,'pg_basebackup','-U',user,'-h','/var/run/postgresql','--no-password','--pgdata=-','--format=tar','--wal-method=fetch','--checkpoint=fast','--max-rate=64M','--manifest-checksums=SHA256','--label','finops-local-recovery-'+runID]);backup.process.stdin.end();

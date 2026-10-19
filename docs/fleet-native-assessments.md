@@ -38,6 +38,11 @@ ownership. Historical ownership, complete independent demand, native capacity
 approval, configuration authority and financial verification retain their own
 gates.
 
+The separate [group-selected capacity queue](native-hardware-capacity.md#group-selected-member-evaluation)
+now evaluates every observed original member against the captured native candidate
+configuration. Its immutable 036 records do not replace these 035 historical
+comparisons or confer group capacity, execution or financial authority.
+
 ## Local worker
 
 Run the normal bootstrap and migrations before opting in:

@@ -2,7 +2,7 @@
 // The repository is read-only; every generated artifact lives in an owned temp tree.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap() {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -59,6 +59,8 @@ try {
   chmodSync(copiedBootstrap, 0o644);
 
   bootstrap();
+  assert.ok(!readFileSync(generatedEnv, 'utf8').includes('DB_GROUP_CAPACITY_PASSWORD='), 'ordinary bootstrap must not enable a capacity LOGIN');
+  assert.equal(existsSync(path.join(temporaryRoot, 'work', 'private', 'fleet-capacity-secrets')), false);
   assert.equal(statSync(generatedRealm).uid, 0);
   assert.equal(statSync(generatedEnv).uid, 0);
   assert.equal(mode(generatedRealm), 0o644, 'public fixture realm must be readable by the container UID');
@@ -97,7 +99,24 @@ try {
   assert.deepEqual(assessmentFiles.map(file => readFileSync(file)), originalAssessmentSecrets, 'rerunning bootstrap preserves assessment secret values');
   probeAsKeycloak(true);
   console.log('PASS rerunning bootstrap repairs realm permissions without changing or exposing secrets');
-  console.log('\n4 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  bootstrap(true);
+  const capacityDirectory = path.join(temporaryRoot, 'work', 'private', 'fleet-capacity-secrets');
+  const capacityFiles = ['database', 'access-key', 'secret-key', 'reader-token', 'model-token'].map(name => path.join(capacityDirectory, name));
+  assert.equal(mode(capacityDirectory), 0o700);
+  for (const file of capacityFiles) assert.equal(mode(file), 0o444);
+  const capacitySecrets = capacityFiles.map(file => readFileSync(file));
+  assert.notDeepEqual(capacitySecrets[0], originalAssessmentSecrets[0], 'capacity database login must be distinct');
+  assert.notDeepEqual(capacitySecrets[1], originalAssessmentSecrets[1], 'capacity archive principal must be distinct');
+  assert.notDeepEqual(capacitySecrets[2], originalAssessmentSecrets[2], 'capacity archive secret must be distinct');
+  assert.notDeepEqual(capacitySecrets[3], capacitySecrets[4], 'reader and model credentials must differ');
+  const denied = spawnSync(process.execPath, ['-e', `const fs=require('node:fs'),assert=require('node:assert/strict');assert.equal(process.getuid(),1000);for(const file of process.argv.slice(1))assert.throws(()=>fs.readFileSync(file),{code:'EACCES'});`, ...capacityFiles], {cwd:temporaryRoot,uid:1000,gid:1000,encoding:'utf8',timeout:15_000});
+  assert.equal(denied.status, 0, 'actual UID 1000 must not read optional capacity source secrets');
+  bootstrap(true);
+  assert.deepEqual(capacityFiles.map(file => readFileSync(file)), capacitySecrets);
+  assert.deepEqual(assessmentFiles.map(file => readFileSync(file)), originalAssessmentSecrets);
+  probeAsKeycloak(true);
+  console.log('PASS optional capacity credentials are distinct, private and stable; ordinary bootstrap leaves them absent');
+  console.log('\n5 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

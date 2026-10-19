@@ -170,7 +170,10 @@ def check(path):
         assert not set(arn for arn in native_arns if arn) & other_arns
         policies = {doc["metadata"]["name"]: doc for doc in manifests if doc["kind"] == "NetworkPolicy"}
         reader_policy = policies["finops-native-reader-ingress"]
-        assert reader_policy["spec"]["ingress"][0]["from"] == [{"podSelector": {"matchLabels": {"finops-role": "api"}}}]
+        reader_senders = [{"podSelector": {"matchLabels": {"finops-role": "api"}}}]
+        if any(doc["kind"] == "Deployment" and doc["metadata"]["name"] == "finops-fleet-capacity" for doc in manifests):
+            reader_senders.append({"podSelector": {"matchLabels": {"finops-role": "fleet-capacity"}}})
+        assert reader_policy["spec"]["ingress"][0]["from"] == reader_senders
         general_https = policies["finops-dns-and-https"]["spec"]["podSelector"]["matchExpressions"]
         assert any(rule["operator"] == "NotIn" and native <= set(rule["values"]) for rule in general_https)
         for rule in policies["finops-native-egress"]["spec"]["egress"]:

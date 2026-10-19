@@ -1,0 +1,8 @@
+# Render-only example. Existing reader/model, RDS login and version-reader IRSA
+# must be commissioned separately. No cloud resources are created here.
+fleetCapacity:
+  enabled: true
+  roleArn: arn:aws:iam::123456789012:role/finops-group-capacity-reader
+  bucketOwner: "123456789012"
+  httpsEgressCidrs: ["10.40.2.0/24"]
+  postgresEgressCidrs: ["10.42.10.0/24", "10.42.11.0/24"]

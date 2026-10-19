@@ -1080,6 +1080,44 @@ test("requirements history and zero RPO target never masquerade as achieved reco
   expect(writes).toHaveLength(0);
 });
 
+for (const representation of ["null", "missing"] as const) {
+  test(`${representation} stored calendar collections remain unavailable without crashing or saving empty requirements`, async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    const incomplete: Record<string, unknown> = { ...profile };
+    for (const key of ["maintenance", "recurring_blackouts", "blackouts", "demand_events"]) {
+      if (representation === "null") incomplete[key] = null;
+      else delete incomplete[key];
+    }
+    const { writes } = await open(page, "safety", async (route, url) => {
+      if (url.pathname.endsWith("/safety-profiles")) {
+        await route.fulfill({ json: {
+          version: 4, latest: incomplete,
+          items: [{ ...profile, id: "valid-history", version: 3 }, incomplete],
+          next_cursor: null,
+        } });
+        return true;
+      }
+      return false;
+    });
+    const history = page.getByRole("region", { name: "Immutable safety requirement history" });
+    await expect(history).toContainText("Maintenance unavailable");
+    await expect(history).toContainText("Blackouts unavailable");
+    await expect(history).toContainText("Demand events unavailable");
+    await expect(history).toContainText("1 maintenance · 0 blackouts · 0 demand events");
+    await page.getByRole("combobox", { name: "Fleet history workload", exact: true }).selectOption("workload-api");
+    await page.getByRole("button", { name: "Configure safety requirements", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Configure workload safety requirements" });
+    await expect(dialog.getByRole("alert")).toContainText("Stored collections unavailable");
+    await expect(dialog.getByRole("alert")).toContainText("Missing collections have not been declared empty");
+    await expect(dialog.getByRole("button", { name: "Save safety requirements", exact: true })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(history).toBeVisible();
+    expect(writes).toHaveLength(0);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
 test("source read failures and scoped workload switching stay unavailable without changing authority", async ({
   page,
 }) => {

@@ -20,3 +20,13 @@ if [ -n "${ASSESSMENT_ACCESS_KEY:-}" ] || [ -n "${ASSESSMENT_SECRET_KEY:-}" ]; t
   mc admin user add local "$ASSESSMENT_ACCESS_KEY" "$ASSESSMENT_SECRET_KEY"
   mc admin policy attach local group-assessor --user "$ASSESSMENT_ACCESS_KEY"
 fi
+if [ -n "${CAPACITY_ACCESS_KEY:-}" ] || [ -n "${CAPACITY_SECRET_KEY:-}" ]; then
+  test -n "${CAPACITY_ACCESS_KEY:-}" && test -n "${CAPACITY_SECRET_KEY:-}"
+  test "$CAPACITY_ACCESS_KEY" != "$MINIO_ROOT_USER"
+  test "$CAPACITY_ACCESS_KEY" != "$OBJECT_ACCESS_KEY"
+  test "$CAPACITY_ACCESS_KEY" != "$AUDIT_ACCESS_KEY"
+  test "$CAPACITY_ACCESS_KEY" != "${ASSESSMENT_ACCESS_KEY:-}"
+  mc admin policy create local group-capacity /config/group-assessor-policy.json
+  mc admin user add local "$CAPACITY_ACCESS_KEY" "$CAPACITY_SECRET_KEY"
+  mc admin policy attach local group-capacity --user "$CAPACITY_ACCESS_KEY"
+fi

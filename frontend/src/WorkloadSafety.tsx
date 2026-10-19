@@ -154,6 +154,15 @@ function WeeklyWindows({
   );
 }
 
+const calendarCollections = [
+  "maintenance",
+  "recurring_blackouts",
+  "blackouts",
+  "demand_events",
+] as const;
+const availableItems = <T,>(value: T[] | null | undefined): T[] =>
+  Array.isArray(value) ? value : [];
+
 function SafetyForm({
   workload,
   profile,
@@ -171,6 +180,9 @@ function SafetyForm({
   saved: () => void;
   onClose: () => void;
 }) {
+  const unavailableCollections = profile
+    ? calendarCollections.filter((key) => !Array.isArray(profile[key]))
+    : [];
   const [baseVersion] = useState(version);
   const [criticality, setCriticality] = useState(profile?.criticality ?? "");
   const [statefulness, setStatefulness] = useState(
@@ -200,33 +212,33 @@ function SafetyForm({
   const [rpo, setRpo] = useState(profile?.rpo_seconds?.toString() ?? "");
   const [maintenance, setMaintenance] = useState<(Window & { key: string })[]>(
     () =>
-      profile?.maintenance.map((window) => ({
+      availableItems(profile?.maintenance).map((window) => ({
         ...window,
         key: crypto.randomUUID(),
-      })) ?? [],
+      })),
   );
   const [recurring, setRecurring] = useState<(Window & { key: string })[]>(
     () =>
-      profile?.recurring_blackouts.map((window) => ({
+      availableItems(profile?.recurring_blackouts).map((window) => ({
         ...window,
         key: crypto.randomUUID(),
-      })) ?? [],
+      })),
   );
   const [blackouts, setBlackouts] = useState(
     () =>
-      profile?.blackouts.map((item) => ({
+      availableItems(profile?.blackouts).map((item) => ({
         ...item,
         start: utcInput(item.start),
         end: utcInput(item.end),
-      })) ?? [],
+      })),
   );
   const [events, setEvents] = useState(
     () =>
-      profile?.demand_events.map((item) => ({
+      availableItems(profile?.demand_events).map((item) => ({
         ...item,
         start: utcInput(item.start),
         end: utcInput(item.end),
-      })) ?? [],
+      })),
   );
   const [error, setError] = useState("");
   return (
@@ -239,6 +251,12 @@ function SafetyForm({
         onSubmit={async (event) => {
           event.preventDefault();
           setError("");
+          if (unavailableCollections.length) {
+            setError(
+              "Unavailable stored collections cannot be saved as empty declarations.",
+            );
+            return;
+          }
           if (
             fields.some(
               ([key, , min, max]) =>
@@ -371,6 +389,14 @@ function SafetyForm({
             );
         }}
       >
+        {unavailableCollections.length > 0 && (
+          <p role="alert" className="blocker-text">
+            Stored collections unavailable:{" "}
+            {unavailableCollections.map(readable).join(", ")}.
+            This form cannot save a revision from incomplete stored requirements.
+            Missing collections have not been declared empty.
+          </p>
+        )}
         <p className="form-note">
           These are policy requirements, not proof of achieved recovery, healthy
           replicas, safe capacity or execution approval. Unknown RPO is
@@ -681,7 +707,11 @@ function SafetyForm({
           <Button secondary type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" pending={busy}>
+          <Button
+            type="submit"
+            pending={busy}
+            disabled={unavailableCollections.length > 0}
+          >
             Save safety requirements
           </Button>
         </div>
@@ -918,9 +948,18 @@ function SafetyDetails({
                 <td>
                   {item.timezone}
                   <small>
-                    {item.maintenance.length} maintenance ·{" "}
-                    {item.recurring_blackouts.length + item.blackouts.length}{" "}
-                    blackouts · {item.demand_events.length} demand events
+                    {Array.isArray(item.maintenance)
+                      ? `${item.maintenance.length} maintenance`
+                      : "Maintenance unavailable"}{" "}
+                    ·{" "}
+                    {Array.isArray(item.recurring_blackouts) &&
+                    Array.isArray(item.blackouts)
+                      ? `${item.recurring_blackouts.length + item.blackouts.length} blackouts`
+                      : "Blackouts unavailable"}{" "}
+                    ·{" "}
+                    {Array.isArray(item.demand_events)
+                      ? `${item.demand_events.length} demand events`
+                      : "Demand events unavailable"}
                   </small>
                 </td>
               </tr>

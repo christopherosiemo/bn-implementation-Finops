@@ -44,6 +44,7 @@ database:
     # A distinct LOGIN member of finops_ingester; never reuse another process login.
     fleet-history-reader: finops-db-fleet-history-reader
     fleet-assessment: finops-db-group-assessor
+    fleet-capacity: finops-db-group-capacity
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -94,6 +95,15 @@ fleetAssessment:
   # Optional read-only consumer of persisted requests and versioned evidence.
   # Existing dedicated IRSA: GetObjectVersion/GetBucketLocation + scoped KMS
   # decrypt only. No provider discovery, AssumeRole, signing or execution grants.
+  enabled: false
+  roleArn: ""
+  bucketOwner: ""
+  replicas: 1
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+fleetCapacity:
+  # Optional per-member native physical model; existing read-only identity and
+  # secrets only. This chart provisions no IAM, account role or workload change.
   enabled: false
   roleArn: ""
   bucketOwner: ""
