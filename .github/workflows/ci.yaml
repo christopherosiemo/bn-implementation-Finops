@@ -123,6 +123,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Terraform formatting
         run: docker run --rm -v "$PWD:/src" -w /src/deploy/terraform hashicorp/terraform:1.9.8 fmt -check -recursive
       - name: Terraform init and validate without AWS credentials
@@ -137,7 +140,11 @@ jobs:
           docker run --rm -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate'
           docker run --rm --network none -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence hashicorp/terraform:1.9.8 test -no-color
       - name: Sandbox guards, offline cost arithmetic and plan checker regressions (no AWS)
-        run: docker run --rm -v "$PWD:/src:ro" -w /src node:22-bookworm-slim sh -ec 'node --test scripts/tests/*.test.mjs'
+        # The source-snapshot regression exercises real Git. Use the runner's
+        # Git with explicit Node22; the slim Node image contains no Git binary.
+        run: |
+          git --version
+          node --test scripts/tests/*.test.mjs
       - name: Helm lint and render
         run: |
           cmp config/clickhouse/001_facts.sql deploy/helm/finops/files/001_facts.sql
@@ -251,6 +258,10 @@ jobs:
           NODE
       - name: Exercise approved native effects and real-clock owned recovery
         run: node scripts/fleet-group-connected-lab.mjs
+      - name: Validate independent runtime retirement and empty-workspace reconstruction guards
+        run: node --test scripts/tests/group-workspace-reconstruction-lab.test.mjs scripts/tests/group-workspace-retirement.test.mjs
+      - name: Remove an actual owned worker and reconstruct its positive outcome in an empty replacement
+        run: node scripts/group-workspace-reconstruction-lab.mjs
       - name: Retain bounded acceptance or fixed-vocabulary failure receipt
         if: always()
         uses: actions/upload-artifact@v4
@@ -259,6 +270,8 @@ jobs:
           path: |
             work/private/fleet-group-connected/*/acceptance.json
             work/private/fleet-group-connected/*/failure-receipt.json
+            work/private/group-workspace-reconstruction/*/acceptance.json
+            work/private/group-workspace-reconstruction/*/failure-receipt.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Stop only this fresh job's source fixture

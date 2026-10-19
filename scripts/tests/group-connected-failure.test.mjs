@@ -42,6 +42,6 @@ test('cleanup failure overrides runner phase but cannot erase a bounded native f
 test('hosted connected artifacts contain only acceptance and the bounded failure receipt',()=>{
  const workflow=readFileSync(new URL('../../.github/workflows/ci.yaml',import.meta.url),'utf8'),job=workflow.split('  fleet-group-connected:')[1].split('\n  kubernetes-lab:')[0],upload=job.split('name: fleet-group-connected-acceptance')[1].split('if-no-files-found:')[0];
  const paths=upload.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.startsWith('work/'));
- assert.deepEqual(paths,['work/private/fleet-group-connected/*/acceptance.json','work/private/fleet-group-connected/*/failure-receipt.json']);
- for(const forbidden of ['failure.log','failure.json','driver-phase.json','archive.key','/encrypted','/source'])assert.ok(!upload.includes(forbidden));
+ assert.deepEqual(paths,['work/private/fleet-group-connected/*/acceptance.json','work/private/fleet-group-connected/*/failure-receipt.json','work/private/group-workspace-reconstruction/*/acceptance.json','work/private/group-workspace-reconstruction/*/failure-receipt.json']);
+ for(const forbidden of ['failure.log','failure.json','driver-phase.json','archive.key','/encrypted','/source','bundle.json','retirement.json','workspace-result.json'])assert.ok(!upload.includes(forbidden));
 });

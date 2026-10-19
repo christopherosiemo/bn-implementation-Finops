@@ -7,6 +7,12 @@ are engineering gates; their fixture acceptance does not authorize customer
 mutation. Public run inspection is read-only, and run creation remains disabled
 until a commissioned runtime is connected. Preserve the actual approved commit,
 profile generation and machine identity in the eventual commissioning record.
+The [private workspace reconstruction boundary](group-workspace-recovery.md)
+now has actual old-container removal, independently signed retirement,
+authenticated empty-workspace reconstruction and continued inverse acceptance.
+Commissioning still needs an independent deployed runtime controller, recovery
+health and alert delivery, controller-key backup/rotation and repeated-loss
+operation. The separate local full health lab does not satisfy those gates.
 
 Native hardware and fleet/GitOps components retain separate commissioning gates;
 see [hardware/capacity](native-hardware-capacity.md) and

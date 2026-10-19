@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "The connected group component now has restricted PostgreSQL authority, receipt/CAS/outbox and recovery-continuation tests, actual native preparation and independent exact-body API approval, bounded profile inspection, a full frozen backend/Python run and preserved R1 restoration through the local 028-to-032 upgrade. The ordinary 74-case browser run passed with zero retries, followed by the separate real-OIDC commissioned fixture case. These strengthen the existing Fleet component stage without new credit. The latest native operating-loop attempt failed closed; its corrected real-clock rerun and final-commit CI remain pending. Customer pipeline OIDC, fresh-workspace recovery, genuine interval ownership/demand, native financial integration and customer/production acceptance remain open.",
+  "credit_review": "The private native operating-loop lab now passes real-clock baseline/warmup, measured regression, both owned inverses and the full 900-second terminal health gate. A separate actual destroyed-worker rehearsal reconstructs authenticated Git/state in an empty container, reconciles a positive UNKNOWN outcome without reapply and executes one fresh inverse, retaining its health reservation. Restricted 033 migration acceptance preserves historical signed R1 restoration. These strengthen the existing Fleet component stage without new maturity credit. Customer pipeline OIDC, native capacity/financial integration, complete recovered health, genuine history and customer/production acceptance remain open.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -996,6 +996,29 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Actual local Git/Terraform preparation, encrypted versioned storage and exact replay without another invocation passed. A distinct authenticated browser subject approved the exact prepared program; self-approval was denied and persisted reload passed with zero retries. Public run creation, journal authorization and native financial authority remain unavailable. The preceding release passed ten of eleven normal CI jobs; its native operating-loop job failed with unproved cause. A separate local attempt performed both owned inverse applies but failed terminal P99, so no operating-loop acceptance is awarded. Signed activation-anchor component tests preserve the frozen baseline across later stages and owned recovery after expiry. These strengthen the current component stage and award no additional maturity. Full native real-clock acceptance, fresh-workspace recovery, customer pipeline OIDC, genuine history/economics and customer/production operation remain open."
+    },
+    {
+      "id": "native-rollback-and-workspace-reconstruction-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "516fb79f4f78110f8df1b2a8f916e2ae59408157",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39210567820",
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/group-workspace-recovery.md",
+        "internal/groupfixtureproducer/native_reconstruction.go",
+        "internal/store/group_native_reconstruction.go",
+        "migrations/033_group_native_reconstruction.sql",
+        "scripts/group-workspace-reconstruction-lab.mjs",
+        "internal/service/group_native_upgrade_integration_test.go"
+      ],
+      "fixture_acceptance_runs": [
+        "d9b67c9f-31d6-4382-9543-cc567591be30",
+        "a00c6d9b-28a4-4d93-9120-683856bba939"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "A real native canary measured approximately 35% latency regression against its frozen 15% allowance, stopped expansion, applied both fresh LIFO inverses and observed the full 900-second restored health window. A real process exit reconciled UNKNOWN without reapplying. Independently pinned source and ciphertext closure passed. Separately, actual old-container removal and independent controller retirement preceded a distinct empty replacement; authenticated Git/state reconstruction invoked no Terraform and one fresh owned inverse followed. That rehearsal retains health PENDING and reservation HELD; the separate health lab supplies no recovered-health credit. Actual restricted PostgreSQL migration 032-to-033 preserves old signed ownership and owned START through pause/revocation/expiry. The preceding release passed ten of eleven normal CI jobs including native and 76 browser cases; infrastructure failed only its actual Git regression because slim Node lacked Git. The final package fixes that tooling prerequisite and repeats all normal CI jobs. No package weights or accepted maturity changes. Customer execution, native financial/capacity factories, genuine history and production operation remain unavailable."
     }
   ]
 }

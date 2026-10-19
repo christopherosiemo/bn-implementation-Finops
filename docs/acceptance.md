@@ -1,5 +1,49 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: native rollback and actual empty-workspace reconstruction
+
+Local native run `d9b67c9f-31d6-4382-9543-cc567591be30` passed on the published
+`516fb79f` source tree. Independent review verified all 427 selected source and
+runner hashes against raw Git blobs and all 97 encrypted artifacts against
+their exact sizes, hashes and file population. Actual baseline and warmup
+windows exceeded 120 seconds each. The canary measured approximately 35%
+latency regression against the frozen 15% allowance, stopped expansion and
+applied both fresh owned inverses in LIFO order. Restored health was observed
+for 927 seconds against the full 900-second requirement. Six actual Terraform
+applies comprise bootstrap and five exact stage applies. A real process exit
+after native completion left PostgreSQL `UNKNOWN`; reconciliation and repeat
+delivery did not apply again. The permanent incident and forward/financial
+disqualification survived reopening. Cleanup and unchanged main schema were
+independently verified. This is a private local fixture, with no customer
+execution authority or financial claim.
+
+The [published-source CI run](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39210567820)
+passed ten of eleven normal jobs, including the complete native operating
+loop, both PostgreSQL versions, security, generated contracts, Kubernetes,
+Flux, actual recovery, encrypted backup and 76 Chromium cases, including the
+real-OIDC connected flows, with zero retries. Infrastructure's actual Git regression failed because the Node
+slim image lacked Git (`spawnSync git ENOENT`). The corrected job uses the
+runner's Git with explicit Node 22 and retains the regression. No test is
+skipped to mask the failure. Final-commit CI remains a separate required gate.
+
+The additive [033 reconstruction boundary](group-workspace-recovery.md) passed
+restricted PostgreSQL acceptance and a real 032-to-033 upgrade preserving
+historical signed stop/restoration ownership. Local actual worker-removal run
+`a00c6d9b-28a4-4d93-9120-683856bba939` then passed exact old-container removal,
+independent signed retirement, a distinct empty replacement, authenticated
+versioned Git/state reconstruction, positive-outcome reconciliation without
+another apply and one fresh native inverse. Forty-seven encrypted versions
+and complete owned cleanup were verified. That rehearsal deliberately retains
+its reservation with terminal health pending; it cannot borrow the separate
+900-second lab's acceptance. Unsupported repeated replacement stays blocked.
+
+The 264-test Linux tooling suite passed without skips on the frozen 033 source,
+along with vet for the changed Go components, secret scanning, traceability and
+fixed progress arithmetic. These results close concrete component acceptance
+gaps without increasing the existing 25.2% contractual credit. Customer
+pipeline OIDC, native capacity/financial wiring, genuine workload history and
+customer/production operation remain outstanding.
+
 ## 19 October: private preparation and independent program approval
 
 Published commit `eedfccca` passed ten of eleven normal

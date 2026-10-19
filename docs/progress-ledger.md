@@ -21,7 +21,24 @@ The connected release passed ten of eleven normal
 Its native operating-loop job failed with no retained bounded diagnostic, so its
 cause remains unproved. A separate local attempt completed the canary abort and
 two owned inverse applies, then failed the terminal P99 gate. Neither earns
-operating-loop acceptance. The corrected real-clock run remains pending.
+operating-loop acceptance. The corrected local run
+`d9b67c9f-31d6-4382-9543-cc567591be30` subsequently passed exact native
+applies, process-exit reconciliation without reapply, measured canary abort,
+both owned LIFO inverses and the full 900-second terminal health window.
+Its 97 ciphertext objects and owned cleanup passed. This closes that bounded
+local acceptance gate; the public runtime and native financial factories remain
+unavailable. The new 76-case CI browser sequence also passed independently.
+The subsequent `516fb79f` CI run also passed its native operating loop and nine
+other normal jobs. Its infrastructure Git prerequisite failed and is corrected
+in the next package; final-commit CI must pass before calling that release green.
+
+Actual destroyed-worker run `a00c6d9b-28a4-4d93-9120-683856bba939` passed
+exact old-container retirement, authenticated reconstruction in a distinct
+empty workspace, no repeated apply and one fresh owned inverse. Independent
+review verified all 442 source/host pins and 47 encrypted versions. Its
+reservation stays held with full recovered health pending. The additive 033
+upgrade preserves historical signed restoration. These close bounded component
+gaps; they do not complete the fleet workflow's next maturity stage.
 
 The next private preparation and browser review passed real Git/Terraform,
 encrypted versioned storage, replay without another apply, actual OIDC,
@@ -33,7 +50,7 @@ range uses existing evidence rather than a fresh product audit; integration,
 recovery, financial and operational acceptance can still expose missing work.
 Run inspection's `DISQUALIFIED` financial
 disposition is not a native financial-ledger integration. Customer pipeline OIDC,
-fresh-workspace recovery, genuine interval ownership and independent demand,
+complete recovered health and repeated-loss operation, genuine interval ownership and independent demand,
 native fleet economics, customer use and production acceptance remain open.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.

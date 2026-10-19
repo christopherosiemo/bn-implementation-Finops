@@ -137,9 +137,26 @@ immutable incident; a later healthy window cannot clear forward or financial
 disqualification. The local fixture still lacks a commissioned external alert
 adapter and a production durable recovery controller.
 
-The corrected real-clock operating-loop acceptance remains pending.
+The corrected local real-clock operating-loop run
+`d9b67c9f-31d6-4382-9543-cc567591be30` passed on frozen indexed tree
+`cc8532249826bda60790f82f86fefc0192b90e4f`. It completed five exact saved-plan
+stage applies plus bootstrap, reconciled an actual process exit without another
+apply, observed the canary regression, consumed both owned effects through
+fresh LIFO inverse commits and completed the full 900-second terminal health
+window. All 97 retained ciphertext objects and exact-owned cleanup passed.
+The frozen activation baseline and permanent incident survived pool reopen;
+money remained unavailable and customer execution remained disabled.
+
+The `516fb79` CI Compose job independently passed all 76 Chromium cases: 74
+ordinary cases followed by commissioned selection and exact-program approval.
+Its four linked commissioning/preparation/review/sequence receipts matched
+the commit's source pins and retained fixture-only authority. This does not
+establish journal approval by a customer or an enabled public execution factory.
+
 Preparation, partial effects and repository doubles cannot satisfy these gates.
-Fresh-workspace group recovery and customer pipeline OIDC remain unproved.
+Fresh-workspace group recovery is tracked separately in
+[the reconstruction boundary](group-workspace-recovery.md); customer pipeline
+OIDC remains unproved.
 Genuine historical interval/incarnation ownership, independent complete demand,
 native contracted economics and invoice/commitment scope, full health windows,
 customer use and production operation remain required. No maturity credit is
