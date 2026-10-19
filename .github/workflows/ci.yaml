@@ -175,9 +175,9 @@ jobs:
               guard=finops/templates/fleet-history-reader.yaml
               if [ "$(basename "$invalid")" = missing-tenant.json ]; then
                 guard=finops/templates/services.yaml
-                rg --quiet --fixed-strings 'aws.tenantId must bind this live pilot to exactly one customer' /tmp/finops-history-checks/rejected.log
+                grep -Fq 'aws.tenantId must bind this live pilot to exactly one customer' /tmp/finops-history-checks/rejected.log
               fi
-              if [ "$rejected" -ne 1 ] || ! rg --quiet --fixed-strings 'Error: execution error at' /tmp/finops-history-checks/rejected.log || ! rg --quiet --fixed-strings "$guard" /tmp/finops-history-checks/rejected.log; then
+              if [ "$rejected" -ne 1 ] || ! grep -Fq 'Error: execution error at' /tmp/finops-history-checks/rejected.log || ! grep -Fq "$guard" /tmp/finops-history-checks/rejected.log; then
                 echo "History-reader refusal was not produced by its Helm guard: $(basename "$invalid")"
                 exit 1
               fi
