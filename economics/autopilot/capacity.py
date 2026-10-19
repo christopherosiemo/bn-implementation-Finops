@@ -10,6 +10,7 @@ intervals and production future-risk calibration are different claims. In this
 first model the last remains UNCALIBRATED, even when an observed breach rate is
 zero. No source maximum, average or short backtest becomes a <1% future claim.
 """
+from bisect import bisect_left
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_CEILING, localcontext
@@ -214,17 +215,26 @@ def _catalog(value, binding, current=False):
     return capacities
 
 
+class _WeightedDistribution:
+    """One request-local ordering; preserve exact weighted nearest ranks."""
+
+    def __init__(self, weighted):
+        self.values, self.cumulative, self.total = [], [], 0
+        for value, count in sorted(weighted, key=lambda item: (item[0] is None, item[0] or Decimal(0))):
+            self.values.append(value)
+            self.total += count
+            self.cumulative.append(self.total)
+
+    def quantile(self, numerator, denominator=100):
+        if not self.total:
+            return None
+        rank = (self.total * numerator + denominator - 1) // denominator
+        index = bisect_left(self.cumulative, rank)
+        return self.values[index] if index < len(self.values) else None
+
+
 def _quantile(weighted, numerator, denominator=100):
-    total = sum(count for _, count in weighted)
-    if not total:
-        return None
-    rank = (total * numerator + denominator - 1) // denominator
-    observed = 0
-    for value, count in sorted(weighted, key=lambda item: (item[0] is None, item[0] or Decimal(0))):
-        observed += count
-        if observed >= rank:
-            return value
-    return None
+    return _WeightedDistribution(weighted).quantile(numerator, denominator)
 
 
 def _median(values):
@@ -352,11 +362,12 @@ def _metric(stream, binding, current_capacity, start, end, cadence, zone, events
     sampling_coverage = min(1000000, populated_intervals*1000000//expected_intervals)
     coverage = min(time_coverage, sampling_coverage)
     quantiles = {}
-    samples = sum(n for _, n in upper)
+    lower_distribution, upper_distribution = _WeightedDistribution(lower), _WeightedDistribution(upper)
+    samples = upper_distribution.total
     for label, numerator, denominator in (("p50", 50, 100), ("p90", 90, 100), ("p95", 95, 100), ("p99", 99, 100), ("p999", 999, 1000)):
         sufficient = samples >= (1000 if label == "p999" else 1)
-        lo = _quantile(lower, numerator, denominator) if sufficient else None
-        hi = _quantile(upper, numerator, denominator) if sufficient else None
+        lo = lower_distribution.quantile(numerator, denominator) if sufficient else None
+        hi = upper_distribution.quantile(numerator, denominator) if sufficient else None
         quantiles[label] = {"lower": None if lo is None else money(lo), "upper": None if hi is None else money(hi),
                             "status": "OBSERVED" if hi is not None else "UNAVAILABLE"}
     reasons = []
@@ -379,8 +390,8 @@ def _metric(stream, binding, current_capacity, start, end, cadence, zone, events
     return summary, series, upper
 
 
-def _forecast(series, history_end, zone, events, horizon, coverage_ppm):
-    """Expanding-origin hourly weekday medians; residual blocks preserve days."""
+def _forecast_history(series):
+    """Compute unchanged expanding-origin observations once for all horizons."""
     by_day = defaultdict(list)
     for day, key, value in series:
         by_day[day].append((key, value))
@@ -394,6 +405,12 @@ def _forecast(series, history_end, zone, events, horizon, coverage_ppm):
         for key, value in by_day[day]:
             slots[key].append(value)
     medians = {key: _median(values) for key, values in slots.items()}
+    return medians, residual_days
+
+
+def _forecast(history, history_end, zone, events, horizon, coverage_ppm):
+    """Hourly weekday forecasts; each horizon retains its own residual blocks."""
+    medians, residual_days = history
     days = HORIZONS[horizon]
     blocks = [max(value for _, value in residual_days[index:index+days])
               for index in range(0, len(residual_days)-days+1, days)]
@@ -514,9 +531,12 @@ def _evaluate(data):
         if name not in summaries: reasons.append(f"{name.upper()}_METRIC_REQUIRED")
     if observed_days < required_days: reasons.append("INSUFFICIENT_OBSERVATION")
     if now-end > timedelta(hours=48): reasons.append("HISTORY_STALE")
+    # This cache belongs to this evaluation only. Horizon-specific blocks,
+    # conformal ranks and future events are still evaluated independently.
+    forecast_histories = {name: _forecast_history(points) for name, points in series.items()}
     forecasts = []
     for horizon in horizons:
-        metrics = {name: _forecast(points, end, zone, events, horizon, policy["prediction_coverage_ppm"]) for name, points in series.items()}
+        metrics = {name: _forecast(training, end, zone, events, horizon, policy["prediction_coverage_ppm"]) for name, training in forecast_histories.items()}
         if model_version == MODEL_VERSION and "demand" in metrics:
             metrics["demand"].update({key: summaries["demand"][key] for key in (*_PROXY_FIELDS, "unit")})
         if reasons:

@@ -670,6 +670,21 @@ paths:
           description: Metadata or current group/source binding is invalid
         '428':
           description: If-Match required
+        '503':
+          description: FLEET_HISTORY_SOURCE_BUSY after at most two seconds of rolled-back whole-transaction retries, or FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED within the 25-second synchronous budget. Busy attempts commit no mutation; retry the unchanged request and Idempotency-Key to reconcile an unconfirmed budget outcome.
+          headers:
+            Retry-After:
+              description: Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key.
+              schema: { type: string, enum: ['1'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [error, message]
+                properties:
+                  error: { type: string, enum: [FLEET_HISTORY_SOURCE_BUSY, FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED] }
+                  message: { type: string }
   /fleet-history-registrations/{id}/configuration-proposals:
     get:
       operationId: listFleetConfigurationProposals
@@ -728,7 +743,20 @@ paths:
         '428':
           description: If-Match required
         '503':
-          description: Current source references exceed bounded evaluation or snapshot limits; no partial proposal is published
+          description: Current source references exceed bounded evaluation or snapshot limits; FLEET_HISTORY_SOURCE_BUSY after at most two seconds of rolled-back whole-transaction retries, or FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED within the 25-second synchronous budget. Busy and evidence-limit failures commit no partial proposal; retry the unchanged request and Idempotency-Key to reconcile an unconfirmed budget outcome.
+          headers:
+            Retry-After:
+              description: Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key.
+              schema: { type: string, enum: ['1'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [error, message]
+                properties:
+                  error: { type: string, enum: [FLEET_HISTORY_SOURCE_BUSY, FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED, FLEET_HISTORY_POPULATION_LIMIT] }
+                  message: { type: string }
   /fleet-history-registrations/{id}/configuration-proposals/{proposal_id}:
     get:
       operationId: getFleetConfigurationProposal
@@ -777,6 +805,21 @@ paths:
         '409': { description: Concurrent revision or idempotency conflict }
         '422': { description: Invalid binding, source, exact ASG ARN or cadence }
         '428': { description: If-Match zero required }
+        '503':
+          description: FLEET_HISTORY_SOURCE_BUSY; source synchronization holds the current-selection guard and no registration is committed.
+          headers:
+            Retry-After:
+              description: Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key.
+              schema: { type: string, enum: ['1'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [error, message]
+                properties:
+                  error: { type: string, enum: [FLEET_HISTORY_SOURCE_BUSY] }
+                  message: { type: string }
   /fleet-history-registrations/{id}:
     get:
       operationId: getFleetHistoryRegistration
@@ -799,6 +842,21 @@ paths:
         '409': { description: Stale version or idempotency conflict }
         '422': { description: Identity changed, invalid source or configuration }
         '428': { description: Current registration version required }
+        '503':
+          description: FLEET_HISTORY_SOURCE_BUSY; source synchronization holds the current-selection guard and no registration is committed.
+          headers:
+            Retry-After:
+              description: Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key.
+              schema: { type: string, enum: ['1'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [error, message]
+                properties:
+                  error: { type: string, enum: [FLEET_HISTORY_SOURCE_BUSY] }
+                  message: { type: string }
   /fleet-history-registrations/{id}/observations:
     get:
       operationId: listFleetHistoryObservations
@@ -881,7 +939,21 @@ paths:
         '409': { description: Selected version changed or idempotency conflict }
         '422': { description: Invalid selector or source binding }
         '428': { description: Current registration version required }
-        '503': { description: Source synchronization or evidence selection unavailable; no scope published }
+        '503':
+          description: Source synchronization or evidence selection unavailable; FLEET_HISTORY_SOURCE_BUSY identifies a held source guard. No scope or idempotency response is committed.
+          headers:
+            Retry-After:
+              description: Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key.
+              schema: { type: string, enum: ['1'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [error, message]
+                properties:
+                  error: { type: string, enum: [FLEET_HISTORY_SOURCE_BUSY, FLEET_HISTORY_POPULATION_LIMIT, FLEET_HISTORY_REQUEST_BUDGET_EXCEEDED] }
+                  message: { type: string }
   /fleet-history-scopes/{id}:
     get:
       operationId: getFleetHistoryScope

@@ -5,10 +5,34 @@ import {mkdtempSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {canonicalCapacityDaemonJSON,capacityDaemonEnvironment,capacityDaemonSecretNames} from '../lib/fleet-capacity-daemon.mjs';
-import {canonicalJointDecisionJSON,validateJointMigrationCapture,projectJointBrowserFailure,jointDecisionEnvironment,parseJointWorkerReady,parseJointWorkerCutpoint,readJointDecisionCandidateSource,validateJointWorkerContainer,validateJointWorkerFiles,validateJointWorkerReplacement,validateJointNativeResult,validateJointCURAnalytics,validateJointSecretVolume,validateJointCapacityReplacement} from '../lib/fleet-joint-decision-host.mjs';
+import {canonicalJointDecisionJSON,validateJointMigrationCapture,projectJointBrowserFailure,projectJointBrowserDetail,projectJointCoordinatorFailure,jointDecisionEnvironment,parseJointWorkerReady,parseJointWorkerCutpoint,readJointDecisionCandidateSource,validateJointWorkerContainer,validateJointWorkerFiles,validateJointWorkerReplacement,validateJointNativeResult,validateJointCURAnalytics,validateJointSecretVolume,validateJointCapacityReplacement} from '../lib/fleet-joint-decision-host.mjs';
 const hash=v=>createHash('sha256').update(v).digest('hex'),sha='a'.repeat(64),id='5ac58a9d-32a8-45ec-b313-4d609a6df766';
 const browserFailure=(changes={})=>({schema_version:'1',status:'FAIL',run_id:id,phase:'ACTUAL_DAEMON_RESULT',code:'CAPACITY_RESULT_DEADLINE_EXCEEDED',...changes});
 const browserFailureRaw=v=>Buffer.from(JSON.stringify(v)+'\n');
+const jointDetail=(changes={})=>({schema_version:'1',status:'FAIL',run_id:id,phase:'JOINT_RENDER',error:{error_class:'PageError',message:'Private rendered data and credentials must remain private.',raw_message_sha256:sha},...changes});
+test('inner joint diagnostics preserve only the exact owned phase and fixed error class',()=>{
+ const expected={phase:'JOINT_RENDER',error_class:'PageError',code:'BROWSER_CHECK_FAILED'};
+ const projected=projectJointBrowserDetail(browserFailureRaw(jointDetail()),id);
+ assert.deepEqual(projected,expected);assert.equal(Object.isFrozen(projected),true);
+ assert.ok(!JSON.stringify(projected).includes('Private'));assert.ok(!JSON.stringify(projected).includes(sha));
+ for(const phase of ['JOINT_FINANCE_PKCE','JOINT_IDS_ONLY_POST','JOINT_REPLACEMENT_DAEMON_RESULT','JOINT_RESULT_VALIDATION','JOINT_RENDER','JOINT_PERSISTED_RELOAD'])assert.equal(projectJointBrowserDetail(browserFailureRaw(jointDetail({phase})),id).phase,phase);
+});
+test('inner joint projection refuses foreign runs, reflected fields and ambiguous wire data',()=>{
+ for(const change of [{run_id:'11111111-1111-4111-8111-111111111111'},{phase:'https://private.invalid/token'},{status:'PASS'},{schema_version:'2'},{secret:'must-not-leak'},{error:{...jointDetail().error,token:'secret'}},{error:{...jointDetail().error,error_class:'private-secret'}},{error:{...jointDetail().error,raw_message_sha256:'bad'}}])assert.equal(projectJointBrowserDetail(browserFailureRaw(jointDetail(change)),id),null);
+ const raw=browserFailureRaw(jointDetail());
+ for(const raw_message_sha256 of [[sha],0,null])assert.equal(projectJointBrowserDetail(browserFailureRaw(jointDetail({error:{...jointDetail().error,raw_message_sha256}})),id),null);
+ for(const value of [null,'not-buffer',Buffer.alloc(0),Buffer.alloc(2049),Buffer.from('null\n'),Buffer.from(JSON.stringify(jointDetail())),Buffer.from(raw.toString().replace('"status":"FAIL"','"status":"PASS","status":"FAIL"')),Buffer.concat([raw,raw])])assert.equal(projectJointBrowserDetail(value,id),null);
+});
+test('coordinator diagnostics recognize one fixed assertion without reflecting private errors',()=>{
+ const line=message=>Buffer.from('=== RUN Test\n    fleet_capacity_native_integration_test.go:730: actual joint native/browser/replacement phase '+message+'\n--- FAIL\n');
+ assert.deepEqual(projectJointCoordinatorFailure(line('joint replacement terminal cardinality differs'),id),{code:'TERMINAL_CARDINALITY_INVALID'});
+ assert.deepEqual(projectJointCoordinatorFailure(line('joint original database process remains after guard release'),id),{code:'ORIGINAL_BACKEND_DRAIN_FAILED'});
+ for(const value of [line('postgres://user:secret@private.invalid/database'),line('joint replacement terminal cardinality differs secret'),Buffer.concat([line('context deadline exceeded'),line('context deadline exceeded')]),Buffer.alloc((256<<10)+1),Buffer.from('context deadline exceeded'),null])assert.equal(projectJointCoordinatorFailure(value,id),null);
+ assert.equal(projectJointCoordinatorFailure(line('context deadline exceeded'),'invalid-run'),null);
+ assert.equal(projectJointCoordinatorFailure(line('context deadline exceeded'),[id]),null);
+ assert.equal(projectJointCoordinatorFailure(Buffer.from(line('context deadline exceeded').toString().replace('fleet_capacity_native_integration_test.go','foreign_test.go')),id),null);
+});
+
 test('browser failure projection includes only a fixed phase and code from the exact owned run',()=>{
  const raw=browserFailureRaw(browserFailure());
  assert.deepEqual(projectJointBrowserFailure(raw,id),{phase:'ACTUAL_DAEMON_RESULT',code:'CAPACITY_RESULT_DEADLINE_EXCEEDED'});
@@ -32,9 +56,10 @@ test('secret fields and reflected phase/code/error text never enter public diagn
 });
 test('public host reads only the bounded fixed browser diagnostic after cleanup and keeps failure handling',()=>{
  const source=readFileSync(new URL('../fleet-joint-decision-lab.mjs',import.meta.url),'utf8');
- assert.ok(source.includes("let browserFailure=null;if(failed)try{browserFailure=projectJointBrowserFailure(boundedJSON(results,'browser-failure.json',1024),id);}catch{}"));
- assert.ok(source.indexOf('let browserFailure=null;')>source.indexOf('cleanupSucceeded=errors.length===0'));
- assert.ok(source.includes('...(failed?{browser_failure:browserFailure}:{result_sha256:'));
+ assert.ok(source.includes("if(failed)try{browserFailure=projectJointBrowserFailure(boundedJSON(results,'browser-failure.json',1024),id);}catch{}"));
+ assert.ok(source.indexOf('let browserFailure=null,')>source.indexOf('cleanupSucceeded=errors.length===0'));
+ assert.ok(source.includes('const failureDetails={browser_failure:browserFailure,joint_browser_failure:jointDetail,coordinator_failure:coordinatorFailure};'));
+ assert.ok(source.includes('...(failed?failureDetails:{result_sha256:'));
  assert.ok(source.includes("if(failed)throw new Error('Private candidate joint fixture failed; bounded receipt retained.')"));
  assert.ok(!source.includes('projectJointBrowserFailure(boundedJSON(results,\'browser-failure.log\''));
 });

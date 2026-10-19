@@ -197,6 +197,22 @@ reproduction does not replace the full indexed native acceptance.
 
 ## Required integration and release gates
 
+The subsequent fixed-deadline rehearsal also remains a failure: capacity work
+did not finish within sixty seconds. Profiling identified repeated telemetry
+serialization and distribution sorting. Request-local encoding and model reuse
+preserve complete population bytes, issued model hashes, missing observations
+and horizon-specific calibration. Focused equivalence checks do not establish
+the native deadline. The full indexed flow must pass with the original quota,
+population and deadline before release acceptance.
+
+Actual PostgreSQL/JWT acceptance also distinguishes concurrent source Sync
+from invalid evidence. Configuration recording retries only typed contention,
+after rolling back the complete transaction and releasing its locks. A released
+source produces one record and immutable replay; changed bindings still fail
+with 422. Continued contention returns 503 after a bounded wait without a
+partial proposal, audit record or idempotency result. This does not establish
+the cause of the earlier CI browser failure.
+
 Connect actual archived native hardware and billing,
 Prometheus/ClickHouse telemetry, Python capacity results, the restricted joint
 worker and a real OIDC browser request. The browser must create the request

@@ -25,6 +25,42 @@ export function projectJointBrowserFailure(raw,runID){
   return Object.freeze({phase:v.phase,code:v.code});
  }catch{return null;}
 }
+const jointFailurePhases=new Set(['JOINT_FINANCE_PKCE','JOINT_IDS_ONLY_POST','JOINT_REPLACEMENT_DAEMON_RESULT','JOINT_RESULT_VALIDATION','JOINT_RENDER','JOINT_PERSISTED_RELOAD']);
+const pageErrorClasses=new Set(['TypeError','ReferenceError','SyntaxError','RangeError','URIError','EvalError','Error','PageError']);
+// Preserve the inner fixed phase while withholding arbitrary error text and
+// hashes. The original private diagnostic remains available to its operator.
+export function projectJointBrowserDetail(raw,runID){
+ try{
+  if(typeof runID!=='string'||!UUID.test(runID)||!Buffer.isBuffer(raw)||!raw.length||raw.length>2048)return null;
+  const v=JSON.parse(raw.toString('utf8'));
+  if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).sort().join(',')!=='error,phase,run_id,schema_version,status'||!raw.equals(Buffer.from(JSON.stringify(v)+'\n')))return null;
+  if(v.schema_version!=='1'||v.status!=='FAIL'||v.run_id!==runID||!jointFailurePhases.has(v.phase))return null;
+  const e=v.error;
+  if(!e||typeof e!=='object'||Array.isArray(e)||Object.keys(e).sort().join(',')!=='error_class,message,raw_message_sha256'||!pageErrorClasses.has(e.error_class)||typeof e.message!=='string'||!e.message.length||e.message.length>256||typeof e.raw_message_sha256!=='string'||!SHA.test(e.raw_message_sha256))return null;
+  return Object.freeze({phase:v.phase,error_class:e.error_class,code:'BROWSER_CHECK_FAILED'});
+ }catch{return null;}
+}
+const coordinatorFailureCodes=new Map([
+ ['joint original database process remains','ORIGINAL_BACKEND_PRESENT_BEFORE_GRAPH_RELEASE'],
+ ['joint original database process remains after guard release','ORIGINAL_BACKEND_DRAIN_FAILED'],
+ ['joint replacement worker proof differs','REPLACEMENT_WITNESS_INVALID'],
+ ['joint replacement terminal cardinality differs','TERMINAL_CARDINALITY_INVALID'],
+ ['joint browser result differs from actual native publication','NATIVE_PUBLICATION_MISMATCH'],
+ ['joint replacement immutable replay differs','IMMUTABLE_REPLAY_MISMATCH'],
+ ['joint dimensions incomplete','PHYSICAL_DIMENSIONS_INCOMPLETE'],
+ ['joint missing member was promoted','MISSING_MEMBER_PROMOTED'],
+ ['joint browser proof differs','BROWSER_PROOF_MISMATCH'],
+ ['context deadline exceeded','COORDINATOR_DEADLINE_EXCEEDED'],
+]);
+export function projectJointCoordinatorFailure(raw,runID){
+ if(typeof runID!=='string'||!UUID.test(runID)||!Buffer.isBuffer(raw)||!raw.length||raw.length>(256<<10))return null;
+ const messages=raw.toString('utf8').split(/\r?\n/).flatMap(line=>{
+  const m=/^[\t ]+fleet_capacity_native_integration_test\.go:[1-9][0-9]*: actual joint native\/browser\/replacement phase (.{1,256})$/.exec(line);
+  return m?[m[1]]:[];
+ });
+ if(messages.length!==1||!coordinatorFailureCodes.has(messages[0]))return null;
+ return Object.freeze({code:coordinatorFailureCodes.get(messages[0])});
+}
 export function canonicalJointDecisionJSON(v){const sort=x=>Array.isArray(x)?x.map(sort):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,sort(x[k])])):x;return JSON.stringify(sort(v));}
 export function validateJointNativeResult(value,validateBase){const total=value?.archived_native_readbacks,additional=value?.joint_additional_native_readbacks;assert.ok(Number.isSafeInteger(total)&&Number.isSafeInteger(additional)&&additional>0&&additional<=128&&total-additional===20);const base={...value,archived_native_readbacks:total-additional};delete base.joint_additional_native_readbacks;validateBase(base);return Object.freeze({total_readbacks:total,base_readbacks:20,joint_additional_readbacks:additional});}
 export function validateJointCURAnalytics(v,runID,tenant){assert.deepEqual(Object.keys(v).sort(),['schema_version','run_id','tenant_id','source_id','source_versions','expected_rows','readback_rows','canonical_sha256','actual_clickhouse','actual_source_pipeline','fixture','financial_execution_authorized'].sort());assert.equal(v.schema_version,'1');assert.equal(v.run_id,runID);assert.equal(v.tenant_id,tenant);assert.equal(v.source_id,'assessment-native');assert.ok(Array.isArray(v.source_versions)&&v.source_versions.length>=1&&v.source_versions.length<=2&&new Set(v.source_versions).size===v.source_versions.length);assert.deepEqual(v.source_versions,[...v.source_versions].sort());for(const x of v.source_versions)assert.match(x,SHA);assert.equal(v.expected_rows,1032);assert.equal(v.readback_rows,1032);assert.match(v.canonical_sha256,SHA);for(const k of ['actual_clickhouse','actual_source_pipeline','fixture'])assert.equal(v[k],true);assert.equal(v.financial_execution_authorized,false);return Object.freeze(v);}

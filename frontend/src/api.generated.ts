@@ -6160,6 +6160,21 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description FLEET_HISTORY_SOURCE_BUSY after at most two seconds of rolled-back whole-transaction retries, or FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED within the 25-second synchronous budget. Busy attempts commit no mutation; retry the unchanged request and Idempotency-Key to reconcile an unconfirmed budget outcome. */
+            503: {
+                headers: {
+                    /** @description Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key. */
+                    "Retry-After"?: "1";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "FLEET_HISTORY_SOURCE_BUSY" | "FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED";
+                        message: string;
+                    };
+                };
+            };
         };
     };
     listFleetConfigurationProposals: {
@@ -6273,12 +6288,20 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Current source references exceed bounded evaluation or snapshot limits; no partial proposal is published */
+            /** @description Current source references exceed bounded evaluation or snapshot limits; FLEET_HISTORY_SOURCE_BUSY after at most two seconds of rolled-back whole-transaction retries, or FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED within the 25-second synchronous budget. Busy and evidence-limit failures commit no partial proposal; retry the unchanged request and Idempotency-Key to reconcile an unconfirmed budget outcome. */
             503: {
                 headers: {
+                    /** @description Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key. */
+                    "Retry-After"?: "1";
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "FLEET_HISTORY_SOURCE_BUSY" | "FLEET_CONFIGURATION_REQUEST_BUDGET_EXCEEDED" | "FLEET_HISTORY_POPULATION_LIMIT";
+                        message: string;
+                    };
+                };
             };
         };
     };
@@ -6420,6 +6443,21 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description FLEET_HISTORY_SOURCE_BUSY; source synchronization holds the current-selection guard and no registration is committed. */
+            503: {
+                headers: {
+                    /** @description Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key. */
+                    "Retry-After"?: "1";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "FLEET_HISTORY_SOURCE_BUSY";
+                        message: string;
+                    };
+                };
+            };
         };
     };
     getFleetHistoryRegistration: {
@@ -6521,6 +6559,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description FLEET_HISTORY_SOURCE_BUSY; source synchronization holds the current-selection guard and no registration is committed. */
+            503: {
+                headers: {
+                    /** @description Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key. */
+                    "Retry-After"?: "1";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "FLEET_HISTORY_SOURCE_BUSY";
+                        message: string;
+                    };
+                };
             };
         };
     };
@@ -6891,12 +6944,20 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Source synchronization or evidence selection unavailable; no scope published */
+            /** @description Source synchronization or evidence selection unavailable; FLEET_HISTORY_SOURCE_BUSY identifies a held source guard. No scope or idempotency response is committed. */
             503: {
                 headers: {
+                    /** @description Present as 1 only for FLEET_HISTORY_SOURCE_BUSY; retry the unchanged body, If-Match and Idempotency-Key. */
+                    "Retry-After"?: "1";
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "FLEET_HISTORY_SOURCE_BUSY" | "FLEET_HISTORY_POPULATION_LIMIT" | "FLEET_HISTORY_REQUEST_BUDGET_EXCEEDED";
+                        message: string;
+                    };
+                };
             };
         };
     };

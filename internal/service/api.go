@@ -65,6 +65,9 @@ func fail(w http.ResponseWriter, e error) {
 		p = &Problem{409, "TELEMETRY_REPLAY_CONFLICT", "the source revision or immutable request conflicts"}
 	} else if errors.Is(e, store.ErrTelemetrySource) {
 		p = &Problem{422, "TELEMETRY_SOURCE_INVALID", "the registered source is unavailable or no longer matches its resource"}
+	} else if errors.Is(e, store.ErrFleetHistorySourceBusy) {
+		w.Header().Set("Retry-After", "1")
+		p = &Problem{503, "FLEET_HISTORY_SOURCE_BUSY", "source synchronization is busy; retry the same request with the same Idempotency-Key"}
 	} else if errors.Is(e, store.ErrFleetHistorySource) {
 		p = &Problem{422, "FLEET_HISTORY_SOURCE_UNAVAILABLE", "fleet history requires current registered native sources with unchanged bindings"}
 	} else if errors.Is(e, store.ErrFleetHistoryBounds) {
@@ -157,37 +160,44 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	status := 200
 	var output model.Document
-	e = a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
-		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
-			return e
-		}
-		if _, e := t.Exec(r.Context(), "INSERT INTO idempotency(tenant_id,key,request_hash) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", i.Tenant, key, hash); e != nil {
-			return e
-		}
-		var oldhash string
-		var oldstatus *int
-		var oldbody []byte
-		if e := t.QueryRow(r.Context(), "SELECT request_hash,status,response FROM idempotency WHERE tenant_id=$1 AND key=$2 FOR UPDATE", i.Tenant, key).Scan(&oldhash, &oldstatus, &oldbody); e != nil {
-			return e
-		}
-		if oldhash != hash {
-			return problem(409, "IDEMPOTENCY_CONFLICT", "key already used for a different request")
-		}
-		if oldstatus != nil {
-			if e := authorizeMutationReplay(r.Context(), t, i, r.URL.Path, input); e != nil {
+	e = fleetConfigurationTransaction(r.Context(), r.URL.Path, func(ctx context.Context) error {
+		r := r.WithContext(ctx)
+		status, output = 200, nil
+		return a.Store.Do(ctx, i.Tenant, func(t *store.Tx) error {
+			if e := authorizeMutationRole(i, r.URL.Path); e != nil {
 				return e
 			}
-			status = *oldstatus
-			return json.Unmarshal(oldbody, &output)
-		}
-		var e error
-		output, status, e = a.mutate(r.Context(), t, i, r, input)
-		if e != nil {
+			if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
+				return e
+			}
+			if _, e := t.Exec(r.Context(), "INSERT INTO idempotency(tenant_id,key,request_hash) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", i.Tenant, key, hash); e != nil {
+				return e
+			}
+			var oldhash string
+			var oldstatus *int
+			var oldbody []byte
+			if e := t.QueryRow(r.Context(), "SELECT request_hash,status,response FROM idempotency WHERE tenant_id=$1 AND key=$2 FOR UPDATE", i.Tenant, key).Scan(&oldhash, &oldstatus, &oldbody); e != nil {
+				return e
+			}
+			if oldhash != hash {
+				return problem(409, "IDEMPOTENCY_CONFLICT", "key already used for a different request")
+			}
+			if oldstatus != nil {
+				if e := authorizeMutationReplay(r.Context(), t, i, r.URL.Path, input); e != nil {
+					return e
+				}
+				status = *oldstatus
+				return json.Unmarshal(oldbody, &output)
+			}
+			var e error
+			output, status, e = a.mutate(r.Context(), t, i, r, input)
+			if e != nil {
+				return e
+			}
+			b, _ := json.Marshal(output)
+			_, e = t.Exec(r.Context(), "UPDATE idempotency SET status=$3,response=$4 WHERE tenant_id=$1 AND key=$2", i.Tenant, key, status, b)
 			return e
-		}
-		b, _ := json.Marshal(output)
-		_, e = t.Exec(r.Context(), "UPDATE idempotency SET status=$3,response=$4 WHERE tenant_id=$1 AND key=$2", i.Tenant, key, status, b)
-		return e
+		})
 	})
 	if e != nil {
 		if allocationReportRequest && errors.Is(r.Context().Err(), context.DeadlineExceeded) {

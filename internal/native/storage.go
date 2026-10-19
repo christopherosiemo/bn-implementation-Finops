@@ -115,9 +115,9 @@ func (s *Storage) WriteFacts(ctx context.Context, tenant, batchID string, b tele
 	q.Set("query", "INSERT INTO native_metric_samples FORMAT JSONEachRow")
 	q.Set("date_time_input_format", "best_effort")
 	q.Set("insert_deduplicate", "1")
-	q.Set("insert_deduplication_token", tenant+":"+batchID+":"+telemetry.CanonicalHash(b))
-	u.RawQuery = q.Encode()
 	canonicalHash := telemetry.CanonicalHash(b)
+	q.Set("insert_deduplication_token", tenant+":"+batchID+":"+canonicalHash)
+	u.RawQuery = q.Encode()
 	var body bytes.Buffer
 	enc := json.NewEncoder(&body)
 	for _, sample := range b.Samples {

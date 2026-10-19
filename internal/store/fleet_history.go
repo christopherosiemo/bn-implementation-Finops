@@ -16,6 +16,7 @@ import (
 )
 
 var ErrFleetHistorySource = errors.New("FLEET_HISTORY_SOURCE_UNAVAILABLE")
+var ErrFleetHistorySourceBusy = errors.New("FLEET_HISTORY_SOURCE_BUSY")
 var ErrFleetHistoryBounds = errors.New("FLEET_HISTORY_POPULATION_LIMIT")
 
 const fleetHistoryLimit = 50000
@@ -63,7 +64,7 @@ func (t *Tx) fleetHistorySourceLock(ctx context.Context, id string) error {
 		return e
 	}
 	if !ok {
-		return ErrFleetHistorySource
+		return ErrFleetHistorySourceBusy
 	}
 	e = t.QueryRow(ctx, "SELECT fleet_history_source_lock($1,$2)", t.Tenant, id).Scan(&ok)
 	if e != nil {

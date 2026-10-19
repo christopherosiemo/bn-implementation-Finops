@@ -66,7 +66,46 @@ def candidate(result): return result["candidates"][0]
 def check(result, name): return next(item for item in candidate(result)["checks"] if item["dimension"] == name)
 
 
+def replay_evidence():
+    """Mixed populations, missing evidence and DST with every forecast horizon."""
+    data = evidence(30, zone="Europe/London", end=datetime(2026, 11, 2, tzinfo=ZoneInfo("Europe/London")))
+    data["forecast_horizons"] = ["7_day", "30_day", "90_day", "annual"]
+    cpu = metric(data, "cpu")
+    cpu["statistic"] = "DISTRIBUTION"
+    for index, point in enumerate(cpu["points"]):
+        point.pop("value")
+        point.update(sample_count=10, buckets=[{"upper": "0", "count": 0},
+                     {"upper": "1.2", "count": index % 10}, {"upper": "3.8", "count": 10-index % 10},
+                     {"upper": None, "count": 0}])
+    for index, point in enumerate(metric(data, "memory")["points"]):
+        if index % 103 == 0: point["value"] = None
+    for index, point in enumerate(metric(data, "demand")["points"]):
+        point["value"] = str(index % 7)
+    data["events"] = [{"id": "launch", "start": "2026-11-02T10:05:00Z", "end": "2026-11-02T10:10:00Z",
+                       "multiplier": "4", "source_ref": ref("replay-launch")}]
+    return data
+
+
 class CapacityTests(unittest.TestCase):
+    def test_distribution_and_forecast_optimization_preserves_issued_model_hashes(self):
+        # These hashes are from the original v1/v2 evaluator before the
+        # request-local distribution and forecast-history reuse changes.
+        for version, expected in ((LEGACY_MODEL_VERSION, "6069d45c71883b20ed302858bceda08fa8c5bf97ac3f478b36f738a0a1b93f19"),
+                                  (MODEL_VERSION, "6904e3ce6efbe6c28b72d82bf24c8e4c13e9c73351c1e936b3312df7b414d228")):
+            with self.subTest(model_version=version):
+                data = replay_evidence()
+                data["model_version"] = version
+                if version == LEGACY_MODEL_VERSION:
+                    demand = metric(data, "demand")
+                    for key in ("semantic_role", "source_metric", "source_unit"): demand.pop(key)
+                    demand["unit"] = "work_unit/second"
+                original = copy.deepcopy(data)
+                result = evaluate_capacity(data)
+                self.assertEqual(result["assessment_hash"], expected)
+                self.assertEqual(data, original)
+                self.assertGreater(metric(result, "memory")["missing_intervals"], 0)
+                self.assertIsNone(candidate(result)["economics"]["verified_saving"])
+
     def test_request_throughput_proxy_preserves_native_units_without_work_authority(self):
         for source_unit in ("count", "requests"):
             data = evidence()

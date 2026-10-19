@@ -142,7 +142,7 @@ func TestFleetHistoryAuthenticatedAPISealsOnlyServerSelectedBlockedScopes(t *tes
 		t.Fatal("viewer could register history", status)
 	}
 	busySource(func() {
-		if code, body := request("POST", "fleet-history-registrations", `"0"`, "history-registration-once", owner, registration); code != 422 || model.String(body, "error") != "FLEET_HISTORY_SOURCE_UNAVAILABLE" {
+		if code, body := request("POST", "fleet-history-registrations", `"0"`, "history-registration-once", owner, registration); code != 503 || model.String(body, "error") != "FLEET_HISTORY_SOURCE_BUSY" {
 			t.Fatal("registration borrowed currentness during source synchronization", code, body)
 		}
 	})
@@ -256,7 +256,7 @@ func TestFleetHistoryAuthenticatedAPISealsOnlyServerSelectedBlockedScopes(t *tes
 		t.Fatal("stale definition selection accepted", status)
 	}
 	busySource(func() {
-		if code, body := request("POST", "fleet-history-scopes", `"1"`, "history-scope-once", owner, selection); code != 422 || model.String(body, "error") != "FLEET_HISTORY_SOURCE_UNAVAILABLE" {
+		if code, body := request("POST", "fleet-history-scopes", `"1"`, "history-scope-once", owner, selection); code != 503 || model.String(body, "error") != "FLEET_HISTORY_SOURCE_BUSY" {
 			t.Fatal("scope read borrowed currentness during in-flight synchronization", code, body)
 		}
 	})

@@ -1,8 +1,10 @@
 package native
 
 import (
+	"bytes"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -63,6 +65,25 @@ type CapacityPopulation struct {
 func CapacityPopulationHash(population CapacityPopulation) string {
 	population.PopulationHash = ""
 	return telemetry.Hash(population)
+}
+
+// capacityPopulationWire hashes one encoding of the freshly resolved population,
+// then reuses those exact bytes for the response. The hash field is last in the
+// typed wire contract; its empty value is the existing PopulationHash preimage.
+// No derived proof is accepted from callers or cached between requests.
+func capacityPopulationWire(population CapacityPopulation) ([]byte, error) {
+	population.PopulationHash = ""
+	raw, err := json.Marshal(population)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.HasSuffix(raw, []byte(`,"population_hash":""}`)) {
+		return nil, errors.New("CAPACITY_POPULATION_WIRE_INVALID")
+	}
+	digest := telemetry.BytesHash(raw)
+	raw = append(raw[:len(raw)-2], digest...)
+	raw = append(raw, '"', '}', '\n')
+	return raw, nil
 }
 
 func capacityProfile(d model.Document) (workload.Profile, error) {
@@ -218,8 +239,12 @@ func (s *Server) capacityInput(w http.ResponseWriter, r *http.Request) {
 		evaluation.Hash = telemetry.Hash(evaluation)
 	}
 	out := CapacityPopulation{SchemaVersion: "1", Binding: c.Binding, ConnectionID: c.ID, ConnectionVersion: c.Version, ConfigHash: input.ConfigHash, SafetyProfileID: profile.ID, SafetyProfileVersion: profile.Version, SafetyProfileHash: model.String(profileDoc, "hash"), AsOf: now, Start: start, End: end, HistoryDays: days, Timezone: profile.Timezone, Environment: environment, Definitions: c.Definitions, Segments: segments, ReceiptIDs: ids, SourceRefs: refs, ReasonCodes: sortedUnique(reasons), Evaluation: evaluation}
-	out.PopulationHash = CapacityPopulationHash(out)
+	wire, err := capacityPopulationWire(out)
+	if err != nil {
+		nativeError(w, 500, "CAPACITY_POPULATION_ENCODING_FAILED")
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(out)
+	_, _ = w.Write(wire)
 }
