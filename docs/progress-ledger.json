@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 25.2,
-  "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Authenticated IDs-only requests now queue immutable fleet assessments for a dedicated restricted daemon. The public cold lab passed ordinary native-shaped CUR ingestion, ten exact version readbacks, conditional USD 0.4/0.24/0.16 rates, six direct SQL negatives, immutable replay, 454 source/eight host pins and full owned cleanup. Actual role tests close current-month, recursive-grant and latest contradictory-hardware gaps. Full backend tests/vet passed with real PostgreSQL/Python; all seven retained-stack runtime suites and the 032-to-035 owned restoration upgrade passed. Eleven running service images and all 35 migration hashes matched source. The final package passed 294 Linux Node checks, generated contracts/build, Helm positive/17 negative inputs, Actionlint and secret scanning. All 84 browser cases passed across ordinary/presentation and real-OIDC assessment/preparation/independent-approval runs with zero retries. A test-only SSO expectation failure remains retained; fresh credential entry fixes the reload check. Actual read-only worker startup exposed Windows 0555 projection; network-isolated Linux secret initialization preserves strict 0444 validation and the worker is healthy. Quarantined encrypted physical backup passed eight checks. The preceding recovered-health commit passed all twelve standard CI jobs. Final-commit CI remains required. The comparison is a historical account-rate estimate: native capacity, interval ownership, contracted avoidable economics, executable authority and verified savings remain unavailable. No package weights or maturity stages change; no AWS/customer/production credit is awarded.",
+  "current_weighted_percent": 25.4,
+  "rounded_description": "25.4 weighted percent of the full product; approximately 25 percent",
+  "credit_review": "Only the bounded native physical-analysis subset advances to deterministic end-to-end acceptance. The exact published cold CI flow connects provider-shaped native hardware and synthetic fourteen-day Prometheus history through versioned storage, ClickHouse, the existing Python model, restricted immutable member publication, actual daemon retirement/replacement and real Keycloak PKCE through the built console. Two members are evaluated and one remains unavailable; low-CPU/high-memory rejection, declared fourfold demand, missing statistics, revoked sources and unsupported templates remain explicit. The observed roster is a point capture, request counts are a demand proxy, and complete candidate suitability remains unestablished. All fourteen standard jobs on the implementation commit passed before this credit write. The local fixed-60-second failure remains retained with its exact cause unproven; a separately labelled shared-cache diagnostic passed the unchanged deadline in 47.181 seconds and does not become cold acceptance. Existing two-point scope is split 1+1 with both children retaining their former 20 maturity before only physical analysis advances 20→40, adding 0.2 points. Contracted avoidable economics, complete group safety/authority, calibrated broad forecasts, genuine customer/live operation and production acceptance remain pending. Shared foundations and test counts earn no additional credit; execution remains disabled, savings unavailable and cloud credit absent. The ledger/documentation follow-up retains its own exact-commit CI gate.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 1.5,
+      "contribution_points": 1.7,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -140,8 +140,39 @@
           ]
         },
         {
-          "id": "bounded_capacity_forecast",
-          "scope_weight_percent": 2,
+          "id": "bounded_native_physical_capacity_analysis",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 40,
+          "evidence": [
+            "economics/autopilot/capacity.py",
+            "economics/tests/test_capacity.py",
+            "internal/native/capacity_test.go",
+            "internal/service/capacity_integration_test.go",
+            "docs/acceptance.md",
+            "internal/service/capacity_native_integration_test.go",
+            "docs/native-hardware-capacity.md",
+            "internal/fleetcapacity",
+            "internal/fleetcapacityworker",
+            "internal/service/fleet_capacity_native_integration_test.go",
+            "internal/service/fleet_capacity_browser_fixture_test.go",
+            "internal/service/fleet_capacity_daemon_fixture_test.go",
+            "internal/store/fleet_native_capacity_integration_test.go",
+            "internal/store/fleet_native_capacity_busy_integration_test.go",
+            "migrations/036_fleet_native_capacity.sql",
+            "frontend/src/FleetNativeCapacity.tsx",
+            "scripts/fleet-native-capacity-lab.mjs",
+            "docs/fleet-native-capacity-acceptance.md"
+          ],
+          "remaining": [
+            "Supervised genuine customer hardware, historical telemetry and workload-profile/backtest acceptance",
+            "Wider hardware/options, unsupported populations/statistics and broader horizons remain explicit gaps; future breach probabilities and seasonal risk remain uncalibrated",
+            "Historical fleet-interval ownership, independent business-work preservation and complete group feasibility are not established",
+            "Production operation and complete contractual physical-analysis acceptance"
+          ]
+        },
+        {
+          "id": "native_costed_capacity_decision",
+          "scope_weight_percent": 1,
           "accepted_maturity": 20,
           "evidence": [
             "economics/autopilot/capacity.py",
@@ -155,7 +186,8 @@
           "remaining": [
             "Native contracted candidate economics and complete commitment compatibility; wider hardware and the public execution gate remain blocked",
             "Calibrated production breach probabilities, unsupported horizons and larger seasonal populations",
-            "Connected approved fleet/action execution, supervised customer backtests and production outcomes"
+            "Connected approved fleet/action execution, supervised customer backtests and production outcomes",
+            "Native avoidable contracted economics must join complete group feasibility and action-specific decisions; historical account-rate estimates are insufficient"
           ]
         },
         {
@@ -193,7 +225,7 @@
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 8.333333333333332
+      "current_area_maturity": 9.444444444444445
     },
     {
       "id": "execution_iac_gitops",
@@ -1071,6 +1103,102 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Authenticated IDs-only requests now queue immutable fleet assessments for a dedicated restricted daemon. The public cold lab passed ordinary native-shaped CUR ingestion, ten exact version readbacks, conditional USD 0.4/0.24/0.16 rates, six direct SQL negatives, immutable replay, 454 source/eight host pins and full owned cleanup. Actual role tests close current-month, recursive-grant and latest contradictory-hardware gaps. Full backend tests/vet passed with real PostgreSQL/Python; all seven retained-stack runtime suites and the 032-to-035 owned restoration upgrade passed. Eleven running service images and all 35 migration hashes matched source. The final package passed 294 Linux Node checks, generated contracts/build, Helm positive/17 negative inputs, Actionlint and secret scanning. All 84 browser cases passed across ordinary/presentation and real-OIDC assessment/preparation/independent-approval runs with zero retries. A test-only SSO expectation failure remains retained; fresh credential entry fixes the reload check. Actual read-only worker startup exposed Windows 0555 projection; network-isolated Linux secret initialization preserves strict 0444 validation and the worker is healthy. Quarantined encrypted physical backup passed eight checks. The preceding recovered-health commit passed all twelve standard CI jobs. Final-commit CI remains required. The comparison is a historical account-rate estimate: native capacity, interval ownership, contracted avoidable economics, executable authority and verified savings remain unavailable. No package weights or maturity stages change; no AWS/customer/production credit is awarded."
+    },
+    {
+      "id": "native-fleet-physical-capacity-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.4,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "bounded_capacity_forecast",
+          "previous_scope_weight_percent": 2,
+          "previous_maturity": 20,
+          "children": [
+            {
+              "id": "bounded_native_physical_capacity_analysis",
+              "scope_weight_percent": 1,
+              "previous_maturity": 20
+            },
+            {
+              "id": "native_costed_capacity_decision",
+              "scope_weight_percent": 1,
+              "previous_maturity": 20
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_physical_capacity_analysis",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.2,
+          "acceptance": "Connected deterministic native per-member physical analysis, immutable restricted publication, real process recovery and actual-OIDC persisted read/reload; no complete suitability, economics or executable authority."
+        }
+      ],
+      "implementation_commit": "8662ae9b0299f4f8f661eb8a69255c06ec8093cd",
+      "implementation_tree": "2871430e6edb7eb0a1e1049fb66e6cb4f3901d8c",
+      "implementation_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39259004396",
+      "required_standard_ci_jobs": [
+        "infrastructure",
+        "frontend-contract",
+        "fleet-group-connected",
+        "flux-lab",
+        "compose-smoke",
+        "fleet-native-assessment",
+        "go (16)",
+        "security",
+        "go (17)",
+        "fleet-group-artifacts",
+        "kubernetes-lab",
+        "economics",
+        "fleet-native-capacity",
+        "fleet-workspace-health"
+      ],
+      "preceding_ledger_review": "native-fleet-assessment-worker-2026-10-19",
+      "prior_history_sha256": "a5b7dbe330d65dd7f75787cfb6123faa03c978b663eb6185277a978fff4213de",
+      "evidence": [
+        "internal/fleetcapacity",
+        "internal/fleetcapacityworker",
+        "internal/service/fleet_capacity_native_integration_test.go",
+        "internal/service/fleet_capacity_browser_fixture_test.go",
+        "internal/service/fleet_capacity_daemon_fixture_test.go",
+        "internal/store/fleet_native_capacity_integration_test.go",
+        "internal/store/fleet_native_capacity_busy_integration_test.go",
+        "migrations/036_fleet_native_capacity.sql",
+        "frontend/src/FleetNativeCapacity.tsx",
+        "scripts/fleet-native-capacity-lab.mjs",
+        "docs/fleet-native-capacity-acceptance.md"
+      ],
+      "fixture_acceptance_runs": [
+        "79ae3595-d85d-44d1-bec5-c31ad2615ecf"
+      ],
+      "diagnostic_runs": [
+        "7a96de42-538c-485d-a4e2-54803eee168c"
+      ],
+      "retained_failure_runs": [
+        "ff6095d2-9701-4a4e-b521-066b9436600e"
+      ],
+      "bounded_evidence": {
+        "native_run_id": "79ae3595-d85d-44d1-bec5-c31ad2615ecf",
+        "native_receipt_sha256": "47953d6f152b47ede564148700eff0e4f3fa15a992be6a98a87f9eb91fd1448e",
+        "diagnostic_run_id": "7a96de42-538c-485d-a4e2-54803eee168c",
+        "diagnostic_receipt_sha256": "86b2bf4898c04704f518aeada54f8f89002183a462056bf6726f6577c5da2368",
+        "diagnostic_kind": "EXACT_5B_PRIVATE_TIMING_DIAGNOSTIC",
+        "diagnostic_request_to_batch_witness_ms": 47181,
+        "retained_failed_cold_run_id": "ff6095d2-9701-4a4e-b521-066b9436600e",
+        "retained_failure_receipt_sha256": "ea1f67ee5847c70758effba2f651fa3486575396852f788d5aa4f889b4bc5f44",
+        "retained_failure_cause_proven": false,
+        "source_tree": "2871430e6edb7eb0a1e1049fb66e6cb4f3901d8c",
+        "installed_web_source_tree": "5b321b95210bb2397084630ac367de934b0962f9",
+        "production_deltas_since_installed_web": [],
+        "source_pins": 564,
+        "host_pins": 11,
+        "dist_manifest_sha256": "66b5541c341ad925dfd7f77ccea1229f1816ed0b1f8e2eb71c8aa94f29679284"
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Only the bounded native physical-analysis subset advances to deterministic end-to-end acceptance. The exact published cold CI flow connects provider-shaped native hardware and synthetic fourteen-day Prometheus history through versioned storage, ClickHouse, the existing Python model, restricted immutable member publication, actual daemon retirement/replacement and real Keycloak PKCE through the built console. Two members are evaluated and one remains unavailable; low-CPU/high-memory rejection, declared fourfold demand, missing statistics, revoked sources and unsupported templates remain explicit. The observed roster is a point capture, request counts are a demand proxy, and complete candidate suitability remains unestablished. All fourteen standard jobs on the implementation commit passed before this credit write. The local fixed-60-second failure remains retained with its exact cause unproven; a separately labelled shared-cache diagnostic passed the unchanged deadline in 47.181 seconds and does not become cold acceptance. Existing two-point scope is split 1+1 with both children retaining their former 20 maturity before only physical analysis advances 20→40, adding 0.2 points. Contracted avoidable economics, complete group safety/authority, calibrated broad forecasts, genuine customer/live operation and production acceptance remain pending. Shared foundations and test counts earn no additional credit; execution remains disabled, savings unavailable and cloud credit absent. The ledger/documentation follow-up retains its own exact-commit CI gate."
     }
   ]
 }

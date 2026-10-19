@@ -165,3 +165,5 @@ services. It receives no source-write, signing, execution or deployment token.
 The chart provisions no IAM role or customer workload. Deployment approval,
 authentic history, native financial finality and customer operation remain in the
 commissioning dossier.
+
+The [036 acceptance record](fleet-native-capacity-acceptance.md) preserves exact implementation CI, native source/worker/browser evidence, local recovery and backup checks, retained failures and the separate local timing diagnostic. It grants bounded deterministic physical-analysis credit; hosted, whole-group, financial and customer acceptance remain open.

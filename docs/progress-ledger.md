@@ -1,12 +1,30 @@
 # Product scope progress ledger
 
-The accepted [native fleet comparison](fleet-native-assessments.md) connects an
+The [native fleet member capacity analysis](fleet-native-capacity-acceptance.md)
+now passes the full deterministic operating path: immutable native sources,
+restricted per-member calculation, actual daemon replacement and real OIDC
+through the built console. The [published implementation passed all fourteen
+standard CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39259004396).
+Official completion advances **25.2% → 25.4%**. The rough engineering estimate
+including verified partial work remains **27–31%**, using existing evidence
+rather than a fresh whole-product audit.
+
+The existing two-point capacity/forecast component is subdivided into two
+one-point packages with its previous credit preserved. Only bounded native
+physical analysis advances from component acceptance (20) to deterministic
+end-to-end acceptance (40), adding **0.2 points**. Unknown members, commitment
+exposure, group safety, business-work preservation and contracted avoidable
+economics remain explicit. No live, production, financial or shared-foundation
+credit is added. The retained local timeout and successful separate timing
+diagnostic remain recorded independently of the two public CI cold passes.
+
+The earlier accepted [native fleet comparison](fleet-native-assessments.md) connects an
 authenticated queued request, immutable provider evidence, a restricted worker
 and the console. Its public cold acceptance passed actual versioned storage,
 exact conditional rates and complete cleanup. Its
 [final published commit passed all thirteen standard CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39232306831).
 These close documented component gaps while the complete capacity, contracted
-avoidable economics and approved fleet workflow remain open. Official completion stays
+avoidable economics and approved fleet workflow remain open. At that boundary, official completion stayed
 **25.2% → 25.2%**. The rough engineering range including verified partial work
 remains **27–31%**, without a fresh whole-product audit.
 
@@ -72,19 +90,19 @@ disposition is not a native financial-ledger integration. Customer pipeline OIDC
 deployed durable recovery and repeated-loss operation, genuine interval ownership and independent demand,
 native fleet economics, customer use and production acceptance remain open.
 
-Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
+Recorded 19 October 2026. **25.2% → 25.4%** at the latest accepted capability boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 
 | Domain | Fixed scope weight | Current area maturity | Contribution |
 | --- | ---: | ---: | ---: |
 | Billing, inventory and telemetry | 18% | 28.33% | 5.1 points |
 | Workload graph, demand and SLO | 12% | 40% | 4.8 points |
-| Optimisation, forecasting and commitments | 18% | 8.33% | 1.5 points |
+| Optimisation, forecasting and commitments | 18% | 9.44% | 1.7 points |
 | Execution, IaC and GitOps | 18% | 18.33% | 3.3 points |
 | Reconciliation and verified savings | 10% | 40% | 4.0 points |
 | Identity, tenancy, policy and audit | 10% | 35% | 3.5 points |
 | Console, API and enterprise workflows | 6% | 30% | 1.8 points |
 | Production operations | 8% | 15% | 1.2 points |
-| **Total** | **100%** | | **25.2 points** |
+| **Total** | **100%** | | **25.4 points** |
 
 The fleet/local Kubernetes component review adds **0.6 points** after all seven CI jobs passed at [e7b0cd7](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086). The unaccepted 11.25-point broad IaC/GitOps package is subdivided into 1.5 points of fleet protocol components, 1.5 points of local Kubernetes/GitOps safety components and 8.25 points of remaining broad actions, preserving all previous scope and credit. Only the two bounded components advance from absent to component acceptance. No full fleet workflow, hosted Kubernetes, Azure/GCP parity, customer use, live operation or production credit is awarded. Shared console, identity and storage foundations are not counted again. See [component boundaries](fleet-and-kubernetes-components.md).
 
