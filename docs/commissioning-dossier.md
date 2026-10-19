@@ -67,6 +67,14 @@ independent evidence before any later executable plan family is commissioned.
 The current individual-resource FleetPlanV4 contract has no group bridge; a
 representative member or invented EC2 resource cannot satisfy that requirement.
 
+The private [group artifact contracts](fleet-group-program.md) add a separate
+fixture family with an approved per-stage Git manifest and actual local saved
+plans. One appended last-child inverse is component evidence only. Before any
+customer Fleet commissioning, require authenticated current ownership and a
+complete owned-transition journal, multi-effect rollback, durable pipeline
+reconciliation and the full real-clock health/economics loop. A component
+signature or a successful local Terraform apply cannot satisfy those gates.
+
 For allocation commissioning, confirm the fixed-share recipients and the current
 resource/workload mapping. A sealed current-ownership report is an observed-cost
 view with provisional finality, not historical chargeback or verified savings.

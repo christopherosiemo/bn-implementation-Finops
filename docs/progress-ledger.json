@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "The c49e66a identity/request-boundary release passed all nine normal exact-commit CI jobs. Fleet-scoped declared configuration, IDs-only blocked reviews, connected console and retained-history queue correction now have local acceptance. Two actual additive upgrades preserved original stopped-instance ownership and signed envelopes; all seven runtime suites and all 58 browser cases passed. These strengthen existing maturity stages without new credit. Fixed weights, package scope and historical reviews stay unchanged; no live/customer, full fleet workflow or production credit.",
+  "credit_review": "The scoped Fleet review/retained-queue release passed all nine normal exact-commit CI jobs, final local runtime/browser and encrypted PostgreSQL recovery. Separate schema-5/5.1 group artifact components now have actual local Git/Terraform acceptance with encrypted readback. They strengthen the existing Fleet component stage without new credit. Multi-effect recovery, durable ownership, connected real-clock execution, native financial evidence, customer use and production gates remain open; fixed scope and historical credit are unchanged.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -900,6 +900,29 @@
       "web_source_tree": "105d690cfc723ac146a70ae60cffec923b7c6adc",
       "live_credit_awarded": false,
       "acceptance": "Actual restricted PostgreSQL/JWKS binds real group registrations, current sources/definitions/mappings, immutable scope references and exact declaration versions. UI/OIDC selects existing IDs and persists BLOCKED reviews with null money and no action authority. Migration 026→027 and 027→028 each preserved the original stopped occurrence/signature through API/worker replacement and exactly one audited STOP/START. The original 58-case run retained one allocation response-deadline failure; typed DB-derived queue metadata and existence-only fixture checks corrected repeated full-history payload loading without deleting evidence. A later native-source browser journey corrected an existing pagination assumption while preserving every source/evidence check. Final seven runtime suites and all 58 Chromium cases passed with unchanged deadlines and zero retries. Controlled queue regression retains old unsealed jobs, unknown statuses, tenant scope and retry pagination while rejecting generated-metadata forgery. Full exact-commit CI is tracked separately by PR checks. No native interval ownership, Git/state authority, executable group program, fleet economics, customer history or production acceptance is inferred."
+    },
+    {
+      "id": "git-owned-group-artifacts-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "f18680aff38e1547447b48e34eab4033916cef59",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39188886484",
+      "evidence": [
+        "docs/fleet-group-program.md",
+        "docs/acceptance.md",
+        "internal/fleetgroup",
+        "examples/fleet-group-fixture",
+        "examples/fleet-group-git-fixture",
+        "scripts/fleet-group-terraform-lab.mjs",
+        "scripts/fleet-group-git-lab.mjs"
+      ],
+      "fixture_artifact_runs": [
+        "89c27825-283c-48db-82fe-3e6833bfafd2",
+        "f970800f-6f38-4dfc-8bb1-2e9afc8fc3cb"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Preserved schema-5 group component passed 26 real saved-plan applies and encrypted readback. Independent schema-5.1 signs a complete two-file Git stage manifest; 26 forward exact binary applies, one appended inverse of the last owned child, native stale-plan rejection on an isolated clone and seven negatives passed. All 280 ciphertext objects received authenticated post-process readback and owned cleanup; source/runner pins matched. The exact single-child recovery cannot authorize a newer same-model head. No real-clock observation, 025/027 resolution, durable ownership/consumption, multi-effect rollback, unknown-apply reconciliation, native financial claim or customer acceptance is inferred. The 028 encrypted whole-cluster drill passed eight checks with authority/migration hashes; production recovery remains unproved."
     }
   ]
 }

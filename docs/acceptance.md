@@ -1,5 +1,55 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: private group and Git-owned artifact contracts
+
+The preceding scoped-review/retained-queue release passed all nine normal
+[exact-commit CI jobs at f18680a](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39188886484).
+Its final local runtime/browser and encrypted recovery evidence is recorded
+below. The following artifact components add no enabled application process,
+public mutation or database migration. Their own final-commit CI is tracked by
+the draft pull request.
+
+The separate `internal/fleetgroup` schema-5 fixture component uses actual group
+identities and isolated realm/model bindings. It does not adapt FleetPlanV4 or
+enable a public workflow. The first real local Git/Terraform run
+`89c27825-283c-48db-82fe-3e6833bfafd2` passed twenty-six exact saved-plan applies,
+six tamper refusals, authenticated readback of 162 encrypted artifacts and owned
+cleanup. Earlier native module-manifest format failures were retained and fixed
+before that acceptance; no failed run received a PASS record. The single static
+Git revision and runtime model variables in that component are explicitly
+insufficient for Git-owned per-stage configuration.
+
+The additive schema-5.1 family signs the complete stage-revision manifest.
+Trees contain exactly fixed `main.tf.json` and committed
+`desired.auto.tfvars.json`. Each changed stage has a new sole-parent commit;
+dispatch uses actual expected-old-value ref CAS, exact index/worktree closure,
+fresh state and a fresh saved binary. The validator binds native ZIP/show/state,
+raw Git objects, committed values, invocation and clean environment without
+adapting an old signature. The unchanged seven schema-5 files preserve their
+original hashes. Pure package tests and vet passed in the isolated bounded
+Go container; twelve new Node runner guards passed across both artifact labs.
+
+The first schema-5.1 actual run
+`f970800f-6f38-4dfc-8bb1-2e9afc8fc3cb` passed twenty-six forward exact saved-plan
+applies and one exact inverse of the last owned child using an appended new
+commit. Seven negative cases passed, including native Terraform stale-plan
+refusal against a separate private state clone without changing the forward
+state. All 280 encrypted objects were authenticated again after the producer
+exited; their pinned index hash is
+`c84292c0bfe1cf9908f12d2a90dbd40ba0cfedfd965760cf190d90d778411491`.
+Captured sources and runner matched the reviewed frozen hashes; owned cleanup
+completed before acceptance publication. No runtime source repair was needed.
+
+These are artifact components using built-in Terraform resources and explicit
+synthetic receipt references. They do not resolve actual 025/027 authority,
+consume durable ownership, reconcile unknown applies or implement whole-program
+rollback. The 160 minutes of declared health observation were not waited.
+Customer execution, native verified savings and real-clock acceptance remain
+false. A newer same-model Git/state head cannot authorize the strict
+single-child inverse. An authenticated owned-transition journal, complete
+connected workflow and financial/health evidence remain required. See
+[group contracts and remaining gates](fleet-group-program.md).
+
 ## 19 October: fleet-scoped configuration reviews
 
 The preceding identity/request-boundary release passed all nine normal
@@ -82,6 +132,16 @@ forgery, tenant/role borrowing, lost retries, malformed documents and cursor
 stranding are rejected. Original evidence and signed billing arithmetic remain
 unchanged. The real 027-to-028 migration recovery also passed seven checks with
 the original stopped occurrence, signed envelope and one audited stop/start.
+
+After final runtime/browser acceptance, the encrypted whole-cluster recovery run
+`6c6e7600-1434-43d5-878c-01cbd52df947` passed all eight checks in 411.46 seconds.
+It retained a 228,312,630-byte authenticated encrypted archive and verified
+native backup checksums/WAL before quarantined readback. Actual audit, ledger,
+signed-envelope, completed ownership and database authority/migration hashes
+matched. Restricted API access retained tenant, append-only and active-intent
+protections; Temporal schemas were readable. The restored server had no network,
+ports or application workers. Production RTO, workflow resumption and
+object/analytics recovery remain unproved.
 
 The individual-resource FleetPlanV4 contract still has no group bridge. Native
 Git/state authority, historical membership ownership, complete Fleet capacity and
