@@ -8,6 +8,89 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /workloads/{id}/fleet-joint-decisions:
+    get:
+      operationId: listFleetJointDecisions
+      description: >-
+        Bounded immutable analytical summaries. Full member dimensions are returned only by the
+        selected detail endpoint.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped analytical history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetJointDecisionPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload access and finance role required
+        '404':
+          description: Record unavailable in tenant
+        '422':
+          description: Scoped cursor invalid
+    post:
+      operationId: requestFleetJointDecision
+      description: >-
+        Select two server-issued035/036 request IDs. Current safety-profile If-Match, workload access
+        and source bindings are rechecked. No observations, amounts, proofs or authority uploads are
+        accepted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetJointDecisionRequest'
+      responses:
+        '202':
+          description: Queued read-only joint analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetJointDecisionRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload access and finance role required
+        '404':
+          description: Record unavailable in tenant
+        '409':
+          description: Issued inputs no longer join or are not current
+        '412':
+          description: Safety profile version changed
+        '413':
+          description: Control-plane body exceeds4MiB
+        '422':
+          description: Only the two issued request IDs are accepted
+  /fleet-joint-decisions/{id}:
+    get:
+      operationId: getFleetJointDecision
+      description: >-
+        Full immutable analytical decision with exact input references and five physical dimensions
+        per member. PASS is a physical observation, never fleet execution authority.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Selected analytical detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetJointDecisionRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current workload access and finance role required
+        '404':
+          description: Record unavailable in tenant
   /workloads/{id}/fleet-native-capacity-batches:
     get:
       operationId: listFleetNativeCapacityBatches
@@ -1695,6 +1778,445 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetJointDecisionRefusal:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - request_id
+        - reason_codes
+        - observed_at
+        - execution_authorized
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        request_id:
+          type: string
+        reason_codes:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            enum:
+              - JOINT_DECISION_INPUTS_CHANGED
+              - JOINED_MODEL_SUMMARY_UNSUPPORTED
+              - RESERVE_ARITHMETIC_OR_UNSUPPORTED_PRECISION
+              - RATE_ARITHMETIC_OR_UNSUPPORTED_PRECISION
+              - JOINED_INPUT_FORMAT_UNSUPPORTED
+        observed_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetJointDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - assessment_request_id
+        - capacity_batch_request_id
+      properties:
+        assessment_request_id:
+          type: string
+        capacity_batch_request_id:
+          type: string
+    FleetJointDecisionReference:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - sha256
+      properties:
+        id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    FleetJointDecisionDimension:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - unit
+        - status
+        - candidate_capacity
+        - required_with_reserve
+        - reason_codes
+      properties:
+        name:
+          type: string
+          enum:
+            - cpu
+            - memory
+            - network
+            - storage_iops
+            - storage_throughput
+        unit:
+          type: string
+        status:
+          type: string
+          enum:
+            - PASS
+            - FAIL
+            - UNKNOWN
+        candidate_capacity:
+          type: string
+          nullable: true
+        required_with_reserve:
+          type: string
+          nullable: true
+        reason_codes:
+          type: array
+          items:
+            type: string
+          maxItems: 64
+    FleetJointDecisionMember:
+      type: object
+      additionalProperties: false
+      required:
+        - instance_id
+        - result
+        - status
+        - dimensions
+      properties:
+        instance_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/FleetJointDecisionReference'
+        status:
+          type: string
+          enum:
+            - PASS
+            - FAIL
+            - UNKNOWN
+        dimensions:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionDimension'
+    FleetJointDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - request_id
+        - selection
+        - observed_at
+        - inputs
+        - members
+        - physical_status
+        - scenario
+        - contracted_avoidable_cost
+        - estimated_saving
+        - verified_saving
+        - status
+        - group_capacity_authorized
+        - completed_business_work_preserved
+        - plan_eligible
+        - execution_authorized
+        - change_plan_id
+        - reason_codes
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        request_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        observed_at:
+          type: string
+          format: date-time
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionReference'
+          maxItems: 260
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionMember'
+          maxItems: 256
+        physical_status:
+          type: string
+          enum:
+            - PASS
+            - FAIL
+            - UNKNOWN
+        scenario:
+          $ref: '#/components/schemas/FleetNativeHourlyScenario'
+        contracted_avoidable_cost:
+          type: string
+          nullable: true
+          enum:
+            - null
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        status:
+          type: string
+          enum:
+            - BLOCKED
+        group_capacity_authorized:
+          type: boolean
+          enum:
+            - false
+        completed_business_work_preserved:
+          type: boolean
+          nullable: true
+          enum:
+            - null
+        plan_eligible:
+          type: boolean
+          enum:
+            - false
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        change_plan_id:
+          type: string
+          nullable: true
+          enum:
+            - null
+        reason_codes:
+          type: array
+          items:
+            type: string
+          maxItems: 64
+    FleetJointDecisionSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - physical_status
+        - status
+        - member_count
+        - scenario
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        physical_status:
+          type: string
+          enum:
+            - PASS
+            - FAIL
+            - UNKNOWN
+        status:
+          type: string
+          enum:
+            - BLOCKED
+        member_count:
+          type: integer
+          minimum: 1
+          maximum: 256
+        scenario:
+          $ref: '#/components/schemas/FleetNativeHourlyScenario'
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetJointDecisionRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - assessment_request_id
+        - capacity_batch_request_id
+        - selection
+        - input_refs
+        - execution_authorized
+        - verified_saving
+        - created_at
+        - status
+        - decision
+        - decision_summary
+        - refusal
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        assessment_request_id:
+          type: string
+        capacity_batch_request_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionReference'
+          maxItems: 3
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        decision:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetJointDecision'
+        decision_summary:
+          type: object
+          nullable: true
+          enum:
+            - null
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetJointDecisionRefusal'
+    FleetJointDecisionPageRow:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - assessment_request_id
+        - capacity_batch_request_id
+        - selection
+        - input_refs
+        - execution_authorized
+        - verified_saving
+        - created_at
+        - status
+        - decision
+        - decision_summary
+        - refusal
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        assessment_request_id:
+          type: string
+        capacity_batch_request_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionReference'
+          maxItems: 3
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        decision:
+          type: object
+          nullable: true
+          enum:
+            - null
+        decision_summary:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetJointDecisionSummary'
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetJointDecisionRefusal'
+    FleetJointDecisionPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetJointDecisionPageRow'
+          maxItems: 100
+        next_cursor:
+          type: string
+          nullable: true
     FleetNativeCapacityBatchRequest:
       $ref: '#/components/schemas/FleetNativeAssessmentRequest'
     FleetNativeCapacityScope:

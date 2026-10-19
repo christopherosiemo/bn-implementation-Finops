@@ -85,12 +85,15 @@ function privateDirectory(id){
 // every migration, so accepting only an older prefix rejects an additive upgrade.
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
- const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)&&Number(x.slice(0,3))<=36).sort();
- assert.equal(names.length,36);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:36},(_,n)=>n+1));
- assert.equal(names.at(-1),'036_fleet_native_capacity.sql');
- return Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
+ const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)).sort();
+ assert.equal(names.length,37);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:37},(_,n)=>n+1));
+ assert.equal(names.at(-1),'037_fleet_joint_decisions.sql');
+ const manifest=Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
+ assert.equal(manifest['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051','Migration037 must equal the independently reviewed release bytes');
+ return manifest;
 }
+
 function snapshot(directory){
  const source=path.join(directory,'source');mkdirSync(source,{mode:0o755});const hashes={};
  const copy=relative=>{const input=path.join(root,relative),info=lstatSync(input),within=path.relative(realpathSync(root),realpathSync(input));assert.ok(within&&!within.startsWith('..')&&!path.isAbsolute(within)&&!info.isSymbolicLink());

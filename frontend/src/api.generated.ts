@@ -4,6 +4,41 @@
  */
 
 export interface paths {
+    "/workloads/{id}/fleet-joint-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded immutable analytical summaries. Full member dimensions are returned only by the selected detail endpoint. */
+        get: operations["listFleetJointDecisions"];
+        put?: never;
+        /** @description Select two server-issued035/036 request IDs. Current safety-profile If-Match, workload access and source bindings are rechecked. No observations, amounts, proofs or authority uploads are accepted. */
+        post: operations["requestFleetJointDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-joint-decisions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Full immutable analytical decision with exact input references and five physical dimensions per member. PASS is a physical observation, never fleet execution authority. */
+        get: operations["getFleetJointDecision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workloads/{id}/fleet-native-capacity-batches": {
         parameters: {
             query?: never;
@@ -1485,6 +1520,144 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetJointDecisionRefusal: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            request_id: string;
+            reason_codes: ("JOINT_DECISION_INPUTS_CHANGED" | "JOINED_MODEL_SUMMARY_UNSUPPORTED" | "RESERVE_ARITHMETIC_OR_UNSUPPORTED_PRECISION" | "RATE_ARITHMETIC_OR_UNSUPPORTED_PRECISION" | "JOINED_INPUT_FORMAT_UNSUPPORTED")[];
+            /** Format: date-time */
+            observed_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetJointDecisionRequest: {
+            assessment_request_id: string;
+            capacity_batch_request_id: string;
+        };
+        FleetJointDecisionReference: {
+            id: string;
+            sha256: string;
+        };
+        FleetJointDecisionDimension: {
+            /** @enum {string} */
+            name: "cpu" | "memory" | "network" | "storage_iops" | "storage_throughput";
+            unit: string;
+            /** @enum {string} */
+            status: "PASS" | "FAIL" | "UNKNOWN";
+            candidate_capacity: string | null;
+            required_with_reserve: string | null;
+            reason_codes: string[];
+        };
+        FleetJointDecisionMember: {
+            instance_id: string;
+            result: components["schemas"]["FleetJointDecisionReference"];
+            /** @enum {string} */
+            status: "PASS" | "FAIL" | "UNKNOWN";
+            dimensions: components["schemas"]["FleetJointDecisionDimension"][];
+        };
+        FleetJointDecision: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            request_id: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            /** Format: date-time */
+            observed_at: string;
+            inputs: components["schemas"]["FleetJointDecisionReference"][];
+            members: components["schemas"]["FleetJointDecisionMember"][];
+            /** @enum {string} */
+            physical_status: "PASS" | "FAIL" | "UNKNOWN";
+            scenario: components["schemas"]["FleetNativeHourlyScenario"];
+            /** @enum {string|null} */
+            contracted_avoidable_cost: null;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string} */
+            status: "BLOCKED";
+            /** @enum {boolean} */
+            group_capacity_authorized: false;
+            /** @enum {boolean|null} */
+            completed_business_work_preserved: null;
+            /** @enum {boolean} */
+            plan_eligible: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            change_plan_id: null;
+            reason_codes: string[];
+        };
+        FleetJointDecisionSummary: {
+            id: string;
+            /** @enum {string} */
+            physical_status: "PASS" | "FAIL" | "UNKNOWN";
+            /** @enum {string} */
+            status: "BLOCKED";
+            member_count: number;
+            scenario: components["schemas"]["FleetNativeHourlyScenario"];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetJointDecisionRecord: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            workload_id: string;
+            creator_id: string;
+            assessment_request_id: string;
+            capacity_batch_request_id: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            input_refs: components["schemas"]["FleetJointDecisionReference"][];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            decision: components["schemas"]["FleetJointDecision"] | null;
+            /** @enum {object|null} */
+            decision_summary: never | null;
+            refusal: components["schemas"]["FleetJointDecisionRefusal"] | null;
+        };
+        FleetJointDecisionPageRow: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            workload_id: string;
+            creator_id: string;
+            assessment_request_id: string;
+            capacity_batch_request_id: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            input_refs: components["schemas"]["FleetJointDecisionReference"][];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            /** @enum {object|null} */
+            decision: never | null;
+            decision_summary: components["schemas"]["FleetJointDecisionSummary"] | null;
+            refusal: components["schemas"]["FleetJointDecisionRefusal"] | null;
+        };
+        FleetJointDecisionPage: {
+            items: components["schemas"]["FleetJointDecisionPageRow"][];
+            next_cursor: string | null;
+        };
         FleetNativeCapacityBatchRequest: components["schemas"]["FleetNativeAssessmentRequest"];
         FleetNativeCapacityScope: {
             selection: components["schemas"]["FleetNativeAssessmentSelection"];
@@ -4543,6 +4716,182 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetJointDecisions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped analytical history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetJointDecisionPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload access and finance role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestFleetJointDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetJointDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued read-only joint analysis */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetJointDecisionRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload access and finance role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Issued inputs no longer join or are not current */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Safety profile version changed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control-plane body exceeds4MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Only the two issued request IDs are accepted */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetJointDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Selected analytical detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetJointDecisionRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current workload access and finance role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetNativeCapacityBatches: {
         parameters: {
             query?: {

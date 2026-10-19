@@ -237,7 +237,7 @@ func TestFleetCapacityBrowserJourneyBudgetStartsAfterBoundStartup(t *testing.T) 
 // This optional phase is enabled only by the private lab, whose acceptance
 // requires its browser receipt. It exposes the production API and App, never a
 // presentation route or a trusted-evidence upload. No main database is opened.
-func fleetCapacityPositiveBrowserPhase(t *testing.T, ctx context.Context, f *mutationReplayFixture, admin *store.Store, proposals []string, firstBatchID, memoryInstanceID string, refreshNative func(context.Context)) *fleetCapacityBrowserProof {
+func fleetCapacityPositiveBrowserPhase(t *testing.T, ctx context.Context, f *mutationReplayFixture, admin *store.Store, proposals []string, firstBatchID, memoryInstanceID string, refreshNative func(context.Context), jointArchive fleetbilling.PinnedReader, jointBucket string) *fleetCapacityBrowserProof {
 	t.Helper()
 	mode := os.Getenv("FLEET_CAPACITY_BROWSER")
 	if mode == "" {
@@ -359,6 +359,7 @@ func fleetCapacityPositiveBrowserPhase(t *testing.T, ctx context.Context, f *mut
 			t.Error("private browser API termination", e)
 		}
 	}()
+	jointRuntime := jointBrowserPrepare(t, setupCtx, admin, ready)
 	raw, e := fleetCapacityBrowserWrite("/results/browser-ready.json", ready)
 	if e != nil {
 		t.Fatal(e)
@@ -381,6 +382,9 @@ func fleetCapacityPositiveBrowserPhase(t *testing.T, ctx context.Context, f *mut
 	}
 	if _, e = fleetCapacityBrowserWrite("/results/browser-api-ready.json", signal); e != nil {
 		t.Fatal(e)
+	}
+	if e = jointBrowserCoordinate(t, journeyCtx, f, admin, jointRuntime, signal, proposals, jointArchive, jointBucket); e != nil {
+		t.Fatal("actual joint native/browser/replacement phase", e)
 	}
 	var proof fleetCapacityBrowserProof
 	if e = fleetCapacityBrowserWait(journeyCtx, "browser-result.json", &proof); e != nil {

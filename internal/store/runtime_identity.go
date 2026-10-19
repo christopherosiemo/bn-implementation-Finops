@@ -28,6 +28,7 @@ func OpenRuntime(ctx context.Context, dsn, process string) (*Store, error) {
 		"group-health-observer":      "finops_group_health_observer",
 		"group-assessment-reader":    "finops_group_assessor",
 		"group-capacity-evaluator":   "finops_group_capacity",
+		"group-decision-reader":      "finops_group_decision",
 	}[process]
 	if group == "" {
 		return nil, errors.New("RUNTIME_DATABASE_PROCESS_INVALID")

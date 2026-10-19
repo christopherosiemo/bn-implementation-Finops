@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync,copyFileSync,mkdtempSync,rmSync,writeFileSync,unlinkSync} from 'node:fs';
+import os from 'node:os';
+import {createHash} from 'node:crypto';
+import {assertMigrationManifest} from '../lib/recovery-upgrade.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {commissionRegistration,commissionTitle,validateCommissionTooling,validateCommissionSources,validateCommissionJob,validateCommissionSource,validateCommissionSync} from '../group-fixture-commission.mjs';
+import {commissionRegistration,commissionTitle,commissionMigrationManifest,validateCommissionTooling,validateCommissionSources,validateCommissionJob,validateCommissionSource,validateCommissionSync} from '../group-fixture-commission.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const runID='12345678-1234-1234-1234-123456789abc',image='sha256:'+'a'.repeat(64),network='b'.repeat(64),name='finops-group-commission-test',project='fixture-project';
@@ -51,4 +54,19 @@ test('one exact new live case follows the other74; source loss never triggers re
  const runner=readFileSync(path.join(root,'scripts/group-fixture-commission.mjs'),'utf8'),live=readFileSync(path.join(root,'frontend/tests/fleet-fixture-live.spec.ts'),'utf8');assert.ok(live.includes(commissionTitle));
  assert.match(runner,/'tests\/fleet-fixture-live\.spec\.ts'/);assert.match(runner,/FINOPS_E2E_FLEET_SOURCE_ID:sourceID/);assert.match(runner,/FINOPS_E2E_FIXTURE_PROFILE_ID:profile.id/);assert.match(runner,/cleanup_succeeded:true/);
  assert.equal((runner.match(/api\+'\/v1\/source-connections'/g)||[]).length,1);assert.ok(!runner.includes('/v1/demo/reset'));assert.ok(!runner.includes('--retries'));assert.ok(!runner.includes('--timeout'));
+});
+
+
+test('commissioning requires exact001–037 and the reviewed037 bytes; future or incomplete prefixes refuse',()=>{
+ const migrationRoot=path.join(root,'migrations'),names=readdirSync(migrationRoot).filter(name=>/^\d{3}_[a-z0-9_]+\.sql$/.test(name)).sort();
+ const expected=commissionMigrationManifest(migrationRoot);assert.equal(Object.keys(expected).length,37);assert.equal(expected['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051');
+ for(const name of names.slice(0,36))assert.equal(expected[name],createHash('sha256').update(readFileSync(path.join(migrationRoot,name))).digest('hex'));
+ const folder=mkdtempSync(path.join(os.tmpdir(),'commission-reviewed037-'));try{
+  for(const name of names)copyFileSync(path.join(migrationRoot,name),path.join(folder,name));assert.deepEqual(commissionMigrationManifest(folder),expected);
+  const latest=path.join(folder,'037_fleet_joint_decisions.sql'),raw=readFileSync(latest);writeFileSync(latest,Buffer.concat([raw,Buffer.from('\n-- changed release bytes\n')]));assert.throws(()=>commissionMigrationManifest(folder));writeFileSync(latest,raw);
+  writeFileSync(path.join(folder,'038_unreviewed_future.sql'),'SELECT 1;');assert.throws(()=>commissionMigrationManifest(folder));unlinkSync(path.join(folder,'038_unreviewed_future.sql'));
+  unlinkSync(latest);assert.throws(()=>commissionMigrationManifest(folder));
+  assert.throws(()=>assertMigrationManifest({...expected,'038_unreviewed_future.sql':'a'.repeat(64)},expected));
+  const changed={...expected,[names[0]]:'b'.repeat(64)};assert.throws(()=>assertMigrationManifest(changed,expected));
+ }finally{assert.equal(path.dirname(path.resolve(folder)),path.resolve(os.tmpdir()));assert.match(path.basename(folder),/^commission-reviewed037-/);rmSync(folder,{recursive:true,force:true});}
 });

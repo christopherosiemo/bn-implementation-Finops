@@ -126,7 +126,7 @@ services:
       context: .
       dockerfile: Dockerfile.local-object-store
       target: mc
-    entrypoint: [/bin/sh, /config/init-buckets.sh]
+    entrypoint: [timeout, --signal=TERM, --kill-after=2s, 180s, /bin/sh, /config/init-buckets.sh]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -140,7 +140,7 @@ services:
       CAPACITY_SECRET_KEY: ${CAPACITY_SECRET_KEY:-}
     volumes: ['./config/minio:/config:ro']
     depends_on: [minio]
-    restart: on-failure
+    restart: 'no'
     networks: [private]
 
   economics:
@@ -226,6 +226,81 @@ services:
       economics: {condition: service_healthy}
       buckets: {condition: service_completed_successfully}
       clickhouse: {condition: service_healthy}
+
+  # Optional local database-only process. Commission its unique LOGIN as an
+  # operator first; commission.sql and identity.json are never runtime mounts.
+  fleet-decision-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [fleet-decision]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        test -d /decision-secrets
+        test ! -L /decision-secrets
+        chmod 0755 /decision-secrets
+        source=/run/secrets/group-decision-database
+        target=/decision-secrets/group-decision-database
+        test -f "$$source"
+        test ! -L "$$source"
+        test -r "$$source"
+        bytes=$$(wc -c < "$$source")
+        test "$$bytes" -gt 0
+        test "$$bytes" -le 8192
+        if test -e "$$target" || test -L "$$target"; then
+          test -f "$$target"
+          test ! -L "$$target"
+          test "$$(stat -c '%h' "$$target")" = 1
+        fi
+        temporary=$$(mktemp /decision-secrets/.secret.XXXXXX)
+        trap 'rm -f -- "$$temporary"' EXIT
+        cat "$$source" > "$$temporary"
+        chmod 0444 "$$temporary"
+        test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+        sync -f "$$temporary"
+        mv -fT -- "$$temporary" "$$target"
+        test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+        sync -f /decision-secrets
+        printf '%s\n' FLEET_DECISION_SECRET_FILE_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [group-decision-database]
+    volumes: ['fleet-decision-secrets:/decision-secrets']
+    restart: 'no'
+
+  fleet-decision:
+    <<: *go
+    profiles: [fleet-decision]
+    entrypoint: [/app/fleet-decision-worker]
+    environment:
+      FLEET_DECISION_ENABLED: 'true'
+      FLEET_DECISION_TENANT_ID: ${FLEET_DECISION_TENANT_ID:-tenant-demo}
+      FLEET_DECISION_DATABASE_FILE: /run/secrets/group-decision-database
+      FLEET_DECISION_DATABASE_MODE: LOCAL_PRIVATE
+    volumes: ['fleet-decision-secrets:/run/secrets:ro']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/fleet-decision-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      fleet-decision-secrets-init: {condition: service_completed_successfully}
 
   fleet-assessment-secrets-init:
     image: cloud-cost-autopilot-go:local
@@ -532,6 +607,8 @@ networks:
   private: {}
 
 secrets:
+  group-decision-database:
+    file: ./work/private/fleet-decision-secrets/database
   group-assessment-database:
     file: ./work/private/fleet-assessment-secrets/database
   group-assessment-access-key:
@@ -551,6 +628,7 @@ secrets:
     file: ./work/private/fleet-capacity-secrets/model-token
 
 volumes:
+  fleet-decision-secrets: {}
   fleet-capacity-secrets: {}
   fleet-assessment-secrets: {}
   postgres: {}

@@ -37,6 +37,11 @@ const FleetNativeCapacity = lazy(() =>
     default: module.FleetNativeCapacity,
   })),
 );
+const FleetJointDecision = lazy(() =>
+  import("./FleetJointDecision").then((module) => ({
+    default: module.FleetJointDecision,
+  })),
+);
 type RegistrationRequest =
   components["schemas"]["FleetHistoryRegistrationRequest"];
 type DefinitionRequest = components["schemas"]["FleetDemandDefinitionRequest"];
@@ -1048,6 +1053,17 @@ export function FleetHistory({ data, run, busy }: Props) {
             fallback={<p role="status">Loading fleet member capacity…</p>}
           >
             <FleetNativeCapacity
+              key={workload.id}
+              workload={workload.id}
+              fixture={data.fixture}
+              run={run}
+              busy={busy}
+            />
+          </Suspense>
+          <Suspense
+            fallback={<p role="status">Loading joint fleet evidence…</p>}
+          >
+            <FleetJointDecision
               key={workload.id}
               workload={workload.id}
               fixture={data.fixture}

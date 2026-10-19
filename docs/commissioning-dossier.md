@@ -1,5 +1,14 @@
 # Commissioning dossier
 
+The [037 joint decision](fleet-joint-decision.md) connects issued account-rate
+and physical member records through a separate analytical database identity.
+Review its tenant, dedicated login/secret, private database networks and verified
+CA before enabling this optional process. It has no cloud, signing, financial
+ledger or execution credentials. Conditional historical rates do not prove
+contracted avoidable costs, completed business work or group feasibility.
+The [acceptance record](fleet-joint-decision-acceptance.md) distinguishes bounded
+component checks from pending native, browser and process-recovery gates.
+
 The [native fleet evidence comparison](fleet-native-assessments.md) has a
 separate optional worker and immutable API history. Its local versioned-object
 and database acceptance provides conditional historical compute-rate estimates.

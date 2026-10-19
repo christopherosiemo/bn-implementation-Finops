@@ -178,31 +178,7 @@ func PersistEvidence(ctx context.Context, tenant, source string, raw, canonical 
 	if e = putEvidence(ctx, tenant, "raw", source, body); e != nil {
 		return e
 	}
-	facts := []model.Document{}
-	for _, r := range documentList(canonical["records"]) {
-		timestamp := model.String(r, "ChargePeriodStart")
-		if timestamp == "" {
-			return errors.New("billing source timestamp is missing")
-		}
-		if _, e = time.Parse(time.RFC3339, timestamp); e != nil {
-			return errors.New("billing source timestamp invalid")
-		}
-		record := model.String(r, "x_SourceRecordId")
-		version := model.String(r, "x_SourceVersion")
-		if record == "" || version == "" {
-			return errors.New("billing source version identity is missing")
-		}
-		billed := model.String(r, "BilledCost")
-		if billed == "" {
-			return errors.New("exact billing cost is missing")
-		}
-		payload, e := json.Marshal(r)
-		if e != nil {
-			return e
-		}
-		facts = append(facts, model.Document{"tenant_id": tenant, "source_id": source, "source_version": version, "source_record_id": record, "resource_id": model.String(r, "ResourceId"), "currency": model.String(r, "BillingCurrency"), "billed_cost": billed, "effective_cost": r["EffectiveCost"], "source_time": timestamp, "payload": string(payload)})
-	}
-	if e = clickhouseRows(ctx, "billing_facts", facts); e != nil {
+	if e = persistBillingFacts(ctx, tenant, source, canonical); e != nil {
 		return e
 	}
 	metrics := []model.Document{}

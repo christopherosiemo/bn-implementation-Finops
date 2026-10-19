@@ -45,6 +45,7 @@ database:
     fleet-history-reader: finops-db-fleet-history-reader
     fleet-assessment: finops-db-group-assessor
     fleet-capacity: finops-db-group-capacity
+    fleet-decision: finops-db-group-decision
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -109,6 +110,13 @@ fleetCapacity:
   bucketOwner: ""
   replicas: 1
   httpsEgressCidrs: []
+  postgresEgressCidrs: []
+fleetDecision:
+  # Optional database-only analytical join. Existing dedicated LOGIN member of
+  # finops_group_decision; no archive/model/cloud/signing/execution credentials.
+  enabled: false
+  tenantId: ""
+  replicas: 1
   postgresEgressCidrs: []
 activity:
   # Dedicated machine tokens; never configure the browser/API audience here.

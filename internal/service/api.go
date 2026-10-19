@@ -222,6 +222,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result, handled, err := a.fleetJointDecisionGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.fleetGroupAuthorityGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
@@ -443,6 +447,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		return out, status, err
 	}
 	if out, status, handled, err := a.fleetNativeAssessmentMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.fleetJointDecisionMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}
 	if out, status, handled, err := a.fleetGroupAuthorityMutate(ctx, t, i, r, in, parts); handled {

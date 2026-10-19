@@ -84,7 +84,7 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 			}
 		case "workloads":
 			switch p[2] {
-			case "fleet-native-assessments":
+			case "fleet-native-assessments", "fleet-joint-decisions":
 				return mutationAuthorization{roles: finance, scopeKind: "workloads", scopeID: p[1]}, true
 			case "signals":
 				return mutationAuthorization{roles: owner, scopeKind: "workloads", scopeID: p[1]}, true
@@ -140,7 +140,7 @@ func authorizeMutationReplay(ctx context.Context, t *store.Tx, i auth.Identity, 
 	// Resolve workload authorization again even on exact cached responses. A
 	// replay neither refreshes evidence nor substitutes the caller's old role.
 	parts := strings.Split(strings.TrimPrefix(path, "/v1/"), "/")
-	if len(parts) == 3 && parts[0] == "workloads" && (parts[2] == "fleet-native-assessments" || parts[2] == "fleet-native-capacity-batches") {
+	if len(parts) == 3 && parts[0] == "workloads" && (parts[2] == "fleet-native-assessments" || parts[2] == "fleet-native-capacity-batches" || parts[2] == "fleet-joint-decisions") {
 		if _, err := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", i.Tenant+":dependency-graph"); err != nil {
 			return err
 		}

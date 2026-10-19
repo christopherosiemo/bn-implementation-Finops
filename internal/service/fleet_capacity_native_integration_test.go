@@ -690,6 +690,7 @@ func TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker(t *testing.T) 
 	publish("AWS_FLEET_LAUNCH_TEMPLATES", templates, supportedRaw)
 	// The browser reads the already persisted analytics archive. Its host may
 	// retire Prometheus/ClickHouse only after this independent row-count proof.
+	jointAdditionalNativeReadbacks := 0
 	var browserProof *fleetCapacityBrowserProof
 	if os.Getenv("FLEET_CAPACITY_BROWSER") == "ISOLATED_REAL_OIDC" {
 		refreshNative := func(refreshCtx context.Context) {
@@ -704,6 +705,15 @@ func TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker(t *testing.T) 
 			_, raw := fleetCapacityFixtureTemplates()
 			publishAt(refreshCtx, "AWS_FLEET_LAUNCH_TEMPLATES", templates, raw)
 			refreshHardwareAt(refreshCtx)
+			if jointBrowserEnabled() {
+				beforeJointReadbacks := archived
+				var jointScope fleetcapacity.Scope
+				jointDecode(t, issuedScope["scope"], &jointScope)
+				if e := fleetJointPublishConditionalNative(t, refreshCtx, f, jointScope, publishAt, put); e != nil {
+					t.Fatal("actual joint conditional source capture", e)
+				}
+				jointAdditionalNativeReadbacks = archived - beforeJointReadbacks
+			}
 			// Acknowledge only this completed real fixture capture cycle. Its
 			// source/config/version must still be the issued selection; no clock
 			// or receipt is rewritten to keep an expired source looking current.
@@ -717,7 +727,7 @@ func TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker(t *testing.T) 
 				t.Fatal("actual native fixture capture acknowledgment", e)
 			}
 		}
-		browserProof = fleetCapacityPositiveBrowserPhase(t, ctx, f, admin, proposals, model.String(first, "id"), fleetCapacityPromInstances[1], refreshNative)
+		browserProof = fleetCapacityPositiveBrowserPhase(t, ctx, f, admin, proposals, model.String(first, "id"), fleetCapacityPromInstances[1], refreshNative, archiveReader, bucket)
 		if browserProof == nil || !browserProof.ActualWorkerResult || !browserProof.PersistedReload {
 			t.Fatal("actual calculated-member browser evidence unavailable")
 		}
@@ -747,6 +757,9 @@ func TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker(t *testing.T) 
 	}
 	if os.Getenv("FLEET_NATIVE_CAPACITY_WRITE_RESULT") == "1" {
 		proof := model.Document{"schema_version": "1", "status": "PASS", "raw_transport": "PROVIDER_SHAPED_FIXTURE", "history": "SYNTHETIC_TSDB_BACKFILL", "history_days": 14, "cadence_seconds": 300, "complete_intervals_per_metric": 4032, "actual_prometheus": true, "actual_clickhouse": true, "actual_python": true, "model_authentication_enforced": true, "analytics_sample_count": sampleCount, "archived_native_readbacks": archived, "member_count": 3, "evaluated_member_count": 2, "low_utilization_physical_checks_pass": true, "memory95_rejected": true, "fourfold_demand_rejected": true, "missing_statistics_unknown": true, "resumed_publication": true, "revoked_source_roster_preserved": true, "unsupported_template_roster_preserved": true, "sql_guard_negatives": len(negativeMutations) + 3, "immutable_replay": true, "actual_daemon_restart": daemonProof != nil, "actual_real_oidc_browser": browserProof != nil, "group_capacity_authorized": false, "customer_execution_authorized": false, "verified_saving": nil, "fixture": true}
+		if jointBrowserEnabled() {
+			proof["joint_additional_native_readbacks"] = jointAdditionalNativeReadbacks
+		}
 		raw, _ := json.Marshal(proof)
 		if len(raw) > 4096 {
 			t.Fatal("capacity proof bounds")
