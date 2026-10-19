@@ -52,6 +52,17 @@ execution authorization remain false.
 ## Optional deployment
 
 Migration 037 adds append-only requests and decisions under forced tenant RLS.
+Migration 038 independently binds the dedicated database login and its live
+PostgreSQL role OID to one tenant. The database checks `SESSION_USER`, so
+changing `app.tenant_id` or using `SET ROLE` cannot select another tenant.
+The registry and revocations are operator-controlled and append-only; API and
+worker identities cannot commission themselves. Startup and readiness require
+the configured tenant to match the installed, unrevoked binding. All earlier
+migration bytes and historical decision records remain unchanged.
+The machine credential also requires `READ COMMITTED`, the worker's normal
+transaction isolation. An attacker-controlled transaction cannot retain an old
+revocation snapshot using `REPEATABLE READ` or `SERIALIZABLE`. The authenticated
+API retains its separate transaction authority.
 The `finops_group_decision` group is `NOLOGIN`; a distinct commissioned login
 may assume it. The process resolves narrow input sets through a guarded
 database function and can publish its own analytical results. It cannot write
@@ -71,6 +82,34 @@ before applying it to the intended database; the bootstrap does not silently
 run database administration. Secret files must remain regular files with
 restricted permissions. Restart the process after rotating a subPath-mounted
 Kubernetes secret. Do not copy another worker's multi-secret bundle.
+
+For a new login, review and apply the generated atomic role-and-binding SQL
+after migration 038. A legacy three-file credential bundle is preserved
+byte-for-byte and reports that an explicit scope binding is required. Review
+the separate upgrade binding against the exact existing login, tenant and
+operator-inspected live role OID; it neither changes the password nor connects
+to the database. Do not replace legacy private material to make readiness
+appear healthy. A dropped and recreated role or a database restore can change
+the OID and must fail closed. Commission a fresh dedicated login for rotation
+or a recreated role; do not reuse its predecessor's immutable binding ID.
+Revocation blocks new analytical publication and leaves historical
+evidence readable through the authenticated API. Scheduling restoration uses
+its separate original authority throughout.
+
+For the explicit legacy upgrade, retain the existing bootstrap tenant,
+database mode, host and database-name settings. Set
+`FLEET_DECISION_ENABLED=true` and `FLEET_DECISION_CREDENTIAL_ROLE_OID` to the
+operator-inspected live decimal OID, then run:
+
+```sh
+node scripts/bootstrap-fleet-decision-credential-binding.mjs
+```
+
+It writes only private `binding.sql` and `binding.json` in
+`work/private/fleet-decision-credential-binding/`. Review and apply that SQL
+through the intended database's operator channel after migration 038. Never
+commit the private files. Bootstrap output is a preparation receipt; actual
+database readiness confirms installation separately.
 
 ## Recovery and acceptance limits
 

@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"math/big"
@@ -21,6 +23,7 @@ import (
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/fleetbilling"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/fleetcapacity"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/provider"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/telemetry"
@@ -82,21 +85,165 @@ func fleetJointIssueNativeAssessment(t *testing.T, ctx context.Context, f *mutat
 	if model.String(issued, "status") != "ASSESSED" || fleetbilling.Hash(issued["selection"]) != fleetbilling.Hash(selection) {
 		return "", errors.New("JOINT_NATIVE_ASSESSMENT_NOT_ISSUED")
 	}
+	if e := fleetJointConditionalAssessmentReady(sourceDocument(issued["assessment"])); e != nil {
+		return "", e
+	}
 	return model.String(issued, "id"), nil
+}
+
+func fleetJointConditionalAssessmentReady(assessment model.Document) error {
+	rates := sourceDocument(assessment["native_rates"])
+	if model.String(rates, "status") == "OBSERVED_CONDITIONAL" && model.String(sourceDocument(assessment["scenario"]), "status") == "OBSERVED_CONDITIONAL" {
+		return nil
+	}
+	// These are fixed broker reason codes, never raw rows, prices or errors.
+	codes := []string{}
+	for _, code := range model.Strings(rates, "reason_codes") {
+		if len(codes) >= 8 {
+			break
+		}
+		if len(code) == 0 || len(code) > 96 {
+			continue
+		}
+		valid := true
+		for _, c := range code {
+			if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			codes = append(codes, code)
+		}
+	}
+	if len(codes) == 0 {
+		codes = append(codes, "UNCLASSIFIED")
+	}
+	return errors.New("JOINT_NATIVE_CONDITIONAL_PRICING_REQUIRED:" + strings.Join(codes, ","))
+}
+
+// Physical evaluation does not require image licensing or network placement.
+// The joint fixture supplies those additional provider-shaped observations in
+// the archived bytes, then reparses the complete response as ordinary evidence.
+func fleetJointPricingHardware(t *testing.T, instance string, now time.Time) (provider.HardwareEvidence, []byte) {
+	t.Helper()
+	pages := []nativeAssessmentPage{}
+	for _, page := range fleetCapacityHardwarePages {
+		selector, e := url.ParseQuery(page.selector)
+		if e != nil {
+			t.Fatal(e)
+		}
+		body := strings.ReplaceAll(strings.ReplaceAll(page.body, "<instanceId>i-0123456789abcdef0</instanceId>", "<instanceId>"+instance+"</instanceId>"), "vol-0123456789abcdef0", "vol-"+strings.TrimPrefix(instance, "i-"))
+		switch selector.Get("Action") {
+		case "DescribeInstances":
+			selector.Set("InstanceId.1", instance)
+			body = strings.Replace(body, "</imageId>", "</imageId><subnetId>subnet-0123456789abcdef0</subnetId><vpcId>vpc-0123456789abcdef0</vpcId>", 1)
+		case "DescribeImages":
+			body = strings.Replace(body, "</imageId>", "</imageId><platformDetails>Linux/UNIX</platformDetails><usageOperation>RunInstances</usageOperation><productCodes/>", 1)
+		case "DescribeVolumes":
+			selector.Set("VolumeId.1", "vol-"+strings.TrimPrefix(instance, "i-"))
+			body = strings.ReplaceAll(body, "<volumeType>gp3</volumeType>", "<volumeType>gp3</volumeType><size>64</size>")
+		}
+		pages = append(pages, nativeAssessmentPage{selector, body})
+	}
+	raw := nativeAssessmentFrame(pages...)
+	hardware, e := provider.ParseHardwareEvidence(raw, nativeAssessmentAccount, "eu-west-1", instance, []string{"m6i.large"}, now)
+	if e != nil || provider.ValidateHardwareEvidence(hardware, instance, []string{"m6i.large"}) != nil {
+		t.Fatal("joint native hardware response failed ordinary decoder", e)
+	}
+	return hardware, raw
+}
+
+func TestFleetJointPricingHardwareFixture(t *testing.T) {
+	// The old physical fixture intentionally has no image price dimensions.
+	var oldImage struct {
+		Items []struct {
+			Platform  string `xml:"platformDetails"`
+			Operation string `xml:"usageOperation"`
+		} `xml:"imagesSet>item"`
+	}
+	for _, page := range fleetCapacityHardwarePages {
+		selector, _ := url.ParseQuery(page.selector)
+		if selector.Get("Action") == "DescribeImages" {
+			if xml.Unmarshal([]byte(page.body), &oldImage) != nil || len(oldImage.Items) != 1 || oldImage.Items[0].Platform != "" || oldImage.Items[0].Operation != "" {
+				t.Fatal("original physical fixture precondition changed")
+			}
+		}
+	}
+	_, raw := fleetJointPricingHardware(t, fleetCapacityPromInstances[0], time.Now().UTC())
+	r := bytes.NewReader(raw)
+	image, placement := false, false
+	for r.Len() > 0 {
+		var n uint32
+		var size uint64
+		if binary.Read(r, binary.BigEndian, &n) != nil || n > 65536 || uint64(n) > uint64(r.Len()) {
+			t.Fatal("native frame selector")
+		}
+		selectorBytes := make([]byte, n)
+		_, _ = io.ReadFull(r, selectorBytes)
+		if binary.Read(r, binary.BigEndian, &size) != nil || size > 16<<20 || size > uint64(r.Len()) {
+			t.Fatal("native frame response")
+		}
+		body := make([]byte, size)
+		_, _ = io.ReadFull(r, body)
+		selector, e := url.ParseQuery(string(selectorBytes))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if selector.Get("Action") == "DescribeImages" {
+			var doc struct {
+				Items []struct {
+					Platform  string     `xml:"platformDetails"`
+					Operation string     `xml:"usageOperation"`
+					Products  []struct{} `xml:"productCodes>item"`
+				} `xml:"imagesSet>item"`
+			}
+			if xml.Unmarshal(body, &doc) != nil || len(doc.Items) != 1 || doc.Items[0].Platform != "Linux/UNIX" || doc.Items[0].Operation != "RunInstances" || len(doc.Items[0].Products) != 0 {
+				t.Fatal("explicit image pricing dimensions missing")
+			}
+			image = true
+		}
+		if selector.Get("Action") == "DescribeInstances" {
+			var doc struct {
+				Items []struct {
+					Subnet string `xml:"subnetId"`
+					VPC    string `xml:"vpcId"`
+				} `xml:"reservationSet>item>instancesSet>item"`
+			}
+			if xml.Unmarshal(body, &doc) != nil || len(doc.Items) != 1 || doc.Items[0].Subnet != "subnet-0123456789abcdef0" || doc.Items[0].VPC != "vpc-0123456789abcdef0" {
+				t.Fatal("explicit native placement missing")
+			}
+			placement = true
+		}
+	}
+	if !image || !placement {
+		t.Fatal("required native responses missing")
+	}
+	valid := model.Document{"native_rates": model.Document{"status": "OBSERVED_CONDITIONAL"}, "scenario": model.Document{"status": "OBSERVED_CONDITIONAL"}}
+	if fleetJointConditionalAssessmentReady(valid) != nil {
+		t.Fatal("conditional assessment refused")
+	}
+	for _, reason := range []string{"PRICE_NATIVE_LINUX_SHARED_LICENSE_REQUIRED", "PRICE_NATIVE_VPC_SUBNET_UNAVAILABLE"} {
+		unavailable := model.Document{"native_rates": model.Document{"status": "UNAVAILABLE", "reason_codes": []string{reason}}, "scenario": model.Document{"status": "UNAVAILABLE"}}
+		if e := fleetJointConditionalAssessmentReady(unavailable); e == nil || e.Error() != "JOINT_NATIVE_CONDITIONAL_PRICING_REQUIRED:"+reason {
+			t.Fatal("unavailable broker result reached opaque joint resolver")
+		}
+	}
 }
 
 func fleetJointMigrateCandidate(t *testing.T, ctx context.Context, admin *store.Store) {
 	t.Helper()
 	dir := t.TempDir()
-	name := "037_fleet_joint_decisions.sql"
-	raw, e := os.ReadFile(filepath.Join("..", "..", "migrations", name))
-	if e != nil {
-		t.Fatal(e)
+	for _, name := range []string{"037_fleet_joint_decisions.sql", "038_fleet_decision_credential_scope.sql"} {
+		raw, e := os.ReadFile(filepath.Join("..", "..", "migrations", name))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = os.WriteFile(filepath.Join(dir, name), raw, 0600); e != nil {
+			t.Fatal(e)
+		}
 	}
-	if e = os.WriteFile(filepath.Join(dir, name), raw, 0600); e != nil {
-		t.Fatal(e)
-	}
-	if e = admin.Migrate(ctx, dir); e != nil {
+	if e := admin.Migrate(ctx, dir); e != nil {
 		t.Fatal(e)
 	}
 }
@@ -148,7 +295,7 @@ func fleetJointPublishConditionalNative(t *testing.T, ctx context.Context, f *mu
 			hardware, body := nativeAssessmentHardware(t, instance, kind, time.Now().UTC())
 			document, raw = source.Object(hardware), body
 		} else {
-			hardware, body := fleetCapacityFixtureHardware(t, instance, time.Now().UTC())
+			hardware, body := fleetJointPricingHardware(t, instance, time.Now().UTC())
 			document, raw = source.Object(hardware), body
 		}
 		candidateTypes := []string{"m6i.large"}

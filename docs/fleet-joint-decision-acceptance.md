@@ -106,6 +106,56 @@ browser phase and fixed reason code, or null when unavailable. No arbitrary
 errors, response bodies or observations are added to public artifacts.
 Remote receipt SHA-256: `0d7d40a3e9f6ba49438216fd07ed7ed0ca9a563b03ee3ec6062ed5807e986b44`.
 
+Corrected indexed rehearsal `ab8765cc-6c21-4a8f-8922-dd73d4c8927c`, tree
+`a09515e988084f80c4912340eca12029e148bd87`, is retained as **FAIL**. The
+capacity result passed the unchanged 60-second poll; the real console fetched
+and rendered its persisted calculated member. Native model persistence,
+capacity-worker replacement and 1,032-row financial readback also completed.
+The coordinator then rejected the joint input pair with SQLSTATE `P0001` and
+stopped its API. The browser consequently failed during capacity reload,
+before the finance actor submitted a joint decision. Its bounded failure is
+`PERSISTED_RELOAD` / `BROWSER_CHECK_FAILED`. This does not establish joint
+worker recovery, a successful reload or complete native acceptance. Owned
+cleanup succeeded; no main or cloud resources were modified.
+Receipt SHA-256: `bd5363dd01e7fe92d8eaaae1078ec884d0ec8c768c147c5a4e5a0b33da423bf6`.
+
+A subsequent credential review found that 037's dedicated login relied on
+the deployment tenant setting rather than an independent database tenant
+binding. New additive migration 038 closes that boundary using the actual
+session login and live role OID, an operator-installed immutable binding and
+append-only revocation. The original 001–037 migration bytes remain frozen.
+Actual two-tenant credential, bootstrap compatibility and migration recovery
+acceptance are required before commissioning this optional process. Earlier
+API cross-tenant checks do not by themselves prove containment of a leaked
+database credential. This correction earns no additional milestone credit
+until its connected acceptance passes.
+
+Bounded candidate credential checks passed in actual restricted PostgreSQL
+run `8c0478ce-e0c3-47e8-bc11-4a1560ad30a8`, with worker/command checks, vet
+and owned cleanup. Both tenants contain independently issued requests,
+decisions and refusals. Changing the tenant GUC, using raw login or `RESET
+ROLE`, calling the public/private resolver and publishing another tenant's
+otherwise valid evidence are rejected. The same direct decision and refusal
+inserts first succeed for their legitimate tenant in rollback-only positive
+controls. Actual lock waits exercise publication before revocation and
+revocation before publication. Renaming or recreating the login does not
+inherit its binding. Authenticated API history survives machine revocation.
+Linux Node 22 bootstrap run `f429f3ef-b69b-47e8-97b7-760a9402b61f` passed four cases without skips,
+including unchanged legacy material and separate OID-pinned upgrade output.
+The earlier weaker direct-write negative remains distinct from this retake;
+neither component run establishes the final native or installed migration gate.
+
+Final credential snapshot `7666a987-80cc-49d2-824b-f370e2a2ebd8` passed the
+coherent domain, worker, command, existing 037 store/service and new credential
+checks, with no skips, vet and owned cleanup. It additionally establishes a
+real `REPEATABLE READ` snapshot before an operator revocation, then rejects
+scope, reads, resolver access and direct publication after that revocation.
+`SERIALIZABLE` is also refused; normal `READ COMMITTED` operation and API
+history remain available. This closes the retained-snapshot edge rather than
+assuming the application transaction settings contain a stolen credential.
+Final 038 SHA-256:
+`789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984`.
+
 ## Required integration and release gates
 
 Connect actual archived native hardware and billing,

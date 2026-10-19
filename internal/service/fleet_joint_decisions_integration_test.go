@@ -51,9 +51,12 @@ func jointDecode(t *testing.T, v any, out any) {
 		t.Fatal(e)
 	}
 }
-func jointRuntime(t *testing.T, admin *store.Store, role, purpose string) *store.Store {
+func jointRuntime(t *testing.T, admin *store.Store, role, purpose string, tenant ...string) *store.Store {
 	t.Helper()
 	ctx := context.Background()
+	if len(tenant) > 1 || len(tenant) == 1 && (role != "finops_group_decision" || purpose != "group-decision-reader" || tenant[0] == "") {
+		t.Fatal("explicit decision credential fixture tenant required")
+	}
 	login := "joint_http_" + strings.ReplaceAll(model.ID(), "-", "")
 	password := model.ID()
 	if _, e := admin.Pool.Exec(ctx, "CREATE ROLE "+pgx.Identifier{login}.Sanitize()+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '"+password+"' IN ROLE "+pgx.Identifier{role}.Sanitize()); e != nil {
@@ -64,6 +67,23 @@ func jointRuntime(t *testing.T, admin *store.Store, role, purpose string) *store
 	runtime, e := store.OpenRuntime(ctx, dsn.String(), purpose)
 	if e != nil {
 		t.Fatal(e)
+	}
+	if len(tenant) == 1 {
+		dir := t.TempDir()
+		raw, e := os.ReadFile(filepath.Join("..", "..", "migrations", "038_fleet_decision_credential_scope.sql"))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = os.WriteFile(filepath.Join(dir, "038_fleet_decision_credential_scope.sql"), raw, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e = admin.Migrate(ctx, dir); e != nil {
+			t.Fatal(e)
+		}
+		tag, e := admin.Pool.Exec(ctx, `INSERT INTO public.fleet_decision_credentials(id,database_login,role_oid,tenant_id) SELECT $1,rolname,oid,$2 FROM pg_roles WHERE rolname=$3`, model.ID(), tenant[0], login)
+		if e != nil || tag.RowsAffected() != 1 {
+			t.Fatal("explicit decision credential fixture installation", e)
+		}
 	}
 	t.Cleanup(func() {
 		runtime.Pool.Close()
@@ -232,7 +252,7 @@ func TestJointDecisionActualJWTPGWorkerPersistsUnknownAndRechecksAuthority(t *te
 		t.Fatal(e)
 	}
 	assessor := jointRuntime(t, admin, "finops_group_assessor", "group-assessment-reader")
-	writer := jointRuntime(t, admin, "finops_group_decision", "group-decision-reader")
+	writer := jointRuntime(t, admin, "finops_group_decision", "group-decision-reader", f.tenant)
 	ar, cr := jointIssuedUnknownChildren(t, f, assessor, evaluator, proposals)
 	owner := f.token(f.tenant, "assigned-owner", "ORGANISATION_OWNER")
 	auditor := f.token(f.tenant, "joint-auditor", "AUDITOR")

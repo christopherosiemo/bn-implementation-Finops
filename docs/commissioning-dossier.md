@@ -6,6 +6,12 @@ Review its tenant, dedicated login/secret, private database networks and verifie
 CA before enabling this optional process. It has no cloud, signing, financial
 ledger or execution credentials. Conditional historical rates do not prove
 contracted avoidable costs, completed business work or group feasibility.
+Migration 038 additionally requires an operator-installed login/OID/tenant
+binding. Review new atomic commission SQL or the explicit legacy binding
+upgrade against the actual database role OID. Preserve existing secrets and
+all 001–037 migration bytes. Rotation, role recreation and database restore
+must verify this binding again; an absent or revoked binding leaves the
+optional worker unready and cannot affect owned scheduling restoration.
 The [acceptance record](fleet-joint-decision-acceptance.md) distinguishes bounded
 component checks from pending native, browser and process-recovery gates.
 

@@ -103,7 +103,7 @@ func jointBrowserPrepare(t *testing.T, ctx context.Context, admin *store.Store, 
 		return nil
 	}
 	fleetJointMigrateCandidate(t, ctx, admin)
-	db := jointRuntime(t, admin, "finops_group_decision", "group-decision-reader")
+	db := jointRuntime(t, admin, "finops_group_decision", "group-decision-reader", ready.TenantID)
 	cfg := db.Pool.Config().ConnConfig
 	// This separate one-file volume never receives the capacity archive/model
 	// files, administrator DSN, commissioning SQL, or signing credentials.

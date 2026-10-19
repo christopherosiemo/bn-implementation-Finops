@@ -155,15 +155,12 @@ func Open(ctx context.Context, c Config) (*Worker, error) {
 	if e != nil {
 		return nil, ErrConfiguration
 	}
-	var ready bool
-	e = db.Do(setup, c.TenantID, func(tx *store.Tx) error {
-		return tx.QueryRow(setup, `SELECT to_regclass('public.fleet_joint_decision_requests') IS NOT NULL AND to_regclass('public.fleet_joint_decisions') IS NOT NULL`).Scan(&ready)
-	})
-	if e != nil || !ready {
+	worker := &Worker{Store: db, Tenant: c.TenantID}
+	if !worker.Ready(setup) {
 		db.Pool.Close()
 		return nil, ErrConfiguration
 	}
-	return &Worker{Store: db, Tenant: c.TenantID}, nil
+	return worker, nil
 }
 func (w *Worker) Close() {
 	if w != nil && w.Store != nil {
@@ -171,5 +168,14 @@ func (w *Worker) Close() {
 	}
 }
 func (w *Worker) Ready(ctx context.Context) bool {
-	return w != nil && w.Store != nil && w.Store.Pool.Ping(ctx) == nil
+	if w == nil || w.Store == nil || !tenantPattern.MatchString(w.Tenant) {
+		return false
+	}
+	var ready bool
+	e := w.Store.Do(ctx, w.Tenant, func(tx *store.Tx) error {
+		return tx.QueryRow(ctx, `SELECT public.fleet_decision_credential_scope($1)
+		 AND to_regclass('public.fleet_joint_decision_requests') IS NOT NULL
+		 AND to_regclass('public.fleet_joint_decisions') IS NOT NULL`, w.Tenant).Scan(&ready)
+	})
+	return e == nil && ready
 }
