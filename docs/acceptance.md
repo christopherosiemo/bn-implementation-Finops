@@ -1,5 +1,60 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: immutable identity interpretation and complete-body rejection
+
+The preceding history/proxy/authorization release passed all nine normal
+[exact-commit CI jobs at 9209a4b](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826).
+The local encrypted whole-cluster recovery run
+`1f1aff46-7628-47d0-8edb-fe41cdf58c0d` passed all eight checks in 673.588 seconds,
+including migration 025, restricted API readback and original authority hashes.
+This is quarantined PostgreSQL/Temporal schema readback, not production RTO,
+workflow resumption or object/analytics recovery.
+
+The next private identity component preserves schema-1 hardware evidence and
+signatures. Its separate schema-2 interpretation retrieves the original pinned
+raw version, retains original observation/receive times and records nullable
+latest-start and primary-interface attachment facts. These do not prove instance
+creation, historical ASG membership or complete incarnation. No process or public
+route enables the derivation. Every result has unknown interval ownership, no
+execution authorization and no monetary claim. See [identity boundaries](hardware-identity.md).
+
+The final actual PostgreSQL/versioned MinIO run
+`bf5052ec-2537-4d5b-9f7f-88b5c9d0ada2` passed all six cases in 2.742 seconds plus
+vet. It covers exact readback/replay, missing identity, unavailable or substituted
+versions, revocation during I/O and process loss before publication. Its bounded
+acceptance binds source manifest
+`9808ff7a8ee229b5206fc670260875347873e11ac04ccf1d9bcd17f601b88f3a`
+and confirms complete owned cleanup and credential-file removal. Native AWS XML
+remains a provider-shaped double. Subsequent API body changes do not change the
+frozen identity/provider/source/store/migration files tested in that run.
+Additive migration 026 SHA-256 is
+`5ccec009ef286b71d299688832ccd94fb142be833119295169844a82f7ee0504`;
+001–025 are unchanged. The SQL guard independently validates issued provenance
+and bindings; new XML field semantics remain the trusted decoder's boundary.
+
+The API now rejects the entire oversized mutation rather than accepting a valid
+truncated prefix. Actual JWT/JWKS and restricted PostgreSQL acceptance passed in
+4.149 seconds, covering the independent literal 4 MiB boundary, streamed and
+misleading lengths, cached prefixes, one-byte bounded lookahead and no persisted
+effects. All 45 control-plane POST contracts expose the typed 413, generated
+frontend types match, and the three machine ingress contracts are unchanged.
+The separate console proxy ceiling preserves supported requests and returns
+bounded JSON for edge refusal. See [request boundary semantics](mutation-request-boundaries.md).
+The final isolated actual-Nginx run
+`11ff776f-08ec-42b8-856f-a116edaefa71` passed fifteen known/chunked transport
+cases in 14.923 seconds, including unchanged upstream errors and no forwarding
+after edge rejection. Its source-bound PASS was published only after owned
+cleanup. All 180 Node checks and the frozen public source secret scan passed.
+After applying 026 to the retained local database, the rebuilt API passed all
+seven runtime suites consecutively, including actual worker/API restart while an
+occurrence owned a stopped instance. The baseline/evidence/signature and
+restoration boundaries remain intact.
+
+These changes strengthen existing component stages. They do not establish
+commissioned history, fleet authority or live/production operation; full-product
+progress remains **25.2 → 25.2**. Current-release CI, connected browser and
+process-recovery results remain separate from these component acceptance runs.
+
 ## 19 October: current authorization on mutation retries
 
 Committed mutation responses now require the same current route roles as fresh

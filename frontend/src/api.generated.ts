@@ -3161,7 +3161,22 @@ export interface components {
             public_ip_change_acknowledged: true;
         };
     };
-    responses: never;
+    responses: {
+        /** @description Complete control-plane request exceeds 4 MiB; no idempotency key or mutation is committed. */
+        MutationBodyTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    error: "BODY_TOO_LARGE";
+                    /** @enum {string} */
+                    message: "request body exceeds 4 MiB";
+                };
+            };
+        };
+    };
     parameters: {
         PageLimit: number;
         /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
@@ -3276,6 +3291,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid binding */
             422: {
                 headers: {
@@ -3377,6 +3393,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Identity changed */
             422: {
                 headers: {
@@ -3533,6 +3550,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Source binding or semantic contract invalid */
             422: {
                 headers: {
@@ -3634,6 +3652,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Registration identity changed or semantic source invalid */
             422: {
                 headers: {
@@ -3743,6 +3762,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid selector or source binding */
             422: {
                 headers: {
@@ -3931,6 +3951,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Unknown resource/workload */
             422: {
                 headers: {
@@ -4019,6 +4040,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Source */
             422: {
                 headers: {
@@ -4285,6 +4307,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid metadata */
             422: {
                 headers: {
@@ -4393,6 +4416,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Resource */
             422: {
                 headers: {
@@ -4516,6 +4540,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Missing safety profile */
             422: {
                 headers: {
@@ -4629,6 +4654,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid definitions */
             422: {
                 headers: {
@@ -4702,6 +4728,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid definitions or source binding */
             422: {
                 headers: {
@@ -4746,6 +4773,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Revoked or unsupported source */
             422: {
                 headers: {
@@ -4827,6 +4855,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     evaluateTelemetryConnection: {
@@ -4867,6 +4896,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Missing */
             422: {
                 headers: {
@@ -5018,6 +5048,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Incomplete or invalid action requirements */
             422: {
                 headers: {
@@ -5113,6 +5144,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid limits */
             422: {
                 headers: {
@@ -5180,6 +5212,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid objective */
             422: {
                 headers: {
@@ -5323,6 +5356,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid graph fields */
             422: {
                 headers: {
@@ -5396,6 +5430,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid review fields */
             422: {
                 headers: {
@@ -5447,6 +5482,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     inspectSourceConnection: {
@@ -5493,6 +5529,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     revokeSourceConnection: {
@@ -5517,6 +5554,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     listActivitySources: {
@@ -5559,6 +5597,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     ingestActivityInterval: {
@@ -5650,6 +5689,7 @@ export interface operations {
                     "application/json": components["schemas"]["CloudAccount"];
                 };
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     generateRecommendations: {
@@ -5670,6 +5710,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     createWorkload: {
@@ -5690,6 +5731,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     updatePolicy: {
@@ -5714,6 +5756,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     configureResource: {
@@ -5738,6 +5781,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     importBilling: {
@@ -5762,6 +5806,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     resourceReadiness: {
@@ -5808,6 +5853,7 @@ export interface operations {
                     "application/json": components["schemas"]["Readiness"];
                 };
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     sealBaseline: {
@@ -5832,6 +5878,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     sealMeasurement: {
@@ -5856,6 +5903,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     createSchedule: {
@@ -5880,6 +5928,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     createPlan: {
@@ -5904,6 +5953,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     approvePlan: {
@@ -5926,6 +5976,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     executePlan: {
@@ -5948,6 +5999,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     restoreNow: {
@@ -5972,6 +6024,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     pauseSchedule: {
@@ -5996,6 +6049,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     skipStop: {
@@ -6020,6 +6074,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     updateSignals: {
@@ -6044,6 +6099,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     pauseAutopilot: {
@@ -6066,6 +6122,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     verifySavings: {
@@ -6086,6 +6143,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     resetFixture: {
@@ -6106,6 +6164,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
     fixtureScenario: {
@@ -6126,6 +6185,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            413: components["responses"]["MutationBodyTooLarge"];
         };
     };
 }

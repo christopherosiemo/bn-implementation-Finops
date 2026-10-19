@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Cloud Cost Autopilot AWS Pilot
   version: 0.3.0
-  description: Tenant identity comes exclusively from the validated OIDC token. Monetary values are decimal strings. All POSTs require Idempotency-Key; resource updates also require If-Match.
+  description: Tenant identity comes exclusively from the validated OIDC token. Monetary values are decimal strings. All POSTs require Idempotency-Key; resource updates also require If-Match. Control-plane POST bodies are limited to 4 MiB (4194304 bytes) including whitespace; larger complete or streamed bodies return 413 BODY_TOO_LARGE before idempotency or database access. Dedicated machine ingress retains its separate limits.
 servers:
   - url: /v1
 security:
@@ -26,6 +26,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201': { description: Immutable observational registration, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } } } }
         '403': { description: PLATFORM_ADMIN required }
         '404': { description: Workload or source not found within tenant }
@@ -47,6 +48,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201': { description: New immutable revision, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } } } }
         '403': { description: PLATFORM_ADMIN and workload access required }
         '404': { description: Registration or source not found within tenant }
@@ -81,6 +83,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201': { description: Immutable semantic declaration, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } } } }
         '403': { description: PLATFORM_ADMIN required }
         '404': { description: Registration or activity source not found within tenant }
@@ -102,6 +105,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201': { description: New immutable semantic revision, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } } } }
         '403': { description: PLATFORM_ADMIN required }
         '404': { description: Definition or activity source not found within tenant }
@@ -126,6 +130,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScopeRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201': { description: Sealed immutable compact history analysis, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScope' } } } }
         '403': { description: PLATFORM_ADMIN and workload access required }
         '404': { description: Selected registration or definition not found within tenant }
@@ -186,6 +191,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AllocationPolicyDefinition' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable policy appended
           content:
@@ -224,6 +230,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AllocationReportRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Report and conserved signed currency totals sealed atomically
           content:
@@ -318,6 +325,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ConfigurationAuthorityRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable DECLARED_NOT_ATTESTED revision with no execution authority
           content:
@@ -349,6 +357,7 @@ paths:
           application/json:
             schema: { type: object, additionalProperties: false, required: [authority_id, capacity_assessment_id], properties: { authority_id: { type: string, minLength: 1 }, capacity_assessment_id: { type: string, minLength: 1 } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable blocked proposal; no execution plan or claimed savings
           content:
@@ -391,6 +400,7 @@ paths:
           application/json:
             schema: { type: object, additionalProperties: false, required: [connection_id], properties: { connection_id: { type: string, minLength: 1 } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable assessment binds the selected source, profile, observation population and receipts
           content:
@@ -433,6 +443,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/TelemetryConnectionRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable initial connection revision
           content:
@@ -460,6 +471,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/TelemetryConnectionRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: New immutable definition revision; previous evidence cannot authorize the new configuration
           content:
@@ -479,6 +491,7 @@ paths:
           application/json:
             schema: { type: object, additionalProperties: false, maxProperties: 0 }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '202':
           description: Durable synchronization requested; publication completion does not establish observed coverage
           content:
@@ -507,7 +520,7 @@ paths:
         content:
           application/json:
             schema: { type: object, additionalProperties: false, required: [reason], properties: { reason: { type: string, minLength: 1 } } }
-      responses: { '200': { description: Immutable source revocation appended }, '409': { description: Connection version changed }, '403': { description: PLATFORM_ADMIN required } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Immutable source revocation appended }, '409': { description: Connection version changed }, '403': { description: PLATFORM_ADMIN required } }
   /telemetry-connections/{id}/evaluate:
     post:
       operationId: evaluateTelemetryConnection
@@ -518,6 +531,7 @@ paths:
           application/json:
             schema: { type: object, additionalProperties: false, required: [mode], properties: { mode: { type: string, enum: [history, window] } } }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable evaluation from server-selected current definitions and persisted receipts; no execution authorization
           content:
@@ -575,6 +589,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/WorkloadSafetyRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable requirements revision recorded
           content:
@@ -613,6 +628,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SloObjectiveRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable objective revision recorded; prior stop authority requires reassessment
           content:
@@ -640,6 +656,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SloSourceRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Machine collector registration recorded without execution authority
           content:
@@ -694,6 +711,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ResourceGraphRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable operator-declared revision recorded
           content:
@@ -722,6 +740,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/DependencyReviewRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable review bound to graph and inventory hashes, including blocking reasons
           content:
@@ -747,7 +766,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/SourceConnectionRequest' }
-      responses: { '201': { description: AWS location registered; trust requires successful independent ingestion } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: AWS location registered; trust requires successful independent ingestion } }
   /source-connections/{id}:
     get:
       operationId: inspectSourceConnection
@@ -763,13 +782,13 @@ paths:
       operationId: syncSourceConnection
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '202': { description: Durable ingestion request queued; no execution permission granted } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '202': { description: Durable ingestion request queued; no execution permission granted } }
   /source-connections/{id}/revoke:
     post:
       operationId: revokeSourceConnection
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '202': { description: New stops blocked; existing owned restoration remains authorized } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '202': { description: New stops blocked; existing owned restoration remains authorized } }
   /activity-sources:
     get:
       operationId: listActivitySources
@@ -782,7 +801,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ActivitySourceRequest' }
-      responses: { '201': { description: Exact machine subject and metric definition registered for the resource } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Exact machine subject and metric definition registered for the resource } }
   /activity/intervals:
     post:
       operationId: ingestActivityInterval
@@ -814,6 +833,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ConnectAccountRequest' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Account connected and read-only inventory discovered
           content:
@@ -824,25 +844,25 @@ paths:
       operationId: generateRecommendations
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '201': { description: Recommendations generated } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Recommendations generated } }
   /workloads:
     post:
       operationId: createWorkload
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '201': { description: Non-production workload with owner and mandatory health URL created; signals initially UNKNOWN } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Non-production workload with owner and mandatory health URL created; signals initially UNKNOWN } }
   /policies/{id}:
     post:
       operationId: updatePolicy
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Scoped workload_autopilot_ids and pause updated; temporary Autopilot grant expires in 30 days } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Scoped workload_autopilot_ids and pause updated; temporary Autopilot grant expires in 30 days } }
   /resources/{id}/configure:
     post:
       operationId: configureResource
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Explicit workload mapping and field-specific runtime delegation configured } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Explicit workload mapping and field-specific runtime delegation configured } }
   /billing/import:
     post:
       operationId: importBilling
@@ -852,7 +872,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/BillingImportRequest' }
-      responses: { '202': { description: AWS CUR 2.0 source records normalized and queued for immutable persistence. Caller supplied economic evidence flags are rejected. } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '202': { description: AWS CUR 2.0 source records normalized and queued for immutable persistence. Caller supplied economic evidence flags are rejected. } }
   /resources/{id}/readiness:
     get:
       operationId: resourceReadiness
@@ -869,6 +889,7 @@ paths:
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
       responses:
+        '413': { $ref: '#/components/responses/MutationBodyTooLarge' }
         '201':
           description: Immutable baseline and operational readiness assessment sealed. Generate recommendations to use this report in a plan.
           content:
@@ -883,7 +904,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/BaselineRequest' }
-      responses: { '201': { description: Immutable source-bound baseline sealed; requires at least fourteen complete local days and validated idle-workload evidence } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Immutable source-bound baseline sealed; requires at least fourteen complete local days and validated idle-workload evidence } }
   /evidence/measurements:
     post:
       operationId: sealMeasurement
@@ -893,7 +914,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/MeasurementRequest' }
-      responses: { '201': { description: Immutable measurement snapshot sealed against the signed reservation; costs and invoice reconciliation derive from its persisted canonical source } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Immutable measurement snapshot sealed against the signed reservation; costs and invoice reconciliation derive from its persisted canonical source } }
   /schedules:
     post:
       operationId: createSchedule
@@ -903,7 +924,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateScheduleRequest' }
-      responses: { '201': { description: Approved schedule definition created } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Approved schedule definition created } }
   /change-plans:
     post:
       operationId: createPlan
@@ -913,68 +934,80 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreatePlanRequest' }
-      responses: { '201': { description: Immutable resource occurrence plan awaiting approval } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Immutable resource occurrence plan awaiting approval } }
   /approvals:
     post:
       operationId: approvePlan
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/PlanReference' }
-      responses: { '201': { description: Exact plan approved; returns approval and updated change_plan } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Exact plan approved; returns approval and updated change_plan } }
   /executions:
     post:
       operationId: executePlan
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/PlanReference' }
-      responses: { '202': { description: Durable stop and restoration occurrence queued } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '202': { description: Durable stop and restoration occurrence queued } }
   /executions/{id}/start-now:
     post:
       operationId: restoreNow
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '202': { description: Owned restoration requested; pause never cancels restoration } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '202': { description: Owned restoration requested; pause never cancels restoration } }
   /schedules/{id}/pause:
     post:
       operationId: pauseSchedule
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Schedule paused or resumed } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Schedule paused or resumed } }
   /schedules/{id}/skip-next-stop:
     post:
       operationId: skipStop
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Next stop will be skipped } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Next stop will be skipped } }
   /workloads/{id}/signals:
     post:
       operationId: updateSignals
       parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Fresh explicit incident/deployment/job signals recorded } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Fresh explicit incident/deployment/job signals recorded } }
   /control/pause:
     post:
       operationId: pauseAutopilot
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: New stops blocked; recovery remains authorized } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: New stops blocked; recovery remains authorized } }
   /savings/verify:
     post:
       operationId: verifySavings
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Append verified or provisional evidence; negative values preserved } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Append verified or provisional evidence; negative values preserved } }
   /demo/reset:
     post:
       operationId: resetFixture
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Fixture-only reset; audit and ledger retained } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Fixture-only reset; audit and ledger retained } }
   /demo/scenario:
     post:
       operationId: fixtureScenario
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
       requestBody: { $ref: '#/components/requestBodies/Document' }
-      responses: { '200': { description: Fixture healthy/incident/job/deployment/stale/unhealthy scenario selected } }
+      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '200': { description: Fixture healthy/incident/job/deployment/stale/unhealthy scenario selected } }
 components:
+  responses:
+    MutationBodyTooLarge:
+      description: Complete control-plane request exceeds 4 MiB; no idempotency key or mutation is committed.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [error, message]
+            properties:
+              error: { type: string, enum: [BODY_TOO_LARGE] }
+              message: { type: string, enum: [request body exceeds 4 MiB] }
   securitySchemes:
     deploymentMachineAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Dedicated finops-deployment-observer audience and exact registered machine issuer/subject; no human roles }
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

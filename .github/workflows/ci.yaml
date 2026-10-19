@@ -257,6 +257,18 @@ jobs:
           docker compose up --no-build -d
       - name: Exercise authenticated execution and verification
         run: node scripts/smoke.mjs
+      - name: Exercise actual console proxy request boundaries on isolated HTTP fixtures
+        run: |
+          node --test scripts/tests/nginx-body-boundary-lab.test.mjs
+          node scripts/nginx-body-boundary-lab.mjs
+      - name: Preserve bounded proxy acceptance after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-body-boundary-acceptance
+          path: work/nginx-body-boundary/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Restart API and worker during an owned stop
         run: node scripts/recovery-smoke.mjs
       - name: Exercise dedicated machine OIDC and activity-ingress isolation
@@ -308,6 +320,18 @@ jobs:
         with:
           name: fleet-history-storage-acceptance
           path: work/private/fleet-history/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Exercise private hardware identity derivation with actual isolated storage
+        run: |
+          node --test scripts/tests/hardware-identity-lab.test.mjs
+          node scripts/hardware-identity-lab.mjs
+      - name: Preserve bounded identity acceptance without credentials or native bodies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardware-identity-storage-acceptance
+          path: work/private/hardware-identity/*/acceptance.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Verify final encrypted whole-cluster PostgreSQL backup in network quarantine

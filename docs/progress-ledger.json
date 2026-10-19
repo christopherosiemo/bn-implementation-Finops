@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Bounded observed-cost allocation retains its accepted deterministic E2E credit. All nine exact-commit checks at fd0e5d6 accepted stop-recovery and native local Flux assurance. The subsequent bounded history, explicit request proxy and current-request replay authorization passed local service/storage/runtime/browser acceptance without advancing an existing maturity stage. Fixed weights, package scope and historical reviews remain unchanged; no live/customer or production credit.",
+  "credit_review": "Bounded observed-cost allocation retains its accepted deterministic E2E credit. All nine exact-commit CI jobs at 9209a4b accepted history, explicit request-proxy semantics and current-request replay authorization. Separate immutable native identity interpretation and complete-body request rejection have local component acceptance without advancing an existing maturity stage. Fixed weights, package scope and historical reviews remain unchanged; no live/customer or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -858,6 +858,26 @@
       "runtime_source_tree": "89dc954e6c083b93b3f9beb72855b0577c2c593a",
       "live_credit_awarded": false,
       "acceptance": "Local final API passed all seven runtime suites consecutively and all 53 Chromium cases in 5.8 minutes with zero retries and unchanged timeouts. Actual restricted PostgreSQL/JWKS acceptance, versioned MinIO cold-lab cleanup, durable reader leases, immutable source/receipt references, exact zero-versus-missing handling, v1 hash compatibility and explicit v2 request-throughput proxy semantics passed. All 39 unsafe Helm configurations refused at their explicit expected guards. Replay now rechecks validated request roles and current scoped ownership without repeating mutation/CAS or revoking owned restoration. All history scopes remain BLOCKED/INTERVAL_OWNERSHIP_UNPROVEN; no enabled Fleet runtime, financial authority, customer history, live cloud or production operation is inferred. Exact-commit CI and final encrypted recovery remain separate release checks."
+    },
+    {
+      "id": "native-identity-request-boundaries-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/hardware-identity.md",
+        "docs/mutation-request-boundaries.md",
+        "docs/acceptance.md",
+        "internal/provider/hardware_identity_test.go",
+        "internal/source/hardware_identity_storage_integration_test.go",
+        "internal/source/hardware_identity_test.go",
+        "internal/service/mutation_body_integration_test.go",
+        "scripts/nginx-body-boundary-lab.mjs"
+      ],
+      "preceding_release_commit": "9209a4b3886cc1a37648332b6ae52f38973fed9e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826",
+      "live_credit_awarded": false,
+      "acceptance": "The preceding history/authorization release passed all nine normal exact-commit CI jobs. Separate schema2 identity decoding preserves original schema1 hashes and pinned source bytes; final actual isolated PostgreSQL/versioned MinIO acceptance passed six cases plus vet and complete owned cleanup. The new observation remains private, OBSERVED_ONLY, interval ownership UNKNOWN/UNPROVEN, and carries no execution or financial authority. Actual JWT/JWKS/restricted PostgreSQL tests reject oversized complete or streamed requests before parse/hash/cache/SQL without poisoning retries. The console proxy has separate bounded edge refusal. These strengthen existing component stages; current-release CI/browser/process-recovery checks remain separate from these local component results. No genuine history, full fleet loop, customer/live or production acceptance is inferred."
     }
   ]
 }

@@ -1,14 +1,18 @@
 # Product scope progress ledger
 
-The latest local assurance package adds immutable fleet point/completed-work
-history, explicit request-throughput proxy semantics and current-request replay
-authorization. The final API passed seven runtime suites and all 53 Chromium
-cases with unchanged timeouts and zero retries; restricted database, versioned
-object and deployment-refusal checks also passed. These strengthen existing
-stages without new credit. Historical membership ownership remains unproven,
-Fleet execution/financial authority stays disabled, and customer/production
-acceptance remains outstanding. Exact-commit CI and the final encrypted recovery
-drill remain release checks, independently of this unchanged progress score.
+The preceding fleet history, explicit request-throughput proxy and retry
+authorization package passed all nine normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826),
+seven local runtime suites, all 53 Chromium cases and the final eight-check
+encrypted PostgreSQL recovery drill. The next local component review adds a
+separate immutable interpretation of archived hardware and rejects whole
+oversized API bodies before cached-response selection or persistence. Actual
+isolated storage and restricted JWT/database checks passed. These strengthen
+existing stages without new credit. Historical membership ownership remains
+unproven, fleet execution/financial authority stays disabled, and
+customer/production acceptance remains outstanding. Current-release CI and
+connected browser/process-recovery checks remain separate from these component
+results and the unchanged score.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 

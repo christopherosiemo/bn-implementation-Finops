@@ -7,7 +7,10 @@ hardware IAM/database principals, exact read bindings and candidate allowlists
 must be reviewed before enabling that reader. The
 [fleet-history records and optional reader](fleet-history.md) retain point
 membership and independent completed-work provenance without proving historical
-interval ownership or financial authority. Commission the exact fleet identities,
+interval ownership or financial authority. The separate private
+[hardware identity derivation](hardware-identity.md) preserves archived evidence;
+latest-start and ENI attachment facts do not establish creation or ownership
+intervals. It has no enabled customer process. Commission the exact fleet identities,
 external completed-work meaning and required observation history before using
 them in any future action-specific baseline. The
 [encrypted local PostgreSQL recovery drill](postgres-recovery-lab.md) proves

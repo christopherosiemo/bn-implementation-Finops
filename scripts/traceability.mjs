@@ -9,6 +9,7 @@ for (const match of found) if (Number(match[1]) === expected) { sections.push({ 
 if (sections.length !== 233) throw new Error(`Expected 233 normative sections, found ${sections.length}`);
 const between = (id, a, b) => id >= a && id <= b;
 const nativeCoverage = {
+  26: 'Read-only native EC2 captures retain their original schema-1 hashes. A private schema-2 decoder derives latest-start and primary-interface facts from pinned archived bytes with actual isolated storage acceptance. Missing fields remain unknown; the derivation is not enabled and does not prove incarnation, historical fleet membership, action authority or savings. See docs/hardware-identity.md.',
   41: 'Registered Prometheus range-vector reads and machine OTLP/HTTP preserve native timestamps, temporality, units and immutable object/ClickHouse provenance. See docs/native-telemetry.md; streaming above explicit bounds and customer instrumentation remain gated.',
   42: 'Native metrics and immutable read-only EC2 hardware receipts feed the private capacity worker through server-selected history. Observed historical CPU/memory denominators must match fresh native hardware; missing native candidate economics still blocks execution. See docs/native-hardware-capacity.md.',
   43: 'Native request/error counters and histogram bounds have connected local instrumentation acceptance. Historical queries cannot backfill guarded minute activity/SLO receipts; broader customer SLIs remain gated.',

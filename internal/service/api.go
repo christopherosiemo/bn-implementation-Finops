@@ -32,6 +32,8 @@ type API struct {
 	Clock func() time.Time
 }
 
+const maxMutationBodyBytes int64 = 4 << 20
+
 func (a *API) now() time.Time {
 	if a.Clock != nil {
 		return a.Clock().UTC()
@@ -122,8 +124,13 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, problem(400, "IDEMPOTENCY_KEY_REQUIRED", "provide an Idempotency-Key between 8 and 200 characters"))
 		return
 	}
-	body, e := io.ReadAll(io.LimitReader(r.Body, 4<<20))
+	body, e := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMutationBodyBytes))
 	if e != nil {
+		var oversized *http.MaxBytesError
+		if errors.As(e, &oversized) {
+			fail(w, problem(http.StatusRequestEntityTooLarge, "BODY_TOO_LARGE", "request body exceeds 4 MiB"))
+			return
+		}
 		fail(w, e)
 		return
 	}
