@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Bounded observed-cost allocation retains its accepted deterministic E2E credit. All nine exact-commit CI jobs at 9209a4b accepted history, explicit request-proxy semantics and current-request replay authorization. Separate immutable native identity interpretation and complete-body request rejection have local component acceptance without advancing an existing maturity stage. Fixed weights, package scope and historical reviews remain unchanged; no live/customer or production credit.",
+  "credit_review": "The c49e66a identity/request-boundary release passed all nine normal exact-commit CI jobs. Fleet-scoped declared configuration, IDs-only blocked reviews, connected console and retained-history queue correction now have local acceptance. Two actual additive upgrades preserved original stopped-instance ownership and signed envelopes; all seven runtime suites and all 58 browser cases passed. These strengthen existing maturity stages without new credit. Fixed weights, package scope and historical reviews stay unchanged; no live/customer, full fleet workflow or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -878,6 +878,28 @@
       "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826",
       "live_credit_awarded": false,
       "acceptance": "The preceding history/authorization release passed all nine normal exact-commit CI jobs. Separate schema2 identity decoding preserves original schema1 hashes and pinned source bytes; final actual isolated PostgreSQL/versioned MinIO acceptance passed six cases plus vet and complete owned cleanup. The new observation remains private, OBSERVED_ONLY, interval ownership UNKNOWN/UNPROVEN, and carries no execution or financial authority. Actual JWT/JWKS/restricted PostgreSQL tests reject oversized complete or streamed requests before parse/hash/cache/SQL without poisoning retries. The console proxy has separate bounded edge refusal. These strengthen existing component stages; current-release CI/browser/process-recovery checks remain separate from these local component results. No genuine history, full fleet loop, customer/live or production acceptance is inferred."
+    },
+    {
+      "id": "fleet-group-review-retained-queue-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-configuration.md",
+        "docs/acceptance.md",
+        "internal/service/fleet_configuration_integration_test.go",
+        "internal/store/fleet_configuration_integration_test.go",
+        "internal/store/ingestion_queue_integration_test.go",
+        "frontend/tests/fleet-configuration-live.spec.ts",
+        "scripts/recovery-smoke.mjs",
+        "scripts/tests/recovery-upgrade.test.mjs"
+      ],
+      "preceding_release_commit": "c49e66abafedd0b7b349bead7551ee5f83e1c39c",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39181639239",
+      "runtime_source_tree": "1678dc72fda2ec1fd1cac1ff243edde6436e163a",
+      "web_source_tree": "105d690cfc723ac146a70ae60cffec923b7c6adc",
+      "live_credit_awarded": false,
+      "acceptance": "Actual restricted PostgreSQL/JWKS binds real group registrations, current sources/definitions/mappings, immutable scope references and exact declaration versions. UI/OIDC selects existing IDs and persists BLOCKED reviews with null money and no action authority. Migration 026→027 and 027→028 each preserved the original stopped occurrence/signature through API/worker replacement and exactly one audited STOP/START. The original 58-case run retained one allocation response-deadline failure; typed DB-derived queue metadata and existence-only fixture checks corrected repeated full-history payload loading without deleting evidence. A later native-source browser journey corrected an existing pagination assumption while preserving every source/evidence check. Final seven runtime suites and all 58 Chromium cases passed with unchanged deadlines and zero retries. Controlled queue regression retains old unsealed jobs, unknown statuses, tenant scope and retry pagination while rejecting generated-metadata forgery. Full exact-commit CI is tracked separately by PR checks. No native interval ownership, Git/state authority, executable group program, fleet economics, customer history or production acceptance is inferred."
     }
   ]
 }

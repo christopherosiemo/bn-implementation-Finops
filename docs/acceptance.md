@@ -1,5 +1,94 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: fleet-scoped configuration reviews
+
+The preceding identity/request-boundary release passed all nine normal
+[exact-commit CI jobs at c49e66a](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39181639239),
+including both PostgreSQL versions, actual isolated identity/proxy labs, generated
+contracts, dependency/source checks, browser/process recovery, local Kubernetes
+and Flux, and encrypted PostgreSQL quarantine readback. Its retained local stack
+also passed seven runtime suites and all 53 Chromium cases in 5.5 minutes with
+zero retries and unchanged timeouts.
+
+The next configuration family binds a real Fleet-history registration and exact
+ASG identity. It accepts metadata declarations and existing declaration/scope
+identifiers; it never borrows an individual member's resource or capacity result.
+New reviews remain `BLOCKED` with null estimated/verified amounts and no plan or
+execution authority. Current registration, native source configuration, sealed
+scope, demand definition and actual activity-resource mapping are rechecked.
+Historical reads preserve the captured snapshot after source revocation.
+See [configuration boundaries](fleet-configuration.md).
+
+Additive migration 027 SHA-256 is
+`f5558e22195be087cde3fc8edea5762bf5f9bf9c90a740386f206009032732a7`.
+Seven actual restricted-PostgreSQL test families passed in 11.161 seconds,
+including positive controls, 26 forged SQL payload refusals, concurrent revisions,
+source row/synchronization locks, changed mappings and a new native point or
+correction requiring another sealed scope. Four pure configuration families,
+the complete existing configuration package and store/configuration vet passed.
+Initial draft SQL failures exposed regex bounds and operator precedence errors;
+those were fixed before freezing or applying the new migration to the retained
+application database. No previously applied migration was edited.
+
+The actual signed JWT/JWKS and restricted API regression passed in 5.712 seconds
+plus vet. It connects registration, independent demand definition, honest missing
+history, immutable declaration and blocked review. Tenant/role denial, current
+owner checks, optimistic versions, typed selector rejection, scoped pagination
+and current-role cached-response checks passed without creating observer
+enrollment, signed plans or ledger records. OpenAPI frontend types were
+regenerated. Four new isolated presentation cases passed with the existing four
+Fleet-history cases in 47.9 seconds; their API/OIDC transport is explicitly
+mocked. The first connected 58-case run passed 57 cases, including the new
+actual OIDC Fleet journey. Its existing allocation case timed out waiting for a
+report that did durably seal: retained completed ingestion jobs were repeatedly
+loaded by background polling. The failure trace is retained. Two later complete
+runs each passed 57 cases and exposed the same existing native-source test
+assumption at its two refresh points: a newly created source need not appear on
+the first scoped page in a retained database. The test now follows the actual
+opaque cursors and rendered pages at both points, preserving its source,
+evaluation, capacity and blocked-IaC assertions. No fixture state was reset.
+
+The final complete Chromium run passed all 58 cases in 4.0 minutes with zero
+retries and unchanged deadlines. It used the final queue-corrected API image
+and the same console image. All seven runtime suites also passed consecutively
+on that image, including ordinary API/worker recovery, machine identities,
+dependency/SLO controls and native/official-OTel ingestion. The browser failures
+and focused pagination check remain in the local acceptance evidence.
+
+The real 026-to-027 upgrade recovery passed seven checks. The original occurrence
+was independently confirmed stopped with owned provider intent and its original
+signed-envelope hash while API/worker were stopped, before and after DDL. The
+prepared exact image replaced those processes; Temporal, PostgreSQL and executor
+stayed running. The same occurrence completed readiness with exactly one audited
+stop/start. All seven runtime suites then passed consecutively on the upgraded
+stack, including ordinary six-check API/worker recovery. This is fixture process
+and migration acceptance, not customer or production recovery acceptance.
+
+The retained-history correction adds migration 028 SHA-256
+`167701a8b9098b4bbe17a623a2d45167148b0a3256c76597b93355d7a71b2e05`.
+Database-generated queue fields derive only scheduling metadata from existing
+job documents. A single table rewrite preserves document text, entity versions
+and update timestamps. Bounded keyset pages load only unfinished persistence or
+missing fixture seals, across all generations; each tick starts without a saved
+cursor. Missing and unknown statuses retain their prior retry behavior. Fixture
+preparation uses scoped existence checks for already-created jobs.
+
+Four actual restricted-PostgreSQL regression families and store/workflow/service
+vet passed. A controlled retained-history diagnostic transferred 41,305,881
+bytes through the old list versus 3,806 bytes through queue selection; measured
+selection was 898 ms versus 3.79 ms. These are local diagnostic measurements,
+not production latency or scale acceptance. Generated metadata INSERT/UPDATE
+forgery, tenant/role borrowing, lost retries, malformed documents and cursor
+stranding are rejected. Original evidence and signed billing arithmetic remain
+unchanged. The real 027-to-028 migration recovery also passed seven checks with
+the original stopped occurrence, signed envelope and one audited stop/start.
+
+The individual-resource FleetPlanV4 contract still has no group bridge. Native
+Git/state authority, historical membership ownership, complete Fleet capacity and
+economics, executable canary/rollback and financial verification remain required.
+These component improvements do not independently increase the full-product
+score or imply cloud/customer/production acceptance.
+
 ## 19 October: immutable identity interpretation and complete-body rejection
 
 The preceding history/proxy/authorization release passed all nine normal

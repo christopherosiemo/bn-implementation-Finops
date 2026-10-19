@@ -12,6 +12,7 @@ import (
 
 func TestMutationAuthorizationCoversExactRoutesWithoutBroadeningRoles(t *testing.T) {
 	groups := []struct{ paths, allowed string }{
+		{"fleet-history-registrations/id/configuration-authorities fleet-history-registrations/id/configuration-proposals", "PLATFORM_ADMIN"},
 		{"cloud-accounts workloads executions control/pause demo/reset demo/scenario policies/id resources/id/configure activity-sources resource-graph resources/id/dependency-reviews workloads/id/slo-objectives slo-sources workloads/id/safety-profiles resources/id/configuration-authorities workloads/id/configuration-proposals telemetry-connections telemetry-connections/id/revisions telemetry-connections/id/revoke telemetry-connections/id/sync telemetry-connections/id/evaluate fleet-history-registrations fleet-history-registrations/id/revisions fleet-demand-definitions fleet-demand-definitions/id/revisions fleet-history-scopes", "PLATFORM_ADMIN"},
 		{"recommendations change-plans source-connections source-connections/id/sync source-connections/id/revoke resources/id/readiness/refresh", "FINOPS_ADMIN PLATFORM_ADMIN"},
 		{"approvals", "APPROVER PLATFORM_ADMIN"},

@@ -4,6 +4,59 @@
  */
 
 export interface paths {
+    "/fleet-history-registrations/{id}/configuration-authorities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable metadata revisions scoped to the actual registered Auto Scaling group. Returns latest declaration version for optimistic writes; historical records are not a current readiness projection. */
+        get: operations["listFleetConfigurationDeclarations"];
+        put?: never;
+        /** @description Platform administrator records metadata only. If-Match binds the latest declaration version (zero initially); current registration and source are resolved server-side. No pipeline enrollment, observed Git/state proof, member resource or execution authority is accepted. */
+        post: operations["declareFleetConfiguration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-registrations/{id}/configuration-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cursor-paginated immutable blocked reviews for this actual fleet registration. No individual-member capacity result is promoted to fleet evidence. */
+        get: operations["listFleetConfigurationProposals"];
+        put?: never;
+        /** @description Select only an existing declaration and sealed history scope. If-Match binds the latest declaration version. Current group, registration, source configuration, independent activity mapping and scope references are rechecked. Missing history remains explicitly blocked; no patch, amount, attestation, signed plan or execution is produced. */
+        post: operations["recordFleetConfigurationProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-registrations/{id}/configuration-proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read an immutable review under current workload access without renewing its captured authority. */
+        get: operations["getFleetConfigurationProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet-history-registrations": {
         parameters: {
             query?: never;
@@ -1156,6 +1209,124 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetTerraformInput: {
+            workspace: string;
+            /** Format: uuid */
+            state_lineage: string;
+            /** @description Canonical declared aws_autoscaling_group resource address, not observed mapping proof */
+            asg_address: string;
+            /** @description Canonical declared aws_launch_template resource address */
+            launch_template_address: string;
+            traffic?: components["schemas"]["FleetTrafficInput"];
+        };
+        FleetTrafficInput: {
+            listener_rule_address: string;
+            target_group_addresses: string[];
+        };
+        FleetDeclarationInput: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            authority: "TERRAFORM";
+            repository: components["schemas"]["ConfigurationRepository"];
+            pipeline: components["schemas"]["ConfigurationPipeline"];
+            terraform: components["schemas"]["FleetTerraformInput"];
+        };
+        FleetProposalSelection: {
+            declaration_id: string;
+            scope_id: string;
+        };
+        FleetConfigurationDeclaration: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            version: number;
+            registration_id: string;
+            registration_version: number;
+            registration_hash: string;
+            fleet_id: string;
+            asg_arn: string;
+            binding: components["schemas"]["FleetHistoryBinding"];
+            source_id: string;
+            source_registration_version: number;
+            source_config_hash: string;
+            metadata: components["schemas"]["FleetDeclarationInput"];
+            /** @enum {string} */
+            status: "DECLARED_NOT_ATTESTED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            declared_by: string;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetConfigurationProposal: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {string} */
+            purpose: "FLEET_CONFIGURATION_PROPOSAL";
+            registration_id: string;
+            registration_version: number;
+            registration_hash: string;
+            binding: components["schemas"]["FleetHistoryBinding"];
+            fleet_id: string;
+            asg_arn: string;
+            declaration_id: string;
+            declaration_version: number;
+            declaration_hash: string;
+            scope_id: string;
+            scope_hash: string;
+            scope_reference_root: string;
+            definition_id: string;
+            definition_version: number;
+            definition_hash: string;
+            /** Format: date-time */
+            history_start: string;
+            /** Format: date-time */
+            history_end: string;
+            /** @enum {string} */
+            membership_status: "INTERVAL_OWNERSHIP_UNPROVEN";
+            observation_count: number;
+            selected_observation_count: number;
+            source_states: components["schemas"]["FleetHistorySourceState"][];
+            /** Format: date-time */
+            as_of: string;
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string|null} */
+            change_plan_id: null;
+            proposed_by: string;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetConfigurationPage: {
+            items: components["schemas"]["FleetConfigurationDeclaration"][];
+            next_cursor: string | null;
+            version: number;
+            latest: components["schemas"]["FleetConfigurationDeclaration"] | null;
+        };
+        FleetConfigurationProposalPage: {
+            items: components["schemas"]["FleetConfigurationProposal"][];
+            next_cursor: string | null;
+        };
         FleetHistoryBinding: {
             tenant_id: string;
             workload_id: string;
@@ -3205,6 +3376,269 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetConfigurationDeclarations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declared, unattested configuration revisions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetConfigurationPage"];
+                };
+            };
+            /** @description Current workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Fleet registration unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid limit or cursor belongs to a different query */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    declareFleetConfiguration: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetDeclarationInput"];
+            };
+        };
+        responses: {
+            /** @description Immutable declared, unattested group configuration */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetConfigurationDeclaration"];
+                };
+            };
+            /** @description Platform administrator required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale declaration version or conflicting idempotency key */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Metadata or current group/source binding is invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetConfigurationProposals: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable blocked configuration reviews */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetConfigurationProposalPage"];
+                };
+            };
+            /** @description Current workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Fleet registration unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid limit or cursor belongs to a different query */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    recordFleetConfigurationProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetProposalSelection"];
+            };
+        };
+        responses: {
+            /** @description Immutable blocked review with server-selected evidence references */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetConfigurationProposal"];
+                };
+            };
+            /** @description Platform administrator required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selected immutable record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Declaration changed or selected revision is no longer current */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Fleet, history or current source binding differs */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current source references exceed bounded evaluation or snapshot limits; no partial proposal is published */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetConfigurationProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable blocked group review */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetConfigurationProposal"];
+                };
+            };
+            /** @description Current workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Review not found in this tenant and registration */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetHistoryRegistrations: {
         parameters: {
             query: {

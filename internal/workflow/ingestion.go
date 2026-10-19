@@ -11,45 +11,55 @@ import (
 )
 
 func ingestTenant(ctx context.Context, a *Activities, t *store.Tx) error {
-	jobs, e := t.List(ctx, "ingestion_jobs")
+	producer := &service.API{Config: a.Config, Client: a.HTTP}
+	if a.Config.Fixture {
+		if e := producer.PrepareFixtureEvidence(ctx, t); e != nil {
+			return e
+		}
+	}
+	// Bound payload transport without persisting a cursor that could strand
+	// retries. New jobs beyond this server-selected tick boundary wait one tick.
+	cutoff, e := t.IngestionQueueCutoff(ctx)
 	if e != nil {
 		return e
 	}
-	producer := &service.API{Config: a.Config, Client: a.HTTP}
-	if a.Config.Fixture {
-		if e = producer.PrepareFixtureEvidence(ctx, t); e != nil {
-			return e
+	position := store.IngestionPosition{}
+	for {
+		jobs, err := t.IngestionQueuePage(ctx, a.Config.Fixture, position, cutoff, 64)
+		if err != nil {
+			return err
 		}
-		jobs, e = t.List(ctx, "ingestion_jobs")
-		if e != nil {
-			return e
+		if len(jobs) == 0 {
+			break
 		}
-	}
-	for _, j := range jobs {
-		if model.String(j, "status") == "PERSISTED" {
+		for _, item := range jobs {
+			j := item.Job
+			if model.String(j, "status") == "PERSISTED" {
+				if e = producer.SealFixtureEvidence(ctx, t, j); e != nil {
+					return e
+				}
+				continue
+			}
+			var raw, canonical model.Document
+			b, _ := json.Marshal(j["raw"])
+			_ = json.Unmarshal(b, &raw)
+			b, _ = json.Marshal(j["canonical"])
+			_ = json.Unmarshal(b, &canonical)
+			if e = service.PersistEvidence(ctx, t.Tenant, model.String(j, "source_id"), raw, canonical); e != nil {
+				return e
+			}
+			j["status"], j["persisted_at"] = "PERSISTED", model.Now()
+			if _, e = t.Update(ctx, "ingestion_jobs", model.String(j, "id"), model.Number(j, "version"), j); e != nil {
+				return e
+			}
 			if e = producer.SealFixtureEvidence(ctx, t, j); e != nil {
 				return e
 			}
-			continue
+			if e = t.Audit(ctx, "ingestion-worker", "billing.ingested", model.String(j, "id"), model.Document{"source_id": j["source_id"], "storage": "immutable raw + FOCUS ClickHouse facts"}); e != nil {
+				return e
+			}
 		}
-		var raw, canonical model.Document
-		b, _ := json.Marshal(j["raw"])
-		_ = json.Unmarshal(b, &raw)
-		b, _ = json.Marshal(j["canonical"])
-		_ = json.Unmarshal(b, &canonical)
-		if e = service.PersistEvidence(ctx, t.Tenant, model.String(j, "source_id"), raw, canonical); e != nil {
-			return e
-		}
-		j["status"], j["persisted_at"] = "PERSISTED", model.Now()
-		if _, e = t.Update(ctx, "ingestion_jobs", model.String(j, "id"), model.Number(j, "version"), j); e != nil {
-			return e
-		}
-		if e = producer.SealFixtureEvidence(ctx, t, j); e != nil {
-			return e
-		}
-		if e = t.Audit(ctx, "ingestion-worker", "billing.ingested", model.String(j, "id"), model.Document{"source_id": j["source_id"], "storage": "immutable raw + FOCUS ClickHouse facts"}); e != nil {
-			return e
-		}
+		position = jobs[len(jobs)-1].Position
 	}
 	rows, e := t.Query(ctx, "SELECT a.document FROM audit_events a LEFT JOIN entities e ON e.tenant_id=a.tenant_id AND e.kind='audit_archives' AND e.id=a.id WHERE a.tenant_id=$1 AND e.id IS NULL ORDER BY a.created_at LIMIT 200", t.Tenant)
 	if e != nil {

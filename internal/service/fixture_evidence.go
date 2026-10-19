@@ -27,7 +27,11 @@ func (a *API) PrepareFixtureEvidence(ctx context.Context, t *store.Tx) error {
 		generation = "initial"
 	}
 	baselineJobID := "fixture-baseline-v2-" + generation
-	if _, e = t.Get(ctx, "ingestion_jobs", baselineJobID); e == pgx.ErrNoRows {
+	exists, e := t.IngestionJobExists(ctx, baselineJobID)
+	if e != nil {
+		return e
+	}
+	if !exists {
 		raw, b, _ := evidence.Fixture(t.Tenant, res)
 		canonical, e := a.economics(ctx, "normalize", raw)
 		if e != nil {
@@ -44,8 +48,6 @@ func (a *API) PrepareFixtureEvidence(ctx context.Context, t *store.Tx) error {
 		if e != nil {
 			return e
 		}
-	} else if e != nil {
-		return e
 	}
 	executions, e := t.List(ctx, "executions")
 	if e != nil {
@@ -67,10 +69,12 @@ func (a *API) PrepareFixtureEvidence(ctx context.Context, t *store.Tx) error {
 			continue
 		}
 		id := "fixture-measurement-" + p.MeasurementID
-		if _, e = t.Get(ctx, "ingestion_jobs", id); e == nil {
-			continue
-		} else if e != pgx.ErrNoRows {
+		exists, e := t.IngestionJobExists(ctx, id)
+		if e != nil {
 			return e
+		}
+		if exists {
+			continue
 		}
 		owned, e := ownedIntervals(ctx, t, p)
 		if e != nil {

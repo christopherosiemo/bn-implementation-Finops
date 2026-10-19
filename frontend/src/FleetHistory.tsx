@@ -7,6 +7,7 @@ import type {
   FleetHistoryScope,
 } from "./types";
 import { RemotePage, useRemote } from "./RemoteData";
+import { FleetConfiguration } from "./FleetConfiguration";
 import {
   Badge,
   Button,
@@ -884,6 +885,13 @@ function RegistrationEvidence({
             )}
           </RemotePage>
           {scope && <ScopeEvidence key={scope} id={scope} />}
+          <FleetConfiguration
+            key={`configuration:${id}:${state.value.version}`}
+            registration={state.value}
+            run={run}
+            busy={busy}
+            refresh={refresh}
+          />
         </>
       )}
     </Modal>

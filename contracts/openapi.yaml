@@ -8,6 +8,143 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /fleet-history-registrations/{id}/configuration-authorities:
+    get:
+      operationId: listFleetConfigurationDeclarations
+      description: Immutable metadata revisions scoped to the actual registered Auto Scaling group. Returns
+        latest declaration version for optimistic writes; historical records are not a current readiness
+        projection.
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Declared, unattested configuration revisions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetConfigurationPage'
+        '403':
+          description: Current workload access denied
+        '404':
+          description: Fleet registration unavailable in this tenant
+        '422':
+          description: Invalid limit or cursor belongs to a different query
+    post:
+      operationId: declareFleetConfiguration
+      description: Platform administrator records metadata only. If-Match binds the latest declaration version
+        (zero initially); current registration and source are resolved server-side. No pipeline enrollment,
+        observed Git/state proof, member resource or execution authority is accepted.
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetDeclarationInput'
+      responses:
+        '201':
+          description: Immutable declared, unattested group configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetConfigurationDeclaration'
+        '403':
+          description: Platform administrator required
+        '409':
+          description: Stale declaration version or conflicting idempotency key
+        '413':
+          $ref: '#/components/responses/MutationBodyTooLarge'
+        '422':
+          description: Metadata or current group/source binding is invalid
+        '428':
+          description: If-Match required
+  /fleet-history-registrations/{id}/configuration-proposals:
+    get:
+      operationId: listFleetConfigurationProposals
+      description: Cursor-paginated immutable blocked reviews for this actual fleet registration. No individual-member
+        capacity result is promoted to fleet evidence.
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Immutable blocked configuration reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetConfigurationProposalPage'
+        '403':
+          description: Current workload access denied
+        '404':
+          description: Fleet registration unavailable in this tenant
+        '422':
+          description: Invalid limit or cursor belongs to a different query
+    post:
+      operationId: recordFleetConfigurationProposal
+      description: Select only an existing declaration and sealed history scope. If-Match binds the latest
+        declaration version. Current group, registration, source configuration, independent activity mapping
+        and scope references are rechecked. Missing history remains explicitly blocked; no patch, amount,
+        attestation, signed plan or execution is produced.
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetProposalSelection'
+      responses:
+        '201':
+          description: Immutable blocked review with server-selected evidence references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetConfigurationProposal'
+        '403':
+          description: Platform administrator required
+        '404':
+          description: Selected immutable record unavailable in this tenant
+        '409':
+          description: Declaration changed or selected revision is no longer current
+        '413':
+          $ref: '#/components/responses/MutationBodyTooLarge'
+        '422':
+          description: Fleet, history or current source binding differs
+        '428':
+          description: If-Match required
+        '503':
+          description: Current source references exceed bounded evaluation or snapshot limits; no partial proposal is published
+  /fleet-history-registrations/{id}/configuration-proposals/{proposal_id}:
+    get:
+      operationId: getFleetConfigurationProposal
+      description: Read an immutable review under current workload access without renewing its captured
+        authority.
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      - name: proposal_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Immutable blocked group review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetConfigurationProposal'
+        '403':
+          description: Current workload access denied
+        '404':
+          description: Review not found in this tenant and registration
   /fleet-history-registrations:
     get:
       operationId: listFleetHistoryRegistrations
@@ -1034,6 +1171,371 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetTerraformInput:
+      type: object
+      additionalProperties: false
+      required:
+      - workspace
+      - state_lineage
+      - asg_address
+      - launch_template_address
+      properties:
+        workspace:
+          type: string
+          minLength: 1
+          maxLength: 128
+        state_lineage:
+          type: string
+          format: uuid
+        asg_address:
+          type: string
+          maxLength: 512
+          description: Canonical declared aws_autoscaling_group resource address, not observed mapping proof
+        launch_template_address:
+          type: string
+          maxLength: 512
+          description: Canonical declared aws_launch_template resource address
+        traffic:
+          $ref: '#/components/schemas/FleetTrafficInput'
+    FleetTrafficInput:
+      type: object
+      additionalProperties: false
+      required:
+      - listener_rule_address
+      - target_group_addresses
+      properties:
+        listener_rule_address:
+          type: string
+          maxLength: 512
+        target_group_addresses:
+          type: array
+          minItems: 2
+          maxItems: 2
+          uniqueItems: true
+          items:
+            type: string
+            maxLength: 512
+    FleetDeclarationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - authority
+      - repository
+      - pipeline
+      - terraform
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - '1'
+        authority:
+          type: string
+          enum:
+          - TERRAFORM
+        repository:
+          $ref: '#/components/schemas/ConfigurationRepository'
+        pipeline:
+          $ref: '#/components/schemas/ConfigurationPipeline'
+        terraform:
+          $ref: '#/components/schemas/FleetTerraformInput'
+    FleetProposalSelection:
+      type: object
+      additionalProperties: false
+      required:
+      - declaration_id
+      - scope_id
+      properties:
+        declaration_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+        scope_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+    FleetConfigurationDeclaration:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - id
+      - version
+      - registration_id
+      - registration_version
+      - registration_hash
+      - fleet_id
+      - asg_arn
+      - binding
+      - source_id
+      - source_registration_version
+      - source_config_hash
+      - metadata
+      - status
+      - reason_codes
+      - execution_authorized
+      - estimated_saving
+      - verified_saving
+      - declared_by
+      - hash
+      - created_at
+      - writer_role
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - '1'
+        id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        registration_id:
+          type: string
+        registration_version:
+          type: integer
+          minimum: 1
+        registration_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        fleet_id:
+          type: string
+        asg_arn:
+          type: string
+        binding:
+          $ref: '#/components/schemas/FleetHistoryBinding'
+        source_id:
+          type: string
+        source_registration_version:
+          type: integer
+          minimum: 1
+        source_config_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        metadata:
+          $ref: '#/components/schemas/FleetDeclarationInput'
+        status:
+          type: string
+          enum:
+          - DECLARED_NOT_ATTESTED
+        reason_codes:
+          type: array
+          items:
+            type: string
+        execution_authorized:
+          type: boolean
+          enum:
+          - false
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+          - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+          - null
+        declared_by:
+          type: string
+        hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        created_at:
+          type: string
+          format: date-time
+        writer_role:
+          type: string
+          enum:
+          - finops_api
+    FleetConfigurationProposal:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - id
+      - purpose
+      - registration_id
+      - registration_version
+      - registration_hash
+      - binding
+      - fleet_id
+      - asg_arn
+      - declaration_id
+      - declaration_version
+      - declaration_hash
+      - scope_id
+      - scope_hash
+      - scope_reference_root
+      - definition_id
+      - definition_version
+      - definition_hash
+      - history_start
+      - history_end
+      - membership_status
+      - observation_count
+      - selected_observation_count
+      - source_states
+      - as_of
+      - status
+      - reason_codes
+      - execution_authorized
+      - estimated_saving
+      - verified_saving
+      - change_plan_id
+      - proposed_by
+      - hash
+      - created_at
+      - writer_role
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - '1'
+        id:
+          type: string
+        purpose:
+          type: string
+          enum:
+          - FLEET_CONFIGURATION_PROPOSAL
+        registration_id:
+          type: string
+        registration_version:
+          type: integer
+          minimum: 1
+        registration_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        binding:
+          $ref: '#/components/schemas/FleetHistoryBinding'
+        fleet_id:
+          type: string
+        asg_arn:
+          type: string
+        declaration_id:
+          type: string
+        declaration_version:
+          type: integer
+          minimum: 1
+        declaration_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        scope_id:
+          type: string
+        scope_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        scope_reference_root:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        definition_id:
+          type: string
+        definition_version:
+          type: integer
+          minimum: 1
+        definition_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        history_start:
+          type: string
+          format: date-time
+        history_end:
+          type: string
+          format: date-time
+        membership_status:
+          type: string
+          enum:
+          - INTERVAL_OWNERSHIP_UNPROVEN
+        observation_count:
+          type: integer
+          minimum: 0
+        selected_observation_count:
+          type: integer
+          minimum: 0
+        source_states:
+          type: array
+          maxItems: 1024
+          items:
+            $ref: '#/components/schemas/FleetHistorySourceState'
+        as_of:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - BLOCKED
+        reason_codes:
+          type: array
+          items:
+            type: string
+        execution_authorized:
+          type: boolean
+          enum:
+          - false
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+          - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+          - null
+        change_plan_id:
+          type: string
+          nullable: true
+          enum:
+          - null
+        proposed_by:
+          type: string
+        hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        created_at:
+          type: string
+          format: date-time
+        writer_role:
+          type: string
+          enum:
+          - finops_api
+    FleetConfigurationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - version
+      - latest
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetConfigurationDeclaration'
+        next_cursor:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          minimum: 0
+        latest:
+          allOf:
+          - $ref: '#/components/schemas/FleetConfigurationDeclaration'
+          nullable: true
+    FleetConfigurationProposalPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetConfigurationProposal'
+        next_cursor:
+          type: string
+          nullable: true
     FleetHistoryBinding:
       type: object
       additionalProperties: false

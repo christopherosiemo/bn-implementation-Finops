@@ -59,6 +59,14 @@ Select the customer pipeline's exact remote Git/state authority, approved
 encrypted artifact destination, machine subject and native dimension/rate scope
 before connecting either component to a fleet program.
 
+The [group configuration API and console](fleet-configuration.md) record declared
+repository, pipeline and Terraform addresses against a registered fleet and a
+sealed history scope. They create blocked reviews only. Customer review must
+establish native ARN/address mapping, exact remote Git/state authority and
+independent evidence before any later executable plan family is commissioned.
+The current individual-resource FleetPlanV4 contract has no group bridge; a
+representative member or invented EC2 resource cannot satisfy that requirement.
+
 For allocation commissioning, confirm the fixed-share recipients and the current
 resource/workload mapping. A sealed current-ownership report is an observed-cost
 view with provisional finality, not historical chargeback or verified savings.

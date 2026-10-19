@@ -1,5 +1,66 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page, type Response } from "@playwright/test";
 import type { components } from "../src/api.generated";
+
+function nativeSourceList(urlText: string, method: string) {
+  const url = new URL(urlText);
+  return (
+    url.pathname === "/v1/telemetry-connections" &&
+    url.searchParams.get("workload_id") === "workload-dev" &&
+    method === "GET"
+  );
+}
+
+async function findNativeSource(page: Page, firstPage: Response, sourceId: string) {
+  expect(firstPage.status()).toBe(200);
+  let sourcePage = (await firstPage.json()) as {
+    items: components["schemas"]["TelemetryConnection"][];
+    next_cursor: string | null;
+  };
+  const sources = page.getByRole("region", {
+    name: "Scrollable native telemetry sources",
+    exact: true,
+  });
+  const seenCursors = new Set<string>();
+  // Every refresh resets the ID-ordered collection to page one. Await each
+  // real cursor page's rendering instead of assuming the new ID is on it.
+  for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+    expect(sourcePage.items.length).toBeGreaterThan(0);
+    await expect(
+      sources.getByRole("button", {
+        name: `Inspect native telemetry ${sourcePage.items[0].id}`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    if (sourcePage.items.some((item) => item.id === sourceId)) break;
+    const cursor = sourcePage.next_cursor;
+    expect(cursor, "Created source must appear in the scoped collection").not.toBeNull();
+    expect(seenCursors.has(cursor!)).toBe(false);
+    seenCursors.add(cursor!);
+    const nextPage = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        nativeSourceList(response.url(), response.request().method()) &&
+        url.searchParams.get("cursor") === cursor
+      );
+    });
+    await page
+      .getByRole("button", {
+        name: "Load more native telemetry connections",
+        exact: true,
+      })
+      .click();
+    const next = await nextPage;
+    expect(next.status()).toBe(200);
+    sourcePage = await next.json();
+  }
+  expect(sourcePage.items.some((item) => item.id === sourceId)).toBe(true);
+  await expect(
+    sources.getByRole("button", {
+      name: `Inspect native telemetry ${sourceId}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+}
 
 test("real OIDC and UI register exact native units and inspect persisted telemetry without inventing history", async ({
   page,
@@ -108,6 +169,18 @@ test("real OIDC and UI register exact native units and inspect persisted telemet
       response.url().endsWith("/v1/telemetry-connections") &&
       response.request().method() === "POST",
   );
+  const refreshedSources = page.waitForResponse(async (response) => {
+    const url = new URL(response.url());
+    const matches =
+      nativeSourceList(response.url(), response.request().method()) &&
+      !url.searchParams.has("cursor");
+    if (!matches) return false;
+    const created = await registered;
+    return (
+      response.request().timing().startTime >=
+      created.request().timing().startTime
+    );
+  });
   await dialog
     .getByRole("button", { name: "Save telemetry configuration" })
     .click();
@@ -121,6 +194,7 @@ test("real OIDC and UI register exact native units and inspect persisted telemet
     "resource-dev-api",
   );
   await expect(dialog).not.toBeVisible();
+  await findNativeSource(page, await refreshedSources, source.id);
   await page
     .getByRole("button", { name: `Inspect native telemetry ${source.id}` })
     .click();
@@ -221,10 +295,15 @@ test("real OIDC and UI register exact native units and inspect persisted telemet
   await expect(capacityView).toContainText("Not authorized by this assessment");
   await expect(capacityView).toContainText("Unavailable / Unavailable");
   await evidence.getByRole("button", { name: "Close dialog" }).click();
+  const refreshRequest = page.waitForRequest(
+    (request) =>
+      nativeSourceList(request.url(), request.method()) &&
+      !new URL(request.url()).searchParams.has("cursor"),
+  );
   await page.getByRole("button", { name: "Refresh native sources" }).click();
-  await expect(
-    page.getByRole("button", { name: `Inspect native telemetry ${source.id}` }),
-  ).toBeVisible();
+  const refreshedAgain = await (await refreshRequest).response();
+  expect(refreshedAgain).not.toBeNull();
+  await findNativeSource(page, refreshedAgain!, source.id);
 
   // Continue the same real evidence journey. A declaration is configuration
   // metadata only; even a persisted proposal must remain blocked and unpriced.

@@ -92,7 +92,11 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 			if p[2] == "revisions" || p[2] == "revoke" || p[2] == "sync" || p[2] == "evaluate" {
 				return rule(platform)
 			}
-		case "fleet-history-registrations", "fleet-demand-definitions":
+		case "fleet-history-registrations":
+			if p[2] == "revisions" || p[2] == "configuration-authorities" || p[2] == "configuration-proposals" {
+				return rule(platform)
+			}
+		case "fleet-demand-definitions":
 			if p[2] == "revisions" {
 				return rule(platform)
 			}

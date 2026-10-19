@@ -1,18 +1,16 @@
 # Product scope progress ledger
 
-The preceding fleet history, explicit request-throughput proxy and retry
-authorization package passed all nine normal
-[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826),
-seven local runtime suites, all 53 Chromium cases and the final eight-check
-encrypted PostgreSQL recovery drill. The next local component review adds a
-separate immutable interpretation of archived hardware and rejects whole
-oversized API bodies before cached-response selection or persistence. Actual
-isolated storage and restricted JWT/database checks passed. These strengthen
-existing stages without new credit. Historical membership ownership remains
-unproven, fleet execution/financial authority stays disabled, and
-customer/production acceptance remains outstanding. Current-release CI and
-connected browser/process-recovery checks remain separate from these component
-results and the unchanged score.
+The preceding identity/request-boundary release passed all nine normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39181639239).
+The new group declaration and IDs-only review connect actual OIDC, persisted
+scoped evidence and the console. Two additive migration/process upgrades
+preserved original stopped-instance ownership and signed plans. All seven
+runtime suites and all 58 Chromium cases passed after correcting repeated
+completed-history polling; the initial allocation deadline failure is retained
+in the acceptance record. Current-release CI is tracked separately in PR checks.
+These strengthen existing stages without new credit. Historical membership,
+customer Git/state authority, executable group programs and fleet financial
+verification remain unproved. Customer and production acceptance stays open.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 
