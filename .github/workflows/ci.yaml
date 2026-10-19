@@ -162,12 +162,25 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/hardware-values.yaml > /tmp/finops-hardware.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml > /tmp/finops-fleet-history.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml > /tmp/finops-fleet-assessment.yaml
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-native.yaml:/native.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /native.yaml && python deploy/tests/test_native_chart.py /native.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet.yaml:/fleet.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /fleet.yaml && python deploy/tests/test_fleet_chart.py /fleet.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-hardware.yaml:/hardware.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /hardware.yaml && python deploy/tests/test_hardware_chart.py /hardware.yaml'
+      - name: Check optional assessment identity, network isolation and refused deployment inputs
+        run: |
+          mkdir -p /tmp/finops-assessment-negative
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-assessment.yaml:/assessment.yaml:ro -v /tmp/finops-assessment-negative:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /assessment.yaml && python deploy/tests/test_fleet_assessment_chart.py /assessment.yaml --write-negative-values /checks'
+          for invalid in /tmp/finops-assessment-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml -f /invalid.json > /tmp/finops-assessment-negative/rejected.log 2>&1; then
+              echo "Unsafe assessment configuration unexpectedly rendered"
+              exit 1
+            fi
+            grep -Eq 'finops/templates/(fleet-assessment|services).yaml' /tmp/finops-assessment-negative/rejected.log
+          done
       - name: Check optional history-reader identity, additive policies and fail-closed configuration
         run: |
           set -euo pipefail
@@ -272,6 +285,56 @@ jobs:
             work/private/fleet-group-connected/*/failure-receipt.json
             work/private/group-workspace-reconstruction/*/acceptance.json
             work/private/group-workspace-reconstruction/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  fleet-native-assessment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate native assessment source, identity and cleanup boundaries
+        run: node --test scripts/tests/fleet-native-assessment-lab.test.mjs scripts/tests/fleet-assessment-compose.test.mjs
+      - name: Prepare the pinned offline Go toolchain
+        run: docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+      - name: Generate local-only fixture keys and distinct service credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build and start the inspected local source fixture
+        run: |
+          docker compose config --quiet
+          docker compose build minio buckets
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise native-shaped CUR ingestion, versioned readback and restricted assessment publication
+        run: node scripts/fleet-native-assessment-lab.mjs
+      - name: Retain bounded assessment evidence after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-native-assessment-acceptance
+          path: |
+            work/private/fleet-native-assessment/*/acceptance.json
+            work/private/fleet-native-assessment/*/failure-receipt.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Stop only this fresh job's source fixture
@@ -436,6 +499,9 @@ jobs:
           npm run test:e2e -- --grep-invert 'real OIDC two registered groups produce a persisted isolated fixture selection while unknown-program approval and runtime remain refused|real OIDC privately prepared fixture program receives an independent exact-program approval without execution authority'
       - name: Commission, privately prepare and independently review the exact isolated fixture program
         run: |
+          node scripts/fleet-assessment-compose-check.mjs
+          docker compose --profile fleet-assessment run --rm --no-deps fleet-assessment-secrets-init
+          docker compose --profile fleet-assessment up -d --no-build --no-deps --wait --wait-timeout 90 fleet-assessment
           node --test scripts/tests/group-fixture-commission.test.mjs
           node --test scripts/tests/group-fixture-preparer-job.test.mjs scripts/tests/group-fixture-program-review.test.mjs scripts/tests/group-fixture-review-sequence.test.mjs
           node scripts/group-fixture-review-sequence.mjs

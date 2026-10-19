@@ -1,5 +1,73 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: persisted native fleet evidence comparisons
+
+The [assessment API, console and dedicated worker](fleet-native-assessments.md)
+now connect immutable proposal IDs to current group membership, hardware,
+commitment and billing references. The browser cannot supply authoritative
+amounts. Results retain source/object-version pins, their observation/expiry
+times, unavailable capacity and explicit readiness reasons. Historical reads
+survive revocation; new publication still requires current authority.
+
+Public cold run `6835f944-ac32-405d-af99-94049dd94e90` passed in 576 seconds
+from raw indexed tree `e8469788b174e18f781b764bebf9fdffcf56d468`. Real private
+PostgreSQL and versioned MinIO exercised authenticated API requests, the ordinary
+CUR ingestion pipeline and the production restricted worker. Ten exact version
+readbacks produced the expected two-member USD comparison: `0.4` versus `0.24`
+per hour, difference `0.16`. Six direct SQL negatives followed a valid rollback
+control. Immutable replay passed. All 454 source pins, eight host pins, result
+digests and owned container/network/cache-volume cleanup passed independent
+review. AWS responses remain visibly provider-shaped fixtures. Capacity,
+contracted avoidable cost, execution authority and verified savings stay
+unavailable; the observed rate is a conditional historical estimate.
+
+Actual restricted PostgreSQL tests cover newest contradictory hardware without
+falling back to older evidence, exact receipt/current-head sets, versioned raw
+readback, status/null coupling, source corrections and pre-load size bounds.
+Earlier native attempts exposed a missing recursive-function grant and an
+ordinary-pipeline month-key mismatch; only the new 035 boundary changed.
+
+The retained local 032-to-035 migration passed all seven recovery checks:
+original stopped ownership/signature survived and the upgraded processes
+recorded exactly one stop/start. Its first attempt raced the unchanged
+eight-second fixture window and failed before DDL; durable restoration was
+requested. Stopping exact frozen IDs promptly fixes test timing while retaining
+daemon, identity and ownership checks before migration. All seven runtime
+suites subsequently passed. All 82 ordinary/presentation browser cases passed
+with zero retries; eight cover the new comparison presentation separately.
+
+Actual optional-worker launch caught YAML tmpfs splitting, unsupported
+environment-backed secrets on a read-only service and Windows file projection
+as `0555`. The network-isolated secret initializer now publishes Linux `0444`
+files; the worker is healthy with a read-only mount and unchanged strict file
+validation. Its database and archive identities remain separate from signing,
+ingestion and execution. Hosted Helm rendering and seventeen unsafe input
+refusals passed without provisioning.
+
+The preceding recovered-health release `b17ba1c` passed all twelve standard
+[CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39224208747).
+The frozen full backend test/vet run `5248b01d-a5fc-451e-b69a-2f08184206e4`
+passed against real PostgreSQL/Python, with no extra databases or roles after
+cleanup. All captured backend/native source pins match the release archive.
+The final code passed 294 Linux Node checks with zero skips, generated types,
+TypeScript/build, Actionlint, full-source Gitleaks and all 233 traceability gates.
+
+Connected sequence `4ee38ca8-c96a-4c6f-a94d-b00b49b09159` passed real-OIDC
+assessment creation, daemon publication and persisted reload in 35.7 seconds,
+then actual private preparation and independent exact-program approval. Together
+with the 82 ordinary/presentation cases, all 84 browser cases passed across
+their runs with zero retries. The initial `695c7564` run passed the assessment
+steps but failed its reload helper's assumption that SSO would show a credential
+form; clearing the IdP cookie forces the intended fresh credential flow.
+
+Encrypted physical backup `1e98fb91-7710-4ce0-987f-4f8ad0307fa8` passed all
+eight checks: authenticated archive/WAL verification before startup, quarantined
+same-image recovery, immutable row/authority hashes and restricted tenant/ledger
+enforcement. This proves local database readback; production RTO and resumed
+workflows remain separate. Final-commit CI must pass every standard job.
+Official completion remains **25.2% → 25.2%**; this strengthens the current
+component stage. No AWS resources or customer mutations are authorized.
+
 ## 19 October: actual recovered health and observer interruption
 
 Run `d865a860-5911-416f-9e2c-f762de214b35` passed from frozen raw indexed

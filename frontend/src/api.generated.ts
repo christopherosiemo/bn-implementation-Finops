@@ -4,6 +4,41 @@
  */
 
 export interface paths {
+    "/workloads/{id}/fleet-native-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Finance-scoped historical request/result metadata. Current workload authorization is checked independently of historical source availability. */
+        get: operations["listFleetNativeAssessments"];
+        put?: never;
+        /** @description IDs-only selection of two current025/027 group proposals. If-Match pins the current workload safety-profile version. A dedicated private assessor resolves native raw receipts and immutable017 member results; request creation grants no execution or financial authority. */
+        post: operations["requestFleetNativeAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-native-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable request and nullable private result. Conditional hourly differences are not contracted avoidable cost, savings or permission to execute. */
+        get: operations["getFleetNativeAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet-fixture-proposals/{id}/authorization-drafts": {
         parameters: {
             query?: never;
@@ -1381,6 +1416,205 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetNativeAssessmentRequest: {
+            old_configuration_proposal_id: string;
+            candidate_configuration_proposal_id: string;
+        };
+        FleetNativeSnapshotRef: {
+            id: string;
+            sha256: string;
+        };
+        FleetNativeVersionedRef: {
+            id: string;
+            /** Format: int64 */
+            version: number;
+            sha256: string;
+        };
+        FleetNativeGroupSelection: {
+            old_configuration_proposal: components["schemas"]["FleetNativeSnapshotRef"];
+            candidate_configuration_proposal: components["schemas"]["FleetNativeSnapshotRef"];
+            binding: components["schemas"]["FleetFixtureBinding"];
+        };
+        FleetNativeAssessmentSelection: {
+            groups: components["schemas"]["FleetNativeGroupSelection"];
+            safety_profile: components["schemas"]["FleetNativeVersionedRef"];
+        };
+        FleetNativeRateDimensions: {
+            account_id: string;
+            region: string;
+            currency: string;
+            instance_type: string;
+            operating_system: string;
+            tenancy: string;
+            license_model: string;
+            preinstalled_software: string;
+            sku: string;
+            operation: string;
+            usage_type: string;
+            unit: string;
+            /** @enum {string} */
+            cost_basis: "UNBLENDED" | "NET_UNBLENDED";
+        };
+        FleetNativeRate: {
+            instance_type: string;
+            rate_dimensions: components["schemas"]["FleetNativeRateDimensions"] | null;
+            observed_hourly_rate: string | null;
+            usage_hours: string | null;
+            observed_current_member_compute_cost: string | null;
+            sample_count: number;
+            /** Format: date-time */
+            latest_usage_end: string | null;
+            rate_basis: string;
+            member_count: number;
+            member_ids_hash: string;
+        };
+        FleetNativeSourcePin: {
+            receipt_id: string;
+            revision_id: string;
+            receipt_sha256: string;
+            raw_sha256: string;
+            receipt_version_id: string;
+            revision_version_id: string;
+        };
+        FleetNativeBillingRef: {
+            receipt_id: string;
+            revision_id: string;
+            ingestion_job_id: string;
+            raw_hash: string;
+            canonical_hash: string;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+        };
+        FleetNativeRates: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {string} */
+            kind: "AWS_GROUP_HISTORICAL_ACCOUNT_RATES";
+            selection: components["schemas"]["FleetNativeGroupSelection"];
+            snapshot_sha256: string;
+            source_pins: components["schemas"]["FleetNativeSourcePin"][];
+            billing_source_refs: components["schemas"]["FleetNativeBillingRef"][];
+            baseline: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+            };
+            /** @enum {string} */
+            baseline_scope_basis: "CURRENT_MEMBERS_NATIVE_BILLING_HISTORY";
+            /** Format: int64 */
+            billing_lag_seconds: number;
+            current_member_ids: string[];
+            old: components["schemas"]["FleetNativeRate"];
+            candidate: components["schemas"]["FleetNativeRate"];
+            economic_scope_sha256: string;
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            valid_until: string;
+            /** @enum {string} */
+            status: "OBSERVED_CONDITIONAL" | "UNAVAILABLE";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {boolean} */
+            hard_spend_cap: false;
+        };
+        FleetNativeMemberAssessment: {
+            instance_id: string;
+            resource_id: string;
+            result_id: string;
+            result_sha256: string;
+            hardware_receipt_id: string;
+            /** @enum {string} */
+            status: "BLOCKED" | "INSUFFICIENT_OBSERVATION";
+            /** @enum {string} */
+            demand_meaning: "REQUEST_THROUGHPUT_PROXY" | "LEGACY_UNPROVEN_PROXY" | "UNAVAILABLE";
+        };
+        FleetNativeCapacityCoverage: {
+            /** @enum {string} */
+            status: "UNAVAILABLE" | "PARTIAL" | "CURRENT_MEMBER_RESULTS_OBSERVED";
+            members: components["schemas"]["FleetNativeMemberAssessment"][];
+            missing_instance_ids: string[];
+            /** @enum {string} */
+            historical_membership: "INTERVAL_OWNERSHIP_UNPROVEN";
+            /** @enum {boolean} */
+            group_capacity_authorized: false;
+            /** @enum {boolean|null} */
+            completed_business_work_preserved: null;
+        };
+        FleetNativeHourlyScenario: {
+            /** @enum {string} */
+            status: "UNAVAILABLE" | "OBSERVED_CONDITIONAL";
+            /** @enum {string} */
+            basis: "LIKE_FOR_LIKE_CURRENT_MEMBER_COUNT";
+            /** @enum {string} */
+            rate_basis: "HISTORICAL_ACCOUNT_RATE_ESTIMATE";
+            currency: string | null;
+            member_count: number;
+            old_hourly_rate: string | null;
+            candidate_hourly_rate: string | null;
+            old_hourly_compute: string | null;
+            candidate_hourly_compute: string | null;
+            hourly_compute_difference: string | null;
+            /** @enum {string|null} */
+            contracted_avoidable_cost: null;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {boolean} */
+            hard_spend_cap: false;
+            excluded_costs: string[];
+        };
+        FleetNativeAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            /** Format: date-time */
+            observed_at: string;
+            native_rates: components["schemas"]["FleetNativeRates"];
+            capacity: components["schemas"]["FleetNativeCapacityCoverage"];
+            scenario: components["schemas"]["FleetNativeHourlyScenario"];
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            change_plan_id: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetNativeAssessmentRecord: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            workload_id: string;
+            creator_id: string;
+            /** Format: date-time */
+            created_at: string;
+            selection: components["schemas"]["FleetNativeAssessmentSelection"];
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED";
+            assessment: components["schemas"]["FleetNativeAssessment"] | null;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetNativeAssessmentPage: {
+            items: components["schemas"]["FleetNativeAssessmentRecord"][];
+            next_cursor: string | null;
+        };
         FleetGroupJournalHeadRef: {
             version: number;
             record_count: number;
@@ -4057,6 +4291,175 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetNativeAssessments: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable observational assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeAssessmentPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FINANCE, FINOPS_ADMIN or AUDITOR and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workload unavailable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped cursor invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestFleetNativeAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetNativeAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable observational assessment */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeAssessmentRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FINANCE or FINOPS_ADMIN and current workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selection or profile unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Profile CAS, current source or selection changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BODY_TOO_LARGE; complete control-plane body exceeds4MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Only the two proposal IDs are accepted */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetNativeAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable observational assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNativeAssessmentRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FINANCE, FINOPS_ADMIN or AUDITOR and workload scope required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetGroupAuthorizationDrafts: {
         parameters: {
             query?: {

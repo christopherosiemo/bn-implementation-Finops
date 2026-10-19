@@ -1,5 +1,14 @@
 # Commissioning dossier
 
+The [native fleet evidence comparison](fleet-native-assessments.md) has a
+separate optional worker and immutable API history. Its local versioned-object
+and database acceptance provides conditional historical compute-rate estimates.
+Before hosted commissioning, review the dedicated renewable read identity,
+verified-TLS database secret, exact tenant/bucket owner, KMS access and regional
+egress. Native capacity, historical interval ownership, contracted avoidable
+economics and financial authority still need independent acceptance. The local
+worker's healthy startup and fixture estimates do not enable customer execution.
+
 The [connected isolated fleet fixture](connected-fleet-fixture.md) keeps exact
 program, journal and continuation approvals separate. Private key commissioning,
 dedicated process identities, native artifact inspection and durable ownership

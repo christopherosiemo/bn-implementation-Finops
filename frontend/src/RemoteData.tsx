@@ -102,6 +102,7 @@ export function RemotePage<T extends { id: string }>({
       {page?.next_cursor && (
         <div className="remote-page-actions">
           <Button
+            type="button"
             secondary
             small
             pending={loading}

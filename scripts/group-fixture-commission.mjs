@@ -85,10 +85,10 @@ function privateDirectory(id){
 // every migration, so accepting only an older prefix rejects an additive upgrade.
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
- const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)&&Number(x.slice(0,3))<=34).sort();
- assert.equal(names.length,34);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:34},(_,n)=>n+1));
- assert.equal(names.at(-1),'034_group_recovery_health.sql');
+ const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)&&Number(x.slice(0,3))<=35).sort();
+ assert.equal(names.length,35);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:35},(_,n)=>n+1));
+ assert.equal(names.at(-1),'035_group_native_assessments.sql');
  return Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
 }
 function snapshot(directory){

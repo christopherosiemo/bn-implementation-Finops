@@ -300,8 +300,12 @@ try {
     // extra audit queries; independently fail before DDL if restoration raced.
     restarted = true;
     restartRequestedAt = Date.now();
+    // The explicit daemon and complete original identities were checked just
+    // before dispatch. Avoid Compose discovery in this short critical window;
+    // use only the exact frozen process IDs on that pinned daemon, then repeat
+    // daemon/configuration and stopped-ownership checks before any DDL.
+    docker(['stop', '-t', '0', before.worker.id, before.api.id]);
     assertDaemon();
-    compose(['stop', '-t', '0', 'worker', 'api']);
     for (const service of ['worker', 'api']) {
       const object = inspect(before[service].id);
       assert.ok(object.Id === frozenDocker.sources[service].Id && object.State.Running === false && object.Image === before[service].image, 'The original fixture process must be stopped before migration');

@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Actual empty replacement reconstruction retains the original signed baseline, reconciles UNKNOWN without another apply and executes one fresh owned inverse. Observer interruption yields immutable abandonment; a new process observes 933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples before database-gated release. All 73 ciphertexts (1,283,875 bytes), source/signature checks and owned cleanup passed independent audit. The earlier interop attempt remains failed; exact typed canonical fragments fix the reader without changing original bytes or health gates. Restricted PostgreSQL/vet, 285 final-source Linux Node checks, Actionlint, Gitleaks and traceability passed. Prior CI failures remain recorded; TCP readiness and the explicit 034 commissioning schema are corrected. Final-commit CI remains required. Native capacity/finance integration, customer pipeline identity, public runtime, deployed durable/repeated-loss recovery and customer/production acceptance remain open. Existing component maturity earns no additional credit.",
+  "credit_review": "Authenticated IDs-only requests now queue immutable fleet assessments for a dedicated restricted daemon. The public cold lab passed ordinary native-shaped CUR ingestion, ten exact version readbacks, conditional USD 0.4/0.24/0.16 rates, six direct SQL negatives, immutable replay, 454 source/eight host pins and full owned cleanup. Actual role tests close current-month, recursive-grant and latest contradictory-hardware gaps. Full backend tests/vet passed with real PostgreSQL/Python; all seven retained-stack runtime suites and the 032-to-035 owned restoration upgrade passed. Eleven running service images and all 35 migration hashes matched source. The final package passed 294 Linux Node checks, generated contracts/build, Helm positive/17 negative inputs, Actionlint and secret scanning. All 84 browser cases passed across ordinary/presentation and real-OIDC assessment/preparation/independent-approval runs with zero retries. A test-only SSO expectation failure remains retained; fresh credential entry fixes the reload check. Actual read-only worker startup exposed Windows 0555 projection; network-isolated Linux secret initialization preserves strict 0444 validation and the worker is healthy. Quarantined encrypted physical backup passed eight checks. The preceding recovered-health commit passed all twelve standard CI jobs. Final-commit CI remains required. The comparison is a historical account-rate estimate: native capacity, interval ownership, contracted avoidable economics, executable authority and verified savings remain unavailable. No package weights or maturity stages change; no AWS/customer/production credit is awarded.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -1042,6 +1042,35 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Actual empty replacement reconstruction retains the original signed baseline, reconciles UNKNOWN without another apply and executes one fresh owned inverse. Observer interruption yields immutable abandonment; a new process observes 933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples before database-gated release. All 73 ciphertexts (1,283,875 bytes), source/signature checks and owned cleanup passed independent audit. The earlier interop attempt remains failed; exact typed canonical fragments fix the reader without changing original bytes or health gates. Restricted PostgreSQL/vet, 285 final-source Linux Node checks, Actionlint, Gitleaks and traceability passed. Prior CI failures remain recorded; TCP readiness and the explicit 034 commissioning schema are corrected. Final-commit CI remains required. Native capacity/finance integration, customer pipeline identity, public runtime, deployed durable/repeated-loss recovery and customer/production acceptance remain open. Existing component maturity earns no additional credit."
+    },
+    {
+      "id": "native-fleet-assessment-worker-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "b17ba1c38978492a7c84a1fea1116ef35a324c24",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39224208747",
+      "evidence": [
+        "docs/fleet-native-assessments.md",
+        "docs/acceptance.md",
+        "internal/fleetassessment",
+        "internal/fleetassessmentworker",
+        "internal/fleetbilling/group_native.go",
+        "internal/service/fleet_native_assessment_native_integration_test.go",
+        "internal/store/fleet_native_assessment_integration_test.go",
+        "migrations/035_group_native_assessments.sql",
+        "frontend/tests/fleet-fixture-live.spec.ts",
+        "scripts/fleet-native-assessment-lab.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "6835f944-ac32-405d-af99-94049dd94e90",
+        "5248b01d-a5fc-451e-b69a-2f08184206e4",
+        "fd0dcc39-b474-4394-a204-006026281731",
+        "4ee38ca8-c96a-4c6f-a94d-b00b49b09159",
+        "1e98fb91-7710-4ce0-987f-4f8ad0307fa8"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Authenticated IDs-only requests now queue immutable fleet assessments for a dedicated restricted daemon. The public cold lab passed ordinary native-shaped CUR ingestion, ten exact version readbacks, conditional USD 0.4/0.24/0.16 rates, six direct SQL negatives, immutable replay, 454 source/eight host pins and full owned cleanup. Actual role tests close current-month, recursive-grant and latest contradictory-hardware gaps. Full backend tests/vet passed with real PostgreSQL/Python; all seven retained-stack runtime suites and the 032-to-035 owned restoration upgrade passed. Eleven running service images and all 35 migration hashes matched source. The final package passed 294 Linux Node checks, generated contracts/build, Helm positive/17 negative inputs, Actionlint and secret scanning. All 84 browser cases passed across ordinary/presentation and real-OIDC assessment/preparation/independent-approval runs with zero retries. A test-only SSO expectation failure remains retained; fresh credential entry fixes the reload check. Actual read-only worker startup exposed Windows 0555 projection; network-isolated Linux secret initialization preserves strict 0444 validation and the worker is healthy. Quarantined encrypted physical backup passed eight checks. The preceding recovered-health commit passed all twelve standard CI jobs. Final-commit CI remains required. The comparison is a historical account-rate estimate: native capacity, interval ownership, contracted avoidable economics, executable authority and verified savings remain unavailable. No package weights or maturity stages change; no AWS/customer/production credit is awarded."
     }
   ]
 }

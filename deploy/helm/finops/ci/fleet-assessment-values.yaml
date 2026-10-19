@@ -1,0 +1,8 @@
+# Render-only values. No IAM identity or resource is provisioned here.
+# Combine with aws-readonly-values.yaml; the worker stays disabled by default.
+fleetAssessment:
+  enabled: true
+  roleArn: arn:aws:iam::123456789012:role/finops-group-evidence-reader
+  bucketOwner: "123456789012"
+  httpsEgressCidrs: ["10.40.2.0/24"]
+  postgresEgressCidrs: ["10.42.10.0/24", "10.42.11.0/24"]

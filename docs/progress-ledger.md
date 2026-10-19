@@ -1,5 +1,15 @@
 # Product scope progress ledger
 
+The new [native fleet comparison](fleet-native-assessments.md) connects an
+authenticated queued request, immutable provider evidence, a restricted worker
+and the console. Its public cold acceptance passed actual versioned storage,
+exact conditional rates and complete cleanup. The preceding recovered-health
+release passed all twelve standard CI jobs. These close documented component
+gaps while native capacity, contracted avoidable economics and the complete
+approved fleet workflow remain open. Official completion stays
+**25.2% → 25.2%**. The rough engineering range including verified partial work
+remains **27–31%**, without a fresh whole-product audit.
+
 The [recovered-health rehearsal](group-recovered-health.md) now passes actual
 worker retirement, empty reconstruction, one fresh inverse and observer loss
 followed by a fresh 933-second window. Database-gated release, all 73 ciphertexts

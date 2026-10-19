@@ -8,6 +8,87 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /workloads/{id}/fleet-native-assessments:
+    get:
+      operationId: listFleetNativeAssessments
+      description: >-
+        Finance-scoped historical request/result metadata. Current workload authorization is checked
+        independently of historical source availability.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Immutable observational assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeAssessmentPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: FINANCE, FINOPS_ADMIN or AUDITOR and workload scope required
+        '404':
+          description: Workload unavailable
+        '422':
+          description: Scoped cursor invalid
+    post:
+      operationId: requestFleetNativeAssessment
+      description: >-
+        IDs-only selection of two current025/027 group proposals. If-Match pins the current workload
+        safety-profile version. A dedicated private assessor resolves native raw receipts and immutable017
+        member results; request creation grants no execution or financial authority.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetNativeAssessmentRequest'
+      responses:
+        '202':
+          description: Immutable observational assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeAssessmentRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: FINANCE or FINOPS_ADMIN and current workload scope required
+        '404':
+          description: Selection or profile unavailable in tenant
+        '409':
+          description: Profile CAS, current source or selection changed
+        '413':
+          description: BODY_TOO_LARGE; complete control-plane body exceeds4MiB
+        '422':
+          description: Only the two proposal IDs are accepted
+  /fleet-native-assessments/{id}:
+    get:
+      operationId: getFleetNativeAssessment
+      description: >-
+        Immutable request and nullable private result. Conditional hourly differences are not contracted
+        avoidable cost, savings or permission to execute.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable observational assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNativeAssessmentRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: FINANCE, FINOPS_ADMIN or AUDITOR and workload scope required
+        '404':
+          description: Record unavailable in tenant
   /fleet-fixture-proposals/{id}/authorization-drafts:
     get:
       operationId: listFleetGroupAuthorizationDrafts
@@ -1479,6 +1560,593 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetNativeAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - old_configuration_proposal_id
+        - candidate_configuration_proposal_id
+      properties:
+        old_configuration_proposal_id:
+          type: string
+        candidate_configuration_proposal_id:
+          type: string
+    FleetNativeSnapshotRef:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - sha256
+      properties:
+        id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    FleetNativeVersionedRef:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - sha256
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    FleetNativeGroupSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - old_configuration_proposal
+        - candidate_configuration_proposal
+        - binding
+      properties:
+        old_configuration_proposal:
+          $ref: '#/components/schemas/FleetNativeSnapshotRef'
+        candidate_configuration_proposal:
+          $ref: '#/components/schemas/FleetNativeSnapshotRef'
+        binding:
+          $ref: '#/components/schemas/FleetFixtureBinding'
+    FleetNativeAssessmentSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - groups
+        - safety_profile
+      properties:
+        groups:
+          $ref: '#/components/schemas/FleetNativeGroupSelection'
+        safety_profile:
+          $ref: '#/components/schemas/FleetNativeVersionedRef'
+    FleetNativeRateDimensions:
+      type: object
+      additionalProperties: false
+      required:
+        - account_id
+        - region
+        - currency
+        - instance_type
+        - operating_system
+        - tenancy
+        - license_model
+        - preinstalled_software
+        - sku
+        - operation
+        - usage_type
+        - unit
+        - cost_basis
+      properties:
+        account_id:
+          type: string
+        region:
+          type: string
+        currency:
+          type: string
+        instance_type:
+          type: string
+        operating_system:
+          type: string
+        tenancy:
+          type: string
+        license_model:
+          type: string
+        preinstalled_software:
+          type: string
+        sku:
+          type: string
+        operation:
+          type: string
+        usage_type:
+          type: string
+        unit:
+          type: string
+        cost_basis:
+          type: string
+          enum:
+            - UNBLENDED
+            - NET_UNBLENDED
+    FleetNativeRate:
+      type: object
+      additionalProperties: false
+      required:
+        - instance_type
+        - rate_dimensions
+        - observed_hourly_rate
+        - usage_hours
+        - observed_current_member_compute_cost
+        - sample_count
+        - latest_usage_end
+        - rate_basis
+        - member_count
+        - member_ids_hash
+      properties:
+        instance_type:
+          type: string
+        rate_dimensions:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeRateDimensions'
+        observed_hourly_rate:
+          type: string
+          nullable: true
+        usage_hours:
+          type: string
+          nullable: true
+        observed_current_member_compute_cost:
+          type: string
+          nullable: true
+        sample_count:
+          type: integer
+        latest_usage_end:
+          type: string
+          format: date-time
+          nullable: true
+        rate_basis:
+          type: string
+        member_count:
+          type: integer
+        member_ids_hash:
+          type: string
+    FleetNativeSourcePin:
+      type: object
+      additionalProperties: false
+      required:
+        - receipt_id
+        - revision_id
+        - receipt_sha256
+        - raw_sha256
+        - receipt_version_id
+        - revision_version_id
+      properties:
+        receipt_id:
+          type: string
+        revision_id:
+          type: string
+        receipt_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        raw_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        receipt_version_id:
+          type: string
+        revision_version_id:
+          type: string
+    FleetNativeBillingRef:
+      type: object
+      additionalProperties: false
+      required:
+        - receipt_id
+        - revision_id
+        - ingestion_job_id
+        - raw_hash
+        - canonical_hash
+        - period_start
+        - period_end
+      properties:
+        receipt_id:
+          type: string
+        revision_id:
+          type: string
+        ingestion_job_id:
+          type: string
+        raw_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        canonical_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+    FleetNativeRates:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - kind
+        - selection
+        - snapshot_sha256
+        - source_pins
+        - billing_source_refs
+        - baseline
+        - baseline_scope_basis
+        - billing_lag_seconds
+        - current_member_ids
+        - old
+        - candidate
+        - economic_scope_sha256
+        - observed_at
+        - valid_until
+        - status
+        - reason_codes
+        - execution_authorized
+        - verified_saving
+        - hard_spend_cap
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - AWS_GROUP_HISTORICAL_ACCOUNT_RATES
+        selection:
+          $ref: '#/components/schemas/FleetNativeGroupSelection'
+        snapshot_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        source_pins:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeSourcePin'
+        billing_source_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeBillingRef'
+        baseline:
+          type: object
+          additionalProperties: false
+          required:
+            - start
+            - end
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        baseline_scope_basis:
+          type: string
+          enum:
+            - CURRENT_MEMBERS_NATIVE_BILLING_HISTORY
+        billing_lag_seconds:
+          type: integer
+          format: int64
+        current_member_ids:
+          type: array
+          items:
+            type: string
+        old:
+          $ref: '#/components/schemas/FleetNativeRate'
+        candidate:
+          $ref: '#/components/schemas/FleetNativeRate'
+        economic_scope_sha256:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - OBSERVED_CONDITIONAL
+            - UNAVAILABLE
+        reason_codes:
+          type: array
+          items:
+            type: string
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        hard_spend_cap:
+          type: boolean
+          enum:
+            - false
+    FleetNativeMemberAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - instance_id
+        - resource_id
+        - result_id
+        - result_sha256
+        - hardware_receipt_id
+        - status
+        - demand_meaning
+      properties:
+        instance_id:
+          type: string
+        resource_id:
+          type: string
+        result_id:
+          type: string
+        result_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        hardware_receipt_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - BLOCKED
+            - INSUFFICIENT_OBSERVATION
+        demand_meaning:
+          type: string
+          enum:
+            - REQUEST_THROUGHPUT_PROXY
+            - LEGACY_UNPROVEN_PROXY
+            - UNAVAILABLE
+    FleetNativeCapacityCoverage:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - members
+        - missing_instance_ids
+        - historical_membership
+        - group_capacity_authorized
+        - completed_business_work_preserved
+      properties:
+        status:
+          type: string
+          enum:
+            - UNAVAILABLE
+            - PARTIAL
+            - CURRENT_MEMBER_RESULTS_OBSERVED
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeMemberAssessment'
+        missing_instance_ids:
+          type: array
+          items:
+            type: string
+        historical_membership:
+          type: string
+          enum:
+            - INTERVAL_OWNERSHIP_UNPROVEN
+        group_capacity_authorized:
+          type: boolean
+          enum:
+            - false
+        completed_business_work_preserved:
+          type: boolean
+          nullable: true
+          enum:
+            - null
+    FleetNativeHourlyScenario:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - basis
+        - rate_basis
+        - currency
+        - member_count
+        - old_hourly_rate
+        - candidate_hourly_rate
+        - old_hourly_compute
+        - candidate_hourly_compute
+        - hourly_compute_difference
+        - contracted_avoidable_cost
+        - estimated_saving
+        - verified_saving
+        - hard_spend_cap
+        - excluded_costs
+      properties:
+        status:
+          type: string
+          enum:
+            - UNAVAILABLE
+            - OBSERVED_CONDITIONAL
+        basis:
+          type: string
+          enum:
+            - LIKE_FOR_LIKE_CURRENT_MEMBER_COUNT
+        rate_basis:
+          type: string
+          enum:
+            - HISTORICAL_ACCOUNT_RATE_ESTIMATE
+        currency:
+          type: string
+          nullable: true
+        member_count:
+          type: integer
+        old_hourly_rate:
+          type: string
+          nullable: true
+        candidate_hourly_rate:
+          type: string
+          nullable: true
+        old_hourly_compute:
+          type: string
+          nullable: true
+        candidate_hourly_compute:
+          type: string
+          nullable: true
+        hourly_compute_difference:
+          type: string
+          nullable: true
+        contracted_avoidable_cost:
+          type: string
+          nullable: true
+          enum:
+            - null
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        hard_spend_cap:
+          type: boolean
+          enum:
+            - false
+        excluded_costs:
+          type: array
+          items:
+            type: string
+    FleetNativeAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - selection
+        - observed_at
+        - native_rates
+        - capacity
+        - scenario
+        - status
+        - reason_codes
+        - execution_authorized
+        - change_plan_id
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        observed_at:
+          type: string
+          format: date-time
+        native_rates:
+          $ref: '#/components/schemas/FleetNativeRates'
+        capacity:
+          $ref: '#/components/schemas/FleetNativeCapacityCoverage'
+        scenario:
+          $ref: '#/components/schemas/FleetNativeHourlyScenario'
+        status:
+          type: string
+          enum:
+            - BLOCKED
+        reason_codes:
+          type: array
+          items:
+            type: string
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        change_plan_id:
+          type: string
+          nullable: true
+          enum:
+            - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetNativeAssessmentRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - created_at
+        - selection
+        - status
+        - assessment
+        - execution_authorized
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        selection:
+          $ref: '#/components/schemas/FleetNativeAssessmentSelection'
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+        assessment:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetNativeAssessment'
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    FleetNativeAssessmentPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNativeAssessmentRecord'
+        next_cursor:
+          type: string
+          nullable: true
     FleetGroupJournalHeadRef:
       type: object
       additionalProperties: false

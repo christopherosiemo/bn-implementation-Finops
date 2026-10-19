@@ -8,12 +8,14 @@ COPY cmd ./cmd
 COPY internal ./internal
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /finops ./cmd/finops
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /finops ./cmd/finops && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /fleet-assessment-worker ./cmd/fleet-assessment-worker
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10001 finops
 WORKDIR /app
 COPY --from=build /finops /app/finops
+COPY --from=build /fleet-assessment-worker /app/fleet-assessment-worker
 COPY migrations /app/migrations
 USER 10001:10001
 EXPOSE 8080

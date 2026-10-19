@@ -279,6 +279,183 @@ test("real OIDC two registered groups produce a persisted isolated fixture selec
   await page
     .getByRole("combobox", { name: "Fleet history workload", exact: true })
     .selectOption(workload!.id);
+  // The new comparison uses the same actual persisted group selections. No
+  // native member receipts are supplied by this browser, so missing evidence
+  // must flow through the commissioned daemon as an immutable unavailable result.
+  const safetyResponse = await page.request.get(
+    `/v1/workloads/${workload!.id}/safety-profiles?limit=1`,
+    { headers: { Authorization: authorization } },
+  );
+  expect(safetyResponse.status()).toBe(200);
+  const safety =
+    (await safetyResponse.json()) as components["schemas"]["WorkloadSafetyPage"];
+  expect(
+    safety.latest,
+    "The fixture workload must retain its declared safety profile before commissioning the comparison worker.",
+  ).toBeTruthy();
+  await page
+    .getByText("Native fleet assessment & observed compute rates", {
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Compare fleet compute rates", exact: true })
+    .click();
+  const assessmentDialog = page.getByRole("dialog", {
+    name: "Compare observed fleet compute rates",
+    exact: true,
+  });
+  for (const [index, side] of (["Original", "Candidate"] as const).entries()) {
+    const group = assessmentDialog.getByRole("group", {
+      name: `${side} group for assessment`,
+      exact: true,
+    });
+    await expect(
+      group.getByRole("region", {
+        name: `${side} assessment group choices`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    const target = group.getByRole("button", {
+      name: `Assess ${side.toLowerCase()} group ${names[index]}`,
+      exact: true,
+    });
+    for (;;) {
+      if (await target.isVisible()) {
+        await target.click();
+        break;
+      }
+      const more = group.getByRole("button", {
+        name: `Load more ${side.toLowerCase()} assessment groups`,
+        exact: true,
+      });
+      await expect(more).toBeVisible();
+      const [response] = await Promise.all([
+        page.waitForResponse((reply) => {
+          const u = new URL(reply.url());
+          return (
+            u.pathname === "/v1/fleet-history-registrations" &&
+            u.searchParams.has("cursor") &&
+            reply.ok()
+          );
+        }),
+        more.click(),
+      ]);
+      const next = (await response.json()) as {
+        items: FleetHistoryRegistration[];
+      };
+      expect(next.items.length).toBeGreaterThan(0);
+      await expect(
+        group.getByRole("button", {
+          name: `Assess ${side.toLowerCase()} group ${next.items.at(-1)!.registration.fleet_id}`,
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+    await group
+      .getByRole("button", {
+        name: `Compare ${side.toLowerCase()} proposal ${pairs[index].proposal.id.slice(0, 12)}…${pairs[index].proposal.id.slice(-6)}`,
+        exact: true,
+      })
+      .click();
+  }
+  const [assessmentResponse] = await Promise.all([
+    page.waitForResponse(
+      (reply) =>
+        new URL(reply.url()).pathname ===
+          `/v1/workloads/${workload!.id}/fleet-native-assessments` &&
+        reply.request().method() === "POST",
+    ),
+    assessmentDialog
+      .getByRole("button", {
+        name: "Request native fleet assessment",
+        exact: true,
+      })
+      .click(),
+  ]);
+  expect(assessmentResponse.status()).toBe(202);
+  expect(assessmentResponse.request().postDataJSON()).toEqual({
+    old_configuration_proposal_id: pairs[0].proposal.id,
+    candidate_configuration_proposal_id: pairs[1].proposal.id,
+  });
+  expect(assessmentResponse.request().headers()["if-match"]).toBe(
+    `"${safety.latest!.version}"`,
+  );
+  const requested =
+    (await assessmentResponse.json()) as components["schemas"]["FleetNativeAssessmentRecord"];
+  expect(requested.status).toBe("QUEUED");
+  expect(requested.assessment).toBeNull();
+  let assessed: components["schemas"]["FleetNativeAssessmentRecord"] =
+    requested;
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `/v1/fleet-native-assessments/${requested.id}`,
+          { headers: { Authorization: authorization } },
+        );
+        expect(response.status()).toBe(200);
+        assessed =
+          (await response.json()) as components["schemas"]["FleetNativeAssessmentRecord"];
+        return assessed.status;
+      },
+      { timeout: 60_000, intervals: [500, 1000, 2000] },
+    )
+    .toBe("ASSESSED");
+  expect(assessed.assessment!.status).toBe("BLOCKED");
+  expect(assessed.assessment!.scenario.status).toBe("UNAVAILABLE");
+  expect(assessed.assessment!.scenario.hourly_compute_difference).toBeNull();
+  expect(assessed.assessment!.verified_saving).toBeNull();
+  expect(assessed.execution_authorized).toBe(false);
+  await page
+    .getByRole("button", { name: "Refresh selected assessment", exact: true })
+    .click();
+  const assessmentPanel = page.getByRole("region", {
+    name: "Selected native fleet assessment",
+    exact: true,
+  });
+  await expect(
+    assessmentPanel.getByRole("row", {
+      name: "Conditional hourly compute difference Unavailable",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    assessmentPanel.getByRole("row", {
+      name: "Verified savings Unavailable",
+      exact: true,
+    }),
+  ).toBeVisible();
+  // Reauthentication after a real navigation proves the result is server state.
+  // Clear the IdP cookie so this second credential flow cannot silently use SSO.
+  await page.context().clearCookies();
+  await page.reload();
+  await signIn(page, process.env.FINOPS_E2E_USER || "owner");
+  await page
+    .getByRole("link", { name: "Workloads & resources", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Fleet history workload", exact: true })
+    .selectOption(workload!.id);
+  await page
+    .getByText("Native fleet assessment & observed compute rates", {
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: `Inspect native assessment ${requested.id.slice(0, 12)}…${requested.id.slice(-6)}`,
+      exact: true,
+    })
+    .click();
+  await expect(
+    page
+      .getByRole("region", {
+        name: "Selected native fleet assessment",
+        exact: true,
+      })
+      .getByRole("row", { name: "Verified savings Unavailable", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", {
       name: "Propose isolated group fixture",

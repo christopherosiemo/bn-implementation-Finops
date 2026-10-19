@@ -27,6 +27,11 @@ type Reference = components["schemas"]["FleetHistoryScopeReference"];
 const FleetFixture = lazy(() =>
   import("./FleetFixture").then((module) => ({ default: module.FleetFixture })),
 );
+const FleetNativeAssessment = lazy(() =>
+  import("./FleetNativeAssessment").then((module) => ({
+    default: module.FleetNativeAssessment,
+  })),
+);
 type RegistrationRequest =
   components["schemas"]["FleetHistoryRegistrationRequest"];
 type DefinitionRequest = components["schemas"]["FleetDemandDefinitionRequest"];
@@ -56,7 +61,8 @@ function activityChoices(
 ): ActivityChoice[] {
   return (data.activity_sources ?? []).flatMap((source) => {
     const metric = source.metric_definition as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     if (
       source.enabled !== true ||
       source.workload_id !== registration.registration.binding.workload_id ||
@@ -1022,7 +1028,20 @@ export function FleetHistory({ data, run, busy }: Props) {
               </Table>
             )}
           </RemotePage>
-          <Suspense fallback={<p role="status">Loading isolated fixture review…</p>}>
+          <Suspense
+            fallback={<p role="status">Loading native fleet assessment…</p>}
+          >
+            <FleetNativeAssessment
+              key={workload.id}
+              workload={workload.id}
+              fixture={data.fixture}
+              run={run}
+              busy={busy}
+            />
+          </Suspense>
+          <Suspense
+            fallback={<p role="status">Loading isolated fixture review…</p>}
+          >
             <FleetFixture
               key={workload.id}
               workload={workload.id}

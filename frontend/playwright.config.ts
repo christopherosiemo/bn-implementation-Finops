@@ -17,6 +17,7 @@ export default defineConfig({
       testIgnore: [
         "fleet-group-authorization.spec.ts",
         "fleet-fixture-runs.spec.ts",
+        "fleet-native-assessment.spec.ts",
       ],
       use: { baseURL: process.env.FINOPS_WEB_URL || "http://localhost:3000" },
     },
@@ -25,6 +26,7 @@ export default defineConfig({
       testMatch: [
         "fleet-group-authorization.spec.ts",
         "fleet-fixture-runs.spec.ts",
+        "fleet-native-assessment.spec.ts",
       ],
       use: { baseURL: "http://127.0.0.1:4177" },
     },

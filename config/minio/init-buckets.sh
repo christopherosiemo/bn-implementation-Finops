@@ -11,3 +11,12 @@ mc admin policy attach local raw-writer --user "$OBJECT_ACCESS_KEY"
 mc admin policy create local audit-writer /config/audit-policy.json
 mc admin user add local "$AUDIT_ACCESS_KEY" "$AUDIT_SECRET_KEY"
 mc admin policy attach local audit-writer --user "$AUDIT_ACCESS_KEY"
+if [ -n "${ASSESSMENT_ACCESS_KEY:-}" ] || [ -n "${ASSESSMENT_SECRET_KEY:-}" ]; then
+  test -n "${ASSESSMENT_ACCESS_KEY:-}" && test -n "${ASSESSMENT_SECRET_KEY:-}"
+  test "$ASSESSMENT_ACCESS_KEY" != "$MINIO_ROOT_USER"
+  test "$ASSESSMENT_ACCESS_KEY" != "$OBJECT_ACCESS_KEY"
+  test "$ASSESSMENT_ACCESS_KEY" != "$AUDIT_ACCESS_KEY"
+  mc admin policy create local group-assessor /config/group-assessor-policy.json
+  mc admin user add local "$ASSESSMENT_ACCESS_KEY" "$ASSESSMENT_SECRET_KEY"
+  mc admin policy attach local group-assessor --user "$ASSESSMENT_ACCESS_KEY"
+fi

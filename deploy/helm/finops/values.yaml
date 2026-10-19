@@ -43,6 +43,7 @@ database:
     hardware-reader: finops-db-hardware-reader
     # A distinct LOGIN member of finops_ingester; never reuse another process login.
     fleet-history-reader: finops-db-fleet-history-reader
+    fleet-assessment: finops-db-group-assessor
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -89,6 +90,16 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+fleetAssessment:
+  # Optional read-only consumer of persisted requests and versioned evidence.
+  # Existing dedicated IRSA: GetObjectVersion/GetBucketLocation + scoped KMS
+  # decrypt only. No provider discovery, AssumeRole, signing or execution grants.
+  enabled: false
+  roleArn: ""
+  bucketOwner: ""
+  replicas: 1
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
 activity:
   # Dedicated machine tokens; never configure the browser/API audience here.
   audience: finops-activity

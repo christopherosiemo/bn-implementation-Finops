@@ -1,5 +1,6 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, constants, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { randomBytes, generateKeyPairSync } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -30,6 +31,77 @@ if (!env.DB_HARDWARE_READER_PASSWORD) {
   env.DB_HARDWARE_READER_PASSWORD = random();
   writeFileSync(envPath, `DB_HARDWARE_READER_PASSWORD=${env.DB_HARDWARE_READER_PASSWORD}\n`, { flag: 'a', mode: 0o600 });
 }
+for (const [key, value] of Object.entries({ DB_GROUP_ASSESSOR_PASSWORD: random(), ASSESSMENT_ACCESS_KEY: 'group-assessor', ASSESSMENT_SECRET_KEY: random() })) {
+  if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+}
+if (!env.FLEET_ASSESSMENT_DATABASE_URL) {
+  env.FLEET_ASSESSMENT_DATABASE_URL = `postgres://finops_group_assessor:${encodeURIComponent(env.DB_GROUP_ASSESSOR_PASSWORD)}@postgres:5432/finops?sslmode=disable`;
+  writeFileSync(envPath, `FLEET_ASSESSMENT_DATABASE_URL=${env.FLEET_ASSESSMENT_DATABASE_URL}\n`, { flag: 'a', mode: 0o600 });
+}
+// Compose file secrets work with a read-only service and are readable by its
+// dedicated UID. The enclosing host directories retain owner-only access.
+// Publish each file atomically; an existing symlink is never followed.
+function assessmentSecretDirectory() {
+  const base = realpathSync(root);
+  let directory = base;
+  for (const part of ['work', 'private', 'fleet-assessment-secrets']) {
+    directory = path.join(directory, part);
+    try { mkdirSync(directory, { mode: 0o700 }); }
+    catch (error) { if (error.code !== 'EEXIST') throw new Error('Assessment secret directory creation refused'); }
+    const stat = lstatSync(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(directory) !== directory) throw new Error('Assessment secret directory boundary differs');
+    if (part !== 'work') chmodSync(directory, 0o700);
+    if (process.platform === 'win32' && part !== 'work') {
+      const account = execFileSync('whoami.exe', [], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+      if (!/^[^\r\n]+\\[^\r\n]+$/.test(account)) throw new Error('Assessment secret owner unavailable');
+      execFileSync('icacls.exe', [directory, '/inheritance:r', '/grant:r', account + ':(OI)(CI)F'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    }
+  }
+  return directory;
+}
+function atomicAssessmentSecret(directory, name, value) {
+  if (!['database', 'access-key', 'secret-key'].includes(name) || typeof value !== 'string' || !value || value.length > 32768 || /[\0\r\n]/.test(value)) throw new Error('Assessment secret value invalid');
+  const file = path.join(directory, name), temporary = path.join(directory, '.' + name + '-' + randomBytes(16).toString('hex'));
+  const parent = lstatSync(directory);
+  const parentMatches = () => {
+    const current = lstatSync(directory);
+    return current.isDirectory() && !current.isSymbolicLink() && current.dev === parent.dev && current.ino === parent.ino && realpathSync(directory) === directory;
+  };
+  let previous = false;
+  try {
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Assessment secret target differs');
+    previous = true;
+  } catch (error) { if (error.code !== 'ENOENT') throw new Error('Assessment secret target refused'); }
+  let descriptor;
+  try {
+    descriptor = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW || 0), 0o600);
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile() || stat.nlink !== 1 || !parentMatches()) throw new Error('Assessment secret temporary boundary differs');
+    writeFileSync(descriptor, value + '\n');
+    fsyncSync(descriptor);
+    closeSync(descriptor);descriptor = undefined;
+    chmodSync(temporary, 0o444);
+    if (!parentMatches()) throw new Error('Assessment secret parent changed');
+    // Windows requires the old read-only destination to become replaceable.
+    // Its private parent remains inaccessible to other host users throughout.
+    if (previous && process.platform === 'win32') chmodSync(file, 0o600);
+    renameSync(temporary, file);
+    chmodSync(file, 0o444);
+    if (!parentMatches() || lstatSync(file).isSymbolicLink()) throw new Error('Assessment secret publication boundary differs');
+    if (process.platform !== 'win32') {
+      const parentFD = openSync(directory, constants.O_RDONLY | (constants.O_DIRECTORY || 0) | (constants.O_NOFOLLOW || 0));
+      try { fsyncSync(parentFD); } finally { closeSync(parentFD); }
+    }
+  } catch {
+    if (descriptor !== undefined) closeSync(descriptor);
+    try { unlinkSync(temporary); } catch {}
+    if (previous && process.platform === 'win32') try { chmodSync(file, 0o444); } catch {}
+    throw new Error('Assessment secret publication refused');
+  }
+}
+const assessmentSecrets = assessmentSecretDirectory();
+for (const [name, value] of [['database', env.FLEET_ASSESSMENT_DATABASE_URL], ['access-key', env.ASSESSMENT_ACCESS_KEY], ['secret-key', env.ASSESSMENT_SECRET_KEY]]) atomicAssessmentSecret(assessmentSecrets, name, value);
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
 const userProfile = {
