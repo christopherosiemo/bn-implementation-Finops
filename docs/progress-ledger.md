@@ -1,6 +1,16 @@
 # Product scope progress ledger
 
-Recorded 18 October 2026. **25.0% → 25.2%** of the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
+The latest local assurance package adds immutable fleet point/completed-work
+history, explicit request-throughput proxy semantics and current-request replay
+authorization. The final API passed seven runtime suites and all 53 Chromium
+cases with unchanged timeouts and zero retries; restricted database, versioned
+object and deployment-refusal checks also passed. These strengthen existing
+stages without new credit. Historical membership ownership remains unproven,
+Fleet execution/financial authority stays disabled, and customer/production
+acceptance remains outstanding. Exact-commit CI and the final encrypted recovery
+drill remain release checks, independently of this unchanged progress score.
+
+Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 
 | Domain | Fixed scope weight | Current area maturity | Contribution |
 | --- | ---: | ---: | ---: |
@@ -46,9 +56,18 @@ policy, sealed exact-decimal report, pagination and role/tenant denial. Signed
 credits, unknowns, separate currencies, corrections and source authority have
 restricted PostgreSQL acceptance. Shared storage, identity and console
 foundations receive no additional credit. Neither private artifact/rate
-components nor pending native Flux earn credit here. Historical ownership,
+components nor the then-pending native Flux earned credit in that allocation
+review. Historical ownership,
 provider-scale reporting, customer chargeback, complete fleet economics and
 live/production operation remain required. See [allocation limits](cost-allocation.md).
+
+The 19 October assurance review preserves **25.2 → 25.2** after all nine
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697)
+passed. It records durable STOP/control/restoration checks and a real local Flux
+Git rollout, disruption refusal, readiness failure and owned rollback with
+verified cleanup. These strengthen the existing component stages. They do not
+complete the connected fleet/Kubernetes approval, execution and financial
+workflow, establish hosted/customer use or earn repeated foundation credit.
 
 The preceding SLO increment added 1.2 points by advancing the bounded independent-demand/SLO package from component acceptance to deterministic end-to-end acceptance. Registered machine observations feed immutable objectives and sealed pre-plan evaluations. Hard limits and enabled regression are independent; missing intervals, uncertain histogram bounds and incompatible availability windows block stops. A genuine minute-rollover PostgreSQL test records an owned failure and one notification, preserves restoration through expiry/pause, and retains the latch after later good state. Financial correction tests prevent sibling occurrences or re-verification from reviving the disqualified measurement. Collector, API and browser acceptance connect these components. Native instrumentation, longer SLI distributions, CPU/memory headroom, replica/AZ/RTO/RPO breadth, live and production acceptance earned no credit in that review. Shared signing, tenancy, console and restoration foundations are not counted again.
 

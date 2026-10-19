@@ -4,6 +4,173 @@
  */
 
 export interface paths {
+    "/fleet-history-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Workload-scoped observational registrations. A native ASG ARN is separate from individual EC2 inventory resource IDs. No historical interval ownership or execution authority is asserted. */
+        get: operations["listFleetHistoryRegistrations"];
+        put?: never;
+        /** @description PLATFORM_ADMIN declares an exact AWS Ireland ASG and approved source connection. Tenant, provider binding, source configuration and versions are server-selected. If-Match is zero for initial registration. No point observations or trusted evidence can be uploaded. */
+        post: operations["registerFleetHistory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-registrations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFleetHistoryRegistration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-registrations/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Appends a PLATFORM_ADMIN configuration revision with current If-Match. Workload, provider/account/region, fleet identity and exact ASG ARN remain immutable; changing identity requires a separate registration. */
+        post: operations["reviseFleetHistoryRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-registrations/{id}/observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable ingester-published native point observations. Missing launch time or hardware stays unknown. Point provenance never supplies intervening historical membership coverage. */
+        get: operations["listFleetHistoryObservations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-demand-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFleetDemandDefinitions"];
+        put?: never;
+        /** @description PLATFORM_ADMIN declares completed business operation semantics. The server selects the registered activity.Completed field, original metric definition/unit, DELTA interval and exact source hash. Semantic declarations do not authenticate business meaning or prove work preservation. If-Match is zero initially. */
+        post: operations["declareFleetDemandDefinition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-demand-definitions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFleetDemandDefinition"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-demand-definitions/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Appends a semantic declaration with its latest If-Match version. Its original fleet registration identity remains immutable. Original observations and source receipts are never rewritten. */
+        post: operations["reviseFleetDemandDefinition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFleetHistoryScopes"];
+        put?: never;
+        /** @description PLATFORM_ADMIN selects only current registration/definition IDs and definition version. If-Match pins the current registration. The server selects fourteen complete UTC days, genuine persisted observations, guarded completed counts and current source states. Every historical membership interval remains unproven; this produces no action, money or work-preservation authority. */
+        post: operations["captureFleetHistoryScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-scopes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFleetHistoryScope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-history-scopes/{id}/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFleetHistoryScopeReferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/allocation-sources": {
         parameters: {
             query?: never;
@@ -989,6 +1156,347 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetHistoryBinding: {
+            tenant_id: string;
+            workload_id: string;
+            /** @enum {string} */
+            provider: "AWS";
+            account_id: string;
+            /** @enum {string} */
+            region: "eu-west-1";
+        };
+        FleetHistoryRegistrationRequest: {
+            workload_id: string;
+            fleet_id: string;
+            /** @description Complete native Ireland Auto Scaling group ARN including UUID; a group name alone is insufficient */
+            asg_arn: string;
+            source_connection_id: string;
+            /** @description Public collector cadence is at least fifteen seconds */
+            cadence_seconds: number;
+            /** @description Must be at least cadence_seconds */
+            max_gap_seconds: number;
+        };
+        FleetHistoryRegistration: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            version: number;
+            fleet_id: string;
+            binding: components["schemas"]["FleetHistoryBinding"];
+            asg_arn: string;
+            source_id: string;
+            /** @enum {string} */
+            source_system: "AWS_SOURCE_CONNECTION";
+            source_registration_version: number;
+            source_config_hash: string;
+            cadence_seconds: number;
+            max_gap_seconds: number;
+        };
+        FleetHistoryRegistrationRecord: {
+            id: string;
+            version: number;
+            registration: components["schemas"]["FleetHistoryRegistration"];
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetDemandDefinitionRequest: {
+            registration_id: string;
+            activity_source_id: string;
+            business_operation: string;
+            semantic_contract_id: string;
+            /** @description Operator-declared semantic contract digest; not independent proof of completed business work */
+            semantic_contract_hash: string;
+        };
+        FleetDemandDefinition: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            version: number;
+            binding: components["schemas"]["FleetHistoryBinding"];
+            /** @enum {string} */
+            aggregation: "SINGLE_EXTERNAL_TOTAL";
+            /**
+             * @description Declared meaning; authenticity and causal work preservation remain unproven
+             * @enum {string}
+             */
+            meaning: "COMPLETED_WORK";
+            business_operation: string;
+            unit: string;
+            /** @enum {string} */
+            metric: "activity.Completed";
+            metric_definition_id: string;
+            metric_definition_version: string;
+            /** @enum {string} */
+            value_field: "COMPLETED";
+            /** @enum {string} */
+            origin: "INDEPENDENT_EXTERNAL_SYSTEM";
+            semantic_contract_id: string;
+            semantic_contract_hash: string;
+            source_id: string;
+            /** @enum {string} */
+            source_system: "ACTIVITY_SOURCE";
+            source_config_hash: string;
+            /** @enum {string} */
+            temporality: "DELTA";
+            /** @description New public definitions use the registered one-minute activity interval; immutable earlier definitions retain their recorded cadence */
+            cadence_seconds: number;
+            /** @description New public definitions use sixty seconds; immutable earlier records retain their explicit gap */
+            max_gap_seconds: number;
+        };
+        FleetDemandDefinitionRecord: {
+            id: string;
+            version: number;
+            registration_id: string;
+            registration_version: number;
+            definition: components["schemas"]["FleetDemandDefinition"];
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetHistoryArchiveReference: {
+            bucket: string;
+            /** @description Tenant-scoped immutable evidence object key */
+            key: string;
+            version_id: string;
+            sha256: string;
+        };
+        FleetHistorySourceReference: {
+            /** @enum {string} */
+            kind: "AWS_FLEET_MEMBERSHIP" | "AWS_EC2_HARDWARE";
+            binding: components["schemas"]["FleetHistoryBinding"];
+            source_id: string;
+            /** @enum {string} */
+            source_system: "AWS_SOURCE_CONNECTION";
+            /** @description Immutable native data revision; separate from configuration version */
+            revision_id: string;
+            source_registration_version: number;
+            config_hash: string;
+            receipt_id: string;
+            target: string;
+            raw_sha256: string;
+            canonical_hash: string;
+            /** Format: date-time */
+            captured_at: string;
+            /** @enum {string} */
+            storage_kind: "VERSIONED_OBJECT";
+            archive: components["schemas"]["FleetHistoryArchiveReference"];
+        };
+        FleetHistoryMember: {
+            instance_id: string;
+            /**
+             * Format: date-time
+             * @description Missing native incarnation evidence remains unknown
+             */
+            launch_time: string | null;
+            launch_template_id: string;
+            launch_template_version: number;
+            /** @description Optional independently mapped individual EC2 inventory resource */
+            resource_id?: string;
+            hardware: components["schemas"]["FleetHistorySourceReference"] | null;
+        };
+        FleetHistoryObservation: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            registration_id: string;
+            registration_version: number;
+            registration_hash: string;
+            asg_arn: string;
+            /** Format: date-time */
+            observed_at: string;
+            /**
+             * Format: date-time
+             * @description Original native receipt creation time
+             */
+            received_at: string;
+            source: components["schemas"]["FleetHistorySourceReference"];
+            members: components["schemas"]["FleetHistoryMember"][];
+            /** @description Explicit immutable correction lineage; publication order does not establish recency */
+            corrects_id?: string;
+        };
+        FleetHistoryObservationRecord: {
+            id: string;
+            registration_id: string;
+            registration_version: number;
+            observation: components["schemas"]["FleetHistoryObservation"];
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_ingester";
+        };
+        FleetHistoryScopeRequest: {
+            registration_id: string;
+            definition_id: string;
+            definition_version: number;
+        };
+        FleetHistoryGap: {
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            reason_code: string;
+        };
+        FleetHistoryGapPreview: {
+            count: number;
+            hash: string;
+            preview: components["schemas"]["FleetHistoryGap"][];
+            truncated: boolean;
+        };
+        FleetHistoryIssuePreview: {
+            count: number;
+            hash: string;
+            preview: {
+                record_id: string;
+                reason_code: string;
+            }[];
+            truncated: boolean;
+        };
+        FleetHistoryIDPreview: {
+            count: number;
+            hash: string;
+            preview: string[];
+            truncated: boolean;
+        };
+        FleetDemandSegmentPreview: {
+            count: number;
+            hash: string;
+            truncated: boolean;
+            preview: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+                /** @enum {string} */
+                status: "OBSERVED" | "UNKNOWN";
+                units: string | null;
+                sample_ids: string[];
+                reason_code: string;
+            }[];
+        };
+        FleetHistoryScope: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {string} */
+            purpose: "READ_ONLY_FLEET_HISTORY_ANALYSIS";
+            /** @enum {string} */
+            status: "BLOCKED";
+            binding: components["schemas"]["FleetHistoryBinding"];
+            fleet_id: string;
+            asg_arn: string;
+            registration_id: string;
+            registration_version: number;
+            registration_hash: string;
+            definition_id: string;
+            definition_version: number;
+            definition_hash: string;
+            input_hash: string;
+            analysis_hash: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            /** Format: date-time */
+            as_of: string;
+            /** @enum {string} */
+            membership_status: "INTERVAL_OWNERSHIP_UNPROVEN";
+            reference_root: string;
+            reference_count: number;
+            observation_count: number;
+            selected_observation_count: number;
+            demand_receipt_count: number;
+            membership_gaps: components["schemas"]["FleetHistoryGapPreview"];
+            observation_gaps: components["schemas"]["FleetHistoryGapPreview"];
+            issues: components["schemas"]["FleetHistoryIssuePreview"];
+            superseded_ids: components["schemas"]["FleetHistoryIDPreview"];
+            reason_codes: string[];
+            demand: {
+                /** @enum {string} */
+                status: "OBSERVED" | "UNKNOWN";
+                /** @enum {string} */
+                meaning_basis: "DECLARED_COMPLETED_WORK_SEMANTICS";
+                unit: string;
+                /** @description Exact subtotal of observed intervals; not a complete-window total */
+                observed_units: string | null;
+                /** @description Null whenever any required native interval is unknown; observed zero remains zero */
+                window_units: string | null;
+                segments: components["schemas"]["FleetDemandSegmentPreview"];
+                gaps: components["schemas"]["FleetHistoryGapPreview"];
+                reason_codes: string[];
+            };
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetHistorySourceState: {
+            source_id: string;
+            /** @enum {string} */
+            source_system: "AWS_SOURCE_CONNECTION" | "ACTIVITY_SOURCE";
+            /** @description Present only for a versioned AWS source registration; omitted for guarded activity sources */
+            source_registration_version?: number;
+            config_hash: string;
+            binding: components["schemas"]["FleetHistoryBinding"];
+            /** @enum {string} */
+            status: "ACTIVE" | "REVOKED" | "SUPERSEDED" | "DEGRADED";
+            /**
+             * Format: date-time
+             * @description Currentness at immutable scope capture; a later read does not refresh it
+             */
+            checked_at: string;
+        };
+        FleetHistoryScopeReference: {
+            id: string;
+            ordinal: number;
+            /** @description Internal ordinal metadata; API pagination uses only next_cursor */
+            cursor: string;
+            /** @enum {string} */
+            kind: "REGISTRATION" | "DEFINITION" | "OBSERVATION" | "DEMAND_RECEIPT" | "SOURCE_STATE";
+            reference: components["schemas"]["FleetHistorySourceState"] | {
+                id: string;
+                version: number;
+                hash: string;
+            } | {
+                id: string;
+                hash: string;
+            } | {
+                id: string;
+                source_id: string;
+                body_sha256: string;
+                canonical_hash: string;
+                sample_hash: string;
+            };
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        FleetHistoryRegistrationPage: {
+            items: components["schemas"]["FleetHistoryRegistrationRecord"][];
+            next_cursor: string | null;
+        };
+        FleetDemandDefinitionPage: {
+            items: components["schemas"]["FleetDemandDefinitionRecord"][];
+            next_cursor: string | null;
+        };
+        FleetHistoryObservationPage: {
+            items: components["schemas"]["FleetHistoryObservationRecord"][];
+            next_cursor: string | null;
+        };
+        FleetHistoryScopePage: {
+            items: components["schemas"]["FleetHistoryScope"][];
+            next_cursor: string | null;
+        };
+        FleetHistoryReferencePage: {
+            items: components["schemas"]["FleetHistoryScopeReference"][];
+            next_cursor: string | null;
+        };
         AllocationImportSource: {
             id: string;
             status: string;
@@ -1374,6 +1882,18 @@ export interface components {
             /** @enum {string} */
             name: "cpu" | "memory" | "network" | "storage_iops" | "storage_throughput" | "demand";
             unit: string;
+            /**
+             * @description Present only for explicitly versioned v2 request-throughput observations; never proves completed business work
+             * @enum {string}
+             */
+            semantic_role?: "REQUEST_THROUGHPUT_PROXY";
+            /** @enum {string} */
+            source_metric?: "request_count";
+            /**
+             * @description Exact registered native counter unit; rate unit remains count/second or requests/second
+             * @enum {string}
+             */
+            source_unit?: "count" | "requests";
             /** @enum {string} */
             statistic: "RAW_SAMPLE" | "OBSERVED_INTERVAL_RATE" | "DISTRIBUTION" | "INTERVAL_MAXIMUM";
             cadence_seconds?: number;
@@ -1409,6 +1929,20 @@ export interface components {
             source_refs?: components["schemas"]["CapacityModelReference"][];
         };
         CapacityForecastMetric: {
+            /**
+             * @description A request-rate projection is not completed-work or work-preservation evidence
+             * @enum {string}
+             */
+            semantic_role?: "REQUEST_THROUGHPUT_PROXY";
+            /** @enum {string} */
+            source_metric?: "request_count";
+            /** @enum {string} */
+            source_unit?: "count" | "requests";
+            /**
+             * @description Explicit native request proxy rate unit in v2; absent in legacy v1 forecasts
+             * @enum {string}
+             */
+            unit?: "count/second" | "requests/second";
             /** @enum {string} */
             status: "CALIBRATED_BACKTEST" | "UNCALIBRATED";
             reason_codes: string[];
@@ -1461,8 +1995,11 @@ export interface components {
         CapacityModelResult: {
             /** @enum {string} */
             schema_version: "4";
-            /** @enum {string} */
-            model_version: "capacity-weekday-block-v1";
+            /**
+             * @description v1 is immutable legacy generic demand with unproven work semantics; v2 explicitly binds request-throughput proxy metadata and native units. Neither version proves business-work preservation.
+             * @enum {string}
+             */
+            model_version: "capacity-weekday-block-v1" | "capacity-weekday-block-v2";
             binding: components["schemas"]["NativeResourceBinding"];
             /** @enum {string} */
             status: "BLOCKED" | "INSUFFICIENT_OBSERVATION";
@@ -2653,6 +3190,666 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetHistoryRegistrations: {
+        parameters: {
+            query: {
+                workload_id: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current immutable registration revisions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryRegistrationPage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workload missing or cursor belongs to another query */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    registerFleetHistory: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetHistoryRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable observational registration */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryRegistrationRecord"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workload or source not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Concurrent revision or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid binding */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match zero required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetHistoryRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current immutable registration within workload scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryRegistrationRecord"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reviseFleetHistoryRegistration: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetHistoryRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description New immutable revision */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryRegistrationRecord"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload access required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration or source not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale version or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Identity changed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current registration version required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetHistoryObservations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped immutable point history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryObservationPage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or differently scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetDemandDefinitions: {
+        parameters: {
+            query: {
+                registration_id: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independent completed-work declarations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDemandDefinitionPage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration missing or invalid query cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    declareFleetDemandDefinition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetDemandDefinitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable semantic declaration */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDemandDefinitionRecord"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration or activity source not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source binding or semantic contract invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match zero required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetDemandDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current independent semantic declaration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDemandDefinitionRecord"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reviseFleetDemandDefinition: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetDemandDefinitionRequest"];
+            };
+        };
+        responses: {
+            /** @description New immutable semantic revision */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetDemandDefinitionRecord"];
+                };
+            };
+            /** @description PLATFORM_ADMIN required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Definition or activity source not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale version or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration identity changed or semantic source invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current definition version required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetHistoryScopes: {
+        parameters: {
+            query: {
+                registration_id: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable compact blocked history analyses */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryScopePage"];
+                };
+            };
+            /** @description Workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration missing or invalid query cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    captureFleetHistoryScope: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetHistoryScopeRequest"];
+            };
+        };
+        responses: {
+            /** @description Sealed immutable compact history analysis */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryScope"];
+                };
+            };
+            /** @description PLATFORM_ADMIN and workload access required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selected registration or definition not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selected version changed or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selector or source binding */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current registration version required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source synchronization or evidence selection unavailable; no scope published */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetHistoryScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable analysis authorized against its pinned workload binding */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryScope"];
+                };
+            };
+            /** @description Pinned workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scope not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetHistoryScopeReferences: {
+        parameters: {
+            query?: {
+                kind?: "REGISTRATION" | "DEFINITION" | "OBSERVATION" | "DEMAND_RECEIPT" | "SOURCE_STATE";
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independently paginated immutable references bound by the compact scope root */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetHistoryReferencePage"];
+                };
+            };
+            /** @description Pinned workload outside caller scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scope not found within tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid kind or cursor belongs to another scope/kind */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listAllocationImportSources: {
         parameters: {
             query?: {

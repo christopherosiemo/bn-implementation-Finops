@@ -1,7 +1,10 @@
 package native
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -85,11 +88,120 @@ func TestCapacityNativeMapperUsesConfiguredPhysicalDenominatorsAndActualInterval
 	}
 }
 
+func TestCapacityNativeMapperPreservesRequestProxyUnits(t *testing.T) {
+	for _, unit := range []string{"count", "requests"} {
+		t.Run(unit, func(t *testing.T) {
+			p, profile, hardware := capacityModelFixture(t)
+			for i := range p.Definitions {
+				if p.Definitions[i].Metric == "request_count" {
+					p.Definitions[i].Unit = unit
+				}
+			}
+			for i := range p.Segments {
+				if p.Segments[i].Metric == "request_count" {
+					p.Segments[i].Unit = unit
+				}
+			}
+			p.PopulationHash = CapacityPopulationHash(p)
+			before, _ := json.Marshal(p)
+			m, err := BuildCapacityModelInput(p, profile, hardware)
+			if err != nil || m.Request == nil {
+				t.Fatal(err, m.ReasonCodes)
+			}
+			proxy := mappingMetric(m.Request, "demand")
+			if m.Request.ModelVersion != CapacityProxyModelVersion || proxy.SemanticRole != CapacityRequestProxyRole || proxy.SourceMetric != "request_count" || proxy.SourceUnit != unit || proxy.Unit != unit+"/second" || proxy.Denominator != nil || proxy.Statistic != "OBSERVED_INTERVAL_RATE" || *proxy.Points[0].Value != "5.000000000000" {
+				t.Fatal("request count was promoted to business work or its native rate changed", proxy)
+			}
+			after, _ := json.Marshal(p)
+			if !bytes.Equal(before, after) {
+				t.Fatal("native population mutated")
+			}
+		})
+	}
+}
+
+// Real transport acceptance exercises Go-selected native intervals through the
+// actual Python validator; no database, cloud or shared fixture is mutated.
+func TestCapacityNativeMapperRealPythonProxyContract(t *testing.T) {
+	endpoint := os.Getenv("ECONOMICS_TEST_URL")
+	if endpoint == "" {
+		t.Skip("ECONOMICS_TEST_URL required for actual Python acceptance")
+	}
+	for _, unit := range []string{"count", "requests"} {
+		t.Run(unit, func(t *testing.T) {
+			p, profile, hardware := capacityModelFixture(t)
+			for i := range p.Definitions {
+				if p.Definitions[i].Metric == "request_count" {
+					p.Definitions[i].Unit = unit
+				}
+			}
+			for i := range p.Segments {
+				if p.Segments[i].Metric == "request_count" {
+					p.Segments[i].Unit = unit
+				}
+			}
+			p.PopulationHash = CapacityPopulationHash(p)
+			m, err := BuildCapacityModelInput(p, profile, hardware)
+			if err != nil || m.Request == nil {
+				t.Fatal(err, m.ReasonCodes)
+			}
+			raw, _ := json.Marshal(m.Request)
+			req, err := http.NewRequest(http.MethodPost, strings.TrimRight(endpoint, "/")+"/v4/capacity", bytes.NewReader(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			if token := os.Getenv("ECONOMICS_TEST_TOKEN"); token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			response, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != 200 {
+				t.Fatalf("actual Python rejected native proxy contract: HTTP %d", response.StatusCode)
+			}
+			body, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := DecodeCapacityModelResult(body, *m.Request)
+			if err != nil {
+				t.Fatal("actual worker response failed native result boundary", err)
+			}
+			if result.ModelVersion != CapacityProxyModelVersion {
+				t.Fatal("new request replayed under legacy semantics")
+			}
+			found := false
+			for _, metric := range result.Metrics {
+				if model.String(metric, "name") == "demand" {
+					found = model.String(metric, "semantic_role") == CapacityRequestProxyRole && model.String(metric, "source_metric") == "request_count" && model.String(metric, "source_unit") == unit && model.String(metric, "unit") == unit+"/second"
+				}
+			}
+			if len(result.Forecasts) == 0 {
+				t.Fatal("actual worker omitted forecasts")
+			}
+			forecast := telemetry.Document(telemetry.Document(result.Forecasts[0]["metrics"])["demand"])
+			if !found || model.String(forecast, "semantic_role") != CapacityRequestProxyRole || model.String(forecast, "unit") != unit+"/second" || !strings.Contains(strings.Join(result.ModelAssumptions, " "), "do not prove completed business work") {
+				t.Fatal("actual worker lost proxy scope/units")
+			}
+		})
+	}
+}
+
 func TestCapacityNativeMapperKeepsUnknownAndUnsupportedEvidenceBlocked(t *testing.T) {
 	for name, mutate := range map[string]func(*CapacityPopulation, model.Document){
 		"classification conflict": func(p *CapacityPopulation, _ model.Document) {
 			p.Environment = "PRODUCTION"
 			p.ReasonCodes = []string{"CAPACITY_ENVIRONMENT_CLASSIFICATION_CONFLICT"}
+		},
+		"generic business work unit": func(p *CapacityPopulation, _ model.Document) {
+			for i := range p.Definitions {
+				if p.Definitions[i].Metric == "request_count" {
+					p.Definitions[i].Unit = "work_unit"
+				}
+			}
 		},
 		"source partial rejection": func(p *CapacityPopulation, _ model.Document) {
 			p.ReasonCodes = []string{"TELEMETRY_SOURCE_PARTIAL_REJECTIONS"}

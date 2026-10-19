@@ -24,7 +24,12 @@ from .model import EvidenceError, decimal, instant, money
 PPM = Decimal(1_000_000)
 UNITS = {"cpu": "vCPU", "memory": "bytes", "network": "bytes/second",
          "storage_iops": "operations/second", "storage_throughput": "bytes/second",
-         "demand": "work_unit/second"}
+         "demand": "count/second"}
+LEGACY_MODEL_VERSION = "capacity-weekday-block-v1"
+MODEL_VERSION = "capacity-weekday-block-v2"
+PROXY_ROLE = "REQUEST_THROUGHPUT_PROXY"
+_PROXY_FIELDS = {"semantic_role": {"const": PROXY_ROLE}, "source_metric": {"const": "request_count"},
+                 "source_unit": {"enum": ["count", "requests"]}}
 DIMENSIONS = tuple(name for name in UNITS if name != "demand")
 HORIZONS = {"7_day": 7, "30_day": 30, "90_day": 90, "annual": 365}
 BINDING = ("tenant_id", "workload_id", "resource_id", "provider",
@@ -84,6 +89,9 @@ INPUT_SCHEMA = _schema({
     "forecast_horizons": {"type": "array", "minItems": 1, "uniqueItems": True, "items": {"enum": list(HORIZONS)}},
     "pricing_period_hours": _DECIMAL,
 })
+# Missing model_version is the original v1 contract, retained for replay only.
+INPUT_SCHEMA["properties"]["model_version"] = {"enum": [LEGACY_MODEL_VERSION, MODEL_VERSION]}
+INPUT_SCHEMA["properties"]["metrics"]["items"]["properties"].update(_PROXY_FIELDS)
 _REASONS_SCHEMA = {"type": "array", "items": _STRING}
 _NULL_DECIMAL = {"anyOf": [_DECIMAL, {"type": "null"}]}
 _NULL_INTEGER = {"type": ["integer", "null"], "minimum": 0}
@@ -100,6 +108,7 @@ _METRIC_SCHEMA = _schema({
     "observed_maximum": _NULL_DECIMAL, "denominator": {"anyOf": [_schema({"value": _DECIMAL, "unit": _STRING}), {"type": "null"}]},
     "reason_codes": _REASONS_SCHEMA, "source_refs": {"type": "array", "items": _REF_SCHEMA},
 })
+_METRIC_SCHEMA["properties"].update(_PROXY_FIELDS)
 _FORECAST_METRIC_SCHEMA = _schema({
     "status": {"enum": ["CALIBRATED_BACKTEST", "UNCALIBRATED"]}, "reason_codes": _REASONS_SCHEMA,
     "point_peak": _NULL_DECIMAL, "point_p99": _NULL_DECIMAL, "declared_event_peak": _DECIMAL, "event_multiplier_peak": _DECIMAL,
@@ -110,6 +119,7 @@ _FORECAST_METRIC_SCHEMA = _schema({
                          "absolute_block_residuals": {"type": "array", "items": _DECIMAL}, "uses_future_observations": {"const": False}}),
     "model_time_bucket_seconds": {"const": 3600},
 })
+_FORECAST_METRIC_SCHEMA["properties"].update({**_PROXY_FIELDS, "unit": _STRING})
 _ECONOMICS_SCHEMA = _schema({
     "status": {"enum": ["UNAVAILABLE", "EVIDENCED", "NOT_CHEAPER"]}, "reason_codes": _REASONS_SCHEMA,
     "currency": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"}, "period_hours": _DECIMAL,
@@ -127,7 +137,7 @@ _CHECK_SCHEMA = _schema({
 _FUTURE_RISK_SCHEMA = _schema({"status": {"const": "UNCALIBRATED"}, "future_breach_probability_upper_ppm": {"type": "null"},
                              "required_maximum_ppm": {"type": "integer", "minimum": 0}, "reason_code": {"const": "FUTURE_PROBABILITY_MODEL_NOT_CALIBRATED"}})
 OUTPUT_SCHEMA = _schema({
-    "schema_version": {"const": "4"}, "model_version": {"const": "capacity-weekday-block-v1"}, "binding": _BINDING_SCHEMA,
+    "schema_version": {"const": "4"}, "model_version": {"enum": [LEGACY_MODEL_VERSION, MODEL_VERSION]}, "binding": _BINDING_SCHEMA,
     "status": {"enum": ["VALIDATED", "BLOCKED", "INSUFFICIENT_OBSERVATION"]},
     "reason_codes": _REASONS_SCHEMA,
     "history": _schema({**INPUT_SCHEMA["properties"]["history"]["properties"],
@@ -246,11 +256,20 @@ def _stamp(value):
     return value.isoformat().replace("+00:00", "Z")
 
 
-def _metric(stream, binding, current_capacity, start, end, cadence, zone, events):
-    _object(stream, ("name", "unit", "statistic", "denominator", "source_refs", "points"),
+def _metric(stream, binding, current_capacity, start, end, cadence, zone, events, model_version):
+    _object(stream, ("name", "unit", "statistic", "denominator", "source_refs", "points", *_PROXY_FIELDS),
             ("name", "unit", "statistic", "source_refs", "points"), "metric")
     name, statistic = stream["name"], stream["statistic"]
-    if name not in UNITS or stream["unit"] != UNITS[name] or statistic not in ("RAW_SAMPLE", "OBSERVED_INTERVAL_RATE", "DISTRIBUTION", "INTERVAL_MAXIMUM"):
+    proxy = name == "demand" and model_version == MODEL_VERSION
+    if proxy:
+        if stream.get("semantic_role") != PROXY_ROLE or stream.get("source_metric") != "request_count" or stream.get("source_unit") not in ("count", "requests") or statistic != "OBSERVED_INTERVAL_RATE" or "denominator" in stream:
+            raise EvidenceError("explicit request-throughput proxy metadata and interval rate required")
+        expected_unit = stream["source_unit"] + "/second"
+    else:
+        if any(key in stream for key in _PROXY_FIELDS):
+            raise EvidenceError("proxy metadata requires the v2 demand contract")
+        expected_unit = "work_unit/second" if name == "demand" else UNITS.get(name)
+    if name not in UNITS or stream["unit"] != expected_unit or statistic not in ("RAW_SAMPLE", "OBSERVED_INTERVAL_RATE", "DISTRIBUTION", "INTERVAL_MAXIMUM"):
         raise EvidenceError("canonical metric units/statistic required")
     if statistic == "OBSERVED_INTERVAL_RATE" and name in ("cpu", "memory"):
         raise EvidenceError("capacity gauges cannot be interval averages")
@@ -355,6 +374,8 @@ def _metric(stream, binding, current_capacity, start, end, cadence, zone, events
                "observed_quantiles": quantiles, "observed_maximum": None if maximum is None else money(maximum),
                "denominator": None if name == "demand" else {"value": money(current_capacity[name]), "unit": UNITS[name]},
                "reason_codes": reasons, "source_refs": refs}
+    if proxy:
+        summary.update({key: stream[key] for key in _PROXY_FIELDS})
     return summary, series, upper
 
 
@@ -441,6 +462,8 @@ def evaluate_capacity(data):
 def _evaluate(data):
     _object(data, INPUT_SCHEMA["properties"], INPUT_SCHEMA["required"], "capacity request")
     if data["schema_version"] != "4": raise EvidenceError("capacity schema version 4 required")
+    model_version = data.get("model_version", LEGACY_MODEL_VERSION)
+    if model_version not in (LEGACY_MODEL_VERSION, MODEL_VERSION): raise EvidenceError("unsupported capacity model version")
     binding = _object(data["binding"], BINDING, BINDING, "resource binding")
     if any(not isinstance(binding[key], str) or not binding[key] for key in BINDING): raise EvidenceError("resource identity required")
     now = instant(data["as_of"])
@@ -482,7 +505,7 @@ def _evaluate(data):
     if not isinstance(data["metrics"], list) or len(data["metrics"]) > 6: raise EvidenceError("metric limit")
     summaries, series, weighted, reasons = {}, {}, {}, []
     for stream in data["metrics"]:
-        result, points, weights = _metric(stream, binding, current_capacity, start, end, cadence, zone, events)
+        result, points, weights = _metric(stream, binding, current_capacity, start, end, cadence, zone, events, model_version)
         name = result["name"]
         if name in summaries: raise EvidenceError("duplicate capacity metric")
         summaries[name], series[name], weighted[name] = result, points, weights
@@ -494,6 +517,8 @@ def _evaluate(data):
     forecasts = []
     for horizon in horizons:
         metrics = {name: _forecast(points, end, zone, events, horizon, policy["prediction_coverage_ppm"]) for name, points in series.items()}
+        if model_version == MODEL_VERSION and "demand" in metrics:
+            metrics["demand"].update({key: summaries["demand"][key] for key in (*_PROXY_FIELDS, "unit")})
         if reasons:
             for result in metrics.values():
                 result["status"], result["prediction_interval"] = "UNCALIBRATED", None
@@ -567,7 +592,7 @@ def _evaluate(data):
     for item in [data["current"], *data["candidates"]]:
         for ref in [item["source_ref"], *([item["pricing"]["source_ref"]] if item.get("pricing") else [])]: refs[json.dumps(ref, sort_keys=True)] = ref
     for event in data["events"]: refs[json.dumps(event["source_ref"], sort_keys=True)] = event["source_ref"]
-    result = {"schema_version": "4", "model_version": "capacity-weekday-block-v1", "binding": dict(binding),
+    result = {"schema_version": "4", "model_version": model_version, "binding": dict(binding),
               "status": "INSUFFICIENT_OBSERVATION" if reasons else "VALIDATED" if any(candidate["status"] == "VALIDATED" for candidate in candidates) else "BLOCKED",
               "reason_codes": sorted(set(reasons)),
               "history": {**history, "observed_calendar_days": observed_days, "required_calendar_days": required_days,
@@ -580,5 +605,7 @@ def _evaluate(data):
                   "Prediction intervals use nonoverlapping horizon-length daily-maximum residual blocks and require finite conformal rank.",
                   "Backtest calibration is conditional on exchangeability; annual/seasonal extrapolation may remain uncalibrated.",
                   "No calibrated future <1% capacity-breach claim, execution authority or verified savings is produced."]}
+    if model_version == MODEL_VERSION:
+        result["model_assumptions"].append("REQUEST_THROUGHPUT_PROXY preserves native request counter units; requests do not prove completed business work or work preservation.")
     result["assessment_hash"] = hashlib.sha256(json.dumps(result, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return result

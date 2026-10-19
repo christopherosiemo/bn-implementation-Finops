@@ -52,12 +52,15 @@ type CapacityModelPoint struct {
 	Value *string   `json:"value"`
 }
 type CapacityModelMetric struct {
-	Name        string               `json:"name"`
-	Unit        string               `json:"unit"`
-	Statistic   string               `json:"statistic"`
-	Denominator *string              `json:"denominator,omitempty"`
-	SourceRefs  []CapacityModelRef   `json:"source_refs"`
-	Points      []CapacityModelPoint `json:"points"`
+	Name         string               `json:"name"`
+	Unit         string               `json:"unit"`
+	Statistic    string               `json:"statistic"`
+	SemanticRole string               `json:"semantic_role,omitempty"`
+	SourceMetric string               `json:"source_metric,omitempty"`
+	SourceUnit   string               `json:"source_unit,omitempty"`
+	Denominator  *string              `json:"denominator,omitempty"`
+	SourceRefs   []CapacityModelRef   `json:"source_refs"`
+	Points       []CapacityModelPoint `json:"points"`
 }
 type CapacityModelEvent struct {
 	ID         string           `json:"id"`
@@ -76,6 +79,7 @@ type CapacityModelHistory struct {
 }
 type CapacityModelRequest struct {
 	SchemaVersion      string                 `json:"schema_version"`
+	ModelVersion       string                 `json:"model_version,omitempty"`
 	Binding            telemetry.Binding      `json:"binding"`
 	AsOf               time.Time              `json:"as_of"`
 	History            CapacityModelHistory   `json:"history"`
@@ -97,6 +101,10 @@ type CapacityMapping struct {
 }
 
 var capacityNumber = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,12})?$`)
+
+const CapacityProxyModelVersion = "capacity-weekday-block-v2"
+const CapacityRequestProxyRole = "REQUEST_THROUGHPUT_PROXY"
+
 var capacitySHA = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 func capacityRat(s string) *big.Rat {
@@ -424,7 +432,7 @@ func BuildCapacityModelInput(p CapacityPopulation, profile workload.Profile, rec
 		name, unit string
 		metrics    []string
 		denom      *string
-	}{{"network", "bytes/second", []string{"network_in", "network_out"}, m.Current.Capacity.Network}, {"storage_iops", "operations/second", []string{"disk_read_operations", "disk_write_operations"}, m.Current.Capacity.StorageIOPS}, {"storage_throughput", "bytes/second", []string{"disk_read_bytes", "disk_write_bytes"}, m.Current.Capacity.StorageThroughput}, {"demand", "work_unit/second", []string{"request_count"}, nil}} {
+	}{{"network", "bytes/second", []string{"network_in", "network_out"}, m.Current.Capacity.Network}, {"storage_iops", "operations/second", []string{"disk_read_operations", "disk_write_operations"}, m.Current.Capacity.StorageIOPS}, {"storage_throughput", "bytes/second", []string{"disk_read_bytes", "disk_write_bytes"}, m.Current.Capacity.StorageThroughput}, {"demand", "", []string{"request_count"}, nil}} {
 		unit := "bytes"
 		if spec.name == "storage_iops" || spec.name == "demand" {
 			unit = "count"
@@ -441,6 +449,12 @@ func BuildCapacityModelInput(p CapacityPopulation, profile workload.Profile, rec
 			}
 		}
 		stream := CapacityModelMetric{Name: spec.name, Unit: spec.unit, Statistic: "OBSERVED_INTERVAL_RATE", Denominator: spec.denom, SourceRefs: refs, Points: []CapacityModelPoint{}}
+		if spec.name == "demand" {
+			stream.SemanticRole = CapacityRequestProxyRole
+			stream.SourceMetric = "request_count"
+			stream.SourceUnit = defs["request_count"].Unit
+			stream.Unit = stream.SourceUnit + "/second"
+		}
 		for _, parts := range intervals {
 			r := new(big.Rat)
 			known := len(parts) == len(spec.metrics)
@@ -480,5 +494,6 @@ func BuildCapacityModelInput(p CapacityPopulation, profile workload.Profile, rec
 	}
 	req := CapacityModelRequest{SchemaVersion: "4", Binding: p.Binding, AsOf: p.AsOf, History: CapacityModelHistory{p.Start, p.End, p.Timezone, p.Environment, profile.HighSeasonality, cadence}, Metrics: metrics, Current: m.Current, Candidates: m.Candidates, Policy: map[string]int64{"cpu_p95_max_ppm": 700000, "memory_p95_max_ppm": 750000, "cpu_free_ppm": profile.Headroom.CPUFreePPM, "memory_free_ppm": profile.Headroom.MemoryFreePPM, "reserve_above_forecast_ppm": profile.Headroom.ReserveAboveForecastPPM, "cpu_p99_rollback_ppm": profile.Saturation.CPUP99PPM, "memory_p99_rollback_ppm": profile.Saturation.MemoryP99PPM, "min_replicas": int64(profile.MinReplicas), "min_zones": int64(profile.MinZones)}, Events: events, ForecastHorizons: []string{"7_day", "30_day", "90_day", "annual"}, PricingPeriodHours: capacityText(big.NewRat(p.End.Sub(p.Start).Nanoseconds(), int64(time.Hour)), false)}
 	m.Request = &req
+	m.Request.ModelVersion = CapacityProxyModelVersion
 	return m, nil
 }

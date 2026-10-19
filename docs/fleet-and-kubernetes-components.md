@@ -124,6 +124,15 @@ explicit PDB preflight refusal, failed readiness and an owned Git-revert
 recovery before its PASS artifact is written. A separate CI job retains that
 bounded outcome; unit tests alone cannot establish native acceptance.
 
+The seven-check native journey and owned cleanup passed at commit
+`fd0e5d6e6f2d690df6125116b4d97fad439c3e7b` in the separate
+[CI job](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697/job/117812564579).
+The independent cold Windows run `ab060219-68e1-4035-96d1-f0431fade1d1`
+passed at `2026-10-18T23:03:29.651Z`, cluster UID
+`836fdd42-fe2c-4886-a22e-ea35569f13cd`, with its exact UUID acceptance file
+under `work/flux-lab/`. This accepts the bounded local controller protocol;
+hosted, tenant execution and financial authority remain absent.
+
 This local fixture uses a dedicated standard Docker bridge with outbound
 connectivity, a localhost-only Kubernetes API and no published Git port. It has
 no customer/cloud credentials or customer data. Exact ownership checks govern

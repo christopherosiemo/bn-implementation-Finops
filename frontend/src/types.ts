@@ -60,6 +60,11 @@ export type ConfigurationAuthorityRequest =
   components["schemas"]["ConfigurationAuthorityRequest"];
 export type ConfigurationProposal =
   components["schemas"]["ConfigurationProposal"];
+export type FleetHistoryRegistration =
+  components["schemas"]["FleetHistoryRegistrationRecord"];
+export type FleetDemandDefinition =
+  components["schemas"]["FleetDemandDefinitionRecord"];
+export type FleetHistoryScope = components["schemas"]["FleetHistoryScope"];
 export interface Organization extends Document {
   name: string;
   paused: boolean;

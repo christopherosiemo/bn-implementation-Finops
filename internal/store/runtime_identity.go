@@ -18,7 +18,8 @@ func OpenRuntime(ctx context.Context, dsn, process string) (*Store, error) {
 		"api": "finops_api", "worker": "finops_worker",
 		"signer": "finops_signer", "executor": "finops_executor",
 		"ingester": "finops_ingester", "activity-ingress": "finops_activity",
-		"telemetry-reader": "finops_telemetry_reader", "telemetry-ingress": "finops_telemetry_ingress",
+		"fleet-history-reader": "finops_ingester",
+		"telemetry-reader":     "finops_telemetry_reader", "telemetry-ingress": "finops_telemetry_ingress",
 		"deployment-observer": "finops_deployment_observer",
 	}[process]
 	if group == "" {
@@ -30,7 +31,7 @@ func OpenRuntime(ctx context.Context, dsn, process string) (*Store, error) {
 	}
 	// CUR synchronization keeps a session-scoped ownership lock while using
 	// tenant transactions. Retain another connection for the health endpoint.
-	if process == "ingester" && cfg.MaxConns < 3 {
+	if (process == "ingester" || process == "fleet-history-reader") && cfg.MaxConns < 3 {
 		return nil, errors.New("RUNTIME_INGESTION_POOL_MINIMUM_THREE_REQUIRED")
 	}
 	for key, value := range cfg.ConnConfig.RuntimeParams {

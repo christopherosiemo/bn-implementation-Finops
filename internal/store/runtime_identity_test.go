@@ -22,14 +22,16 @@ func TestRuntimeIdentityRejectsUnknownProcessBeforeConnecting(t *testing.T) {
 }
 
 func TestRuntimeIngestionRequiresLockTransactionAndHealthConnections(t *testing.T) {
-	for _, count := range []string{"1", "2"} {
-		db, err := OpenRuntime(context.Background(), "postgres://unreachable.invalid/test?pool_max_conns="+count, "ingester")
-		if err == nil {
-			db.Pool.Close()
-			t.Fatal("undersized ingestion pool accepted")
-		}
-		if err.Error() != "RUNTIME_INGESTION_POOL_MINIMUM_THREE_REQUIRED" {
-			t.Fatal("unsafe pool was not rejected before network access")
+	for _, process := range []string{"ingester", "fleet-history-reader"} {
+		for _, count := range []string{"1", "2"} {
+			db, err := OpenRuntime(context.Background(), "postgres://unreachable.invalid/test?pool_max_conns="+count, process)
+			if err == nil {
+				db.Pool.Close()
+				t.Fatal("undersized ingestion pool accepted")
+			}
+			if err.Error() != "RUNTIME_INGESTION_POOL_MINIMUM_THREE_REQUIRED" {
+				t.Fatal("unsafe pool was not rejected before network access")
+			}
 		}
 	}
 }
@@ -113,6 +115,7 @@ func TestRuntimeDatabaseIdentityIsDedicatedAcrossAllProcesses(t *testing.T) {
 	processes := []struct{ process, group string }{
 		{"api", "finops_api"}, {"worker", "finops_worker"}, {"signer", "finops_signer"},
 		{"executor", "finops_executor"}, {"ingester", "finops_ingester"}, {"activity-ingress", "finops_activity"},
+		{"fleet-history-reader", "finops_ingester"},
 		{"telemetry-reader", "finops_telemetry_reader"}, {"telemetry-ingress", "finops_telemetry_ingress"},
 		{"deployment-observer", "finops_deployment_observer"},
 	}

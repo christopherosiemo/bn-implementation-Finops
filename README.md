@@ -84,6 +84,13 @@ controllers, Git-owned rollout, PDB preflight, failed readiness and Git revert.
 Its matching successful runtime artifact is required for acceptance. It does
 not enable customer execution or financial claims.
 
+The [fleet-history API and optional reader](docs/fleet-history.md) preserve
+native ASG points and independently received completed-work evidence. The
+console exposes immutable source bindings, missing intervals and unknown
+incarnations. Every history scope remains blocked for historical interval
+ownership; request throughput remains an explicitly labelled proxy. This does
+not enable a fleet action or savings claim.
+
 ## Live AWS pilot
 
 Live infrastructure is opt-in and is **not deployed by local startup**. Read [sandbox readiness](docs/sandbox-readiness.md), [evidence contracts](docs/readiness-evidence.md), [dependency safety](docs/dependency-safety.md), [deployment](docs/deployment.md), [operations](docs/operations.md), and [acceptance](docs/acceptance.md) before using live mode. A configured customer identity is bound to exactly one `AWS_TENANT_ID`; the pilot never shares that identity with another tenant. Fresh customer installations create a read role only. API-uploaded financial evidence stays provisional; live execution requires trusted provider and workload evidence integration alongside ownership, configuration authority, fresh safety inputs and uncovered economics. No commissioning bypass is provided.

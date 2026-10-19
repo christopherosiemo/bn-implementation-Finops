@@ -39,6 +39,24 @@ export function fixturePorts(env) {
   }
   return out;
 }
+// A retained local service can have genuine samples from a preceding calendar
+// day. Partial observations keep their measured values; absent intervals do not
+// become zero or turn an incomplete fourteen-day window into ready history.
+export function assertIncompleteHistory(evaluation) {
+  assert.equal(evaluation.status, 'BLOCKED', 'Local history is incomplete');
+  assert.ok(evaluation.metrics.length > 0, 'Expected registered native metrics');
+  for (const row of evaluation.metrics) {
+    assert.equal(row.status, 'BLOCKED');
+    assert.ok(row.coverage_ppm >= 0 && row.coverage_ppm < 1000000);
+    assert.ok(row.unknown_duration_ns > 0, 'Missing historical intervals remain unknown');
+    assert.ok(Number.isInteger(row.observed_samples) && row.observed_samples >= 0);
+    if (row.observed_samples === 0) {
+      for (const field of ['p50', 'p90', 'p95', 'p99', 'p999', 'maximum', 'total']) {
+        assert.equal(row[field], null, 'Absent historical source data must not become zero');
+      }
+    }
+  }
+}
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
@@ -118,8 +136,8 @@ print(json.dumps({'raw_version_pinned':True,'raw_hash_matches':True,'native_samp
   let completed;
   for (let n = 0; n < 60; n++) { completed = await get(`/v1/telemetry-connections/${prometheus.id}/sync/${sync.id}`); if (['COMPLETED', 'BLOCKED'].includes(completed.status)) break; await pause(2000); }
   assert.equal(completed.status, 'COMPLETED', 'Historical query transport did not durably finish'); assert.ok(completed.receipt_ids.length >= sync.history_days); assert.equal(completed.lease_token, undefined);
-  const history = await mutate(`/v1/telemetry-connections/${prometheus.id}/evaluate`, { mode: 'history' }, prometheus.version); assert.equal(history.evaluation.status, 'BLOCKED', 'A new local Prometheus has no complete historical observations'); assert.ok(history.evaluation.metrics.every(row => row.coverage_ppm < 1000000));
-  assert.ok(history.receipt_ids.length > 0); assert.ok(history.evaluation.metrics.every(row => row.maximum === null), 'Absent historical source data must not become zero');
+  const history = await mutate(`/v1/telemetry-connections/${prometheus.id}/evaluate`, { mode: 'history' }, prometheus.version);
+  assert.ok(history.receipt_ids.length > 0); assertIncompleteHistory(history.evaluation);
   await mutate(`/v1/telemetry-connections/${created.id}/revoke`, { reason: 'Local native transport acceptance finished' }, created.version);
   assert.equal((await send(raw)).status, 403, 'Revoked source retained new ingress authority');
   console.log('PASS native machine OIDC, current OTLP, exact replay/conflict, tenant/audience denial, versioned raw+analytics persistence, real Prometheus samples, durable history transport, incomplete-history fail-closed, revocation (10 checks).');

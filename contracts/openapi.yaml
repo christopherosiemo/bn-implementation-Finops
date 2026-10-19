@@ -8,6 +8,152 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /fleet-history-registrations:
+    get:
+      operationId: listFleetHistoryRegistrations
+      description: Workload-scoped observational registrations. A native ASG ARN is separate from individual EC2 inventory resource IDs. No historical interval ownership or execution authority is asserted.
+      parameters:
+        - { name: workload_id, in: query, required: true, schema: { type: string, minLength: 1 } }
+        - { $ref: '#/components/parameters/PageLimit' }
+        - { $ref: '#/components/parameters/PageCursor' }
+      responses:
+        '200': { description: Current immutable registration revisions, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationPage' } } } }
+        '403': { description: Workload outside caller scope }
+        '422': { description: Workload missing or cursor belongs to another query }
+    post:
+      operationId: registerFleetHistory
+      description: PLATFORM_ADMIN declares an exact AWS Ireland ASG and approved source connection. Tenant, provider binding, source configuration and versions are server-selected. If-Match is zero for initial registration. No point observations or trusted evidence can be uploaded.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRequest' } } } }
+      responses:
+        '201': { description: Immutable observational registration, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } } } }
+        '403': { description: PLATFORM_ADMIN required }
+        '404': { description: Workload or source not found within tenant }
+        '409': { description: Concurrent revision or idempotency conflict }
+        '422': { description: Invalid binding, source, exact ASG ARN or cadence }
+        '428': { description: If-Match zero required }
+  /fleet-history-registrations/{id}:
+    get:
+      operationId: getFleetHistoryRegistration
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Current immutable registration within workload scope, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } } } }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Registration not found within tenant }
+  /fleet-history-registrations/{id}/revisions:
+    post:
+      operationId: reviseFleetHistoryRegistration
+      description: Appends a PLATFORM_ADMIN configuration revision with current If-Match. Workload, provider/account/region, fleet identity and exact ASG ARN remain immutable; changing identity requires a separate registration.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRequest' } } } }
+      responses:
+        '201': { description: New immutable revision, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } } } }
+        '403': { description: PLATFORM_ADMIN and workload access required }
+        '404': { description: Registration or source not found within tenant }
+        '409': { description: Stale version or idempotency conflict }
+        '422': { description: Identity changed, invalid source or configuration }
+        '428': { description: Current registration version required }
+  /fleet-history-registrations/{id}/observations:
+    get:
+      operationId: listFleetHistoryObservations
+      description: Immutable ingester-published native point observations. Missing launch time or hardware stays unknown. Point provenance never supplies intervening historical membership coverage.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/PageLimit' }, { $ref: '#/components/parameters/PageCursor' } ]
+      responses:
+        '200': { description: Scoped immutable point history, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryObservationPage' } } } }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Registration not found within tenant }
+        '422': { description: Invalid or differently scoped cursor }
+  /fleet-demand-definitions:
+    get:
+      operationId: listFleetDemandDefinitions
+      parameters:
+        - { name: registration_id, in: query, required: true, schema: { type: string, minLength: 1 } }
+        - { $ref: '#/components/parameters/PageLimit' }
+        - { $ref: '#/components/parameters/PageCursor' }
+      responses:
+        '200': { description: Independent completed-work declarations, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionPage' } } } }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Registration not found within tenant }
+        '422': { description: Registration missing or invalid query cursor }
+    post:
+      operationId: declareFleetDemandDefinition
+      description: PLATFORM_ADMIN declares completed business operation semantics. The server selects the registered activity.Completed field, original metric definition/unit, DELTA interval and exact source hash. Semantic declarations do not authenticate business meaning or prove work preservation. If-Match is zero initially.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRequest' } } } }
+      responses:
+        '201': { description: Immutable semantic declaration, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } } } }
+        '403': { description: PLATFORM_ADMIN required }
+        '404': { description: Registration or activity source not found within tenant }
+        '409': { description: Version or idempotency conflict }
+        '422': { description: Source binding or semantic contract invalid }
+        '428': { description: If-Match zero required }
+  /fleet-demand-definitions/{id}:
+    get:
+      operationId: getFleetDemandDefinition
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Current independent semantic declaration, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } } } }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Definition not found within tenant }
+  /fleet-demand-definitions/{id}/revisions:
+    post:
+      operationId: reviseFleetDemandDefinition
+      description: Appends a semantic declaration with its latest If-Match version. Its original fleet registration identity remains immutable. Original observations and source receipts are never rewritten.
+      parameters: [ { $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRequest' } } } }
+      responses:
+        '201': { description: New immutable semantic revision, content: { application/json: { schema: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } } } }
+        '403': { description: PLATFORM_ADMIN required }
+        '404': { description: Definition or activity source not found within tenant }
+        '409': { description: Stale version or idempotency conflict }
+        '422': { description: Registration identity changed or semantic source invalid }
+        '428': { description: Current definition version required }
+  /fleet-history-scopes:
+    get:
+      operationId: listFleetHistoryScopes
+      parameters:
+        - { name: registration_id, in: query, required: true, schema: { type: string, minLength: 1 } }
+        - { $ref: '#/components/parameters/PageLimit' }
+        - { $ref: '#/components/parameters/PageCursor' }
+      responses:
+        '200': { description: Immutable compact blocked history analyses, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScopePage' } } } }
+        '403': { description: Workload outside caller scope }
+        '404': { description: Registration not found within tenant }
+        '422': { description: Registration missing or invalid query cursor }
+    post:
+      operationId: captureFleetHistoryScope
+      description: PLATFORM_ADMIN selects only current registration/definition IDs and definition version. If-Match pins the current registration. The server selects fourteen complete UTC days, genuine persisted observations, guarded completed counts and current source states. Every historical membership interval remains unproven; this produces no action, money or work-preservation authority.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScopeRequest' } } } }
+      responses:
+        '201': { description: Sealed immutable compact history analysis, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScope' } } } }
+        '403': { description: PLATFORM_ADMIN and workload access required }
+        '404': { description: Selected registration or definition not found within tenant }
+        '409': { description: Selected version changed or idempotency conflict }
+        '422': { description: Invalid selector or source binding }
+        '428': { description: Current registration version required }
+        '503': { description: Source synchronization or evidence selection unavailable; no scope published }
+  /fleet-history-scopes/{id}:
+    get:
+      operationId: getFleetHistoryScope
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Immutable analysis authorized against its pinned workload binding, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryScope' } } } }
+        '403': { description: Pinned workload outside caller scope }
+        '404': { description: Scope not found within tenant }
+  /fleet-history-scopes/{id}/references:
+    get:
+      operationId: listFleetHistoryScopeReferences
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+        - { name: kind, in: query, required: false, schema: { type: string, enum: [REGISTRATION, DEFINITION, OBSERVATION, DEMAND_RECEIPT, SOURCE_STATE] } }
+        - { $ref: '#/components/parameters/PageLimit' }
+        - { $ref: '#/components/parameters/PageCursor' }
+      responses:
+        '200': { description: Independently paginated immutable references bound by the compact scope root, content: { application/json: { schema: { $ref: '#/components/schemas/FleetHistoryReferencePage' } } } }
+        '403': { description: Pinned workload outside caller scope }
+        '404': { description: Scope not found within tenant }
+        '422': { description: Invalid kind or cursor belongs to another scope/kind }
   /allocation-sources:
     get:
       operationId: listAllocationImportSources
@@ -855,6 +1001,322 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetHistoryBinding:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, workload_id, provider, account_id, region]
+      properties:
+        tenant_id: { type: string }
+        workload_id: { type: string }
+        provider: { type: string, enum: [AWS] }
+        account_id: { type: string, pattern: '^[0-9]{12}$' }
+        region: { type: string, enum: [eu-west-1] }
+    FleetHistoryRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [workload_id, fleet_id, asg_arn, source_connection_id, cadence_seconds, max_gap_seconds]
+      properties:
+        workload_id: { type: string, minLength: 1, maxLength: 256 }
+        fleet_id: { type: string, minLength: 1, maxLength: 256 }
+        asg_arn: { type: string, minLength: 1, maxLength: 512, description: Complete native Ireland Auto Scaling group ARN including UUID; a group name alone is insufficient }
+        source_connection_id: { type: string, minLength: 1, maxLength: 256 }
+        cadence_seconds: { type: integer, minimum: 15, maximum: 600, description: Public collector cadence is at least fifteen seconds }
+        max_gap_seconds: { type: integer, minimum: 15, maximum: 600, description: Must be at least cadence_seconds }
+    FleetHistoryRegistration:
+      type: object
+      additionalProperties: false
+      required: [schema_version, id, version, fleet_id, binding, asg_arn, source_id, source_system, source_registration_version, source_config_hash, cadence_seconds, max_gap_seconds]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        fleet_id: { type: string }
+        binding: { $ref: '#/components/schemas/FleetHistoryBinding' }
+        asg_arn: { type: string }
+        source_id: { type: string }
+        source_system: { type: string, enum: [AWS_SOURCE_CONNECTION] }
+        source_registration_version: { type: integer, minimum: 1 }
+        source_config_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        cadence_seconds: { type: integer, minimum: 1, maximum: 600 }
+        max_gap_seconds: { type: integer, minimum: 1, maximum: 600 }
+    FleetHistoryRegistrationRecord:
+      type: object
+      additionalProperties: false
+      required: [id, version, registration, hash, created_at, writer_role]
+      properties:
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        registration: { $ref: '#/components/schemas/FleetHistoryRegistration' }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string, enum: [finops_api] }
+    FleetDemandDefinitionRequest:
+      type: object
+      additionalProperties: false
+      required: [registration_id, activity_source_id, business_operation, semantic_contract_id, semantic_contract_hash]
+      properties:
+        registration_id: { type: string, minLength: 1 }
+        activity_source_id: { type: string, minLength: 1 }
+        business_operation: { type: string, minLength: 1, maxLength: 512 }
+        semantic_contract_id: { type: string, minLength: 1, maxLength: 256 }
+        semantic_contract_hash: { type: string, pattern: '^[a-f0-9]{64}$', description: Operator-declared semantic contract digest; not independent proof of completed business work }
+    FleetDemandDefinition:
+      type: object
+      additionalProperties: false
+      required: [schema_version, id, version, binding, aggregation, meaning, business_operation, unit, metric, metric_definition_id, metric_definition_version, value_field, origin, semantic_contract_id, semantic_contract_hash, source_id, source_system, source_config_hash, temporality, cadence_seconds, max_gap_seconds]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        binding: { $ref: '#/components/schemas/FleetHistoryBinding' }
+        aggregation: { type: string, enum: [SINGLE_EXTERNAL_TOTAL] }
+        meaning: { type: string, enum: [COMPLETED_WORK], description: Declared meaning; authenticity and causal work preservation remain unproven }
+        business_operation: { type: string }
+        unit: { type: string }
+        metric: { type: string, enum: [activity.Completed] }
+        metric_definition_id: { type: string }
+        metric_definition_version: { type: string }
+        value_field: { type: string, enum: [COMPLETED] }
+        origin: { type: string, enum: [INDEPENDENT_EXTERNAL_SYSTEM] }
+        semantic_contract_id: { type: string }
+        semantic_contract_hash: { type: string }
+        source_id: { type: string }
+        source_system: { type: string, enum: [ACTIVITY_SOURCE] }
+        source_config_hash: { type: string }
+        temporality: { type: string, enum: [DELTA] }
+        cadence_seconds: { type: integer, minimum: 1, maximum: 600, description: New public definitions use the registered one-minute activity interval; immutable earlier definitions retain their recorded cadence }
+        max_gap_seconds: { type: integer, minimum: 1, maximum: 600, description: New public definitions use sixty seconds; immutable earlier records retain their explicit gap }
+    FleetDemandDefinitionRecord:
+      type: object
+      additionalProperties: false
+      required: [id, version, registration_id, registration_version, definition, hash, created_at, writer_role]
+      properties:
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        registration_id: { type: string }
+        registration_version: { type: integer, minimum: 1 }
+        definition: { $ref: '#/components/schemas/FleetDemandDefinition' }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string, enum: [finops_api] }
+    FleetHistoryArchiveReference:
+      type: object
+      additionalProperties: false
+      required: [bucket, key, version_id, sha256]
+      properties:
+        bucket: { type: string }
+        key: { type: string, description: Tenant-scoped immutable evidence object key }
+        version_id: { type: string }
+        sha256: { type: string }
+    FleetHistorySourceReference:
+      type: object
+      additionalProperties: false
+      required: [kind, binding, source_id, source_system, revision_id, source_registration_version, config_hash, receipt_id, target, raw_sha256, canonical_hash, captured_at, storage_kind, archive]
+      properties:
+        kind: { type: string, enum: [AWS_FLEET_MEMBERSHIP, AWS_EC2_HARDWARE] }
+        binding: { $ref: '#/components/schemas/FleetHistoryBinding' }
+        source_id: { type: string }
+        source_system: { type: string, enum: [AWS_SOURCE_CONNECTION] }
+        revision_id: { type: string, description: Immutable native data revision; separate from configuration version }
+        source_registration_version: { type: integer, minimum: 1 }
+        config_hash: { type: string }
+        receipt_id: { type: string }
+        target: { type: string }
+        raw_sha256: { type: string }
+        canonical_hash: { type: string }
+        captured_at: { type: string, format: date-time }
+        storage_kind: { type: string, enum: [VERSIONED_OBJECT] }
+        archive: { $ref: '#/components/schemas/FleetHistoryArchiveReference' }
+    FleetHistoryMember:
+      type: object
+      additionalProperties: false
+      required: [instance_id, launch_time, launch_template_id, launch_template_version, hardware]
+      properties:
+        instance_id: { type: string }
+        launch_time: { type: string, format: date-time, nullable: true, description: Missing native incarnation evidence remains unknown }
+        launch_template_id: { type: string }
+        launch_template_version: { type: integer, minimum: 1 }
+        resource_id: { type: string, description: Optional independently mapped individual EC2 inventory resource }
+        hardware: { type: object, allOf: [ { $ref: '#/components/schemas/FleetHistorySourceReference' } ], nullable: true }
+    FleetHistoryObservation:
+      type: object
+      additionalProperties: false
+      required: [schema_version, id, registration_id, registration_version, registration_hash, asg_arn, observed_at, received_at, source, members]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        registration_id: { type: string }
+        registration_version: { type: integer }
+        registration_hash: { type: string }
+        asg_arn: { type: string }
+        observed_at: { type: string, format: date-time }
+        received_at: { type: string, format: date-time, description: Original native receipt creation time, never a replay timestamp }
+        source: { $ref: '#/components/schemas/FleetHistorySourceReference' }
+        members: { type: array, maxItems: 256, items: { $ref: '#/components/schemas/FleetHistoryMember' } }
+        corrects_id: { type: string, description: Explicit immutable correction lineage; publication order does not establish recency }
+    FleetHistoryObservationRecord:
+      type: object
+      additionalProperties: false
+      required: [id, registration_id, registration_version, observation, hash, created_at, writer_role]
+      properties:
+        id: { type: string }
+        registration_id: { type: string }
+        registration_version: { type: integer, minimum: 1 }
+        observation: { $ref: '#/components/schemas/FleetHistoryObservation' }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string, enum: [finops_ingester] }
+    FleetHistoryScopeRequest:
+      type: object
+      additionalProperties: false
+      required: [registration_id, definition_id, definition_version]
+      properties:
+        registration_id: { type: string, minLength: 1 }
+        definition_id: { type: string, minLength: 1 }
+        definition_version: { type: integer, minimum: 1 }
+    FleetHistoryGap:
+      type: object
+      additionalProperties: false
+      required: [start, end, reason_code]
+      properties: { start: { type: string, format: date-time }, end: { type: string, format: date-time }, reason_code: { type: string } }
+    FleetHistoryGapPreview:
+      type: object
+      required: [count, hash, preview, truncated]
+      properties: { count: { type: integer }, hash: { type: string }, preview: { type: array, maxItems: 16, items: { $ref: '#/components/schemas/FleetHistoryGap' } }, truncated: { type: boolean } }
+    FleetHistoryIssuePreview:
+      type: object
+      required: [count, hash, preview, truncated]
+      properties: { count: { type: integer }, hash: { type: string }, preview: { type: array, maxItems: 16, items: { type: object, required: [record_id, reason_code], properties: { record_id: { type: string }, reason_code: { type: string } } } }, truncated: { type: boolean } }
+    FleetHistoryIDPreview:
+      type: object
+      required: [count, hash, preview, truncated]
+      properties: { count: { type: integer }, hash: { type: string }, preview: { type: array, maxItems: 16, items: { type: string } }, truncated: { type: boolean } }
+    FleetDemandSegmentPreview:
+      type: object
+      required: [count, hash, preview, truncated]
+      properties:
+        count: { type: integer }
+        hash: { type: string }
+        truncated: { type: boolean }
+        preview:
+          type: array
+          maxItems: 16
+          items:
+            type: object
+            required: [start, end, status, units, sample_ids, reason_code]
+            properties:
+              start: { type: string, format: date-time }
+              end: { type: string, format: date-time }
+              status: { type: string, enum: [OBSERVED, UNKNOWN] }
+              units: { type: string, pattern: '^[0-9]+$', nullable: true }
+              sample_ids: { type: array, items: { type: string } }
+              reason_code: { type: string }
+    FleetHistoryScope:
+      type: object
+      additionalProperties: false
+      required: [schema_version, id, purpose, status, binding, fleet_id, asg_arn, registration_id, registration_version, registration_hash, definition_id, definition_version, definition_hash, input_hash, analysis_hash, start, end, as_of, membership_status, reference_root, reference_count, observation_count, selected_observation_count, demand_receipt_count, membership_gaps, observation_gaps, issues, superseded_ids, reason_codes, demand, hash, created_at, writer_role]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        purpose: { type: string, enum: [READ_ONLY_FLEET_HISTORY_ANALYSIS] }
+        status: { type: string, enum: [BLOCKED] }
+        binding: { $ref: '#/components/schemas/FleetHistoryBinding' }
+        fleet_id: { type: string }
+        asg_arn: { type: string }
+        registration_id: { type: string }
+        registration_version: { type: integer }
+        registration_hash: { type: string }
+        definition_id: { type: string }
+        definition_version: { type: integer }
+        definition_hash: { type: string }
+        input_hash: { type: string }
+        analysis_hash: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        as_of: { type: string, format: date-time }
+        membership_status: { type: string, enum: [INTERVAL_OWNERSHIP_UNPROVEN] }
+        reference_root: { type: string }
+        reference_count: { type: integer, minimum: 2, maximum: 50000 }
+        observation_count: { type: integer }
+        selected_observation_count: { type: integer }
+        demand_receipt_count: { type: integer }
+        membership_gaps: { $ref: '#/components/schemas/FleetHistoryGapPreview' }
+        observation_gaps: { $ref: '#/components/schemas/FleetHistoryGapPreview' }
+        issues: { $ref: '#/components/schemas/FleetHistoryIssuePreview' }
+        superseded_ids: { $ref: '#/components/schemas/FleetHistoryIDPreview' }
+        reason_codes: { type: array, items: { type: string } }
+        demand:
+          type: object
+          required: [status, meaning_basis, unit, observed_units, window_units, segments, gaps, reason_codes]
+          properties:
+            status: { type: string, enum: [OBSERVED, UNKNOWN] }
+            meaning_basis: { type: string, enum: [DECLARED_COMPLETED_WORK_SEMANTICS] }
+            unit: { type: string }
+            observed_units: { type: string, pattern: '^[0-9]+$', nullable: true, description: Exact subtotal of observed intervals; not a complete-window total }
+            window_units: { type: string, pattern: '^[0-9]+$', nullable: true, description: Null whenever any required native interval is unknown; observed zero remains zero }
+            segments: { $ref: '#/components/schemas/FleetDemandSegmentPreview' }
+            gaps: { $ref: '#/components/schemas/FleetHistoryGapPreview' }
+            reason_codes: { type: array, items: { type: string } }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+        writer_role: { type: string, enum: [finops_api] }
+    FleetHistorySourceState:
+      type: object
+      additionalProperties: false
+      required: [source_id, source_system, config_hash, binding, status, checked_at]
+      properties:
+        source_id: { type: string }
+        source_system: { type: string, enum: [AWS_SOURCE_CONNECTION, ACTIVITY_SOURCE] }
+        source_registration_version: { type: integer, minimum: 1, description: Present only for a versioned AWS source registration; omitted for guarded activity sources }
+        config_hash: { type: string }
+        binding: { $ref: '#/components/schemas/FleetHistoryBinding' }
+        status: { type: string, enum: [ACTIVE, REVOKED, SUPERSEDED, DEGRADED] }
+        checked_at: { type: string, format: date-time, description: Currentness at immutable scope capture; a later read does not refresh it }
+    FleetHistoryScopeReference:
+      type: object
+      required: [id, ordinal, cursor, kind, reference, hash, created_at]
+      properties:
+        id: { type: string }
+        ordinal: { type: integer }
+        cursor: { type: string, description: Internal ordinal metadata; API pagination uses only next_cursor }
+        kind: { type: string, enum: [REGISTRATION, DEFINITION, OBSERVATION, DEMAND_RECEIPT, SOURCE_STATE] }
+        reference:
+          oneOf:
+            - { $ref: '#/components/schemas/FleetHistorySourceState' }
+            - type: object
+              additionalProperties: false
+              required: [id, version, hash]
+              properties: { id: { type: string }, version: { type: integer }, hash: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [id, hash]
+              properties: { id: { type: string }, hash: { type: string } }
+            - type: object
+              additionalProperties: false
+              required: [id, source_id, body_sha256, canonical_hash, sample_hash]
+              properties: { id: { type: string }, source_id: { type: string }, body_sha256: { type: string }, canonical_hash: { type: string }, sample_hash: { type: string } }
+        hash: { type: string }
+        created_at: { type: string, format: date-time }
+    FleetHistoryRegistrationPage:
+      type: object
+      required: [items, next_cursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/FleetHistoryRegistrationRecord' } }, next_cursor: { type: string, nullable: true } }
+    FleetDemandDefinitionPage:
+      type: object
+      required: [items, next_cursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/FleetDemandDefinitionRecord' } }, next_cursor: { type: string, nullable: true } }
+    FleetHistoryObservationPage:
+      type: object
+      required: [items, next_cursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/FleetHistoryObservationRecord' } }, next_cursor: { type: string, nullable: true } }
+    FleetHistoryScopePage:
+      type: object
+      required: [items, next_cursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/FleetHistoryScope' } }, next_cursor: { type: string, nullable: true } }
+    FleetHistoryReferencePage:
+      type: object
+      required: [items, next_cursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/FleetHistoryScopeReference' } }, next_cursor: { type: string, nullable: true } }
     AllocationImportSource:
       type: object
       required: [id, status, provenance, source_id, source_version, created_at, coverage, execution_authorized, verified_saving]
@@ -1249,6 +1711,9 @@ components:
       properties:
         name: { type: string, enum: [cpu, memory, network, storage_iops, storage_throughput, demand] }
         unit: { type: string }
+        semantic_role: { type: string, enum: [REQUEST_THROUGHPUT_PROXY], description: Present only for explicitly versioned v2 request-throughput observations; never proves completed business work }
+        source_metric: { type: string, enum: [request_count] }
+        source_unit: { type: string, enum: [count, requests], description: Exact registered native counter unit; rate unit remains count/second or requests/second }
         statistic: { type: string, enum: [RAW_SAMPLE, OBSERVED_INTERVAL_RATE, DISTRIBUTION, INTERVAL_MAXIMUM] }
         cadence_seconds: { type: integer }
         coverage_ppm: { type: integer, minimum: 0, maximum: 1000000 }
@@ -1285,6 +1750,10 @@ components:
       type: object
       required: [status, reason_codes, point_peak, point_p99, prediction_interval, backtest]
       properties:
+        semantic_role: { type: string, enum: [REQUEST_THROUGHPUT_PROXY], description: A request-rate projection is not completed-work or work-preservation evidence }
+        source_metric: { type: string, enum: [request_count] }
+        source_unit: { type: string, enum: [count, requests] }
+        unit: { type: string, enum: [count/second, requests/second], description: Explicit native request proxy rate unit in v2; absent in legacy v1 forecasts }
         status: { type: string, enum: [CALIBRATED_BACKTEST, UNCALIBRATED] }
         reason_codes: { type: array, items: { type: string } }
         point_peak: { $ref: '#/components/schemas/NullableDecimal' }
@@ -1333,7 +1802,7 @@ components:
       required: [schema_version, model_version, binding, status, reason_codes, history, metrics, forecasts, candidates, evidence_refs, model_assumptions, assessment_hash]
       properties:
         schema_version: { type: string, enum: ['4'] }
-        model_version: { type: string, enum: [capacity-weekday-block-v1] }
+        model_version: { type: string, enum: [capacity-weekday-block-v1, capacity-weekday-block-v2], description: v1 is immutable legacy generic demand with unproven work semantics; v2 explicitly binds request-throughput proxy metadata and native units. Neither version proves business-work preservation. }
         binding: { $ref: '#/components/schemas/NativeResourceBinding' }
         status: { type: string, enum: [BLOCKED, INSUFFICIENT_OBSERVATION] }
         reason_codes: { type: array, items: { type: string } }

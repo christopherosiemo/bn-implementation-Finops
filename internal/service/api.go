@@ -63,6 +63,10 @@ func fail(w http.ResponseWriter, e error) {
 		p = &Problem{409, "TELEMETRY_REPLAY_CONFLICT", "the source revision or immutable request conflicts"}
 	} else if errors.Is(e, store.ErrTelemetrySource) {
 		p = &Problem{422, "TELEMETRY_SOURCE_INVALID", "the registered source is unavailable or no longer matches its resource"}
+	} else if errors.Is(e, store.ErrFleetHistorySource) {
+		p = &Problem{422, "FLEET_HISTORY_SOURCE_UNAVAILABLE", "fleet history requires current registered native sources with unchanged bindings"}
+	} else if errors.Is(e, store.ErrFleetHistoryBounds) {
+		p = &Problem{503, "FLEET_HISTORY_POPULATION_LIMIT", "the selected history exceeds the supported evaluation bound"}
 	} else {
 		var found *Problem
 		if errors.As(e, &found) {
@@ -108,6 +112,11 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, problem(403, "FORBIDDEN", "mutation role required"))
 		return
 	}
+	// Cached responses must obey the same current route roles as fresh writes.
+	if e := authorizeMutationRole(i, r.URL.Path); e != nil {
+		fail(w, e)
+		return
+	}
 	key := r.Header.Get("Idempotency-Key")
 	if len(key) < 8 || len(key) > 200 {
 		fail(w, problem(400, "IDEMPOTENCY_KEY_REQUIRED", "provide an Idempotency-Key between 8 and 200 characters"))
@@ -131,7 +140,8 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(i.Subject + "\n" + r.Method + "\n" + r.URL.Path + "\n" + string(body)))
 	hash := hex.EncodeToString(sum[:])
 	allocationReportRequest := r.URL.Path == "/v1/allocation-reports"
-	if allocationReportRequest {
+	fleetHistoryScopeRequest := r.URL.Path == "/v1/fleet-history-scopes"
+	if allocationReportRequest || fleetHistoryScopeRequest {
 		// Leave room inside the console's 30s and server's 40s deadlines.
 		// Keep synchronous report work inside the normal response budget.
 		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
@@ -157,6 +167,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return problem(409, "IDEMPOTENCY_CONFLICT", "key already used for a different request")
 		}
 		if oldstatus != nil {
+			if e := authorizeMutationReplay(r.Context(), t, i, r.URL.Path, input); e != nil {
+				return e
+			}
 			status = *oldstatus
 			return json.Unmarshal(oldbody, &output)
 		}
@@ -173,6 +186,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allocationReportRequest && errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 			e = problem(503, "ALLOCATION_REPORT_BUDGET_EXCEEDED", "report exceeded its synchronous request budget; retry with the same Idempotency-Key to reconcile the outcome")
 		}
+		if fleetHistoryScopeRequest && errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			e = problem(503, "FLEET_HISTORY_REQUEST_BUDGET_EXCEEDED", "history evaluation exceeded its synchronous request budget; retry with the same Idempotency-Key to reconcile the outcome")
+		}
 		fail(w, e)
 		return
 	}
@@ -188,6 +204,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return e
 		}
 		if result, handled, err := a.allocationGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
+		if result, handled, err := a.fleetHistoryGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
 		}
@@ -390,6 +410,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
 	if out, status, handled, err := a.allocationMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.fleetHistoryMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}
 	if out, status, handled, err := a.configurationMutate(ctx, t, i, r, in, parts); handled {

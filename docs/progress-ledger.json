@@ -1,12 +1,12 @@
 {
   "schema_version": "1",
-  "recorded_at": "2026-10-18",
+  "recorded_at": "2026-10-19",
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Bounded observed-cost allocation accepted at deterministic E2E maturity after all eight exact-commit CI jobs passed at 21e2e8c. The absent 11.5-point broad allocation/forecast/portfolio scope is subdivided into 0.5 bounded allocation and 11 remaining, preserving all weights and historical credit. No additional shared-foundation, private attestor/rate-broker, fleet, live/customer or production credit.",
+  "credit_review": "Bounded observed-cost allocation retains its accepted deterministic E2E credit. All nine exact-commit checks at fd0e5d6 accepted stop-recovery and native local Flux assurance. The subsequent bounded history, explicit request proxy and current-request replay authorization passed local service/storage/runtime/browser acceptance without advancing an existing maturity stage. Fixed weights, package scope and historical reviews remain unchanged; no live/customer or production credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -226,7 +226,7 @@
             "docs/fleet-and-kubernetes-components.md"
           ],
           "remaining": [
-            "Complete default-duration protocol acceptance and registration of the private continuous-health factories",
+            "Registration of the private continuous-health factories; the separate default-duration protocol passed but does not enable a public runtime",
             "Connected native capacity, authority and financial factories; customer pipeline and full approved canary/rollback/economics journey",
             "Supervised customer deployment and production operational acceptance"
           ]
@@ -239,11 +239,13 @@
             "internal/kubernetes",
             "scripts/kubernetes-lab.mjs",
             "scripts/kubernetes-bootstrap.mjs",
+            "scripts/flux-lab.mjs",
+            "examples/flux/README.md",
             "examples/kubernetes",
             "docs/fleet-and-kubernetes-components.md"
           ],
           "remaining": [
-            "Hosted Argo CD/Flux revision and rollout acceptance; local controller remains an explicit test double",
+            "Connected approved native Flux/API execution and hosted Argo CD/Flux acceptance; the real local Flux lab remains a bounded CLI component",
             "Requests/limits changes, native autoscaler coordination, node economics and workload-normalized verified savings",
             "EKS/AKS/GKE live/customer and production operation"
           ]
@@ -816,6 +818,46 @@
       "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39161293580",
       "live_credit_awarded": false,
       "acceptance": "All eight normal CI jobs passed, including PostgreSQL16/17, real Python economics, 45 browser cases, process recovery, generated contracts, source/dependency security, isolated artifact/rate labs and encrypted PostgreSQL readback. Independent review closed source sync/revocation/current-head selection races with additive024; owned legacy/schema3 START survives. Private020/021 and pending native Flux strengthen existing components without separate credit."
+    },
+    {
+      "id": "stop-recovery-native-flux-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "internal/service/uncertain_stop_integration_test.go",
+        "internal/service/denied_stop_integration_test.go",
+        "internal/workflow/schedule_skip_integration_test.go",
+        "internal/kubernetes/flux.go",
+        "scripts/flux-lab.mjs",
+        "examples/flux/README.md",
+        "docs/acceptance.md"
+      ],
+      "release_commit": "fd0e5d6e6f2d690df6125116b4d97fad439c3e7b",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697",
+      "live_credit_awarded": false,
+      "acceptance": "All nine normal exact-commit CI jobs passed, including PostgreSQL16/17, Python economics, connected fixture browser/process recovery, generated contracts, source/dependency checks, infrastructure, encrypted PostgreSQL readback, the prior Kubernetes lab and the new real Flux lab. Native Flux seven-check acceptance proves exact Git/artifact/spec binding, successful two-zone rollout, PDB refusal before Git change, native health failure and owned Git rollback with original immutable plan, followed by owned cleanup. Stop controls serialize with dispatch; uncertain late stop ownership and persisted restoration health remain durable. These strengthen existing stages without new product credit. Full fleet/Kubernetes API approval/execution/economics, hosted/customer acceptance and sustained production operation remain open."
+    },
+    {
+      "id": "fleet-history-proxy-retry-assurance-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-history.md",
+        "docs/acceptance.md",
+        "internal/service/fleet_history_integration_test.go",
+        "internal/service/mutation_authorization_integration_test.go",
+        "internal/source/fleet_history_storage_integration_test.go",
+        "internal/store/fleet_history_integration_test.go",
+        "internal/workflow/fleet_history_reader_integration_test.go",
+        "internal/native/capacity_model_result_test.go",
+        "frontend/tests/fleet-history-live.spec.ts",
+        "deploy/tests/test_fleet_history_chart.py"
+      ],
+      "runtime_source_tree": "89dc954e6c083b93b3f9beb72855b0577c2c593a",
+      "live_credit_awarded": false,
+      "acceptance": "Local final API passed all seven runtime suites consecutively and all 53 Chromium cases in 5.8 minutes with zero retries and unchanged timeouts. Actual restricted PostgreSQL/JWKS acceptance, versioned MinIO cold-lab cleanup, durable reader leases, immutable source/receipt references, exact zero-versus-missing handling, v1 hash compatibility and explicit v2 request-throughput proxy semantics passed. All 39 unsafe Helm configurations refused at their explicit expected guards. Replay now rechecks validated request roles and current scoped ownership without repeating mutation/CAS or revoking owned restoration. All history scopes remain BLOCKED/INTERVAL_OWNERSHIP_UNPROVEN; no enabled Fleet runtime, financial authority, customer history, live cloud or production operation is inferred. Exact-commit CI and final encrypted recovery remain separate release checks."
     }
   ]
 }

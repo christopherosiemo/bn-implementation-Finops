@@ -5,6 +5,11 @@ see [hardware/capacity](native-hardware-capacity.md) and
 [fleet/local Kubernetes limits](fleet-and-kubernetes-components.md). Optional
 hardware IAM/database principals, exact read bindings and candidate allowlists
 must be reviewed before enabling that reader. The
+[fleet-history records and optional reader](fleet-history.md) retain point
+membership and independent completed-work provenance without proving historical
+interval ownership or financial authority. Commission the exact fleet identities,
+external completed-work meaning and required observation history before using
+them in any future action-specific baseline. The
 [encrypted local PostgreSQL recovery drill](postgres-recovery-lab.md) proves
 quarantined database readback only; it does not establish production recovery
 times, object/analytics recovery, identity backup or resumed workflow safety.

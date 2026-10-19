@@ -41,6 +41,8 @@ database:
     telemetry-ingress: finops-db-telemetry-ingress
     deployment-observer: finops-db-deployment-observer
     hardware-reader: finops-db-hardware-reader
+    # A distinct LOGIN member of finops_ingester; never reuse another process login.
+    fleet-history-reader: finops-db-fleet-history-reader
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -67,6 +69,21 @@ hardware:
   targetsSecret: ""
   httpsEgressCidrs: []
   # Exact private RDS subnet networks, reviewed alongside destination TLS/CA.
+  postgresEgressCidrs: []
+  replicas: 1
+fleetHistory:
+  # Optional point observations only. Provision neither IAM nor secrets here.
+  # Commission dedicated renewable IRSA/customer read trust and a distinct
+  # finops_ingester LOGIN before enabling; no execution or historical authority.
+  enabled: false
+  roleArn: ""
+  # Existing secret: AWS_FLEET_HISTORY_REGISTRATIONS_JSON (exact tenant+IDs).
+  targetsSecret: ""
+  # Existing secret: AWS_SOURCE_READ_BINDINGS_JSON (approved member read roles).
+  readBindingsSecret: ""
+  # Bounded IPv4 networks (/16 or narrower): approved regional STS/S3
+  # endpoints and separate private RDS destinations; no world/metadata routes.
+  httpsEgressCidrs: []
   postgresEgressCidrs: []
   replicas: 1
 notifications:

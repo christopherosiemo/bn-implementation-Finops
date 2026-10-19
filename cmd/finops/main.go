@@ -29,7 +29,7 @@ func main() {
 }
 func run() error {
 	cfg := service.LoadConfig()
-	mode := flag.String("mode", cfg.Role, "api|worker|ingester|hardware-reader|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
+	mode := flag.String("mode", cfg.Role, "api|worker|ingester|hardware-reader|fleet-history-reader|signer|executor|activity-ingress|telemetry-reader|telemetry-ingress|deployment-observer|migrate")
 	flag.Parse()
 	cfg.Role = *mode
 	if !cfg.Fixture {
@@ -186,7 +186,7 @@ func run() error {
 			return &service.Problem{Status: 500, Message: "EXECUTOR_TOKEN is required"}
 		}
 		handler = (&service.SecureService{Store: db, Config: cfg, Public: key}).Handler()
-	case "worker", "ingester", "hardware-reader":
+	case "worker", "ingester", "hardware-reader", "fleet-history-reader":
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
 				http.NotFound(w, r)
@@ -227,6 +227,13 @@ func run() error {
 		go func() {
 			if e := workflow.RunHardwareReader(ctx, cfg, db); e != nil {
 				errs <- e
+			}
+		}()
+	}
+	if cfg.Role == "fleet-history-reader" {
+		go func() {
+			if err := workflow.RunFleetHistoryReader(ctx, cfg, db); err != nil {
+				errs <- err
 			}
 		}()
 	}

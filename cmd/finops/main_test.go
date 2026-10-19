@@ -10,7 +10,7 @@ import (
 )
 
 func TestEveryNonFixtureProcessRejectsPlaintextBeforeConnecting(t *testing.T) {
-	for _, role := range []string{"api", "worker", "ingester", "hardware-reader", "signer", "executor", "activity-ingress", "telemetry-reader", "telemetry-ingress", "deployment-observer", "migrate"} {
+	for _, role := range []string{"api", "worker", "ingester", "hardware-reader", "fleet-history-reader", "signer", "executor", "activity-ingress", "telemetry-reader", "telemetry-ingress", "deployment-observer", "migrate"} {
 		t.Run(role, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()

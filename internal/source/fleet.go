@@ -106,7 +106,7 @@ func fleetRawGroups(e provider.FleetInventoryEvidence, names []string) ([]provid
 			if len(values) != 1 {
 				return nil, errors.New("FLEET_NATIVE_SELECTOR_MISMATCH")
 			}
-			if key != "Action" && key != "Version" && key != "MaxRecords" && key != "NextToken" && key != "AutoScalingGroupNames.member.1" && key != "AutoScalingGroupNames.member.2" {
+			if key != "Action" && key != "Version" && key != "MaxRecords" && key != "NextToken" && key != "AutoScalingGroupNames.member.1" && !(len(names) == 2 && key == "AutoScalingGroupNames.member.2") {
 				return nil, errors.New("FLEET_NATIVE_SELECTOR_MISMATCH")
 			}
 		}

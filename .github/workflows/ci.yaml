@@ -153,12 +153,36 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/fleet-values.yaml > /tmp/finops-fleet.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/hardware-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/hardware-values.yaml > /tmp/finops-hardware.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml > /tmp/finops-fleet-history.yaml
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-native.yaml:/native.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /native.yaml && python deploy/tests/test_native_chart.py /native.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet.yaml:/fleet.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /fleet.yaml && python deploy/tests/test_fleet_chart.py /fleet.yaml'
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-hardware.yaml:/hardware.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /hardware.yaml && python deploy/tests/test_hardware_chart.py /hardware.yaml'
+      - name: Check optional history-reader identity, additive policies and fail-closed configuration
+        run: |
+          set -euo pipefail
+          mkdir /tmp/finops-history-checks
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-history.yaml:/history.yaml:ro -v /tmp/finops-history-checks:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /history.yaml && python deploy/tests/test_fleet_history_chart.py /history.yaml --write-negative-values /checks/negative'
+          for invalid in /tmp/finops-history-checks/negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml -f /invalid.json > /tmp/finops-history-checks/rejected.log 2>&1; then
+              echo "Unexpectedly accepted history-reader configuration: $(basename "$invalid")"
+              exit 1
+            else
+              rejected=$?
+              guard=finops/templates/fleet-history-reader.yaml
+              if [ "$(basename "$invalid")" = missing-tenant.json ]; then
+                guard=finops/templates/services.yaml
+                rg --quiet --fixed-strings 'aws.tenantId must bind this live pilot to exactly one customer' /tmp/finops-history-checks/rejected.log
+              fi
+              if [ "$rejected" -ne 1 ] || ! rg --quiet --fixed-strings 'Error: execution error at' /tmp/finops-history-checks/rejected.log || ! rg --quiet --fixed-strings "$guard" /tmp/finops-history-checks/rejected.log; then
+                echo "History-reader refusal was not produced by its Helm guard: $(basename "$invalid")"
+                exit 1
+              fi
+            fi
+          done
   kubernetes-lab:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -274,6 +298,18 @@ jobs:
         run: |
           node --test scripts/tests/fleet-billing-price-lab.test.mjs
           node scripts/fleet-billing-price-lab.mjs
+      - name: Exercise fleet history with actual isolated PostgreSQL and versioned objects
+        run: |
+          node --test scripts/tests/fleet-history-lab.test.mjs
+          node scripts/fleet-history-lab.mjs
+      - name: Preserve bounded history acceptance without credentials or source bodies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-history-storage-acceptance
+          path: work/private/fleet-history/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Verify final encrypted whole-cluster PostgreSQL backup in network quarantine
         run: node scripts/postgres-recovery-lab.mjs
       - name: Collect service diagnostics on failure

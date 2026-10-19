@@ -102,7 +102,11 @@ func DecodeCapacityModelResult(raw []byte, input CapacityModelRequest) (Capacity
 		return out, errors.New("CAPACITY_MODEL_RESPONSE_INVALID")
 	}
 	hash, err := CapacityModelBodyHash(raw)
-	if err != nil || hash != out.AssessmentHash || out.SchemaVersion != "4" || out.ModelVersion != "capacity-weekday-block-v1" || out.Binding != input.Binding || out.Status != "BLOCKED" && out.Status != "INSUFFICIENT_OBSERVATION" || len(out.Candidates) != len(input.Candidates) || out.History == nil || out.Metrics == nil || out.Forecasts == nil || out.EvidenceRefs == nil {
+	expectedVersion := input.ModelVersion
+	if expectedVersion == "" {
+		expectedVersion = "capacity-weekday-block-v1"
+	}
+	if err != nil || hash != out.AssessmentHash || out.SchemaVersion != "4" || out.ModelVersion != expectedVersion || expectedVersion != "capacity-weekday-block-v1" && expectedVersion != CapacityProxyModelVersion || out.Binding != input.Binding || out.Status != "BLOCKED" && out.Status != "INSUFFICIENT_OBSERVATION" || len(out.Candidates) != len(input.Candidates) || out.History == nil || out.Metrics == nil || out.Forecasts == nil || out.EvidenceRefs == nil {
 		return out, errors.New("CAPACITY_MODEL_RESPONSE_BINDING_INVALID")
 	}
 	allowed := map[string]CapacityModelCatalog{}
@@ -149,7 +153,7 @@ func DecodeCapacityModelResult(raw []byte, input CapacityModelRequest) (Capacity
 	}
 	for _, metric := range out.Metrics {
 		expected, ok := metrics[model.String(metric, "name")]
-		if !ok || model.String(metric, "unit") != expected.Unit || model.String(metric, "statistic") != expected.Statistic {
+		if !ok || model.String(metric, "unit") != expected.Unit || model.String(metric, "statistic") != expected.Statistic || !capacityProxyMetadataMatches(metric, expected, expectedVersion) {
 			return out, errors.New("CAPACITY_MODEL_METRIC_BINDING_INVALID")
 		}
 		delete(metrics, expected.Name)
@@ -157,5 +161,52 @@ func DecodeCapacityModelResult(raw []byte, input CapacityModelRequest) (Capacity
 	if len(metrics) > 0 {
 		return out, errors.New("CAPACITY_MODEL_METRIC_BINDING_INVALID")
 	}
+	if expectedVersion == CapacityProxyModelVersion {
+		if len(out.Forecasts) != len(input.ForecastHorizons) {
+			return out, errors.New("CAPACITY_MODEL_PROXY_FORECAST_BINDING_INVALID")
+		}
+		wanted := map[string]bool{}
+		for _, horizon := range input.ForecastHorizons {
+			wanted[horizon] = true
+		}
+		for _, forecast := range out.Forecasts {
+			horizon := model.String(forecast, "horizon")
+			if !wanted[horizon] {
+				return out, errors.New("CAPACITY_MODEL_PROXY_FORECAST_BINDING_INVALID")
+			}
+			delete(wanted, horizon)
+		}
+		for _, expected := range input.Metrics {
+			if expected.Name == "demand" {
+				for _, forecast := range out.Forecasts {
+					metric := telemetry.Document(telemetry.Document(forecast["metrics"])["demand"])
+					if model.String(metric, "unit") != expected.Unit || !capacityProxyMetadataMatches(metric, expected, expectedVersion) {
+						return out, errors.New("CAPACITY_MODEL_PROXY_FORECAST_BINDING_INVALID")
+					}
+				}
+			}
+		}
+	} else {
+		for _, forecast := range out.Forecasts {
+			metric := telemetry.Document(telemetry.Document(forecast["metrics"])["demand"])
+			for _, key := range []string{"semantic_role", "source_metric", "source_unit"} {
+				if _, exists := metric[key]; exists {
+					return out, errors.New("CAPACITY_MODEL_PROXY_FORECAST_BINDING_INVALID")
+				}
+			}
+		}
+	}
 	return out, nil
+}
+
+func capacityProxyMetadataMatches(metric model.Document, expected CapacityModelMetric, version string) bool {
+	if version != CapacityProxyModelVersion || expected.Name != "demand" {
+		for _, key := range []string{"semantic_role", "source_metric", "source_unit"} {
+			if _, exists := metric[key]; exists {
+				return false
+			}
+		}
+		return expected.SemanticRole == "" && expected.SourceMetric == "" && expected.SourceUnit == ""
+	}
+	return expected.SemanticRole == CapacityRequestProxyRole && expected.SourceMetric == "request_count" && (expected.SourceUnit == "count" || expected.SourceUnit == "requests") && expected.Unit == expected.SourceUnit+"/second" && expected.Statistic == "OBSERVED_INTERVAL_RATE" && expected.Denominator == nil && model.String(metric, "semantic_role") == expected.SemanticRole && model.String(metric, "source_metric") == expected.SourceMetric && model.String(metric, "source_unit") == expected.SourceUnit
 }

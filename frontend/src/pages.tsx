@@ -5,6 +5,7 @@ import { SloSafety } from "./SloSafety";
 import { NativeTelemetry } from "./NativeTelemetry";
 import { WorkloadSafety } from "./WorkloadSafety";
 import { ConfigurationAuthority } from "./ConfigurationAuthority";
+import { FleetHistory } from "./FleetHistory";
 import {
   Activity,
   ArrowDownRight,
@@ -387,6 +388,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
       </Panel>
       <WorkloadSafety data={data} run={run} busy={busy} />
       <ConfigurationAuthority data={data} run={run} busy={busy} />
+      <FleetHistory data={data} run={run} busy={busy} />
       <SloSafety data={data} run={run} busy={busy} />
       <DependencySafety data={data} run={run} busy={busy} />
       {inspect && (

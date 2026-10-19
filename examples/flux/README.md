@@ -90,7 +90,10 @@ Deployment-spec hashes to equal the approved hash.
 
 The first renderer deliberately accepts only the fixture's static three-file
 layout: a Deployment JSON, a ConfigMap JSON and a JSON-form Kustomization with
-those two resources. It rejects extra files, transforms, substitutions,
+those two resources. The observed native archive also contains empty `.` and
+`workload` directory headers. These unique structural entries carry no rendered
+resource; directory aliases, duplicate entries, links and PAX metadata are
+rejected. It rejects extra files, transforms, substitutions,
 remote sources, links, path traversal, oversized archives and changed
 authority. The archive binds the ConfigMap source bytes, but this component does
 not prove live ConfigMap/application-code equivalence. It provides bounded
@@ -115,11 +118,21 @@ are authoritative for that failed run. The separate Flux CI job uploads bounded
 acceptance or failure evidence as `local-flux-acceptance`. A missing PASS or
 unit-test success alone does not establish native controller acceptance.
 
+Commit `fd0e5d6e6f2d690df6125116b4d97fad439c3e7b` passed all seven native
+checks and cleanup in the separate [CI Flux job](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697/job/117812564579).
+The independent cold Windows run `ab060219-68e1-4035-96d1-f0431fade1d1`
+also passed all seven checks and cleanup at `2026-10-18T23:03:29.651Z`, with
+cluster UID `836fdd42-fe2c-4886-a22e-ea35569f13cd`. Its bounded evidence is
+`work/flux-lab/ab060219-68e1-4035-96d1-f0431fade1d1/acceptance.json`.
+Both results have `hosted=false`, `execution_authorized=false` and
+`monetary_claim=false`; they add no product progress credit.
+
 Primary references:
 
 - [Flux 2.9.6 release](https://github.com/fluxcd/flux2/releases/tag/v2.9.6)
 - [Flux installation prerequisites](https://fluxcd.io/flux/installation/)
 - [GitRepository native artifact and status](https://fluxcd.io/flux/components/source/gitrepositories/)
+- [Pinned native archive walk and structural root header](https://github.com/fluxcd/pkg/blob/tar/v1.2.0/tar/tar.go)
 - [Kustomization reconciliation, impersonation and status](https://fluxcd.io/flux/components/kustomize/kustomizations/)
 - [Pinned deployment health reader](https://github.com/fluxcd/cli-utils/blob/v1.2.3/pkg/kstatus/polling/statusreaders/deployment.go) and [ReplicaSet/Pod traversal](https://github.com/fluxcd/cli-utils/blob/v1.2.3/pkg/kstatus/polling/statusreaders/replicaset.go)
 - [Flux security practices](https://fluxcd.io/flux/security/best-practices/)

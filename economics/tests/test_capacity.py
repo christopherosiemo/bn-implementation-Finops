@@ -13,7 +13,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
-from autopilot.capacity import evaluate_capacity, INPUT_SCHEMA, OUTPUT_SCHEMA, UNITS
+from autopilot.capacity import evaluate_capacity, INPUT_SCHEMA, OUTPUT_SCHEMA, UNITS, MODEL_VERSION, LEGACY_MODEL_VERSION, PROXY_ROLE
 from autopilot.model import EvidenceError
 from autopilot.server import Handler
 
@@ -51,10 +51,11 @@ def evidence(days=14, zone="UTC", end=None, cadence=3600):
             points.append({"start": stamp(at), "end": stamp(right), "value": VALUES[name]})
             at = right
         stream = {"name": name, "unit": unit, "statistic": "RAW_SAMPLE" if name in ("cpu", "memory") else "OBSERVED_INTERVAL_RATE", "source_refs": [ref("metric-"+name)], "points": points}
+        if name == "demand": stream.update(semantic_role=PROXY_ROLE, source_metric="request_count", source_unit="count")
         if name != "demand": stream["denominator"] = CAPACITY[name]
         metrics.append(stream)
     candidate = {"cpu": "2", "memory": "8000000000", "network": "50", "storage_iops": "50", "storage_throughput": "50"}
-    return {"schema_version": "4", "binding": copy.deepcopy(BINDING), "as_of": stamp(end+timedelta(hours=1)),
+    return {"schema_version": "4", "model_version": MODEL_VERSION, "binding": copy.deepcopy(BINDING), "as_of": stamp(end+timedelta(hours=1)),
             "history": {"start": stamp(start), "end": stamp(end), "timezone": zone, "environment": "NON_PRODUCTION", "high_seasonality": False, "cadence_seconds": cadence},
             "metrics": metrics, "current": catalog("current", "2"), "candidates": [catalog("candidate", "1", candidate)],
             "policy": {"reserve_above_forecast_ppm": 300000}, "events": [], "forecast_horizons": ["7_day"], "pricing_period_hours": "800"}
@@ -66,6 +67,57 @@ def check(result, name): return next(item for item in candidate(result)["checks"
 
 
 class CapacityTests(unittest.TestCase):
+    def test_request_throughput_proxy_preserves_native_units_without_work_authority(self):
+        for source_unit in ("count", "requests"):
+            data = evidence()
+            demand = metric(data, "demand")
+            demand.update(source_unit=source_unit, unit=source_unit+"/second")
+            original = copy.deepcopy(data)
+            result = evaluate_capacity(data)
+            self.assertEqual(data, original)
+            self.assertEqual(result["model_version"], MODEL_VERSION)
+            for summary in (metric(result, "demand"), result["forecasts"][0]["metrics"]["demand"]):
+                self.assertEqual(summary["semantic_role"], PROXY_ROLE)
+                self.assertEqual(summary["source_metric"], "request_count")
+                self.assertEqual(summary["source_unit"], source_unit)
+                self.assertEqual(summary["unit"], source_unit+"/second")
+            self.assertEqual(metric(result, "demand")["observed_quantiles"]["p99"]["upper"], "5.000000000000")
+            self.assertTrue(any("do not prove completed business work" in line for line in result["model_assumptions"]))
+            self.assertIsNone(candidate(result)["economics"]["verified_saving"])
+
+    def test_proxy_contract_rejects_generic_work_units_and_semantic_promotion(self):
+        mutations = [lambda d: d.pop("semantic_role"), lambda d: d.update(semantic_role="COMPLETED_WORK"),
+                     lambda d: d.update(source_metric="completed_orders"), lambda d: d.update(source_unit="work_unit"),
+                     lambda d: d.update(unit="work_unit/second"), lambda d: d.update(unit="requests/second"),
+                     lambda d: d.update(statistic="RAW_SAMPLE"), lambda d: d.update(denominator="1"),
+                     lambda d: d.update(completed_work_proven=True)]
+        for mutate in mutations:
+            data = evidence(); mutate(metric(data, "demand"))
+            with self.assertRaises(EvidenceError): evaluate_capacity(data)
+        data = evidence(); data["model_version"] = "future-model"
+        with self.assertRaises(EvidenceError): evaluate_capacity(data)
+
+    def test_legacy_v1_contract_is_not_upgraded_or_relabelled(self):
+        data = evidence(); data.pop("model_version")
+        demand = metric(data, "demand")
+        for key in ("semantic_role", "source_metric", "source_unit"): demand.pop(key)
+        demand["unit"] = "work_unit/second"
+        result = evaluate_capacity(data)
+        self.assertEqual(result["model_version"], LEGACY_MODEL_VERSION)
+        # Computed independently by the original v1 implementation before this
+        # change: retaining the old contract also retains its immutable hash.
+        self.assertEqual(result["assessment_hash"], "263eb9558d8187e158ada23bc1477cfccd98130e75517de8e9b4fd45e6d68f74")
+        self.assertEqual(metric(result, "demand")["unit"], "work_unit/second")
+        self.assertNotIn("semantic_role", metric(result, "demand"))
+        self.assertNotIn("semantic_role", result["forecasts"][0]["metrics"]["demand"])
+        explicit = copy.deepcopy(data); explicit["model_version"] = LEGACY_MODEL_VERSION
+        self.assertEqual(evaluate_capacity(explicit), result)
+        promoted = copy.deepcopy(data); metric(promoted, "demand")["semantic_role"] = PROXY_ROLE
+        with self.assertRaises(EvidenceError): evaluate_capacity(promoted)
+        self.assertIn(LEGACY_MODEL_VERSION, OUTPUT_SCHEMA["properties"]["model_version"]["enum"])
+        self.assertIn(MODEL_VERSION, OUTPUT_SCHEMA["properties"]["model_version"]["enum"])
+        self.assertEqual(INPUT_SCHEMA["properties"]["metrics"]["items"]["properties"]["semantic_role"], {"const": PROXY_ROLE})
+
     def test_evidenced_nonproduction_candidate_and_counted_contracted_cost(self):
         result = evaluate_capacity(evidence())
         self.assertEqual(result["status"], "VALIDATED")

@@ -10,17 +10,42 @@ const decimal = (value: string | null | undefined) =>
 const percent = (value: number | null | undefined) =>
   value == null ? "Unavailable" : `${(value / 10_000).toLocaleString()}%`;
 
+type ProxyMetadata = {
+  semantic_role?: string;
+  source_metric?: string;
+  source_unit?: string;
+  unit?: string;
+};
+function proxyLabel(model: Model, name: string, metric: ProxyMetadata) {
+  if (name !== "demand") return readable(name);
+  if (model.model_version === "capacity-weekday-block-v1")
+    return "Legacy demand · unproven proxy";
+  return model.model_version === "capacity-weekday-block-v2" &&
+    metric.semantic_role === "REQUEST_THROUGHPUT_PROXY" &&
+    metric.source_metric === "request_count" &&
+    (metric.source_unit === "count" || metric.source_unit === "requests") &&
+    metric.unit === `${metric.source_unit}/second`
+    ? "Request throughput proxy"
+    : "Demand semantics unavailable";
+}
+
 function ModelEvidence({ model }: { model: Model }) {
   return (
     <>
-      <h4>Observed physical demand</h4>
+      <h4>Observed capacity & request proxy</h4>
       <p className="form-note">
         Quantiles describe measured samples or actual counter-interval rates. A
         source maximum is never relabelled as a percentile. Missing observations
         remain unknown.
       </p>
+      <p className="form-note">
+        Request throughput is a proxy. Requests do not prove completed business
+        work or work preservation. Legacy generic work units retain their
+        original recorded units; their semantics are unproven.
+      </p>
+      <p className="evidence-id">Model semantics: {model.model_version}</p>
       <Table
-        scrollLabel="Observed native physical demand"
+        scrollLabel="Observed native capacity and request proxy"
         headings={[
           "Metric / units",
           "Coverage / missing",
@@ -32,10 +57,18 @@ function ModelEvidence({ model }: { model: Model }) {
         {model.metrics.map((metric) => (
           <tr key={metric.name}>
             <td>
-              {readable(metric.name)}
+              {proxyLabel(model, metric.name, metric)}
               <small>
                 {metric.unit} · {readable(metric.statistic)}
               </small>
+              {metric.name === "demand" &&
+              proxyLabel(model, metric.name, metric) ===
+                "Request throughput proxy" ? (
+                <small>
+                  {metric.semantic_role} · source {metric.source_metric} (
+                  {metric.source_unit})
+                </small>
+              ) : null}
             </td>
             <td>
               {percent(metric.coverage_ppm)}
@@ -79,8 +112,15 @@ function ModelEvidence({ model }: { model: Model }) {
           Object.entries(forecast.metrics).map(([name, metric]) => (
             <tr key={`${forecast.horizon}-${name}`}>
               <td>
-                {readable(forecast.horizon)} · {readable(name)}
+                {readable(forecast.horizon)} · {proxyLabel(model, name, metric)}
                 <small>{readable(metric.status)}</small>
+                {name === "demand" ? (
+                  <small>
+                    {metric.unit ??
+                      model.metrics.find((item) => item.name === name)?.unit ??
+                      "Units unavailable"}
+                  </small>
+                ) : null}
               </td>
               <td>
                 {decimal(metric.point_p99)} / {decimal(metric.point_peak)}

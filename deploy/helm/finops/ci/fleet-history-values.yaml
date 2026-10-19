@@ -1,0 +1,9 @@
+# Render-only fixture; these ARNs/secret names confer no customer authority.
+# Compose with aws-readonly-values.yaml. No resources are provisioned by this file.
+fleetHistory:
+  enabled: true
+  roleArn: arn:aws:iam::123456789012:role/finops-fleet-history-reader
+  targetsSecret: finops-history-exact-registrations
+  readBindingsSecret: finops-history-approved-read-bindings
+  httpsEgressCidrs: ["10.40.2.0/24"]
+  postgresEgressCidrs: ["10.42.10.0/24", "10.42.11.0/24"]

@@ -1,5 +1,94 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: current authorization on mutation retries
+
+Committed mutation responses now require the same current route roles as fresh
+requests. A scoped application owner must still own the current workload, resolved
+from the schedule, execution, plan or path/body workload identity. The replay
+branch holds the existing dependency-graph guard through authorization and result
+selection; fresh mutations retain their resource/control/graph lock ordering.
+Autopilot schedule reconciliation still requires platform authority. Financial
+role sets are unchanged; the shared check grants no new finance privilege.
+
+The earlier cache branch bound tenant, subject, path and body but returned a
+committed response before route-specific role and ownership checks. A downgraded
+subject could therefore receive a privileged cached response. Replay did not
+dispatch a second action. The fix rejects that response while still returning the
+original status, body and ETag to an authorized retry. It does not rerun CAS,
+readiness, approval expiry, economics or the original mutation.
+
+Actual signed JWT/JWKS and dedicated restricted-PostgreSQL regressions passed in
+26.128 seconds. They cover role downgrade, reassigned ownership and concurrent
+ownership locking, stale-CAS reconciliation without extra audit/outbox writes,
+unchanged finance roles and an Autopilot downgrade. A restricted executor still
+performs owned START and readiness after public access is denied, organization
+pause and plan expiry. Service vet and independent review passed. No migration,
+grant, execution policy or owned-restoration authority changed. This assurance
+does not earn another identity-foundation credit.
+
+The combined final API was rebuilt from frozen source tree
+`89dc954e6c083b93b3f9beb72855b0577c2c593a`, image
+`sha256:7f729a49e5013ba96211f808acca8253a54026900e3b799858fa8de40d8c67ce`.
+All seven runtime suites then passed consecutively and all 53 Chromium cases
+passed in 5.8 minutes with one worker, zero retries and unchanged timeouts.
+This includes actual OIDC history registration/definition/scope selection,
+foreign-tenant and viewer denial, native transports and the scheduling-to-savings
+journey. The first new history browser attempt exposed a missing registered-source
+fixture prerequisite; the test now registers only public fixture configuration
+through the existing UI, without synchronizing or uploading native observations.
+Its initial 52/53 report and subsequent passing reports are retained separately.
+
+## 19 October: fleet point history and explicit request proxies
+
+Additive migration 025 preserves native ASG point observations, independent
+completed-work receipts and immutable, bounded fourteen-day history selections.
+Every scope remains `BLOCKED` with `INTERVAL_OWNERSHIP_UNPROVEN`. Repeated equal
+points do not establish historical membership, and no result authorizes fleet
+execution, work preservation or a savings claim. See [fleet history](fleet-history.md).
+
+Actual dedicated PostgreSQL logins and authenticated API regressions cover
+tenant/workload/role denial, optimistic versions, exact idempotent replay,
+immutable identity, issued native receipt and pinned-object binding, original
+receive times, explicit zero versus missing work, source synchronization and
+revocation, reference-root sealing and forged temporary-table rejection.
+The optional reader's process-recovery tests retain poll leases after session
+failure, serialize replicas and recover without signing or execution privileges.
+The new reader remains disabled in local Compose and default Helm deployments.
+Actual Helm renders pass both independent credential/network checkers and reject
+all 39 unsafe enabling configurations; the default render emits no reader objects.
+This is configuration acceptance, not commissioned IRSA, IAM, CNI or AWS access.
+
+The separate cold storage run `e2d70378-cc51-4fca-91a8-5d569a636389`
+passed against actual disposable PostgreSQL and versioned MinIO, including raw
+readback, exact replay, later native recapture, revoked publication and failed
+publication. Fresh module/build caches were prepared without credentials; the
+credentialed test used only its owned internal fixture network. Its acceptance
+record confirms cleanup of all owned containers, networks and volumes and removal
+of its private environment files. Native AWS transport remains an explicit double;
+this lab establishes neither object encryption nor historical ownership.
+
+The Python/Go capacity contract now emits `capacity-weekday-block-v2` with an
+explicit `REQUEST_THROUGHPUT_PROXY`, native `count/second` or `requests/second`
+units and matching source metadata. Counts are not relabelled as completed work.
+The original v1 branch and immutable result hash remain readable and unchanged.
+All 96 Python tests and the actual Go-to-Python contract regression passed,
+including altered units, rehashed metadata and downgrade refusals. New console
+contracts distinguish proxy results, legacy unproven demand and missing evidence.
+
+The rebuilt stack uses frozen source tree `6dd61df74e81c2217eff9b3ca2d7b2c5e6740acb`;
+its applied migration 025 SHA-256 is
+`59558825748d39d390d63dc9f1581837bab09a8d59f2f4836ddb25ddd26169f4`.
+The seven local runtime suites passed: operating loop, real API/worker restart
+while stopped, machine activity isolation, dependency review, SLO evidence,
+native Prometheus/OTLP and the official OTel collector. A smoke assertion initially
+failed after London midnight made real samples historical. The corrected assertion
+retains measured partial values, requires missing duration to remain unknown and
+keeps incomplete history blocked; no timestamps, evidence or product gates changed.
+All 173 Node checks passed, generated types/typechecking matched, and the public
+source archive passed secret scanning. These strengthen existing acceptance stages
+without new progress credit: **25.2 → 25.2**. Customer history, interval ownership,
+complete fleet economics/execution and operational acceptance remain outstanding.
+
 ## 18 October candidate: immutable allocation and private fleet evidence
 
 The bounded allocation API selects persisted source identifiers rather than
@@ -172,6 +261,38 @@ tests do not substitute for that gate. Current Node checks pass all 166 cases.
 Actual Linux UID1001 compilation, Git publication, HTTP transport tests and
 read-only server validation pass on fresh volumes with private permissions,
 network-free compilation and verified cleanup. See [native lab boundaries](../examples/flux/README.md).
+
+## 19 October acceptance: native Flux and durable STOP recovery
+
+All nine normal CI jobs passed at
+[`fd0e5d6`](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697),
+including PostgreSQL 16/17, Python economics, the connected fixture browser and
+process-recovery journeys, generated contracts, dependency/source checks,
+infrastructure, encrypted PostgreSQL readback and both Kubernetes labs.
+The [native Flux job](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697/job/117812564579)
+passed all seven checks and completed owned cleanup. A separate cold Windows run
+also passed all seven checks with exact run identifier
+`ab060219-68e1-4035-96d1-f0431fade1d1` and cluster UID
+`836fdd42-fe2c-4886-a22e-ea35569f13cd`.
+
+The native controller fetched the exact Git revision and digest-checked static
+artifact, applied the reviewed memory request change, recovered two ready zones,
+refused a zero-disruption proposal before changing Git, observed a genuine
+readiness failure and reconciled an owned Git revert. Verification used the
+original immutable plan. The parser accepts only the native empty structural
+root directory alongside the exact allowed static files; unsafe links, aliases,
+metadata and path traversal remain rejected. Equivalent native quantity spelling
+does not change configuration identity, and fixture fault injection cannot
+mutate the approved plan. Restricted native health observation includes only
+necessary read access to ReplicaSets and Pods, without child mutation or Secret
+access.
+
+The same accepted candidate includes the dispatch-boundary controls and late
+STOP/restoration health fixes described above. This strengthens existing
+component stages: progress remains **25.2 → 25.2**. The native lab is a local CLI
+fixture, with no hosted acceptance, enabled customer execution or financial
+claim. The public fleet/Kubernetes approval/execution/economics workflow and
+customer operational acceptance remain required.
 
 ## 18 October increment: native hardware, capacity integration and encrypted recovery
 
