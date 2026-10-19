@@ -1,15 +1,15 @@
 # Product scope progress ledger
 
-The scoped Fleet review and retained-queue release passed all nine normal
-[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39188886484),
-all seven local runtime suites, all 58 Chromium cases and the current eight-check
-encrypted PostgreSQL quarantine recovery. Separate group artifact contracts now
-exercise actual local Git/Terraform, exact saved plans, an approved per-stage
-manifest and one appended last-child inverse with authenticated encrypted
-readback. These strengthen the existing component stage without new credit.
-Multi-effect recovery, durable ownership, the connected real-clock Fleet loop,
-native financial evidence, customer use and production acceptance remain open.
-Current-release CI is tracked separately in PR checks.
+The preceding group artifact release passed all ten normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39190230208).
+The separate approved journal now exercises real local Git/Terraform, durable
+file preparation, process-cutpoint reopen, unknown-result reconciliation, three
+LIFO inverses and zero-apply Git repair with authenticated encrypted readback.
+These strengthen the existing component stage without new credit. PostgreSQL
+current ownership, source resolution, pipeline OIDC, recovery continuation, the
+connected real-clock Fleet loop, native financial evidence, customer use and
+production acceptance remain open. Current-release CI is tracked separately in
+PR checks.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 

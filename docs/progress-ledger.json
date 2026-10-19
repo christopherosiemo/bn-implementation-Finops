@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "The scoped Fleet review/retained-queue release passed all nine normal exact-commit CI jobs, final local runtime/browser and encrypted PostgreSQL recovery. Separate schema-5/5.1 group artifact components now have actual local Git/Terraform acceptance with encrypted readback. They strengthen the existing Fleet component stage without new credit. Multi-effect recovery, durable ownership, connected real-clock execution, native financial evidence, customer use and production gates remain open; fixed scope and historical credit are unchanged.",
+  "credit_review": "The preceding group artifact release passed all ten normal exact-commit CI jobs. The separate approved journal now has actual private-file crash/reopen, unknown-outcome reconciliation, three-effect LIFO recovery and zero-apply Git repair acceptance with authenticated encrypted readback. It strengthens the existing Fleet component stage without new credit. PostgreSQL current ownership, actual source resolution, pipeline OIDC, bounded-segment continuation, connected real-clock health/economics, customer use and production gates remain open.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -923,6 +923,26 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Preserved schema-5 group component passed 26 real saved-plan applies and encrypted readback. Independent schema-5.1 signs a complete two-file Git stage manifest; 26 forward exact binary applies, one appended inverse of the last owned child, native stale-plan rejection on an isolated clone and seven negatives passed. All 280 ciphertext objects received authenticated post-process readback and owned cleanup; source/runner pins matched. The exact single-child recovery cannot authorize a newer same-model head. No real-clock observation, 025/027 resolution, durable ownership/consumption, multi-effect rollback, unknown-apply reconciliation, native financial claim or customer acceptance is inferred. The 028 encrypted whole-cluster drill passed eight checks with authority/migration hashes; production recovery remains unproved."
+    },
+    {
+      "id": "issued-group-journal-component-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "2a6b669d23ec06c8236bf4e1b456fd6c5df51e9e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39190230208",
+      "evidence": [
+        "docs/fleet-group-journal.md",
+        "docs/acceptance.md",
+        "internal/fleetgroup",
+        "examples/fleet-group-journal-fixture",
+        "scripts/fleet-group-journal-lab.mjs"
+      ],
+      "fixture_artifact_runs": [
+        "3cf0aff6-32b0-4308-9ed0-fbcaa3a829a3"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Private issued-journal component preserves schema-5.1 signatures and explicitly authorizes composition before the first command. Pure full26-forward/25-inverse replay and focused actual-dispatch gates passed. Real local Git/Terraform exercised seven exact applies, three consumed LIFO effects, actual Git-boundary process exit/reopen, authenticated terminal reconciliation without reapply, held unknown, zero-apply Git repair and stale/torn/conflicting refusal. All99 AES-GCM artifacts received authenticated post-process readback and owned cleanup; source/runner pins matched independent metadata review. Shared-UID file keys and synthetic source references remain explicit. No PostgreSQL/RLS, customer pipeline OIDC, durable current ownership, real025/027 resolution, whole-program/real-clock rollout, customer action or financial acceptance is inferred. Segment continuation/deduplication or audited takeover must preserve restoration beyond component bounds."
     }
   ]
 }

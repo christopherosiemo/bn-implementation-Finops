@@ -75,6 +75,16 @@ complete owned-transition journal, multi-effect rollback, durable pipeline
 reconciliation and the full real-clock health/economics loop. A component
 signature or a successful local Terraform apply cannot satisfy those gates.
 
+The separate [issued-journal component](fleet-group-journal.md) has local
+file-backed crash/reopen, uncertain-result reconciliation and three-effect
+LIFO recovery acceptance. Its fixture processes share a Unix UID and synthetic
+authority references. Commissioning still requires server-selected current
+ownership, restricted PostgreSQL identities, enrolled pipeline OIDC, cross-family
+workload exclusion and connected health/economics acceptance. Receipt deduplication
+and authenticated recovery-only continuation or audited takeover must preserve
+every outstanding duty beyond bounded journal segments. A capacity limit cannot
+terminate restoration or grant fresh forward authority.
+
 For allocation commissioning, confirm the fixed-share recipients and the current
 resource/workload mapping. A sealed current-ownership report is an observed-cost
 view with provisional finality, not historical chargeback or verified savings.

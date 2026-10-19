@@ -1,5 +1,57 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: private issued journal and multi-effect recovery component
+
+The preceding group artifact release passed all ten normal
+[exact-commit CI jobs at 2a6b669](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39190230208),
+including its native artifact labs, PostgreSQL 16/17, generated contracts,
+browser/process recovery, local Kubernetes/Flux and encrypted database readback.
+The following component has no public execution process or new database grants.
+Its own final-commit CI is tracked by the draft pull request.
+
+An independently approved journal wraps the unchanged schema-5.1 parent before
+the first command. Durable preparation precedes actual Git CAS; fresh finalization,
+readiness and short-lived delivery permits bind the exact persisted command and
+current independently selected head. Unknown operations remain held until positive
+authenticated terminal evidence resolves them. Multi-effect recovery appends new
+Git commits and consumes owned effects in strict LIFO order. Definitive no-apply
+after Git advancement requires a separately authorized zero-apply Git repair;
+that repair preserves earlier duties and permanently aborts forward progress.
+
+The complete pure package and vet passed in 193.816 seconds, including a logical
+full twenty-six-forward/twenty-five-inverse, 306-record case in 145.88 seconds.
+After the final isolated pre-CAS helper was added, focused dispatch, expiry,
+checkpoint, signing-head and equivalence checks passed in 15.771 seconds plus vet.
+This algebraic coverage does not establish elapsed application observation.
+
+Actual local run `3cf0aff6-32b0-4308-9ed0-fbcaa3a829a3` passed in 75.023 seconds:
+seven exact saved-plan applies (one no-op preparation, three changed forward
+effects and three owned inverses), plus separate initial fixture bootstrap.
+Its 55-record journal consumed the three effects once. Real subprocess exit at
+the Git boundary, fresh-process reopen and authenticated terminal reconciliation
+after apply passed without repeating the apply. An unresolved unknown remained
+held. A new Git-only repair invoked no Terraform and preserved native state bytes
+and prior effects. Stale same-ID commands, competing writers, torn/stale
+storage and a validly signed incorrect intermediate projection were rejected.
+Expiry probes were logical-time negative checks only; actual delivery always
+used the real clock. No elapsed expiry or full-duration health credit is claimed.
+
+All 99 AES-GCM artifacts (905,411 ciphertext bytes) were authenticated again
+after producer exit; the index hash is
+`8ac082d1fd49ba713dfe3945ee9ba434b28809996cf619c340651f4c3cc45e26`.
+Sixteen captured source hashes, the runner and its harness dependency matched
+the frozen source. Independent metadata review confirmed exact object counts,
+paths, lengths, hashes and scope. Owned cleanup preceded acceptance publication.
+The bounded runner guards and fixture compile/vet passed before native execution.
+
+This is private-file component acceptance with shared-UID fixture keys. It does
+not establish PostgreSQL/RLS, real pipeline OIDC, a durable current ownership
+service, actual 025/027 authority resolution, full-program or real-clock rollout,
+customer execution or verified savings. Journal segment bounds are not lifetime
+recovery limits: receipt deduplication and authenticated recovery-only continuation
+or audited takeover remain mandatory before runtime integration. Existing owned
+restoration remains independent. See [journal contract and gates](fleet-group-journal.md).
+
 ## 19 October: private group and Git-owned artifact contracts
 
 The preceding scoped-review/retained-queue release passed all nine normal

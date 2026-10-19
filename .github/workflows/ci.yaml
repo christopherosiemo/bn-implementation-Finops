@@ -197,6 +197,10 @@ jobs:
         run: node scripts/fleet-group-terraform-lab.mjs
       - name: Exercise approved Git stage manifest and appended owned inverse
         run: node scripts/fleet-group-git-lab.mjs
+      - name: Exercise issued journal recovery and real pipeline process cutpoints
+        run: |
+          node --test scripts/tests/fleet-group-journal-lab.test.mjs
+          node scripts/fleet-group-journal-lab.mjs
       - name: Retain bounded component acceptance after owned cleanup
         if: always()
         uses: actions/upload-artifact@v4
@@ -205,6 +209,7 @@ jobs:
           path: |
             work/private/fleet-group-terraform/*/acceptance.json
             work/private/fleet-group-git/*/acceptance.json
+            work/private/fleet-group-journal/*/acceptance.json
           if-no-files-found: ignore
           retention-days: 7
   kubernetes-lab:
