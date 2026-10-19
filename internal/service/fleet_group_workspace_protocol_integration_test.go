@@ -78,6 +78,8 @@ type workspaceBundle struct {
 	PriorNativeAudit       native.InvocationAudit           `json:"prior_native_audit"`
 	MissingTerminalRefused bool                             `json:"missing_terminal_refused"`
 	ArtifactIndexSHA256    string                           `json:"artifact_index_sha256"`
+	HealthActivationSHA256 string                           `json:"health_activation_sha256,omitempty"`
+	HealthPrivateSHA256    string                           `json:"health_private_sha256,omitempty"`
 }
 
 type workspaceArtifactIndex struct {
@@ -222,7 +224,7 @@ func workspaceLoginDSN(config *pgx.ConnConfig, login, password string) string {
 	return (&url.URL{Scheme: "postgres", User: url.UserPassword(login, password), Host: net.JoinHostPort(config.Host, strconv.Itoa(int(config.Port))), Path: "/" + config.Database, RawQuery: "sslmode=disable"}).String()
 }
 
-func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixture, selected ff.Proposal, prepared ff.Preparation, archive *native.EncryptedArchive, h *connectedJournal, preparedMetadata []model.Document) {
+func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixture, selected ff.Proposal, prepared ff.Preparation, archive *native.EncryptedArchive, h *connectedJournal, preparedMetadata []model.Document, hooks *workspacePreparationHooks) {
 	t.Helper()
 	runtime := workspaceConfiguration(t)
 	admin := connectedJournalDatabase(t, f)
@@ -249,6 +251,9 @@ func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixtur
 	}
 	a := &connectedStageArtifacts{h: h, selected: selected, prepared: prepared, archive: archive}
 	health := newConnectedHealth(t, prepared.Program)
+	if hooks != nil && hooks.Initialize != nil {
+		hooks.Initialize(t, ctx, admin, runtime, a, health)
+	}
 	var pending workspacePending
 	var envelope native.NativeTerminalEnvelope
 	var terminalRef ff.ArtifactReference
@@ -256,7 +261,11 @@ func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixtur
 	for seq := uint64(1); seq <= 2; seq++ {
 		command := h.preparingForward(t, ctx, seq)
 		if seq == 1 {
-			health.calibrate(t, ctx, a, command.ID)
+			if hooks != nil && hooks.Calibrate != nil {
+				hooks.Calibrate(t, ctx, a, health, command.ID)
+			} else {
+				health.calibrate(t, ctx, a, command.ID)
+			}
 		}
 		observation := model.Document{"status": "ACTUAL_BASELINE_OBSERVATION_ONLY", "baseline_refs": health.baselineRefs, "observer_binding": health.binding, "health_window_accepted": false, "customer_work_preservation_authority": false}
 		pending = a.workspacePendingEffect(t, ctx, worker, command, observation, seq == 2)
@@ -300,6 +309,9 @@ func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixtur
 		}
 		if seq == 1 {
 			h.receipt(t, ctx, g.JournalApplied, pending.Command.Before, pending.Outcome.After)
+			if hooks != nil && hooks.FirstApplied != nil {
+				hooks.FirstApplied(t, ctx, a, health, pending.Command.ID)
+			}
 		}
 	}
 	p := h.refresh(t, ctx)
@@ -307,6 +319,10 @@ func workspacePrepare(t *testing.T, ctx context.Context, f *mutationReplayFixtur
 		t.Fatal("pre-retirement UNKNOWN lost")
 	}
 	b := workspaceBundle{SchemaVersion: "1", Runtime: runtime, TenantID: f.tenant, RoleDSNs: map[string]string{"group-ledger": h.ledger.Pool.Config().ConnString(), "group-pipeline": h.pipeline.Pool.Config().ConnString(), "group-workspace-controller": controller.Pool.Config().ConnString()}, Selected: selected, Prepared: prepared, Bootstrap: h.bootstrap, Pending: pending, References: refs, Terminal: envelope, TerminalRef: terminalRef, SignerKey: h.signerKey, PipelineKey: h.pipelineKey, LedgerKey: h.ledgerKey, MissingTerminalRefused: true}
+	if hooks != nil {
+		b.HealthActivationSHA256 = hooks.ActivationSHA256
+		b.HealthPrivateSHA256 = hooks.PrivateSHA256
+	}
 	if e = admin.Pool.QueryRow(ctx, `SELECT current_database(),shobj_description(oid,'pg_database') FROM pg_database WHERE datname=current_database()`).Scan(&b.DatabaseName, &b.DatabaseMarker); e != nil || !strings.HasPrefix(b.DatabaseName, "fixture_http_") || !strings.HasPrefix(b.DatabaseMarker, "owned-fixture-http-") {
 		t.Fatal("private owned database marker unavailable")
 	}

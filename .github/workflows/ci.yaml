@@ -277,6 +277,58 @@ jobs:
       - name: Stop only this fresh job's source fixture
         if: always()
         run: docker compose down --volumes --remove-orphans
+  fleet-workspace-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate frozen activation, signed outcomes and exact recovered-health source boundaries
+        run: node --test scripts/tests/group-workspace-health-runner.test.mjs scripts/tests/group-workspace-health.test.mjs scripts/tests/group-workspace-retirement.test.mjs
+      - name: Prepare approved native toolchain images on the fresh runner
+        run: |
+          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e
+      - name: Generate local-only source fixture keys and service secrets
+        run: node scripts/bootstrap.mjs
+      - name: Build and start only the source fixture and its normal dependencies
+        run: |
+          docker compose config --quiet
+          docker compose build minio
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Reconstruct an empty workspace and restart its observer before a fresh full recovery window
+        run: node scripts/group-workspace-health-lab.mjs
+      - name: Retain bounded recovered-health acceptance or fixed failure receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-workspace-health-acceptance
+          path: |
+            work/private/group-workspace-health/*/acceptance.json
+            work/private/group-workspace-health/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
   kubernetes-lab:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -394,6 +446,7 @@ jobs:
           name: fleet-fixture-browser-acceptance
           path: |
             work/private/group-fixture-commission/*/acceptance.json
+            work/private/group-fixture-commission/*/failure-receipt.json
             work/private/group-fixture-preparer/*/acceptance.json
             work/private/group-fixture-program-review/*/acceptance.json
             work/private/group-fixture-review-sequence/*/acceptance.json

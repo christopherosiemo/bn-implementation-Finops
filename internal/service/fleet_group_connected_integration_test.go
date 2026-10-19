@@ -37,7 +37,9 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 	if os.Getenv("FLEET_CONNECTED_FIXTURE") != "ISOLATED_FIXTURE" {
 		t.Skip("requires the owned connected native fixture runner")
 	}
+	connectedDriverMark("FIXTURE_BOUNDARY", "")
 	if os.Getuid() == 0 || os.Getenv("FLEET_CONNECTED_S3_ENDPOINT") != "http://minio:9000" || len(os.Getenv("FLEET_CONNECTED_IMAGE_SHA256")) != 64 {
+		connectedDriverMark("", "FIXTURE_BOUNDARY_INVALID")
 		t.Fatal("fixed nonroot native fixture boundary required")
 	}
 	protocolBudget := 3 * time.Minute
@@ -51,6 +53,7 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 			connectedDriverMark("", "CONTEXT_EXPIRED")
 		}
 	}()
+	connectedDriverMark("MINIO_READINESS", "")
 	ready := false
 	for attempt := 0; attempt < 40; attempt++ {
 		req, e := http.NewRequestWithContext(ctx, http.MethodGet, "http://minio:9000/minio/health/ready", nil)
@@ -72,9 +75,12 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 		}
 	}
 	if !ready {
+		connectedDriverMark("", "MINIO_UNAVAILABLE")
 		t.Fatal("owned MinIO did not become ready")
 	}
+	connectedDriverMark("DATABASE_SETUP", "")
 	f, producer := newFleetFixtureHTTPTest(t)
+	connectedDriverMark("PREPARATION", "")
 	platform := f.token(f.tenant, "connected-creator", "PLATFORM_ADMIN")
 	approver := f.token(f.tenant, "connected-independent-approver", "APPROVER")
 	get := func(path, token string) (int, model.Document) {

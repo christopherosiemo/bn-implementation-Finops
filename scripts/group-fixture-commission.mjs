@@ -81,6 +81,16 @@ function privateDirectory(id){
  const directory=path.join(root,'work','private','group-fixture-commission',id);mkdirSync(directory,{recursive:true,mode:0o700});const actual=realpathSync(directory),relative=path.relative(realpathSync(root),actual);assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative));chmodSync(actual,0o700);
  if(process.platform==='win32'){const account=execFileSync('whoami.exe',[],{encoding:'utf8',windowsHide:true}).trim();assert.match(account,/^[^\r\n]+\\[^\r\n]+$/);execFileSync('icacls.exe',[actual,'/inheritance:r','/grant:r',account+':(OI)(CI)F'],{windowsHide:true,stdio:'pipe'});}return actual;
 }
+// Match the reviewed release schema exactly. A fresh Compose bootstrap applies
+// every migration, so accepting only an older prefix rejects an additive upgrade.
+// A future runtime migration still fails assertMigrationManifest below.
+export function commissionMigrationManifest(directory){
+ const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)&&Number(x.slice(0,3))<=34).sort();
+ assert.equal(names.length,34);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:34},(_,n)=>n+1));
+ assert.equal(names.at(-1),'034_group_recovery_health.sql');
+ return Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
+}
 function snapshot(directory){
  const source=path.join(directory,'source');mkdirSync(source,{mode:0o755});const hashes={};
  const copy=relative=>{const input=path.join(root,relative),info=lstatSync(input),within=path.relative(realpathSync(root),realpathSync(input));assert.ok(within&&!within.startsWith('..')&&!path.isAbsolute(within)&&!info.isSymbolicLink());
@@ -107,8 +117,14 @@ export async function groupFixtureCommission(){
  const builder=run(['buildx','inspect','default']);assert.match(builder,/^Driver:\s+docker\s*$/m);const points=[...builder.matchAll(/^Endpoint:\s+([^\r\n]+)\s*$/gm)].map(x=>x[1].trim());assert.equal(points.length,1);
  const builderContext=localRecoveryDockerEndpoint(points[0])?null:points[0]===contextName?context:JSON.parse(raw(['context','inspect',points[0]]))[0];const builderEndpoint=builderContext?recoveryDockerEndpoint(builderContext.Name,builderContext):points[0];assert.equal(raw(['--host',builderEndpoint,'info','--format','{{.ID}}']),daemon);
  const psql=sql=>run(['exec','--interactive',sources.postgres.Id,'psql','-X','-w','-v','ON_ERROR_STOP=1','-U','postgres','-d','finops','-Atq'],{input:sql});
- const expected=Object.fromEntries(readdirSync(path.join(root,'migrations')).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)&&Number(x.slice(0,3))<=32).sort().map(x=>[x,sha(readFileSync(path.join(root,'migrations',x)))]));assert.equal(Object.keys(expected).length,32);
- assertMigrationManifest(JSON.parse(psql('SELECT jsonb_object_agg(filename,sha256)::text FROM public.schema_migrations;')),expected);
+ let expected;
+ try{
+  expected=commissionMigrationManifest(path.join(root,'migrations'));
+  assertMigrationManifest(JSON.parse(psql('SELECT jsonb_object_agg(filename,sha256)::text FROM public.schema_migrations;')),expected);
+ }catch{
+  writeFileSync(path.join(directory,'failure-receipt.json'),JSON.stringify({schema_version:'1',status:'FAIL',run_id:runID,phase:'MIGRATION_PREFLIGHT',reason_code:'REVIEWED_SCHEMA_NOT_CONFIRMED',cleanup_succeeded:true,resources_created:false,fixture:true,customer_execution_authorized:false,verified_saving:null})+'\n',{flag:'wx',mode:0o600});
+  throw new Error('Reviewed fixture schema not confirmed; no commissioning resources created.');
+ }
  const {source,hashes}=snapshot(directory),sourceSHA=sha(JSON.stringify(hashes)),runnerSHA=sha(readFileSync(fileURLToPath(import.meta.url))),dependencySHA=sha(readFileSync(path.join(root,'scripts/lib/recovery-upgrade.mjs')));
  const tag=prefix+':tooling',login='fixture_commission_'+runID.replaceAll('-',''),password=randomBytes(32).toString('hex'),marker='group-fixture-commission:'+runID;
  const owned=new Map();let image,profile,sourceID,roleCreated=false,retainImage=false,browser,step='BUILD',failure,stopping=false,syncs=[],browserExit,installation;

@@ -1,5 +1,69 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: actual recovered health and observer interruption
+
+Run `d865a860-5911-416f-9e2c-f762de214b35` passed from frozen raw indexed
+tree `94dd70d88b0864ca8341b4c6a3009d7cbe34dd47`. After exact worker retirement,
+an empty replacement reconstructs authenticated Git/state without Terraform,
+reconciles the uncertain positive outcome without another apply and executes
+one fresh owned inverse. The unchanged original 033 result retains pending health.
+
+A separate observer process exits during a partial attempt. Its signed abandonment
+cannot contribute elapsed time to another attempt. A new process completes
+933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples.
+Independent hard objectives and regression checks pass before the database permits
+release. The original 121-second signed baseline remains fixed. No additional
+Terraform runs occur during observation or its restart.
+
+Independent review verified 441 captured source blobs, 11 host pins, both observer
+signatures, the original ledger anchor and all 73 ciphertexts (1,283,875 bytes),
+including the previous 47 versions. Marked database records, eight roles and all
+owned containers/networks/volumes were cleaned. The audit did not use private keys
+or independently decrypt observations; authenticated raw readback is enforced by
+the frozen producer and 034 observer. See [the boundary](group-recovered-health.md).
+
+The preceding `bb568e65` attempt failed before any full health window: a generic
+JSON reader reordered nested typed objects and rejected valid original bytes.
+The correction preserves exact fragments and rejects ambiguity; focused Go/vet
+and independent review passed. Its failure/cleanup receipts remain retained.
+
+Restricted 034 PostgreSQL/vet passed, including existing owned recovery across
+migration and direct release/tenant/chain denials. The corrected frozen source
+passed all 285 Linux Node checks with zero skips, Actionlint, full-source Gitleaks
+and fixed traceability/progress checks. Final-commit CI must repeat every normal
+job. Public execution, native capacity/finance factories, deployed controllers,
+repeated physical workspace loss and customer/production acceptance remain open.
+Official completion stays **25.2% → 25.2%**.
+
+## 19 October: published reconstruction package and setup regressions
+
+Published commit `f7b27c6` passed both full PostgreSQL CI jobs, security,
+economics, infrastructure, generated contracts, native artifact checks and local
+Kubernetes/Flux. Its 74 ordinary Chromium cases and preceding runtime checks
+passed. The separate commissioning sequence then correctly rejected a database
+containing migration 033 because its preflight still expected exactly 32
+migrations. The next package updates that reviewed schema boundary without
+accepting unknown runtime migrations or changed checksums, and adds a bounded
+preflight failure receipt.
+
+The [same CI run](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39214204557)
+also failed native initial setup in two milliseconds, before meaningful native
+work. Its bounded receipt contains `PREPARATION / ASSERTION_FAILED`; the exact
+assertion is unproved. The exact published-source local replay
+`033a3623-9723-4e6c-a6b9-4d009abbc54d` subsequently passed the complete native
+canary abort, both owned inverses, full terminal health and process-exit
+reconciliation. Local success does not turn the failed CI job green.
+
+A separate isolated PostgreSQL drill
+`9b699fc6-2a15-4057-8eb4-76b6273fc777` reproduced a real startup gap: initdb's
+temporary Unix-only server passed socket readiness while TCP was unavailable.
+The final TCP server later became ready and owned cleanup completed. Both native
+host runners now require the exact TCP endpoint used by their workers. Finer
+fixed-vocabulary native diagnostics distinguish boundary, MinIO and database
+setup; private logs and credentials are excluded from CI evidence. This closes
+the demonstrated readiness gap without asserting it caused the earlier CI
+failure. Final-commit CI must repeat all normal jobs.
+
 ## 19 October: native rollback and actual empty-workspace reconstruction
 
 Local native run `d9b67c9f-31d6-4382-9543-cc567591be30` passed on the published

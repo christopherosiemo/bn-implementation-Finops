@@ -33,6 +33,12 @@ import (
 // AWS identities are explicit local dependency fixtures; their missing customer
 // history remains BLOCKED and is never replaced by the installed fixture model.
 func TestFleetGroupWorkspaceReconstructionPhases(t *testing.T) {
+	workspacePrepareWithHook(t, nil)
+}
+
+// Explicit arguments keep the opt-in recovery-health rehearsal independent of
+// other tests running in the same binary. The accepted default has no hooks.
+func workspacePrepareWithHook(t *testing.T, hooks *workspacePreparationHooks) {
 	phase := os.Getenv("FLEET_GROUP_WORKSPACE_PHASE")
 	if phase == "" {
 		t.Skip("requires owned workspace reconstruction phase runner")
@@ -315,5 +321,5 @@ func TestFleetGroupWorkspaceReconstructionPhases(t *testing.T) {
 		t.Fatal("approval/bootstrap dispatched a command")
 	}
 
-	workspacePrepare(t, ctx, f, selected, prepared, archive, journal, artifactMetadata)
+	workspacePrepare(t, ctx, f, selected, prepared, archive, journal, artifactMetadata, hooks)
 }

@@ -240,6 +240,9 @@ func (t *Tx) FleetGroupJournalRelease(ctx context.Context, chain string, expecte
 		if c != expected {
 			return false, ErrGroupJournalConflict
 		}
+		if e = tx.groupRecoveryHealthReleaseGuard(ctx, chain, c.HeadSHA256); e != nil {
+			return false, e
+		}
 		if c.Kind == g.ContinuationOriginal {
 			v, keys, e := tx.FleetGroupJournalOriginal(ctx, chain)
 			if e != nil {

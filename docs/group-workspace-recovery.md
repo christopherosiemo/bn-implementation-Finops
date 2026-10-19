@@ -92,3 +92,8 @@ or fixed-vocabulary failure receipts. Raw bundles, state, keys and logs stay
 private. Full customer pipeline identity, key backup/rotation, genuine source
 history/economics, enabled public execution, production recovery objectives and
 customer use remain outstanding.
+
+The separate [recovered-health extension](group-recovered-health.md) retains
+this original pending result and adds an independently observed full health
+window with a database release gate. Its acceptance is recorded separately;
+passing reconstruction alone does not satisfy that later gate.

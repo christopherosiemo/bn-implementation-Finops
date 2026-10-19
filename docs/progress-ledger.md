@@ -1,5 +1,14 @@
 # Product scope progress ledger
 
+The [recovered-health rehearsal](group-recovered-health.md) now passes actual
+worker retirement, empty reconstruction, one fresh inverse and observer loss
+followed by a fresh 933-second window. Database-gated release, all 73 ciphertexts
+and owned cleanup passed independent review. This closes a bounded recovery gate
+within the existing fleet component stage. The complete capacity, authority,
+execution and financial workflow still has to pass before its next maturity
+credit: **25.2% → 25.2%**. The rough engineering estimate including tested partial
+work remains **27–31%**, using existing evidence rather than a fresh product audit.
+
 The preceding journal release passed all ten normal
 [exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39194127843).
 The connected component adds restricted PostgreSQL authority, current-head/CAS,
@@ -50,7 +59,7 @@ range uses existing evidence rather than a fresh product audit; integration,
 recovery, financial and operational acceptance can still expose missing work.
 Run inspection's `DISQUALIFIED` financial
 disposition is not a native financial-ledger integration. Customer pipeline OIDC,
-complete recovered health and repeated-loss operation, genuine interval ownership and independent demand,
+deployed durable recovery and repeated-loss operation, genuine interval ownership and independent demand,
 native fleet economics, customer use and production acceptance remain open.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.

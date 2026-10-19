@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "The private native operating-loop lab now passes real-clock baseline/warmup, measured regression, both owned inverses and the full 900-second terminal health gate. A separate actual destroyed-worker rehearsal reconstructs authenticated Git/state in an empty container, reconciles a positive UNKNOWN outcome without reapply and executes one fresh inverse, retaining its health reservation. Restricted 033 migration acceptance preserves historical signed R1 restoration. These strengthen the existing Fleet component stage without new maturity credit. Customer pipeline OIDC, native capacity/financial integration, complete recovered health, genuine history and customer/production acceptance remain open.",
+  "credit_review": "Actual empty replacement reconstruction retains the original signed baseline, reconciles UNKNOWN without another apply and executes one fresh owned inverse. Observer interruption yields immutable abandonment; a new process observes 933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples before database-gated release. All 73 ciphertexts (1,283,875 bytes), source/signature checks and owned cleanup passed independent audit. The earlier interop attempt remains failed; exact typed canonical fragments fix the reader without changing original bytes or health gates. Restricted PostgreSQL/vet, 285 final-source Linux Node checks, Actionlint, Gitleaks and traceability passed. Prior CI failures remain recorded; TCP readiness and the explicit 034 commissioning schema are corrected. Final-commit CI remains required. Native capacity/finance integration, customer pipeline identity, public runtime, deployed durable/repeated-loss recovery and customer/production acceptance remain open. Existing component maturity earns no additional credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -1019,6 +1019,29 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "A real native canary measured approximately 35% latency regression against its frozen 15% allowance, stopped expansion, applied both fresh LIFO inverses and observed the full 900-second restored health window. A real process exit reconciled UNKNOWN without reapplying. Independently pinned source and ciphertext closure passed. Separately, actual old-container removal and independent controller retirement preceded a distinct empty replacement; authenticated Git/state reconstruction invoked no Terraform and one fresh owned inverse followed. That rehearsal retains health PENDING and reservation HELD; the separate health lab supplies no recovered-health credit. Actual restricted PostgreSQL migration 032-to-033 preserves old signed ownership and owned START through pause/revocation/expiry. The preceding release passed ten of eleven normal CI jobs including native and 76 browser cases; infrastructure failed only its actual Git regression because slim Node lacked Git. The final package fixes that tooling prerequisite and repeats all normal CI jobs. No package weights or accepted maturity changes. Customer execution, native financial/capacity factories, genuine history and production operation remain unavailable."
+    },
+    {
+      "id": "recovered-health-observer-restart-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "f7b27c6798e7e7a859a06ad5d6f439684c73367e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39214204557",
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/group-recovered-health.md",
+        "migrations/034_group_recovery_health.sql",
+        "internal/store/group_recovery_health_integration_test.go",
+        "internal/service/group_recovered_health_integration_test.go",
+        "scripts/group-workspace-health-lab.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "d865a860-5911-416f-9e2c-f762de214b35",
+        "033a3623-9723-4e6c-a6b9-4d009abbc54d",
+        "9b699fc6-2a15-4057-8eb4-76b6273fc777"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual empty replacement reconstruction retains the original signed baseline, reconciles UNKNOWN without another apply and executes one fresh owned inverse. Observer interruption yields immutable abandonment; a new process observes 933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples before database-gated release. All 73 ciphertexts (1,283,875 bytes), source/signature checks and owned cleanup passed independent audit. The earlier interop attempt remains failed; exact typed canonical fragments fix the reader without changing original bytes or health gates. Restricted PostgreSQL/vet, 285 final-source Linux Node checks, Actionlint, Gitleaks and traceability passed. Prior CI failures remain recorded; TCP readiness and the explicit 034 commissioning schema are corrected. Final-commit CI remains required. Native capacity/finance integration, customer pipeline identity, public runtime, deployed durable/repeated-loss recovery and customer/production acceptance remain open. Existing component maturity earns no additional credit."
     }
   ]
 }

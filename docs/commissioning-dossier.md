@@ -13,6 +13,10 @@ authenticated empty-workspace reconstruction and continued inverse acceptance.
 Commissioning still needs an independent deployed runtime controller, recovery
 health and alert delivery, controller-key backup/rotation and repeated-loss
 operation. The separate local full health lab does not satisfy those gates.
+The [034 recovered-health rehearsal](group-recovered-health.md) additionally
+passes observer interruption and a fresh full window before database release.
+Its local acceptance does not commission deployed controllers, external alerts
+or repeated physical workspace loss.
 
 Native hardware and fleet/GitOps components retain separate commissioning gates;
 see [hardware/capacity](native-hardware-capacity.md) and
