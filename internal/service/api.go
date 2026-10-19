@@ -214,6 +214,14 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result, handled, err := a.fleetGroupAuthorityGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
+		if result, handled, err := a.fleetFixtureGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.fleetConfigurationGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
@@ -421,6 +429,12 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
 	if out, status, handled, err := a.allocationMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.fleetGroupAuthorityMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.fleetFixtureMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}
 	if out, status, handled, err := a.fleetConfigurationMutate(ctx, t, i, r, in, parts); handled {

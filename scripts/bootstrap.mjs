@@ -31,11 +31,21 @@ if (!env.DB_HARDWARE_READER_PASSWORD) {
   writeFileSync(envPath, `DB_HARDWARE_READER_PASSWORD=${env.DB_HARDWARE_READER_PASSWORD}\n`, { flag: 'a', mode: 0o600 });
 }
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
+if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
+const userProfile = {
+  attributes: [
+    { name: 'username', displayName: '${username}', validations: { length: { min: 3, max: 255 }, 'username-prohibited-characters': {}, 'up-username-not-idn-homograph': {} }, permissions: { view: ['admin', 'user'], edit: ['admin', 'user'] }, multivalued: false },
+    { name: 'email', displayName: '${email}', validations: { email: {}, length: { max: 255 } }, required: { roles: ['user'] }, permissions: { view: ['admin', 'user'], edit: ['admin', 'user'] }, multivalued: false },
+    ...['firstName', 'lastName'].map(name => ({ name, displayName: '${' + name + '}', validations: { length: { max: 255 }, 'person-name-prohibited-characters': {} }, required: { roles: ['user'] }, permissions: { view: ['admin', 'user'], edit: ['admin', 'user'] }, multivalued: false })),
+    { name: 'tenant_id', displayName: 'Tenant', validations: { length: { min: 1, max: 256 }, pattern: { pattern: '^[A-Za-z0-9][A-Za-z0-9_.-]{0,255}$' } }, permissions: { view: ['admin'], edit: ['admin'] }, multivalued: false },
+  ],
+};
 const mapper = (name, config) => ({ name, protocol: 'openid-connect', protocolMapper: name === 'tenant_id' ? 'oidc-usermodel-attribute-mapper' : 'oidc-audience-mapper', consentRequired: false, config });
 const realm = {
   realm: 'finops', enabled: true, displayName: 'Cloud Cost Autopilot · local fixture',
   registrationAllowed: false, resetPasswordAllowed: false, sslRequired: 'none',
   accessTokenLifespan: 3600, roles: { realm: roles.map(name => ({ name })) },
+  components: { 'org.keycloak.userprofile.UserProfileProvider': [{ name: 'declarative-user-profile', providerId: 'declarative-user-profile', config: { 'kc.user.profile.config': [JSON.stringify(userProfile)] } }] },
   clients: [{
     clientId: 'console', name: 'Autopilot console', enabled: true, protocol: 'openid-connect', publicClient: true,
     standardFlowEnabled: true, directAccessGrantsEnabled: true, serviceAccountsEnabled: false,
@@ -72,6 +82,7 @@ const realm = {
     { username: env.DEMO_USERNAME, firstName: 'Pilot', lastName: 'Owner', email: 'owner@fixture.invalid', emailVerified: true, enabled: true, attributes: { tenant_id: ['tenant-demo'] }, credentials: [{ type: 'password', value: env.DEMO_PASSWORD, temporary: false }], realmRoles: roles },
     { username: 'other', firstName: 'Other', lastName: 'Tenant', email: 'other@fixture.invalid', emailVerified: true, enabled: true, attributes: { tenant_id: ['tenant-other'] }, credentials: [{ type: 'password', value: env.DEMO_PASSWORD, temporary: false }], realmRoles: roles },
     { username: 'viewer', firstName: 'Read', lastName: 'Only', email: 'viewer@fixture.invalid', emailVerified: true, enabled: true, attributes: { tenant_id: ['tenant-demo'] }, credentials: [{ type: 'password', value: env.DEMO_PASSWORD, temporary: false }], realmRoles: ['VIEWER'] },
+    { username: 'approver', firstName: 'Independent', lastName: 'Approver', email: 'approver@fixture.invalid', emailVerified: true, enabled: true, attributes: { tenant_id: ['tenant-demo'] }, credentials: [{ type: 'password', value: env.DEMO_PASSWORD, temporary: false }], realmRoles: ['APPROVER'] },
   ],
 };
 mkdirSync(path.join(root, 'work', 'keycloak'), { recursive: true });

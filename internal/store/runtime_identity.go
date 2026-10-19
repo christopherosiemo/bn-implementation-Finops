@@ -21,6 +21,9 @@ func OpenRuntime(ctx context.Context, dsn, process string) (*Store, error) {
 		"fleet-history-reader": "finops_ingester",
 		"telemetry-reader":     "finops_telemetry_reader", "telemetry-ingress": "finops_telemetry_ingress",
 		"deployment-observer": "finops_deployment_observer",
+		"group-fixture":       "finops_group_fixture",
+		"group-ledger":        "finops_group_ledger",
+		"group-pipeline":      "finops_group_pipeline",
 	}[process]
 	if group == "" {
 		return nil, errors.New("RUNTIME_DATABASE_PROCESS_INVALID")

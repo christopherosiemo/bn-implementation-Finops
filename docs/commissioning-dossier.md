@@ -1,5 +1,13 @@
 # Commissioning dossier
 
+The [connected isolated fleet fixture](connected-fleet-fixture.md) keeps exact
+program, journal and continuation approvals separate. Private key commissioning,
+dedicated process identities, native artifact inspection and durable ownership
+are engineering gates; their fixture acceptance does not authorize customer
+mutation. Public run inspection is read-only, and run creation remains disabled
+until a commissioned runtime is connected. Preserve the actual approved commit,
+profile generation and machine identity in the eventual commissioning record.
+
 Native hardware and fleet/GitOps components retain separate commissioning gates;
 see [hardware/capacity](native-hardware-capacity.md) and
 [fleet/local Kubernetes limits](fleet-and-kubernetes-components.md). Optional

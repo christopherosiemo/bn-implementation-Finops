@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import type { components } from "./api.generated";
 import type {
   Dashboard,
@@ -24,6 +24,9 @@ import {
 type Props = { data: Dashboard; run: RunMutation; busy: boolean };
 type Observation = components["schemas"]["FleetHistoryObservationRecord"];
 type Reference = components["schemas"]["FleetHistoryScopeReference"];
+const FleetFixture = lazy(() =>
+  import("./FleetFixture").then((module) => ({ default: module.FleetFixture })),
+);
 type RegistrationRequest =
   components["schemas"]["FleetHistoryRegistrationRequest"];
 type DefinitionRequest = components["schemas"]["FleetDemandDefinitionRequest"];
@@ -1019,6 +1022,14 @@ export function FleetHistory({ data, run, busy }: Props) {
               </Table>
             )}
           </RemotePage>
+          <Suspense fallback={<p role="status">Loading isolated fixture review…</p>}>
+            <FleetFixture
+              key={workload.id}
+              workload={workload.id}
+              run={run}
+              busy={busy}
+            />
+          </Suspense>
         </>
       )}
       {dialog?.kind === "register" && workload && (

@@ -335,10 +335,13 @@ func pendingStopControl(ctx context.Context, t *store.Tx, p model.Plan, executio
 	if model.Bool(execution, "start_now") {
 		return problem(422, "STOP_CANCELLED", "restoration override cancels the pending stop")
 	}
-	if p.SchemaVersion == "3" {
-		// SLO breach latching also orders dependency graph before the
-		// provider receipt row. Never invert that order on a new STOP.
-		_, e = t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph")
+	// All signed schema generations share the workload admission guard. The
+	// intent commit releases it; this same function reacquires and checks it
+	// again at the final provider boundary. Existing owned START skips this path.
+	if e = t.GroupForwardAdmission(ctx, p.WorkloadID, "R1"); e != nil {
+		if errors.Is(e, store.ErrGroupWorkloadBusy) {
+			return problem(409, "FLEET_WORKLOAD_MUTATION_PENDING", "a fleet change retains an unresolved workload obligation")
+		}
 		return e
 	}
 	return nil

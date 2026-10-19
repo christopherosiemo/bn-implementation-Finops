@@ -1,5 +1,104 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: connected group authority, persistence and retained restoration
+
+The preceding journal release passed all ten normal
+[exact-commit CI jobs at 31a777f](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39194127843).
+The new [connected fixture](connected-fleet-fixture.md) adds real IDs-only public
+selection, private native preparation, independent exact-body authorization
+reviews and restricted inspection of persisted execution/recovery duties.
+
+Actual native run `647f7a66-477e-4199-8d4a-37a38522a802` passed in 6.36 seconds
+after its cold containerized build. It retained twenty-six Git proofs and nine
+authenticated encrypted/versioned object references, used three commissioned
+public keys and dedicated signer/ledger/pipeline database identities, approved
+the exact journal and continuation bodies through authenticated HTTP, and
+persisted a zero-record PostgreSQL journal and pre-command continuation policy.
+All owned cleanup completed. This run did **not** apply a journal command or
+complete an observation window; it is preparation/bootstrap evidence.
+
+Migration 030's frozen restricted-PostgreSQL acceptance passed in 38.415 seconds;
+the corresponding service regressions and vet passed in 12.618 seconds. The
+separate immutable artifact-reference registry's final four-family PostgreSQL
+target and vet passed in 12.125 seconds. These tests distinguish private capture
+metadata from exact currently finalized artifact selection and from dispatch
+permission. Actual restricted roles exercise independent key installation,
+exact persisted approvals, tenant isolation, append-only records, current-head
+CAS, stable receipt replay/conflict, one-shot outbox claims, lifetime identities
+and recovery-only segment continuation. Their native artifact/health inputs
+remain explicitly labelled doubles.
+
+Full frozen-backend run `386baea1-4253-43f4-868f-48194147f061` passed
+`go test ./... -timeout=25m` and `go vet ./...` against fresh disposable
+PostgreSQL 17 databases and its own real Python 3.13 economics worker.
+The source snapshot contains 466 files and has manifest hash
+`569bc7084f67fb0c732d4c6ccb44022c6ee3cfc4f95cf90859e6da5e4d577267`.
+The service package passed in 1,270.317 seconds, store in 196.134 seconds and
+fleet-group core in 444.042 seconds under the explicit one-CPU/512-MiB Go bound.
+Owned containers/databases were removed; the final inventory contained no
+additional databases or roles. Native opt-in operating-loop flags were absent;
+this full-suite result does not establish that separate real-clock journey.
+
+The later bounded-profile change passed actual run
+`3e6d1255-87af-4471-83d8-80a363feed19`: the PostgreSQL/JWT/JWKS regression
+passed in 1.267 seconds, followed by store/service vet and verified owned cleanup.
+It installs 103 immutable metadata-double profiles, traverses stable pages,
+checks default/maximum bounds and lookahead, and refuses invalid, cross-query
+and cross-tenant cursor reuse. The shared catalog does not become tenant-owned.
+The two paginated runtime files are covered by this focused result; later
+opt-in native caller corrections are not silently attributed to the earlier
+full backend snapshot.
+
+The retained local 028-to-032 migration/recovery passed all seven checks. The
+original stopped R1 occurrence, signed plan and ownership survived additive DDL
+and actual API/worker replacement. Temporal resumed readiness checks and the
+audit retained exactly one STOP and one START. This proves preservation of the
+existing scheduling recovery path, not recovery of a group worker or an empty
+replacement workspace.
+
+All seven existing fixture-runtime suites passed: 17 operating-loop checks,
+six process-recovery checks, six machine/activity checks, 15 dependency checks,
+15 SLO checks, ten native telemetry checks and five official OTel collector
+checks. These are scheduling/evidence runtime results, separate from the
+new group operating loop. The exact staged archive also passed all 224 Node
+guards, actionlint, source secret scanning, fixed-weight progress validation
+and traceability of all 233 specification sections.
+
+Seven authorization and five run-inspection browser presentation checks passed
+in 16.5 seconds. They use labelled API/OIDC doubles. TypeScript and the production
+build pass; fixture review is loaded as a separate chunk. The later ordinary
+Chromium run `19a984f5-abc9-440a-a837-69f8d8d678cd` passed all 74 cases with
+zero retries. Its ten running service containers matched the pinned Go/web
+images and all 32 migration hashes from source snapshot
+`237c2315bfd38be4b260f1075f19e78b777a38d9`.
+
+Separate commissioning run `492d3da2-1607-480f-b3e4-525973e94e6f` passed the
+final connected browser case with actual Keycloak/OIDC in 25.7 seconds
+(30.5 seconds total). A new visibly deterministic fixture source used the normal
+archive/normalization/persistence pipeline, with a twenty-second refresh during
+this one case. The inspected toolchain image and installed profile were retained;
+the temporary operator login and jobs were removed before acceptance. This
+establishes persisted isolated-model selection, not authentic AWS delivery,
+customer history, public group dispatch or native savings.
+
+Native operating-loop run `0e401bd8-7942-4b30-8066-733794cebd0e` failed closed
+with `HEALTH_COVERAGE_UNKNOWN`; owned cleanup completed and no PASS acceptance
+was published. Earlier unsuccessful attempts remain retained as failures.
+The corrected collector/operating-loop rerun and final-commit CI remain required.
+No failed or partial native run establishes
+completed warmup, canary, terminal health or connected group recovery.
+
+An aborted group's `DISQUALIFIED` value is a read-only run-inspection
+disposition. Native fleet measurement contracts and financial-ledger enforcement
+are not integrated. Genuine historical incarnation/interval ownership,
+independently complete demand, transition/surge/retained costs, complete native
+invoice/commitment scope and cross-action financial overlap remain mandatory
+before any native Fleet savings claim. Customer execution stays disabled.
+
+Official weighted progress remains **25.2%** at this intermediate boundary.
+This review adds zero credit and changes no package maturity or domain weight.
+No cloud resource or customer mutation was provisioned or enabled.
+
 ## 19 October: private issued journal and multi-effect recovery component
 
 The preceding group artifact release passed all ten normal

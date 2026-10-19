@@ -36,7 +36,7 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	}
 	if len(p) == 1 {
 		switch p[0] {
-		case "cloud-accounts", "workloads", "executions", "activity-sources", "resource-graph", "slo-sources", "telemetry-connections", "fleet-history-registrations", "fleet-demand-definitions", "fleet-history-scopes":
+		case "cloud-accounts", "workloads", "executions", "activity-sources", "resource-graph", "slo-sources", "telemetry-connections", "fleet-history-registrations", "fleet-demand-definitions", "fleet-history-scopes", "fleet-fixture-proposals":
 			return rule(platform)
 		case "recommendations", "change-plans", "source-connections":
 			return rule(finops)
@@ -63,6 +63,17 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	}
 	if len(p) == 3 {
 		switch p[0] {
+		case "fleet-group-authorizations":
+			if p[2] == "approvals" {
+				return rule([]string{"APPROVER"})
+			}
+		case "fleet-fixture-proposals":
+			if p[2] == "approvals" {
+				return rule([]string{"APPROVER"})
+			}
+			if p[2] == "runs" {
+				return rule(platform)
+			}
 		case "schedules":
 			if p[2] == "pause" || p[2] == "skip-next-stop" {
 				return mutationAuthorization{roles: owner, scopeKind: "schedules", scopeID: p[1]}, true
@@ -123,6 +134,31 @@ func authorizeMutationReplay(ctx context.Context, t *store.Tx, i auth.Identity, 
 	}
 	if err := requireRole(i, rule.roles...); err != nil {
 		return err
+	}
+	// Resolve workload authorization again even on exact cached responses. A
+	// replay neither refreshes evidence nor substitutes the caller's old role.
+	parts := strings.Split(strings.TrimPrefix(path, "/v1/"), "/")
+	if len(parts) == 3 && parts[0] == "fleet-group-authorizations" && parts[2] == "approvals" {
+		_, err := fleetGroupAuthorityAccess(ctx, t, i, parts[1])
+		return err
+	}
+	if len(parts) > 0 && parts[0] == "fleet-fixture-proposals" {
+		if len(parts) == 3 {
+			_, err := fleetFixtureAccess(ctx, t, i, parts[1])
+			return err
+		}
+		if len(parts) == 1 {
+			for _, field := range []string{"old_configuration_proposal_id", "candidate_configuration_proposal_id"} {
+				d, err := t.FleetConfigurationProposalGet(ctx, model.String(in, field))
+				if err != nil {
+					return err
+				}
+				if err = fleetHistoryWorkload(ctx, t, i, model.String(sourceObject(d["binding"]), "workload_id")); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 	}
 	if path == "/v1/schedules" && model.String(in, "mode") == "AUTOPILOT" && !i.Can("PLATFORM_ADMIN") {
 		return problem(403, "FORBIDDEN", "platform administrator required for Autopilot schedules")

@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 25.2,
   "rounded_description": "25.2 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "The preceding group artifact release passed all ten normal exact-commit CI jobs. The separate approved journal now has actual private-file crash/reopen, unknown-outcome reconciliation, three-effect LIFO recovery and zero-apply Git repair acceptance with authenticated encrypted readback. It strengthens the existing Fleet component stage without new credit. PostgreSQL current ownership, actual source resolution, pipeline OIDC, bounded-segment continuation, connected real-clock health/economics, customer use and production gates remain open.",
+  "credit_review": "The connected group component now has restricted PostgreSQL authority, receipt/CAS/outbox and recovery-continuation tests, actual native preparation and independent exact-body API approval, bounded profile inspection, a full frozen backend/Python run and preserved R1 restoration through the local 028-to-032 upgrade. The ordinary 74-case browser run passed with zero retries, followed by the separate real-OIDC commissioned fixture case. These strengthen the existing Fleet component stage without new credit. The latest native operating-loop attempt failed closed; its corrected real-clock rerun and final-commit CI remain pending. Customer pipeline OIDC, fresh-workspace recovery, genuine interval ownership/demand, native financial integration and customer/production acceptance remain open.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -943,6 +943,36 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Private issued-journal component preserves schema-5.1 signatures and explicitly authorizes composition before the first command. Pure full26-forward/25-inverse replay and focused actual-dispatch gates passed. Real local Git/Terraform exercised seven exact applies, three consumed LIFO effects, actual Git-boundary process exit/reopen, authenticated terminal reconciliation without reapply, held unknown, zero-apply Git repair and stale/torn/conflicting refusal. All99 AES-GCM artifacts received authenticated post-process readback and owned cleanup; source/runner pins matched independent metadata review. Shared-UID file keys and synthetic source references remain explicit. No PostgreSQL/RLS, customer pipeline OIDC, durable current ownership, real025/027 resolution, whole-program/real-clock rollout, customer action or financial acceptance is inferred. Segment continuation/deduplication or audited takeover must preserve restoration beyond component bounds."
+    },
+    {
+      "id": "connected-group-authority-persistence-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "31a777f1df18064b752efed8264530ba7cab15e0",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39194127843",
+      "evidence": [
+        "docs/connected-fleet-fixture.md",
+        "docs/acceptance.md",
+        "internal/store/fleet_group_journal_integration_test.go",
+        "internal/store/fleet_group_journal_security_test.go",
+        "internal/store/group_artifacts_integration_test.go",
+        "internal/service/fleet_fixture_integration_test.go",
+        "internal/service/fleet_fixture_profiles_integration_test.go",
+        "internal/service/fleet_group_connected_integration_test.go",
+        "internal/service/group_admission_integration_test.go",
+        "scripts/fleet-group-connected-lab.mjs",
+        "scripts/recovery-smoke.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "647f7a66-477e-4199-8d4a-37a38522a802",
+        "386baea1-4253-43f4-868f-48194147f061",
+        "3e6d1255-87af-4471-83d8-80a363feed19",
+        "19a984f5-abc9-440a-a837-69f8d8d678cd",
+        "492d3da2-1607-480f-b3e4-525973e94e6f"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual native Git/Terraform preparation, versioned encrypted readback, independently commissioned keys, authenticated exact-body approvals and PostgreSQL zero-head bootstrap passed. Restricted PostgreSQL tests cover immutable authority/currentness, lifetime receipt deduplication, recovery-only continuation, one-shot delivery, source/key separation and exact artifact selection. The frozen full backend test/vet run passed with real PostgreSQL and Python; a separate 103-profile JWT/PostgreSQL regression proves bounded catalog pagination. The retained local 028-to-032 upgrade preserved original R1 stopped ownership/signature and exactly one stop/start across API/worker replacement (7/7); all seven existing runtime suites and 224 Node guards passed. Ordinary browser run 19a984f5-abc9-440a-a837-69f8d8d678cd passed 74 cases with zero retries against ten running service containers whose pinned images and 32 migration hashes matched source snapshot237c2315. Separate commissioning run 492d3da2-1607-480f-b3e4-525973e94e6f passed the final real-Keycloak/OIDC browser case in 25.7 seconds (30.5 total), using a visibly deterministic fixture reader through the normal source pipeline with 20-second refresh; temporary login/jobs were removed and the installed image/profile retained. No maturity changes are awarded. Native run 0e401bd8-7942-4b30-8066-733794cebd0e failed HEALTH_COVERAGE_UNKNOWN with no acceptance; the corrected operating-loop run and final-commit CI remain pending. DISQUALIFIED is a run-inspection disposition, not native financial-ledger enforcement. No customer execution, genuine historical interval ownership, native fleet finance, fresh-workspace restoration, customer pipeline OIDC or production acceptance is inferred."
     }
   ]
 }

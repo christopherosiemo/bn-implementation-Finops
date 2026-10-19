@@ -1,15 +1,28 @@
 # Product scope progress ledger
 
-The preceding group artifact release passed all ten normal
-[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39190230208).
-The separate approved journal now exercises real local Git/Terraform, durable
-file preparation, process-cutpoint reopen, unknown-result reconciliation, three
-LIFO inverses and zero-apply Git repair with authenticated encrypted readback.
-These strengthen the existing component stage without new credit. PostgreSQL
-current ownership, source resolution, pipeline OIDC, recovery continuation, the
-connected real-clock Fleet loop, native financial evidence, customer use and
-production acceptance remain open. Current-release CI is tracked separately in
-PR checks.
+The preceding journal release passed all ten normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39194127843).
+The connected component adds restricted PostgreSQL authority, current-head/CAS,
+receipt deduplication, recovery-only continuation and one-shot delivery checks,
+plus actual private Git/Terraform preparation and independently authenticated
+exact-body review. The frozen full backend suite and vet passed with real
+PostgreSQL/Python; bounded profile pagination has separate actual-role/JWT
+acceptance. The retained local 028-to-032 upgrade preserved the original R1
+stopped occurrence and owned restoration; all seven existing runtime suites and
+224 Node guards passed. Ordinary browser run
+`19a984f5-abc9-440a-a837-69f8d8d678cd` passed all 74 cases with zero retries
+against the verified paginated runtime. Separate commissioning run
+`492d3da2-1607-480f-b3e4-525973e94e6f` then passed the final real-OIDC fixture
+browser case with the normal pipeline and an explicitly deterministic reader.
+These strengthen the existing component stage and add **zero maturity credit**.
+
+The latest native operating-loop attempt failed closed with
+`HEALTH_COVERAGE_UNKNOWN`; it published no acceptance. Its corrected real-clock
+rerun and final-commit CI remain pending.
+Run inspection's `DISQUALIFIED` financial
+disposition is not a native financial-ledger integration. Customer pipeline OIDC,
+fresh-workspace recovery, genuine interval ownership and independent demand,
+native fleet economics, customer use and production acceptance remain open.
 
 Recorded 19 October 2026. **25.2% → 25.2%** at the latest assurance boundary; the preceding allocation review advanced **25.0% → 25.2%**. This covers the full product across the preserved 233-section specification, including GA obligations. The original 17.5-point baseline and all credit reviews remain in [progress-ledger.json](progress-ledger.json). Version-1 domain weights are fixed. This is engineering judgement based on accepted capability, not a count of tests, headings or endpoints.
 

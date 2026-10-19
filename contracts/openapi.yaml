@@ -8,6 +8,314 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /fleet-fixture-proposals/{id}/authorization-drafts:
+    get:
+      operationId: listFleetGroupAuthorizationDrafts
+      description: Scoped immutable private-ledger drafts. This read cannot create an authorization or execution.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Exact bodies requiring separate independent approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetGroupAuthorityReviewPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current role/workload access denied; approval must be independent
+        '404':
+          description: Record unavailable in this tenant
+        '422':
+          description: Invalid scoped cursor or closed request body
+  /fleet-group-authorizations/{id}:
+    get:
+      operationId: getFleetGroupAuthorization
+      description: >-
+        Exact immutable authorization body and actual database-stamped approval; historical visibility does not
+        assert current readiness.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable authorization review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetGroupAuthorityReview'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current role/workload access denied; approval must be independent
+        '404':
+          description: Record unavailable in this tenant
+        '422':
+          description: Invalid scoped cursor or closed request body
+  /fleet-group-authorizations/{id}/approvals:
+    post:
+      operationId: approveFleetGroupAuthorization
+      description: >-
+        An independent APPROVER reviews this exact server-issued body. Actual approval time is stamped by
+        PostgreSQL. Neither program approval nor this review enables customer execution or extends forward
+        authority, signals or evidence. Private signer still verifies the approved body and current journal
+        under its writer fence.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties: {}
+      responses:
+        '201':
+          description: Exact independent authorization approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetGroupAuthorityReview'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current role/workload access denied; approval must be independent
+        '404':
+          description: Record unavailable in this tenant
+        '409':
+          description: Version/idempotency conflict, expired review window, changed source or journal state
+        '413':
+          $ref: '#/components/responses/MutationBodyTooLarge'
+        '422':
+          description: Invalid scoped cursor or closed request body
+        '428':
+          description: If-Match required
+  "/fleet-fixture-profiles":
+    "get":
+      "operationId": "listInstalledFleetFixtureProfiles"
+      "description": "Bounded catalogue of privately commissioned immutable fixture generations, ordered by stable profile ID. Cursors are bound to the authenticated tenant and this catalogue. Empty means uninstalled; no public installation or image upload exists."
+      "parameters": [{"$ref":"#/components/parameters/PageLimit"},{"$ref":"#/components/parameters/PageCursor"}]
+      "responses":
+        "200":
+          "description": "Privately commissioned immutable fixture generations only. Empty means uninstalled; no public installation or image upload exists."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureProfilePage"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+  "/fleet-fixture-proposals":
+    "get":
+      "operationId": "listFleetFixtureProposals"
+      "description": "Immutable selections and exact-program approval projection scoped to the current authorized workload."
+      "parameters": [{"name":"workload_id","in":"query","required":true,"schema":{"type":"string"}},{"$ref":"#/components/parameters/PageLimit"},{"$ref":"#/components/parameters/PageCursor"}]
+      "responses":
+        "200":
+          "description": "Immutable selections and exact-program approval projection scoped to the current authorized workload."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureProposalPage"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+    "post":
+      "operationId": "createFleetFixtureProposal"
+      "description": "Platform administrator selects two distinct real 027 group proposal IDs and an installed fixture profile. Initial If-Match is zero; the server rechecks current registration/declaration/scope/source/mapping. Existing customer BLOCKED evidence is retained."
+      "parameters": [{"$ref":"#/components/parameters/IdempotencyKey"},{"$ref":"#/components/parameters/IfMatch"}]
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/FleetFixtureSelection"
+      "responses":
+        "201":
+          "description": "Immutable fixture record; no customer action or financial authority"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureProposalRecord"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "409":
+          "description": "Version/idempotency conflict or PROGRAM_NOT_PREPARED"
+        "413":
+          "$ref": "#/components/responses/MutationBodyTooLarge"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+        "428":
+          "description": "If-Match required"
+        "503":
+          "description": "FLEET_FIXTURE_SOURCE_BUSY or runtime unavailable; retry the same idempotency key"
+  "/fleet-fixture-proposals/{id}":
+    "get":
+      "operationId": "getFleetFixtureProposal"
+      "description": "Historical immutable fixture selection remains readable after source revocation. Captured customer evidence is not current readiness."
+      "parameters": [{"$ref":"#/components/parameters/Id"}]
+      "responses":
+        "200":
+          "description": "Historical immutable fixture selection remains readable after source revocation. Captured customer evidence is not current readiness."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureProposalRecord"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+  "/fleet-fixture-proposals/{id}/prepared-program":
+    "get":
+      "operationId": "getPreparedFleetFixtureProgram"
+      "description": "Review exact privately issued unsigned program, complete Git manifest and journal policy before approval. No artifact bytes, storage paths or state are exposed."
+      "parameters": [{"$ref":"#/components/parameters/Id"}]
+      "responses":
+        "200":
+          "description": "Review exact privately issued unsigned program, complete Git manifest and journal policy before approval. No artifact bytes, storage paths or state are exposed."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixturePreparedProgram"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+  "/fleet-fixture-proposals/{id}/readiness":
+    "get":
+      "operationId": "getFleetFixtureReadiness"
+      "description": "Runtime unavailable. Program/approval milestones do not grant customer execution or savings."
+      "parameters": [{"$ref":"#/components/parameters/Id"}]
+      "responses":
+        "200":
+          "description": "Runtime unavailable. Program/approval milestones do not grant customer execution or savings."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureReadiness"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+  "/fleet-fixture-proposals/{id}/approvals":
+    "post":
+      "operationId": "approvePreparedFleetFixtureProgram"
+      "description": "Independent APPROVER subject must differ from creator. If-Match pins current proposal projection. Approves exact existing prepared program, manifest and readable journal review; never a selection-only or future unknown program. Missing prepared program returns PROGRAM_NOT_PREPARED. Future exact journal authorization approval remains required."
+      "parameters": [{"$ref":"#/components/parameters/Id"},{"$ref":"#/components/parameters/IdempotencyKey"},{"$ref":"#/components/parameters/IfMatch"}]
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "additionalProperties": false
+              "required": []
+              "properties": {}
+      "responses":
+        "201":
+          "description": "Immutable fixture record; no customer action or financial authority"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureProposalRecord"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "409":
+          "description": "Version/idempotency conflict or PROGRAM_NOT_PREPARED"
+        "413":
+          "$ref": "#/components/responses/MutationBodyTooLarge"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+        "428":
+          "description": "If-Match required"
+        "503":
+          "description": "FLEET_FIXTURE_SOURCE_BUSY or runtime unavailable; retry the same idempotency key"
+  "/fleet-fixture-proposals/{id}/runs":
+    "get":
+      "operationId": "listFleetFixtureRuns"
+      "description": "Inspect actual private isolated journal duties and recovery disposition through a restricted projection. Empty means unavailable; observation does not enable customer execution or claim health/financial verification."
+      "parameters": [{"$ref":"#/components/parameters/Id"},{"$ref":"#/components/parameters/PageLimit"},{"$ref":"#/components/parameters/PageCursor"}]
+      "responses":
+        "200":
+          "description": "Explicit unavailable runtime; no completed or queued run is fabricated."
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/FleetFixtureRunPage"
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+    "post":
+      "operationId": "requestFleetFixtureRun"
+      "description": "Reserved interface: current runtime always returns 503 FLEET_FIXTURE_RUNTIME_NOT_CONNECTED and creates no run or action."
+      "parameters": [{"$ref":"#/components/parameters/Id"},{"$ref":"#/components/parameters/IdempotencyKey"},{"$ref":"#/components/parameters/IfMatch"}]
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "additionalProperties": false
+              "required": []
+              "properties": {}
+      "responses":
+        "401":
+          "description": "Valid OIDC bearer token required"
+        "403":
+          "description": "Current role or workload access denied"
+        "404":
+          "description": "Record unavailable in this tenant"
+        "409":
+          "description": "Version or idempotency conflict"
+        "413":
+          "$ref": "#/components/responses/MutationBodyTooLarge"
+        "422":
+          "description": "Invalid selection, current source/binding, cursor or closed request body"
+        "428":
+          "description": "If-Match required"
+        "503":
+          "description": "FLEET_FIXTURE_RUNTIME_NOT_CONNECTED; no action was created"
   /fleet-history-registrations/{id}/configuration-authorities:
     get:
       operationId: listFleetConfigurationDeclarations
@@ -1171,6 +1479,1259 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    FleetGroupJournalHeadRef:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - record_count
+        - last_record_sha256
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        record_count:
+          type: integer
+          minimum: 0
+        last_record_sha256:
+          type: string
+    FleetGroupJournalHead:
+      type: object
+      additionalProperties: false
+      required:
+        - journal_id
+        - authorization_sha256
+        - ref
+        - projection_sha256
+        - observed_at
+        - valid_until
+      properties:
+        journal_id:
+          type: string
+        authorization_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        ref:
+          $ref: '#/components/schemas/FleetGroupJournalHeadRef'
+        projection_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        observed_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    FleetGroupJournalHeadEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - head
+        - algorithm
+        - signature
+      properties:
+        head:
+          $ref: '#/components/schemas/FleetGroupJournalHead'
+        algorithm:
+          type: string
+          enum:
+            - Ed25519-FleetGroupJournal-v1-current-head
+        signature:
+          type: string
+    FleetGroupJournalAuthorization:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - kind
+        - id
+        - journal_id
+        - parent_envelope_sha256
+        - parent_sha256
+        - binding_sha256
+        - realm_sha256
+        - pipeline_id
+        - ref
+        - policy
+        - base
+        - pipeline_key_sha256
+        - ledger_key_sha256
+        - maximum_effects
+        - maximum_records
+        - created_at
+        - expires_at
+        - nonce
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        kind:
+          type: string
+          enum:
+            - ISOLATED_GROUP_TRANSITION_JOURNAL
+        id:
+          type: string
+        journal_id:
+          type: string
+        parent_envelope_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        parent_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        binding_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        realm_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        pipeline_id:
+          type: string
+        ref:
+          type: string
+        policy:
+          type: string
+          enum:
+            - STRICT_LIFO_OWNED_INVERSE
+        base:
+          $ref: '#/components/schemas/FleetFixtureJournalState'
+        pipeline_key_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        ledger_key_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        maximum_effects:
+          type: integer
+          minimum: 1
+          maximum: 32
+        maximum_records:
+          type: integer
+          minimum: 1
+          maximum: 512
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        nonce:
+          type: string
+    FleetGroupContinuationAuthorization:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - chain_id
+        - policy
+        - parent_envelope_sha256
+        - journal_authorization_sha256
+        - binding_sha256
+        - realm_sha256
+        - signer_key_sha256
+        - pipeline_key_sha256
+        - ledger_key_sha256
+        - bootstrap_head
+        - record_limit
+        - byte_limit
+        - created_at
+        - forward_expires_at
+        - nonce
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        chain_id:
+          type: string
+        policy:
+          type: string
+          enum:
+            - OWNED_RECOVERY_ONLY_SEGMENTS_30M_DRAFT_REVIEW
+        parent_envelope_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        journal_authorization_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        binding_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        realm_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        signer_key_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        pipeline_key_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        ledger_key_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        bootstrap_head:
+          $ref: '#/components/schemas/FleetGroupJournalHeadEnvelope'
+        record_limit:
+          type: integer
+          minimum: 1
+          maximum: 512
+        byte_limit:
+          type: integer
+          minimum: 1
+          maximum: 33554432
+        created_at:
+          type: string
+          format: date-time
+        forward_expires_at:
+          type: string
+          format: date-time
+        nonce:
+          type: string
+    FleetGroupAuthorityApproval:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - actor_id
+        - role
+        - authorization_sha256
+        - approved_at
+      properties:
+        id:
+          type: string
+        actor_id:
+          type: string
+        role:
+          type: string
+          enum:
+            - fleet_approver
+        authorization_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        approved_at:
+          type: string
+          format: date-time
+    FleetGroupJournalAuthorityReview:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - authorization_sha256
+        - authorization_canonical_json
+        - created_at
+        - chain_id
+        - prepared_program_id
+        - proposal_id
+        - workload_id
+        - creator_id
+        - version
+        - status
+        - customer_execution_authorized
+        - approval
+        - kind
+        - authorization
+      properties:
+        id:
+          type: string
+        authorization_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        authorization_canonical_json:
+          type: string
+          description: >-
+            Exact immutable UTF-8 authorization bytes. Verify this string against authorization_sha256 and use it
+            for review; JSON numeric projections may lose integer precision in JavaScript.
+        created_at:
+          type: string
+          format: date-time
+        chain_id:
+          type: string
+        prepared_program_id:
+          type: string
+        proposal_id:
+          type: string
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+            - 2
+        status:
+          type: string
+          enum:
+            - AWAITING_APPROVAL
+            - APPROVED
+        customer_execution_authorized:
+          type: boolean
+          enum:
+            - false
+        approval:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetGroupAuthorityApproval'
+        kind:
+          type: string
+          enum:
+            - JOURNAL
+        authorization:
+          $ref: '#/components/schemas/FleetGroupJournalAuthorization'
+    FleetGroupContinuationAuthorityReview:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - authorization_sha256
+        - authorization_canonical_json
+        - created_at
+        - chain_id
+        - prepared_program_id
+        - proposal_id
+        - workload_id
+        - creator_id
+        - version
+        - status
+        - customer_execution_authorized
+        - approval
+        - kind
+        - authorization
+      properties:
+        id:
+          type: string
+        authorization_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        authorization_canonical_json:
+          type: string
+          description: >-
+            Exact immutable UTF-8 authorization bytes. Verify this string against authorization_sha256 and use it
+            for review; JSON numeric projections may lose integer precision in JavaScript.
+        created_at:
+          type: string
+          format: date-time
+        chain_id:
+          type: string
+        prepared_program_id:
+          type: string
+        proposal_id:
+          type: string
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+            - 2
+        status:
+          type: string
+          enum:
+            - AWAITING_APPROVAL
+            - APPROVED
+        customer_execution_authorized:
+          type: boolean
+          enum:
+            - false
+        approval:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FleetGroupAuthorityApproval'
+        kind:
+          type: string
+          enum:
+            - CONTINUATION
+        authorization:
+          $ref: '#/components/schemas/FleetGroupContinuationAuthorization'
+    FleetGroupAuthorityReview:
+      oneOf:
+        - $ref: '#/components/schemas/FleetGroupJournalAuthorityReview'
+        - $ref: '#/components/schemas/FleetGroupContinuationAuthorityReview'
+      discriminator:
+        propertyName: kind
+        mapping:
+          JOURNAL: '#/components/schemas/FleetGroupJournalAuthorityReview'
+          CONTINUATION: '#/components/schemas/FleetGroupContinuationAuthorityReview'
+    FleetGroupAuthorityReviewPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetGroupAuthorityReview'
+        next_cursor:
+          type: string
+          nullable: true
+    "FleetFixtureSelection":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["old_configuration_proposal_id","candidate_configuration_proposal_id","fixture_profile_id"]
+      "properties":
+        "old_configuration_proposal_id":
+          "type": "string"
+        "candidate_configuration_proposal_id":
+          "type": "string"
+        "fixture_profile_id":
+          "type": "string"
+    "FleetFixtureTemplate":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","version","instance_type","sha256"]
+      "properties":
+        "id":
+          "type": "string"
+        "version":
+          "type": "integer"
+          "minimum": 0
+        "instance_type":
+          "type": "string"
+        "sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+    "FleetFixturePolicy":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","version","sha256","approver_role"]
+      "properties":
+        "id":
+          "type": "string"
+        "version":
+          "type": "integer"
+          "minimum": 0
+        "sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "approver_role":
+          "type": "string"
+          "enum": ["fleet_approver"]
+    "FleetFixtureBudget":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["cost_basis","currency","baseline_count","max_in_flight","max_unavailable","max_blast_radius_ppm","max_surge_count","old_hourly_cost","candidate_hourly_cost","maximum_model_cost","maximum_duration_seconds"]
+      "properties":
+        "cost_basis":
+          "type": "string"
+          "enum": ["FIXTURE_MODEL_COST"]
+        "currency":
+          "type": "string"
+        "baseline_count":
+          "type": "integer"
+          "minimum": 0
+        "max_in_flight":
+          "type": "integer"
+          "minimum": 0
+        "max_unavailable":
+          "type": "integer"
+          "minimum": 0
+        "max_blast_radius_ppm":
+          "type": "integer"
+          "minimum": 0
+        "max_surge_count":
+          "type": "integer"
+          "minimum": 0
+        "old_hourly_cost":
+          "type": "string"
+        "candidate_hourly_cost":
+          "type": "string"
+        "maximum_model_cost":
+          "type": "string"
+        "maximum_duration_seconds":
+          "type": "integer"
+          "minimum": 0
+      "description": "Installed isolated model values, never native prices, customer spend or savings."
+    "FleetFixtureProfile":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["schema_version","id","generation","name","realm_kind","model_kind","model_version","model_sha256","runtime_available","model","installation"]
+      "properties":
+        "schema_version":
+          "type": "string"
+          "enum": ["1"]
+        "id":
+          "type": "string"
+        "generation":
+          "type": "string"
+        "name":
+          "type": "string"
+        "realm_kind":
+          "type": "string"
+          "enum": ["ISOLATED_FIXTURE"]
+        "model_kind":
+          "type": "string"
+          "enum": ["TERRAFORM_BUILTIN_FIXTURE"]
+        "model_version":
+          "type": "string"
+          "enum": ["5.1"]
+        "model_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "runtime_available":
+          "type": "boolean"
+          "enum": [false]
+        "model":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["old_template","candidate_template","budget","policy"]
+          "properties":
+            "old_template":
+              "$ref": "#/components/schemas/FleetFixtureTemplate"
+            "candidate_template":
+              "$ref": "#/components/schemas/FleetFixtureTemplate"
+            "budget":
+              "$ref": "#/components/schemas/FleetFixtureBudget"
+            "policy":
+              "$ref": "#/components/schemas/FleetFixturePolicy"
+        "installation":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["template_id","toolchain_image_sha256","terraform_version","receipt_id","source_sha256"]
+          "properties":
+            "template_id":
+              "type": "string"
+            "toolchain_image_sha256":
+              "type": "string"
+              "pattern": "^[a-f0-9]{64}$"
+            "terraform_version":
+              "type": "string"
+              "enum": ["1.16.0"]
+            "receipt_id":
+              "type": "string"
+            "source_sha256":
+              "type": "string"
+              "pattern": "^[a-f0-9]{64}$"
+        "hash":
+          "type": "string"
+    "FleetFixtureProfilePage":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["items","next_cursor"]
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/FleetFixtureProfile"
+        "next_cursor":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+    "FleetFixtureTarget":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["tenant_id","workload_id","provider","account_id","region","fleet_id","asg_arn"]
+      "properties":
+        "tenant_id":
+          "type": "string"
+        "workload_id":
+          "type": "string"
+        "provider":
+          "type": "string"
+          "enum": ["AWS"]
+        "account_id":
+          "type": "string"
+        "region":
+          "type": "string"
+          "enum": ["eu-west-1"]
+        "fleet_id":
+          "type": "string"
+        "asg_arn":
+          "type": "string"
+    "FleetFixtureGroupSelection":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["target","registration","declaration","scope","source_id","source_registration_version","source_config_sha256"]
+      "properties":
+        "target":
+          "$ref": "#/components/schemas/FleetFixtureTarget"
+        "registration":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["id","version","sha256"]
+          "properties":
+            "id":
+              "type": "string"
+            "version":
+              "type": "integer"
+              "minimum": 0
+            "sha256":
+              "type": "string"
+              "pattern": "^[a-f0-9]{64}$"
+        "declaration":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["id","version","sha256"]
+          "properties":
+            "id":
+              "type": "string"
+            "version":
+              "type": "integer"
+              "minimum": 0
+            "sha256":
+              "type": "string"
+              "pattern": "^[a-f0-9]{64}$"
+        "scope":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["id","sha256"]
+          "properties":
+            "id":
+              "type": "string"
+            "sha256":
+              "type": "string"
+              "pattern": "^[a-f0-9]{64}$"
+        "source_id":
+          "type": "string"
+        "source_registration_version":
+          "type": "integer"
+          "minimum": 0
+        "source_config_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+    "FleetFixtureBinding":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["old","candidate"]
+      "properties":
+        "old":
+          "$ref": "#/components/schemas/FleetFixtureGroupSelection"
+        "candidate":
+          "$ref": "#/components/schemas/FleetFixtureGroupSelection"
+    "FleetFixtureRealm":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["kind","fixture_id","generation","model_sha256"]
+      "properties":
+        "kind":
+          "type": "string"
+          "enum": ["ISOLATED_FIXTURE"]
+        "fixture_id":
+          "type": "string"
+        "generation":
+          "type": "string"
+        "model_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+    "FleetFixtureConfigurationRef":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","sha256","scope_reference_root","customer_status","customer_reasons"]
+      "properties":
+        "id":
+          "type": "string"
+        "sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "scope_reference_root":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "customer_status":
+          "type": "string"
+          "enum": ["BLOCKED"]
+        "customer_reasons":
+          "type": "array"
+          "items":
+            "type": "string"
+    "FleetFixtureProposal":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["schema_version","id","purpose","creator_id","workload_id","profile","realm","binding","old_configuration_proposal","candidate_configuration_proposal","customer_execution_authorized","estimated_saving","verified_saving"]
+      "properties":
+        "schema_version":
+          "type": "string"
+          "enum": ["1"]
+        "id":
+          "type": "string"
+        "purpose":
+          "type": "string"
+          "enum": ["ISOLATED_GROUP_FIXTURE_PROPOSAL"]
+        "creator_id":
+          "type": "string"
+        "workload_id":
+          "type": "string"
+        "profile":
+          "$ref": "#/components/schemas/FleetFixtureProfile"
+        "realm":
+          "$ref": "#/components/schemas/FleetFixtureRealm"
+        "binding":
+          "$ref": "#/components/schemas/FleetFixtureBinding"
+        "old_configuration_proposal":
+          "$ref": "#/components/schemas/FleetFixtureConfigurationRef"
+        "candidate_configuration_proposal":
+          "$ref": "#/components/schemas/FleetFixtureConfigurationRef"
+        "customer_execution_authorized":
+          "type": "boolean"
+          "enum": [false]
+        "estimated_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+        "verified_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+    "FleetFixtureReadiness":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["status","runtime_available","customer_execution_authorized","reason_codes","estimated_saving","verified_saving"]
+      "properties":
+        "status":
+          "type": "string"
+          "enum": ["BLOCKED"]
+        "runtime_available":
+          "type": "boolean"
+          "enum": [false]
+        "customer_execution_authorized":
+          "type": "boolean"
+          "enum": [false]
+        "reason_codes":
+          "type": "array"
+          "items":
+            "type": "string"
+        "estimated_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+        "verified_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+    "FleetFixturePreparedSummary":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","program_hash","manifest_hash","journal_review_hash","proof_hash","created_at","producer_role","expires_at"]
+      "properties":
+        "id":
+          "type": "string"
+        "program_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "manifest_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "journal_review_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "proof_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "producer_role":
+          "type": "string"
+          "enum": ["finops_group_fixture"]
+        "expires_at":
+          "type": "string"
+          "format": "date-time"
+    "FleetFixtureApproval":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["schema_version","id","proposal_id","proposal_hash","prepared_program_id","program_hash","manifest_hash","journal_review_hash","actor_id","role","approval_scope","customer_execution_authorized","estimated_saving","verified_saving","hash","created_at","writer_role"]
+      "properties":
+        "schema_version":
+          "type": "string"
+          "enum": ["1"]
+        "id":
+          "type": "string"
+        "proposal_id":
+          "type": "string"
+        "proposal_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "prepared_program_id":
+          "type": "string"
+        "program_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "manifest_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "journal_review_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "actor_id":
+          "type": "string"
+        "role":
+          "type": "string"
+          "enum": ["fleet_approver"]
+        "approval_scope":
+          "type": "string"
+          "enum": ["EXACT_FIXTURE_PROGRAM_AND_JOURNAL_REVIEW"]
+        "customer_execution_authorized":
+          "type": "boolean"
+          "enum": [false]
+        "estimated_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+        "verified_saving":
+          "type": "string"
+          "nullable": true
+          "enum": [null]
+        "hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "writer_role":
+          "type": "string"
+          "enum": ["finops_api"]
+    "FleetFixtureProposalRecord":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","version","status","proposal","hash","created_at","writer_role","prepared_program","approval","readiness"]
+      "properties":
+        "id":
+          "type": "string"
+        "version":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 3
+        "status":
+          "type": "string"
+          "enum": ["WAITING_FOR_PROGRAM","AWAITING_APPROVAL","APPROVED"]
+        "proposal":
+          "$ref": "#/components/schemas/FleetFixtureProposal"
+        "hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "writer_role":
+          "type": "string"
+          "enum": ["finops_api"]
+        "prepared_program":
+          "allOf": [{"$ref":"#/components/schemas/FleetFixturePreparedSummary"}]
+          "nullable": true
+        "approval":
+          "allOf": [{"$ref":"#/components/schemas/FleetFixtureApproval"}]
+          "nullable": true
+        "readiness":
+          "$ref": "#/components/schemas/FleetFixtureReadiness"
+    "FleetFixtureProposalPage":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["items","next_cursor"]
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/FleetFixtureProposalRecord"
+        "next_cursor":
+          "type": "string"
+          "nullable": true
+    "FleetFixtureGitRevision":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["commit","tree","configuration_sha256","desired_sha256"]
+      "properties":
+        "commit":
+          "type": "string"
+        "tree":
+          "type": "string"
+        "configuration_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "desired_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+    "FleetFixtureModelState":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["binding_sha256","realm_sha256","old_count","candidate_count","candidate_traffic_percent"]
+      "properties":
+        "binding_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "realm_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "old_count":
+          "type": "integer"
+          "minimum": 0
+        "candidate_count":
+          "type": "integer"
+          "minimum": 0
+        "candidate_traffic_percent":
+          "type": "integer"
+          "minimum": 0
+    "FleetFixtureJournalState":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["revision","state_lineage","state_serial","state_sha256","model"]
+      "properties":
+        "revision":
+          "$ref": "#/components/schemas/FleetFixtureGitRevision"
+        "state_lineage":
+          "type": "string"
+        "state_serial":
+          "type": "integer"
+          "minimum": 0
+        "state_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "model":
+          "$ref": "#/components/schemas/FleetFixtureModelState"
+    "FleetFixtureJournalReview":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["schema_version","policy","ref","pipeline_id","pipeline_key_sha256","ledger_key_sha256","base","max_effects","max_records","expires_at"]
+      "properties":
+        "schema_version":
+          "type": "string"
+          "enum": ["1"]
+        "policy":
+          "$ref": "#/components/schemas/FleetFixturePolicy"
+        "ref":
+          "type": "string"
+        "pipeline_id":
+          "type": "string"
+        "pipeline_key_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "ledger_key_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "base":
+          "$ref": "#/components/schemas/FleetFixtureJournalState"
+        "max_effects":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 32
+        "max_records":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 512
+        "expires_at":
+          "type": "string"
+          "format": "date-time"
+      "description": "Readable prepared program review. The exact server-derived signed journal authorization still requires independent approval before any command."
+    "FleetFixtureArtifactContext":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["kind","provider_source","repository_id","git_commit","git_tree","configuration_sha256","toolchain_image_sha256","terraform_version","pipeline_id","workspace","state_lineage","initial_state_serial","mapping"]
+      "properties":
+        "kind":
+          "type": "string"
+          "enum": ["TERRAFORM_BUILTIN_FIXTURE"]
+        "provider_source":
+          "type": "string"
+          "enum": ["terraform.io/builtin/terraform"]
+        "repository_id":
+          "type": "string"
+        "git_commit":
+          "type": "string"
+        "git_tree":
+          "type": "string"
+        "configuration_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "toolchain_image_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "terraform_version":
+          "type": "string"
+        "pipeline_id":
+          "type": "string"
+        "workspace":
+          "type": "string"
+        "state_lineage":
+          "type": "string"
+        "initial_state_serial":
+          "type": "integer"
+          "minimum": 0
+        "mapping":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["old_declared_asg","candidate_declared_asg","declared_listener_rule","old_model","candidate_model","traffic_model"]
+          "properties":
+            "old_declared_asg":
+              "type": "string"
+            "candidate_declared_asg":
+              "type": "string"
+            "declared_listener_rule":
+              "type": "string"
+            "old_model":
+              "type": "string"
+            "candidate_model":
+              "type": "string"
+            "traffic_model":
+              "type": "string"
+    "FleetFixtureManifestEntry":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["sequence","stage_id","stage_sha256","predecessor_commit","revision","before","after","minimum_observation_seconds"]
+      "properties":
+        "sequence":
+          "type": "integer"
+          "minimum": 0
+        "stage_id":
+          "type": "string"
+        "stage_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "predecessor_commit":
+          "type": "string"
+        "revision":
+          "$ref": "#/components/schemas/FleetFixtureGitRevision"
+        "before":
+          "$ref": "#/components/schemas/FleetFixtureModelState"
+        "after":
+          "$ref": "#/components/schemas/FleetFixtureModelState"
+        "minimum_observation_seconds":
+          "type": "integer"
+          "minimum": 0
+    "FleetFixtureGitProgram":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["schema_version","kind","id","binding","realm","creator_id","environment","policy","artifact_context","manifest","manifest_sha256","old_template","candidate_template","budget","stages","evidence","created_at","expires_at","nonce"]
+      "properties":
+        "schema_version":
+          "type": "string"
+          "enum": ["5.1"]
+        "kind":
+          "type": "string"
+          "enum": ["STATELESS_GROUP_RIGHTSIZING"]
+        "id":
+          "type": "string"
+        "binding":
+          "$ref": "#/components/schemas/FleetFixtureBinding"
+        "realm":
+          "$ref": "#/components/schemas/FleetFixtureRealm"
+        "creator_id":
+          "type": "string"
+        "environment":
+          "type": "string"
+          "enum": ["NON_PRODUCTION"]
+        "policy":
+          "$ref": "#/components/schemas/FleetFixturePolicy"
+        "artifact_context":
+          "$ref": "#/components/schemas/FleetFixtureArtifactContext"
+        "manifest":
+          "type": "object"
+          "additionalProperties": false
+          "required": ["schema_version","ref","base","entries"]
+          "properties":
+            "schema_version":
+              "type": "string"
+              "enum": ["1"]
+            "ref":
+              "type": "string"
+            "base":
+              "$ref": "#/components/schemas/FleetFixtureGitRevision"
+            "entries":
+              "type": "array"
+              "items":
+                "$ref": "#/components/schemas/FleetFixtureManifestEntry"
+        "manifest_sha256":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "old_template":
+          "$ref": "#/components/schemas/FleetFixtureTemplate"
+        "candidate_template":
+          "$ref": "#/components/schemas/FleetFixtureTemplate"
+        "budget":
+          "$ref": "#/components/schemas/FleetFixtureBudget"
+        "stages":
+          "type": "array"
+          "items":
+            "type": "object"
+            "additionalProperties": false
+            "required": ["id","kind","target_candidate_count","target_traffic_percent","minimum_observation_seconds"]
+            "properties":
+              "id":
+                "type": "string"
+              "kind":
+                "type": "string"
+              "target_candidate_count":
+                "type": "integer"
+                "minimum": 0
+              "target_traffic_percent":
+                "type": "integer"
+                "minimum": 0
+              "minimum_observation_seconds":
+                "type": "integer"
+                "minimum": 0
+        "evidence":
+          "type": "array"
+          "items":
+            "type": "object"
+            "additionalProperties": false
+            "required": ["kind","id","sha256","binding_sha256","realm_sha256","observed_at","valid_until"]
+            "properties":
+              "kind":
+                "type": "string"
+              "id":
+                "type": "string"
+              "sha256":
+                "type": "string"
+                "pattern": "^[a-f0-9]{64}$"
+              "binding_sha256":
+                "type": "string"
+                "pattern": "^[a-f0-9]{64}$"
+              "realm_sha256":
+                "type": "string"
+                "pattern": "^[a-f0-9]{64}$"
+              "observed_at":
+                "type": "string"
+                "format": "date-time"
+              "valid_until":
+                "type": "string"
+                "format": "date-time"
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "expires_at":
+          "type": "string"
+          "format": "date-time"
+        "nonce":
+          "type": "string"
+    "FleetFixturePreparedProgram":
+      "type": "object"
+      "additionalProperties": false
+      "required": ["id","proposal_id","program_hash","manifest_hash","journal_review_hash","program","journal_review","proof_hash","producer_role","created_at"]
+      "properties":
+        "id":
+          "type": "string"
+        "proposal_id":
+          "type": "string"
+        "program_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "manifest_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "journal_review_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "program":
+          "$ref": "#/components/schemas/FleetFixtureGitProgram"
+        "journal_review":
+          "$ref": "#/components/schemas/FleetFixtureJournalReview"
+        "proof_hash":
+          "type": "string"
+          "pattern": "^[a-f0-9]{64}$"
+        "producer_role":
+          "type": "string"
+          "enum": ["finops_group_fixture"]
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+    FleetFixtureRun:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - proposal_id
+        - workload_id
+        - created_at
+        - realm
+        - segment
+        - record_count
+        - global_count
+        - head_sha256
+        - owned_effect_count
+        - pending_phase
+        - forward_aborted
+        - recovery_only
+        - obligation_released
+        - customer_execution_authorized
+        - financial_disposition
+        - status
+        - reason_codes
+      properties:
+        id:
+          type: string
+        proposal_id:
+          type: string
+        workload_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        realm:
+          $ref: '#/components/schemas/FleetFixtureRealm'
+        segment:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        record_count:
+          type: integer
+          minimum: 0
+        global_count:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        head_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        owned_effect_count:
+          type: integer
+          minimum: 0
+          maximum: 32
+        pending_phase:
+          type: string
+          nullable: true
+        forward_aborted:
+          type: boolean
+        recovery_only:
+          type: boolean
+        obligation_released:
+          type: boolean
+        customer_execution_authorized:
+          type: boolean
+          enum:
+            - false
+        financial_disposition:
+          type: string
+          enum:
+            - DISQUALIFIED
+            - UNAVAILABLE
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - RECONCILING
+            - RECOVERY_REQUIRED
+            - RECOVERED
+        reason_codes:
+          type: array
+          items:
+            type: string
+    FleetFixtureRunPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+        - status
+        - reason_codes
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetFixtureRun'
+        next_cursor:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - UNAVAILABLE
+            - OBSERVABLE
+        reason_codes:
+          type: array
+          items:
+            type: string
     FleetTerraformInput:
       type: object
       additionalProperties: false

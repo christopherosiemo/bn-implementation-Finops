@@ -4,6 +4,178 @@
  */
 
 export interface paths {
+    "/fleet-fixture-proposals/{id}/authorization-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped immutable private-ledger drafts. This read cannot create an authorization or execution. */
+        get: operations["listFleetGroupAuthorizationDrafts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-group-authorizations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exact immutable authorization body and actual database-stamped approval; historical visibility does not assert current readiness. */
+        get: operations["getFleetGroupAuthorization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-group-authorizations/{id}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description An independent APPROVER reviews this exact server-issued body. Actual approval time is stamped by PostgreSQL. Neither program approval nor this review enables customer execution or extends forward authority, signals or evidence. Private signer still verifies the approved body and current journal under its writer fence. */
+        post: operations["approveFleetGroupAuthorization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded catalogue of privately commissioned immutable fixture generations, ordered by stable profile ID. Cursors are bound to the authenticated tenant and this catalogue. Empty means uninstalled; no public installation or image upload exists. */
+        get: operations["listInstalledFleetFixtureProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable selections and exact-program approval projection scoped to the current authorized workload. */
+        get: operations["listFleetFixtureProposals"];
+        put?: never;
+        /** @description Platform administrator selects two distinct real 027 group proposal IDs and an installed fixture profile. Initial If-Match is zero; the server rechecks current registration/declaration/scope/source/mapping. Existing customer BLOCKED evidence is retained. */
+        post: operations["createFleetFixtureProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Historical immutable fixture selection remains readable after source revocation. Captured customer evidence is not current readiness. */
+        get: operations["getFleetFixtureProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals/{id}/prepared-program": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Review exact privately issued unsigned program, complete Git manifest and journal policy before approval. No artifact bytes, storage paths or state are exposed. */
+        get: operations["getPreparedFleetFixtureProgram"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals/{id}/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Runtime unavailable. Program/approval milestones do not grant customer execution or savings. */
+        get: operations["getFleetFixtureReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals/{id}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Independent APPROVER subject must differ from creator. If-Match pins current proposal projection. Approves exact existing prepared program, manifest and readable journal review; never a selection-only or future unknown program. Missing prepared program returns PROGRAM_NOT_PREPARED. Future exact journal authorization approval remains required. */
+        post: operations["approvePreparedFleetFixtureProgram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fleet-fixture-proposals/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Inspect actual private isolated journal duties and recovery disposition through a restricted projection. Empty means unavailable; observation does not enable customer execution or claim health/financial verification. */
+        get: operations["listFleetFixtureRuns"];
+        put?: never;
+        /** @description Reserved interface: current runtime always returns 503 FLEET_FIXTURE_RUNTIME_NOT_CONNECTED and creates no run or action. */
+        post: operations["requestFleetFixtureRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet-history-registrations/{id}/configuration-authorities": {
         parameters: {
             query?: never;
@@ -1209,6 +1381,515 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FleetGroupJournalHeadRef: {
+            version: number;
+            record_count: number;
+            last_record_sha256: string;
+        };
+        FleetGroupJournalHead: {
+            journal_id: string;
+            authorization_sha256: string;
+            ref: components["schemas"]["FleetGroupJournalHeadRef"];
+            projection_sha256: string;
+            /** Format: date-time */
+            observed_at: string;
+            /** Format: date-time */
+            valid_until: string;
+        };
+        FleetGroupJournalHeadEnvelope: {
+            head: components["schemas"]["FleetGroupJournalHead"];
+            /** @enum {string} */
+            algorithm: "Ed25519-FleetGroupJournal-v1-current-head";
+            signature: string;
+        };
+        FleetGroupJournalAuthorization: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            kind: "ISOLATED_GROUP_TRANSITION_JOURNAL";
+            id: string;
+            journal_id: string;
+            parent_envelope_sha256: string;
+            parent_sha256: string;
+            binding_sha256: string;
+            realm_sha256: string;
+            pipeline_id: string;
+            ref: string;
+            /** @enum {string} */
+            policy: "STRICT_LIFO_OWNED_INVERSE";
+            base: components["schemas"]["FleetFixtureJournalState"];
+            pipeline_key_sha256: string;
+            ledger_key_sha256: string;
+            maximum_effects: number;
+            maximum_records: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            nonce: string;
+        };
+        FleetGroupContinuationAuthorization: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            chain_id: string;
+            /** @enum {string} */
+            policy: "OWNED_RECOVERY_ONLY_SEGMENTS_30M_DRAFT_REVIEW";
+            parent_envelope_sha256: string;
+            journal_authorization_sha256: string;
+            binding_sha256: string;
+            realm_sha256: string;
+            signer_key_sha256: string;
+            pipeline_key_sha256: string;
+            ledger_key_sha256: string;
+            bootstrap_head: components["schemas"]["FleetGroupJournalHeadEnvelope"];
+            record_limit: number;
+            byte_limit: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            forward_expires_at: string;
+            nonce: string;
+        };
+        FleetGroupAuthorityApproval: {
+            id: string;
+            actor_id: string;
+            /** @enum {string} */
+            role: "fleet_approver";
+            authorization_sha256: string;
+            /** Format: date-time */
+            approved_at: string;
+        };
+        FleetGroupJournalAuthorityReview: {
+            id: string;
+            authorization_sha256: string;
+            /** @description Exact immutable UTF-8 authorization bytes. Verify this string against authorization_sha256 and use it for review; JSON numeric projections may lose integer precision in JavaScript. */
+            authorization_canonical_json: string;
+            /** Format: date-time */
+            created_at: string;
+            chain_id: string;
+            prepared_program_id: string;
+            proposal_id: string;
+            workload_id: string;
+            creator_id: string;
+            /** @enum {integer} */
+            version: 1 | 2;
+            /** @enum {string} */
+            status: "AWAITING_APPROVAL" | "APPROVED";
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            approval: components["schemas"]["FleetGroupAuthorityApproval"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "JOURNAL";
+            authorization: components["schemas"]["FleetGroupJournalAuthorization"];
+        };
+        FleetGroupContinuationAuthorityReview: {
+            id: string;
+            authorization_sha256: string;
+            /** @description Exact immutable UTF-8 authorization bytes. Verify this string against authorization_sha256 and use it for review; JSON numeric projections may lose integer precision in JavaScript. */
+            authorization_canonical_json: string;
+            /** Format: date-time */
+            created_at: string;
+            chain_id: string;
+            prepared_program_id: string;
+            proposal_id: string;
+            workload_id: string;
+            creator_id: string;
+            /** @enum {integer} */
+            version: 1 | 2;
+            /** @enum {string} */
+            status: "AWAITING_APPROVAL" | "APPROVED";
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            approval: components["schemas"]["FleetGroupAuthorityApproval"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "CONTINUATION";
+            authorization: components["schemas"]["FleetGroupContinuationAuthorization"];
+        };
+        FleetGroupAuthorityReview: components["schemas"]["FleetGroupJournalAuthorityReview"] | components["schemas"]["FleetGroupContinuationAuthorityReview"];
+        FleetGroupAuthorityReviewPage: {
+            items: components["schemas"]["FleetGroupAuthorityReview"][];
+            next_cursor: string | null;
+        };
+        FleetFixtureSelection: {
+            old_configuration_proposal_id: string;
+            candidate_configuration_proposal_id: string;
+            fixture_profile_id: string;
+        };
+        FleetFixtureTemplate: {
+            id: string;
+            version: number;
+            instance_type: string;
+            sha256: string;
+        };
+        FleetFixturePolicy: {
+            id: string;
+            version: number;
+            sha256: string;
+            /** @enum {string} */
+            approver_role: "fleet_approver";
+        };
+        /** @description Installed isolated model values, never native prices, customer spend or savings. */
+        FleetFixtureBudget: {
+            /** @enum {string} */
+            cost_basis: "FIXTURE_MODEL_COST";
+            currency: string;
+            baseline_count: number;
+            max_in_flight: number;
+            max_unavailable: number;
+            max_blast_radius_ppm: number;
+            max_surge_count: number;
+            old_hourly_cost: string;
+            candidate_hourly_cost: string;
+            maximum_model_cost: string;
+            maximum_duration_seconds: number;
+        };
+        FleetFixtureProfile: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            generation: string;
+            name: string;
+            /** @enum {string} */
+            realm_kind: "ISOLATED_FIXTURE";
+            /** @enum {string} */
+            model_kind: "TERRAFORM_BUILTIN_FIXTURE";
+            /** @enum {string} */
+            model_version: "5.1";
+            model_sha256: string;
+            /** @enum {boolean} */
+            runtime_available: false;
+            model: {
+                old_template: components["schemas"]["FleetFixtureTemplate"];
+                candidate_template: components["schemas"]["FleetFixtureTemplate"];
+                budget: components["schemas"]["FleetFixtureBudget"];
+                policy: components["schemas"]["FleetFixturePolicy"];
+            };
+            installation: {
+                template_id: string;
+                toolchain_image_sha256: string;
+                /** @enum {string} */
+                terraform_version: "1.16.0";
+                receipt_id: string;
+                source_sha256: string;
+            };
+            hash?: string;
+        };
+        FleetFixtureProfilePage: {
+            items: components["schemas"]["FleetFixtureProfile"][];
+            /** @enum {string|null} */
+            next_cursor: null;
+        };
+        FleetFixtureTarget: {
+            tenant_id: string;
+            workload_id: string;
+            /** @enum {string} */
+            provider: "AWS";
+            account_id: string;
+            /** @enum {string} */
+            region: "eu-west-1";
+            fleet_id: string;
+            asg_arn: string;
+        };
+        FleetFixtureGroupSelection: {
+            target: components["schemas"]["FleetFixtureTarget"];
+            registration: {
+                id: string;
+                version: number;
+                sha256: string;
+            };
+            declaration: {
+                id: string;
+                version: number;
+                sha256: string;
+            };
+            scope: {
+                id: string;
+                sha256: string;
+            };
+            source_id: string;
+            source_registration_version: number;
+            source_config_sha256: string;
+        };
+        FleetFixtureBinding: {
+            old: components["schemas"]["FleetFixtureGroupSelection"];
+            candidate: components["schemas"]["FleetFixtureGroupSelection"];
+        };
+        FleetFixtureRealm: {
+            /** @enum {string} */
+            kind: "ISOLATED_FIXTURE";
+            fixture_id: string;
+            generation: string;
+            model_sha256: string;
+        };
+        FleetFixtureConfigurationRef: {
+            id: string;
+            sha256: string;
+            scope_reference_root: string;
+            /** @enum {string} */
+            customer_status: "BLOCKED";
+            customer_reasons: string[];
+        };
+        FleetFixtureProposal: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            /** @enum {string} */
+            purpose: "ISOLATED_GROUP_FIXTURE_PROPOSAL";
+            creator_id: string;
+            workload_id: string;
+            profile: components["schemas"]["FleetFixtureProfile"];
+            realm: components["schemas"]["FleetFixtureRealm"];
+            binding: components["schemas"]["FleetFixtureBinding"];
+            old_configuration_proposal: components["schemas"]["FleetFixtureConfigurationRef"];
+            candidate_configuration_proposal: components["schemas"]["FleetFixtureConfigurationRef"];
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetFixtureReadiness: {
+            /** @enum {string} */
+            status: "BLOCKED";
+            /** @enum {boolean} */
+            runtime_available: false;
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            reason_codes: string[];
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        FleetFixturePreparedSummary: {
+            id: string;
+            program_hash: string;
+            manifest_hash: string;
+            journal_review_hash: string;
+            proof_hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            producer_role: "finops_group_fixture";
+            /** Format: date-time */
+            expires_at: string;
+        };
+        FleetFixtureApproval: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            proposal_id: string;
+            proposal_hash: string;
+            prepared_program_id: string;
+            program_hash: string;
+            manifest_hash: string;
+            journal_review_hash: string;
+            actor_id: string;
+            /** @enum {string} */
+            role: "fleet_approver";
+            /** @enum {string} */
+            approval_scope: "EXACT_FIXTURE_PROGRAM_AND_JOURNAL_REVIEW";
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+        };
+        FleetFixtureProposalRecord: {
+            id: string;
+            version: number;
+            /** @enum {string} */
+            status: "WAITING_FOR_PROGRAM" | "AWAITING_APPROVAL" | "APPROVED";
+            proposal: components["schemas"]["FleetFixtureProposal"];
+            hash: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            writer_role: "finops_api";
+            prepared_program: components["schemas"]["FleetFixturePreparedSummary"] | null;
+            approval: components["schemas"]["FleetFixtureApproval"] | null;
+            readiness: components["schemas"]["FleetFixtureReadiness"];
+        };
+        FleetFixtureProposalPage: {
+            items: components["schemas"]["FleetFixtureProposalRecord"][];
+            next_cursor: string | null;
+        };
+        FleetFixtureGitRevision: {
+            commit: string;
+            tree: string;
+            configuration_sha256: string;
+            desired_sha256: string;
+        };
+        FleetFixtureModelState: {
+            binding_sha256: string;
+            realm_sha256: string;
+            old_count: number;
+            candidate_count: number;
+            candidate_traffic_percent: number;
+        };
+        FleetFixtureJournalState: {
+            revision: components["schemas"]["FleetFixtureGitRevision"];
+            state_lineage: string;
+            state_serial: number;
+            state_sha256: string;
+            model: components["schemas"]["FleetFixtureModelState"];
+        };
+        /** @description Readable prepared program review. The exact server-derived signed journal authorization still requires independent approval before any command. */
+        FleetFixtureJournalReview: {
+            /** @enum {string} */
+            schema_version: "1";
+            policy: components["schemas"]["FleetFixturePolicy"];
+            ref: string;
+            pipeline_id: string;
+            pipeline_key_sha256: string;
+            ledger_key_sha256: string;
+            base: components["schemas"]["FleetFixtureJournalState"];
+            max_effects: number;
+            max_records: number;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        FleetFixtureArtifactContext: {
+            /** @enum {string} */
+            kind: "TERRAFORM_BUILTIN_FIXTURE";
+            /** @enum {string} */
+            provider_source: "terraform.io/builtin/terraform";
+            repository_id: string;
+            git_commit: string;
+            git_tree: string;
+            configuration_sha256: string;
+            toolchain_image_sha256: string;
+            terraform_version: string;
+            pipeline_id: string;
+            workspace: string;
+            state_lineage: string;
+            initial_state_serial: number;
+            mapping: {
+                old_declared_asg: string;
+                candidate_declared_asg: string;
+                declared_listener_rule: string;
+                old_model: string;
+                candidate_model: string;
+                traffic_model: string;
+            };
+        };
+        FleetFixtureManifestEntry: {
+            sequence: number;
+            stage_id: string;
+            stage_sha256: string;
+            predecessor_commit: string;
+            revision: components["schemas"]["FleetFixtureGitRevision"];
+            before: components["schemas"]["FleetFixtureModelState"];
+            after: components["schemas"]["FleetFixtureModelState"];
+            minimum_observation_seconds: number;
+        };
+        FleetFixtureGitProgram: {
+            /** @enum {string} */
+            schema_version: "5.1";
+            /** @enum {string} */
+            kind: "STATELESS_GROUP_RIGHTSIZING";
+            id: string;
+            binding: components["schemas"]["FleetFixtureBinding"];
+            realm: components["schemas"]["FleetFixtureRealm"];
+            creator_id: string;
+            /** @enum {string} */
+            environment: "NON_PRODUCTION";
+            policy: components["schemas"]["FleetFixturePolicy"];
+            artifact_context: components["schemas"]["FleetFixtureArtifactContext"];
+            manifest: {
+                /** @enum {string} */
+                schema_version: "1";
+                ref: string;
+                base: components["schemas"]["FleetFixtureGitRevision"];
+                entries: components["schemas"]["FleetFixtureManifestEntry"][];
+            };
+            manifest_sha256: string;
+            old_template: components["schemas"]["FleetFixtureTemplate"];
+            candidate_template: components["schemas"]["FleetFixtureTemplate"];
+            budget: components["schemas"]["FleetFixtureBudget"];
+            stages: {
+                id: string;
+                kind: string;
+                target_candidate_count: number;
+                target_traffic_percent: number;
+                minimum_observation_seconds: number;
+            }[];
+            evidence: {
+                kind: string;
+                id: string;
+                sha256: string;
+                binding_sha256: string;
+                realm_sha256: string;
+                /** Format: date-time */
+                observed_at: string;
+                /** Format: date-time */
+                valid_until: string;
+            }[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            nonce: string;
+        };
+        FleetFixturePreparedProgram: {
+            id: string;
+            proposal_id: string;
+            program_hash: string;
+            manifest_hash: string;
+            journal_review_hash: string;
+            program: components["schemas"]["FleetFixtureGitProgram"];
+            journal_review: components["schemas"]["FleetFixtureJournalReview"];
+            proof_hash: string;
+            /** @enum {string} */
+            producer_role: "finops_group_fixture";
+            /** Format: date-time */
+            created_at: string;
+        };
+        FleetFixtureRun: {
+            id: string;
+            proposal_id: string;
+            workload_id: string;
+            /** Format: date-time */
+            created_at: string;
+            realm: components["schemas"]["FleetFixtureRealm"];
+            segment: string;
+            record_count: number;
+            global_count: string;
+            head_sha256: string;
+            owned_effect_count: number;
+            pending_phase: string | null;
+            forward_aborted: boolean;
+            recovery_only: boolean;
+            obligation_released: boolean;
+            /** @enum {boolean} */
+            customer_execution_authorized: false;
+            /** @enum {string} */
+            financial_disposition: "DISQUALIFIED" | "UNAVAILABLE";
+            /** @enum {string} */
+            status: "ACTIVE" | "RECONCILING" | "RECOVERY_REQUIRED" | "RECOVERED";
+            reason_codes: string[];
+        };
+        FleetFixtureRunPage: {
+            items: components["schemas"]["FleetFixtureRun"][];
+            next_cursor: string | null;
+            /** @enum {string} */
+            status: "UNAVAILABLE" | "OBSERVABLE";
+            reason_codes: string[];
+        };
         FleetTerraformInput: {
             workspace: string;
             /** Format: uuid */
@@ -3376,6 +4057,721 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listFleetGroupAuthorizationDrafts: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact bodies requiring separate independent approval */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetGroupAuthorityReviewPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role/workload access denied; approval must be independent */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid scoped cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetGroupAuthorization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable authorization review */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetGroupAuthorityReview"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role/workload access denied; approval must be independent */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid scoped cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approveFleetGroupAuthorization: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Exact independent authorization approval */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetGroupAuthorityReview"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role/workload access denied; approval must be independent */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version/idempotency conflict, expired review window, changed source or journal state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Invalid scoped cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listInstalledFleetFixtureProfiles: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Privately commissioned immutable fixture generations only. Empty means uninstalled; no public installation or image upload exists. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureProfilePage"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetFixtureProposals: {
+        parameters: {
+            query: {
+                workload_id: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable selections and exact-program approval projection scoped to the current authorized workload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureProposalPage"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createFleetFixtureProposal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FleetFixtureSelection"];
+            };
+        };
+        responses: {
+            /** @description Immutable fixture record; no customer action or financial authority */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureProposalRecord"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version/idempotency conflict or PROGRAM_NOT_PREPARED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FLEET_FIXTURE_SOURCE_BUSY or runtime unavailable; retry the same idempotency key */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetFixtureProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Historical immutable fixture selection remains readable after source revocation. Captured customer evidence is not current readiness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureProposalRecord"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getPreparedFleetFixtureProgram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review exact privately issued unsigned program, complete Git manifest and journal policy before approval. No artifact bytes, storage paths or state are exposed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixturePreparedProgram"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFleetFixtureReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runtime unavailable. Program/approval milestones do not grant customer execution or savings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureReadiness"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approvePreparedFleetFixtureProgram: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Immutable fixture record; no customer action or financial authority */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureProposalRecord"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version/idempotency conflict or PROGRAM_NOT_PREPARED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FLEET_FIXTURE_SOURCE_BUSY or runtime unavailable; retry the same idempotency key */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listFleetFixtureRuns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Explicit unavailable runtime; no completed or queued run is fabricated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetFixtureRunPage"];
+                };
+            };
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestFleetFixtureRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Valid OIDC bearer token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current role or workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Invalid selection, current source/binding, cursor or closed request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description If-Match required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FLEET_FIXTURE_RUNTIME_NOT_CONNECTED; no action was created */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetConfigurationDeclarations: {
         parameters: {
             query?: {

@@ -61,6 +61,17 @@ try {
   assert.equal(mode(generatedRealm), 0o644, 'public fixture realm must be readable by the container UID');
   assert.equal(mode(generatedEnv), 0o600, 'service-secret .env must remain owner-only');
   const originalSecrets = readFileSync(generatedEnv);
+  const realm = JSON.parse(readFileSync(generatedRealm, 'utf8'));
+  const approver = realm.users.filter(user => user.username === 'approver');
+  assert.equal(approver.length, 1, 'one distinct fixture approver is installed');
+  assert.deepEqual(approver[0].realmRoles, ['APPROVER'], 'independent approver receives no owner or execution role');
+  assert.deepEqual(approver[0].attributes.tenant_id, ['tenant-demo']);
+  assert.notEqual(approver[0].username, realm.users[0].username);
+  const profile = JSON.parse(realm.components['org.keycloak.userprofile.UserProfileProvider'][0].config['kc.user.profile.config'][0]);
+  const tenant = profile.attributes.filter(attribute => attribute.name === 'tenant_id');
+  assert.equal(tenant.length, 1);
+  assert.deepEqual(tenant[0].permissions, { view: ['admin'], edit: ['admin'] }, 'users cannot edit the token tenant binding');
+  assert.equal(tenant[0].multivalued, false);
   console.log('PASS bootstrap creates a 0644 fixture realm and a 0600 secret file');
 
   probeAsKeycloak(true);
