@@ -1,6 +1,14 @@
 # AWS scheduling pilot acceptance record
 
-## 19 October: native existing AWS commitment observations
+## 19 October: accepted bounded existing AWS commitment observations
+
+The [existing AWS commitment observation acceptance](commitment-portfolio-acceptance.md) is deterministic on implementation commit `da16989f951205cfb3c46ccf5f6f3b022c0a76c1`, tree `fa1064f993cec9145837543faca607bb617cfc57`. All sixteen required [CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39318602905) passed. Public indexed portfolio run `0074ff0d-3e51-486d-90c3-1269b2529cdb` passed 218 exact canonical ClickHouse readbacks, versioned evidence, restricted daemon publication, actual Finance PKCE, IDs-only creation and persisted reload. Separate public indexed joint evidence `18296de6-7a13-4fcf-96ce-ef344b0c4b5b` passed its native analysis and daemon replacement. All owned native-lab resources were removed. Provider responses and history remain labelled fixtures.
+
+Installed 36→39 migration passed the unchanged seven-check recovery gate with the original signed plan, payload, nonce and provider target preserved through exactly one stop/start. Fifteen application bindings and all 39 migration hashes matched the source; protected services and volumes were preserved. All sixteen served console files matched the native build and installed image. Installed browser run `7797d6d8-5844-4860-b787-9e6ec533eeae` passed 103 ordinary cases plus two separately commissioned OIDC cases with zero skips, retries or flaky results. The 39 isolated presentation cases remain supplementary; the separate native portfolio journey establishes its actual Finance/API/model path. Encrypted physical PostgreSQL recovery `8d400897-6b25-4187-863b-6e95f363f476` passed eight quarantined readback checks and owned cleanup. These facts do not establish hosted recovery objectives or resumed workflows.
+
+Only the one-point bounded observation subset advances from 0 to 40, adding 0.4 points: **25.4% → 25.8%**. Ten points of remaining forecast/portfolio scope stay at 0. Coverage, effective discounts, forecasts, break-even/cash valuation, commitment purchase decisions, full fleet safety, execution and customer-verified savings remain unavailable. There is no cloud/customer mutation, process-loss claim for the portfolio daemon, or repeated credit for foundations or test counts. Earlier candidate and failed attempts below retain their historical limits. The rough engineering estimate including verified partial work remains **27–31%**, without a fresh whole-product audit. See the [reviewed Release 1 mapping](release-1-acceptance.json) and [implementation versus acceptance](release-1-implementation-vs-acceptance.md); this bank does not accept every scenario.
+
+## 19 October: earlier candidate native existing AWS commitment observations
 
 The [commitment observation workflow](commitment-portfolio.md) connects issued
 RI/SP and CUR evidence to a tenant-bound queue, separate Python model, restricted
@@ -11,8 +19,8 @@ immutable replay, repeated migration in two databases, IDs-only browser creation
 daemon publication, persisted reload and desktop/mobile presentation. Independent
 review matched all 621 source pins and confirmed empty owned resource inventories.
 The receipt SHA256 is `661874890db085e1d00c7dce0f6bd302e6791d9f8d2b3c100ce783e579b4ba63`.
-Earlier failures remain retained. This candidate proof is separate from final
-indexed cold acceptance and full CI, which remain required before credit.
+Earlier failures remain retained. At that boundary, this candidate proof was separate from final
+indexed cold acceptance and full CI, which remained required before credit.
 
 Native observations retain class, scope, currencies, pricing basis, sparse RI
 unknowns and charges absent from current inventory. Coverage, forecasts, remaining

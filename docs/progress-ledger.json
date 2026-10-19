@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 25.4,
-  "rounded_description": "25.4 weighted percent of the full product; approximately 25 percent",
-  "credit_review": "Only the bounded native physical-analysis subset advances to deterministic end-to-end acceptance. The exact published cold CI flow connects provider-shaped native hardware and synthetic fourteen-day Prometheus history through versioned storage, ClickHouse, the existing Python model, restricted immutable member publication, actual daemon retirement/replacement and real Keycloak PKCE through the built console. Two members are evaluated and one remains unavailable; low-CPU/high-memory rejection, declared fourfold demand, missing statistics, revoked sources and unsupported templates remain explicit. The observed roster is a point capture, request counts are a demand proxy, and complete candidate suitability remains unestablished. All fourteen standard jobs on the implementation commit passed before this credit write. The local fixed-60-second failure remains retained with its exact cause unproven; a separately labelled shared-cache diagnostic passed the unchanged deadline in 47.181 seconds and does not become cold acceptance. Existing two-point scope is split 1+1 with both children retaining their former 20 maturity before only physical analysis advances 20→40, adding 0.2 points. Contracted avoidable economics, complete group safety/authority, calibrated broad forecasts, genuine customer/live operation and production acceptance remain pending. Shared foundations and test counts earn no additional credit; execution remains disabled, savings unavailable and cloud credit absent. The ledger/documentation follow-up retains its own exact-commit CI gate.",
+  "current_weighted_percent": 25.8,
+  "rounded_description": "25.8 weighted percent of the full product; approximately 26 percent",
+  "credit_review": "Bounded existing AWS RI/SP observations pass ordinary provider-shaped ingestion, immutable object/ClickHouse evidence, a restricted tenant-bound daemon and separate Python model, real Finance PKCE, IDs-only request and persisted reload. All16 required implementation CI jobs passed. Installed36-to39 migration preserves the same signed stopped-instance ownership through exactly one stop/start;15 runtime bindings, all39 migration hashes, complete16-file served console,105 browser cases with zero retry/skip and8 quarantined encrypted physical PostgreSQL recovery checks passed. Only this one-point observation subset advances0→40, adding0.4points. Coverage, commitment decisions, forecasts, cash valuation, purchasing, full fleet safety and customer/production acceptance remain outside this credit. No shared foundation, test-count, cloud, purchase or verified-savings credit is added.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 1.7,
+      "contribution_points": 2.1,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -210,13 +210,36 @@
           ]
         },
         {
-          "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 11,
-          "accepted_maturity": 0,
+          "id": "bounded_native_commitment_observations",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 40,
+          "release_1_status": "DETERMINISTIC",
           "evidence": [
-            "docs/traceability.md"
+            "internal/commitmentportfolio",
+            "economics/autopilot/portfolio.py",
+            "migrations/039_commitment_portfolio.sql",
+            "frontend/src/CommitmentPortfolio.tsx",
+            "scripts/commitment-portfolio-lab.mjs",
+            "docs/commitment-portfolio-acceptance.md"
           ],
           "remaining": [
+            "Authentic customer AWS evidence and supervised live use",
+            "Production operations and contractual acceptance of this bounded observation capability",
+            "Purchase recommendations and portfolio optimization remain in the separate unaccepted package"
+          ]
+        },
+        {
+          "id": "forecast_commitment_portfolio",
+          "scope_weight_percent": 10,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/traceability.md",
+            "docs/release-1-implementation-vs-acceptance.md"
+          ],
+          "remaining": [
+            "Native eligible/covered usage, contracted marginal rates, remaining obligations and evidenced amortization",
+            "Genuine post-optimization historical ownership and all five issued optimization outcomes",
+            "Calibrated stable-demand forecasts, purchase/do-not-purchase decisions and independent persisted Finance review",
             "Portfolio allocation, forecasting and broader optimisation",
             "Historical ownership, complete chargeback/showback policy breadth, tag/account hierarchies and multi-level allocation",
             "Provider-scale asynchronous or streaming reports and wider cost definitions",
@@ -225,7 +248,7 @@
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 9.444444444444445
+      "current_area_maturity": 11.666666666666666
     },
     {
       "id": "execution_iac_gitops",
@@ -1199,6 +1222,113 @@
       },
       "live_credit_awarded": false,
       "acceptance": "Only the bounded native physical-analysis subset advances to deterministic end-to-end acceptance. The exact published cold CI flow connects provider-shaped native hardware and synthetic fourteen-day Prometheus history through versioned storage, ClickHouse, the existing Python model, restricted immutable member publication, actual daemon retirement/replacement and real Keycloak PKCE through the built console. Two members are evaluated and one remains unavailable; low-CPU/high-memory rejection, declared fourfold demand, missing statistics, revoked sources and unsupported templates remain explicit. The observed roster is a point capture, request counts are a demand proxy, and complete candidate suitability remains unestablished. All fourteen standard jobs on the implementation commit passed before this credit write. The local fixed-60-second failure remains retained with its exact cause unproven; a separately labelled shared-cache diagnostic passed the unchanged deadline in 47.181 seconds and does not become cold acceptance. Existing two-point scope is split 1+1 with both children retaining their former 20 maturity before only physical analysis advances 20→40, adding 0.2 points. Contracted avoidable economics, complete group safety/authority, calibrated broad forecasts, genuine customer/live operation and production acceptance remain pending. Shared foundations and test counts earn no additional credit; execution remains disabled, savings unavailable and cloud credit absent. The ledger/documentation follow-up retains its own exact-commit CI gate."
+    },
+    {
+      "id": "native-existing-commitment-observations-2026-10-19",
+      "recorded_at": "2026-10-19",
+      "previous_weighted_percent": 25.4,
+      "weighted_percent": 25.8,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 11,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_native_commitment_observations",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 10,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_commitment_observations",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 0.4,
+          "acceptance": "Existing commitment observations only; no commitment recommendation or purchase maturity."
+        }
+      ],
+      "implementation_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "implementation_tree": "fa1064f993cec9145837543faca607bb617cfc57",
+      "implementation_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39318602905",
+      "required_standard_ci_jobs": [
+        "frontend-contract",
+        "fleet-group-artifacts",
+        "security",
+        "compose-smoke",
+        "flux-lab",
+        "go (16)",
+        "fleet-native-capacity",
+        "economics",
+        "go (17)",
+        "commitment-portfolio",
+        "fleet-joint-decision",
+        "kubernetes-lab",
+        "infrastructure",
+        "fleet-group-connected",
+        "fleet-native-assessment",
+        "fleet-workspace-health"
+      ],
+      "preceding_ledger_review": "native-fleet-physical-capacity-2026-10-19",
+      "prior_history_sha256": "43571244dee8d82ebd6b090f5c32f499a2ea8020341822df26c57bfba6fd0fde",
+      "evidence": [
+        "docs/commitment-portfolio-acceptance.md",
+        "docs/release-1-acceptance.json",
+        "scripts/commitment-portfolio-lab.mjs"
+      ],
+      "bounded_evidence": {
+        "ci": {
+          "path": "work/private/ci-native-39318602905/jobs-final.json",
+          "sha256": "d8d3c3fc45382c3eaf5e6f6d4248d366f1f7c1d0028c43d2c7cc9bfa9b517ea9",
+          "run_id": 39318602905
+        },
+        "portfolio": {
+          "path": "work/private/commitment-portfolio/0074ff0d-3e51-486d-90c3-1269b2529cdb/receipt.json",
+          "sha256": "7d35df37800b2a5a5e02641f7ba1628b99ebd1b763df5c4d0fb639c6a4f21ab4",
+          "run_id": "0074ff0d-3e51-486d-90c3-1269b2529cdb"
+        },
+        "joint": {
+          "path": "work/private/fleet-joint-decision/18296de6-7a13-4fcf-96ce-ef344b0c4b5b/acceptance.json",
+          "sha256": "5370745d27e820dff78202160802ca157047f0fe43acc56ec740de480670acdc",
+          "run_id": "18296de6-7a13-4fcf-96ce-ef344b0c4b5b"
+        },
+        "r1": {
+          "path": "work/private/main36-to39/18296de6-7a13-4fcf-96ce-ef344b0c4b5b/r1-database-receipt.json",
+          "sha256": "c7b5903cbce459d936f5ef9e2d70bf8531e946312d1dbb47eedbfac3392daa44",
+          "run_id": null
+        },
+        "runtime": {
+          "path": "work/commitment-portfolio-runtime-source-metadata.json",
+          "sha256": "1b9ee99a4f57ec598bd037c07311eb34eb8fa7ad5cd64643f94f7b0add1d63d5",
+          "run_id": null
+        },
+        "dist": {
+          "path": "work/commitment-portfolio-release-web-dist.json",
+          "sha256": "4ed22f1df572ab8580488677d7c52db007c550e078dad985f430e5b1aabad959",
+          "run_id": "b0da5d76-378f-4bdc-ae0c-576e66fc6f5f"
+        },
+        "browser": {
+          "path": "work/private/installed-browser-105-fa1064/7797d6d8-5844-4860-b787-9e6ec533eeae/acceptance.json",
+          "sha256": "8f907ec4c6470b0491a16ed68d5d8b235bfbc856189f60104265365e8634032d",
+          "run_id": "7797d6d8-5844-4860-b787-9e6ec533eeae"
+        },
+        "recovery": {
+          "path": "work/private/postgres-recovery/8d400897-6b25-4187-863b-6e95f363f476/acceptance.json",
+          "sha256": "49882b8243b4a1bb0f157cbb06e326301381cca59b85856205c59a5ad64d3bfb",
+          "run_id": "8d400897-6b25-4187-863b-6e95f363f476"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Bounded existing AWS RI/SP observations pass ordinary provider-shaped ingestion, immutable object/ClickHouse evidence, a restricted tenant-bound daemon and separate Python model, real Finance PKCE, IDs-only request and persisted reload. All16 required implementation CI jobs passed. Installed36-to39 migration preserves the same signed stopped-instance ownership through exactly one stop/start;15 runtime bindings, all39 migration hashes, complete16-file served console,105 browser cases with zero retry/skip and8 quarantined encrypted physical PostgreSQL recovery checks passed. Only this one-point observation subset advances0→40, adding0.4points. Coverage, commitment decisions, forecasts, cash valuation, purchasing, full fleet safety and customer/production acceptance remain outside this credit. No shared foundation, test-count, cloud, purchase or verified-savings credit is added."
     }
   ]
 }

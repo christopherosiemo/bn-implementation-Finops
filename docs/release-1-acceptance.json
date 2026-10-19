@@ -1,0 +1,1644 @@
+{
+  "schema_version": "1",
+  "scope": "Release1 scenario mapping only: preserved product specification sections200–222.",
+  "status": "REVIEWED_BOUNDED_MAPPING_NOT_RELEASE_ACCEPTANCE",
+  "base_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+  "base_tree": "fa1064f993cec9145837543faca607bb617cfc57",
+  "preserved_specification": {
+    "path": "docs/product-specification.md",
+    "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+    "sha256": "8eabf8d5acf8f0888953cf743a4158bcf349012126ed9f054954bee658efb647",
+    "edited": false,
+    "prior_draft_worktree_sha256": "4a9914067825abe182c975cafaadac5031c48cd499abe4730560022f0bc4ec8d",
+    "line_ending_note": "Published Git blob uses LF. Prior draft quoted the same text with Windows CRLF. Reviewed verbatim excerpts and hashes below refer to exact published LF bytes; the prior CRLF draft remains untouched."
+  },
+  "financial_example_errata": {
+    "path": "docs/decisions.md",
+    "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+    "rule": "Section200 original signed amounts totalGBP840000. The corrected exactGBP1000000 fixture usesGBP860000 usage. Neither credit sign nor original specification is silently changed."
+  },
+  "status_definitions": {
+    "ABSENT": "No implemented software evidence identified in this bounded mapping.",
+    "PARTIAL": "Some implemented evidence exists; exact scenario or a software integration remains unfinished.",
+    "DETERMINISTIC": "Only the expressly described component or local fixture behavior has recorded deterministic evidence. This does not mark the complete specification scenario, connected customer workflow or production acceptance complete.",
+    "LIVE_READY": "Connected software gates passed and operational assets are ready; customer commissioning is not acceptance.",
+    "EXTERNAL_GATE": "All necessary software acceptance passed; only specifically named customer/provider permission or evidence remains. Never use for unfinished software.",
+    "COMPLETE": "Every exact criterion and declared release-scope gate passed on retained final-source evidence; no broader claim."
+  },
+  "interpretation": [
+    "This is not a fresh whole-product audit and does not change fixed progress weights, official progress or immutable history.",
+    "Existing recorded results are cited, not rerun by writing this map. Commands below are reproducible acceptance checks, not newPASS results.",
+    "New commitment-decision code and model-unit checks remain candidate work until actual issued-input/daemon/API/Finance approval journeys and requiredCI pass.",
+    "Software gaps remain software gaps even where live customer/provider acceptance will also be needed.",
+    "No cloud calls, main database changes, tests, browser runs or customer messages are performed by generating this file.",
+    "No entry in this mapping receives COMPLETE, LIVE_READY or EXTERNAL_GATE. DETERMINISTIC is bounded evidence only; all full-scenario/customer completion remains unestablished by this review."
+  ],
+  "execution_policy": {
+    "commands_executed_in_this_review": [],
+    "main_or_cloud_mutations": 0,
+    "skipped_tests_are_not_pass": true,
+    "stateful_suites_sequential": true,
+    "credentials": "Load only approved private fixture/runtime files; never embed in arguments, this JSON, logs or published artifacts.",
+    "release_gates": [
+      "Final exact-source full requiredCI and source/dependency/contract guards.",
+      "Separate same-source public native joint and portfolio receipts; cleanup/authority closure verified.",
+      "Reviewed36→39 migration preserves an actual ownedR1 restoration and all protected resources/volumes.",
+      "Exact15runtime image/source bindings, full servedWeb dist bytes and derived105case installed suite with two separate commissioned cases.",
+      "Required encryptedPostgreSQL backup/readback; customer/provider acceptance remains explicitly scoped."
+    ],
+    "review_actions_only": [
+      "Read published source and preserved evidence references",
+      "Write separately versioned ignored mapping, note and freeze"
+    ]
+  },
+  "command_catalog": {
+    "financial_decimal": {
+      "cwd": "economics",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "tests.test_economics.BillingTests",
+        "tests.test_economics.EconomicsTests",
+        "tests.test_v2",
+        "tests.test_v3"
+      ],
+      "purpose": "Exact native normalization, corrected invoice example, financial gate/correction/negative-value regressions.",
+      "prerequisites": [
+        "Pinned economics dependencies; no cloud credentials."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "economics/tests/test_economics.py",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "690fc6093b299ff16a91ebb14ca1428403a8caf2b0918a8f655de15047375d23"
+          },
+          {
+            "path": "economics/tests/test_v2.py",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "101d5036283e6c7ceafd0bf08f3b926232d72261a1d838896b67b02645df2158"
+          },
+          {
+            "path": "economics/tests/test_v3.py",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "dd1d5bcd57999a0d2c92a2f83de0c7327ce86af33ea3b641721b9d49b60fb645"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard python -m unittest module/class selection; every named module/class exists. No custom or invented flags."
+    },
+    "capacity_model": {
+      "cwd": "economics",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "tests.test_capacity.CapacityTests"
+      ],
+      "purpose": "Physical memory, explicit reserve, seasonal metadata, compatibility and forecast limitations.",
+      "prerequisites": [
+        "Pinned economics dependencies; synthetic historical model inputs remain labelled."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "economics/tests/test_capacity.py",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "8fa85c118c665d92fcf007a6716f5b0ff1f6c522c74d711c0ae6ebfaab9b18b0"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard python -m unittest module/class selection; every named module/class exists. No custom or invented flags."
+    },
+    "configuration_component": {
+      "cwd": ".",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/configuration",
+        "./internal/fleethistory",
+        "./internal/safety"
+      ],
+      "purpose": "Exact configuration binding, unknown authority, source freshness, state changes and production safety.",
+      "prerequisites": [
+        "Go1.27.2 with pinned modules.",
+        "Use a clean test environment with no main/cloud runtime DSNs or credentials inherited. Component tests do not establish a connected customer action."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "internal/configuration/types_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "cc41317a6548931da09fe6bd68dd353a37555303c18fcec4fe595a4a22cf642b"
+          },
+          {
+            "path": "internal/configuration/artifact_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "2bcc10645e42288799fe4254dd7d82a3271f005b02e6c93c90426da5fc1ee9cc"
+          },
+          {
+            "path": "internal/fleethistory/history_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "c5809bb5a57c7824f662744308b853fe7ea7debf3e7119b2dcd44463653ce328"
+          },
+          {
+            "path": "internal/safety/safety_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "dff9be83f270f3f69747ff7bdcf2b20aa2a529d88a006efc9e5f2c794b2b8aae"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard go test -count=1 and, where supplied, -run regexp. Every explicitly selected test function exists; package-only commands are component suites."
+    },
+    "fleet_component": {
+      "cwd": ".",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/fleet",
+        "./internal/fleetgroup",
+        "./internal/workflow"
+      ],
+      "purpose": "Bounded blast radius, typed health/inverse, uncertain delivery and durable workflow regressions.",
+      "prerequisites": [
+        "Go1.27.2 with pinned modules. Package fixtures are not live AWS rollouts.",
+        "Use a clean component-test environment; protocol/double results do not enable public Fleet execution."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "internal/fleet/fleet_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "50a7da4f2c609ed1642ca6e6aee715cc63761009b0367f533bd96d31a43ec0be"
+          },
+          {
+            "path": "internal/fleetgroup/fleetgroup_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "624ffb2dfc6af580fd9dc97e6caa93497014d87540d59dc68a7b0bb533679265"
+          },
+          {
+            "path": "internal/workflow/workflow_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "fde35a37f199486fb02827e44454136f0533e804386b5278967ab24b9e5cbd50"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard go test -count=1 and, where supplied, -run regexp. Every explicitly selected test function exists; package-only commands are component suites."
+    },
+    "kubernetes_component": {
+      "cwd": ".",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/kubernetes",
+        "-run",
+        "^(TestHPARequestDenominatorAndRoundingCanIncreaseTotal|TestPreApplyRecheckRejectsLaterPDBAndExpiredAuthority|TestHardSafetyGuardsBlockIndependently)$"
+      ],
+      "purpose": "HPA coupling and zero-disruption PDB refusal. Existing HPA numerical fixture differs from scenario207 exact50percent/60percent constants.",
+      "prerequisites": [
+        "Go1.27.2 with pinned modules."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "internal/kubernetes/safety_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "a253b362adf440c9a2b2b3f0f6c2fbf919c98824bd4010a3095492629df366e8"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard go test -count=1 and, where supplied, -run regexp. Every explicitly selected test function exists; package-only commands are component suites."
+    },
+    "allocation_component": {
+      "cwd": ".",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/allocation",
+        "-run",
+        "^TestAllocation(SignedConservationAndCurrencySeparation|ExactNativeBindingAndMissingOwners|UnavailableCostsStayDistinctFromZero)$"
+      ],
+      "purpose": "Visible exact signed unallocated cost, no fabricated owner and missing/zero separation.",
+      "prerequisites": [
+        "Go1.27.2 with pinned modules."
+      ],
+      "runtime_mutation": false,
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "internal/allocation/allocation_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "500fe8f5d6374cdca9bae22ce423219ff7dd5e97c2a2a6ddc118c4d2c951107a"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard go test -count=1 and, where supplied, -run regexp. Every explicitly selected test function exists; package-only commands are component suites."
+    },
+    "native_capacity": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/fleet-native-capacity-lab.mjs"
+      ],
+      "purpose": "Indexed native-shaped hardware/history -> real model -> restricted member/batch -> OIDC UI, including memory95 and fourfold declarations.",
+      "prerequisites": [
+        "Root-approved exact indexed source and pinned local images.",
+        "Isolated owned services/cold caches; accepted quotas and deadlines; no customer credentials."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Owned isolated fixture only; zero published ports and verified cleanup.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/fleet-native-capacity-lab.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "d849af0d846de17e48cba7fa0a2b1dcec36f4e102e4bf05d7a76b1829a7d8d34"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Existing script entrypoint with no custom argument. Native labs accept no alternate source, clock, image, endpoint, credential or timeout arguments."
+    },
+    "native_join": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/fleet-joint-decision-lab.mjs"
+      ],
+      "purpose": "Indexed conditional native cost and physical join, actual daemon replacement and real Finance UI. Conditional prices do not establish contracted avoidable saving.",
+      "prerequisites": [
+        "Root-approved final indexed source and exact pinned images.",
+        "Original fixed client/model/source gates; owned cleanup must pass."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Owned isolated fixture only; no main/customer changes.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/fleet-joint-decision-lab.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "3d525e3d3c218e9a908fc31b479d07af19ef0f4150954e1f30fbbc8f41df787f"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Existing script entrypoint with no custom argument. Native labs accept no alternate source, clock, image, endpoint, credential or timeout arguments."
+    },
+    "native_portfolio": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/commitment-portfolio-lab.mjs"
+      ],
+      "purpose": "Issued native commitment/CUR -> actual218ClickHouse rows -> dedicated analyst/Python -> FinancePKCE/reload.",
+      "prerequisites": [
+        "Final indexed source including accepted Linux DAC correction and pinned images.",
+        "Exact039schema; independent cleanup proof; current fullCI required."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Owned isolated fixture only; no purchase/execution authority.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/commitment-portfolio-lab.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "38d628eb1fedfeb1492df740e75277ca64a46967fd14a8820076377ed8e051e4"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Existing script entrypoint with no custom argument. Native labs accept no alternate source, clock, image, endpoint, credential or timeout arguments."
+    },
+    "operating_loop": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/smoke.mjs"
+      ],
+      "purpose": "Retained fixture scheduling API/idempotency/current financial claim and incident refusal.",
+      "prerequisites": [
+        "Explicit root GO after final-source installation/readiness.",
+        "No active execution or owned restoration; run shared-fixture suites sequentially."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Retained local fixture; never treat synthetic VERIFIED as customer savings.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/smoke.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "ecf4822859de4ebd12126449ca98d05fcdd4624f765ec0ff6fc8b8ec636d4cea"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Existing script entrypoint with no custom argument. Native labs accept no alternate source, clock, image, endpoint, credential or timeout arguments."
+    },
+    "process_recovery": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/recovery-smoke.mjs"
+      ],
+      "purpose": "Actual same-source API/worker interruption with owned STOP/START recovery and exactly-once provider audit.",
+      "prerequisites": [
+        "Explicit root GO, source-bound local fixture, no unrelated active occurrence.",
+        "Keep PostgreSQL/Temporal/executor and existing volumes alive; mandatory helper cleanup."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Retained local scheduling fixture; not25percent customer fleet rollout.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/recovery-smoke.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "e89eff13f001e7605f904fa34380328c148c4400c6c5157620935de0bdaca1a9"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "No argument invokes the existing same-source recovery helper. Its only additional supported flag is --migrate-before-restart, used separately by the reviewed R1 wrapper; not added here."
+    },
+    "slo_guard": {
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/slo-smoke.mjs"
+      ],
+      "purpose": "Independent hard-SLO/regression guards and false-savings disqualification in the scheduling fixture.",
+      "prerequisites": [
+        "Explicit root GO on exact installed source; sequential shared-fixture execution."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Local fixture only; not PagerDuty/customer incident integration.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "scripts/slo-smoke.mjs",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "98f1b0c627f11ecbdde46d2f80bba855648fa4dabc9fdf80beb0056cd985b263"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Existing script entrypoint with no custom argument. Native labs accept no alternate source, clock, image, endpoint, credential or timeout arguments."
+    },
+    "financial_pg": {
+      "cwd": ".",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/service",
+        "-run",
+        "^(TestFinancialSourceAuthoritySerializesRevocationAndPreservesOwnedStart|TestSLOSavingsDisqualificationAppendsOnceAndRetainsFinancialHistory)$"
+      ],
+      "purpose": "Restricted real-PG current source, owned recovery and append-only financial disqualification.",
+      "prerequisites": [
+        "Fresh disposable administrator TEST_DATABASE_URL and actual required private economics services.",
+        "Fail acceptance if any selected integration test skips; no main DSN.",
+        "sloSavingsDatabase migrates the supplied TEST_DATABASE_URL directly: it must identify a pre-created separately owned disposable database; never use the installed main database. The other selected test creates its own owned child database."
+      ],
+      "runtime_mutation": true,
+      "mutation_scope": "Fresh isolated child database only.",
+      "source_review": {
+        "status": "TARGET_AND_ARGUMENTS_FOUND_IN_SOURCE_NOT_EXECUTED",
+        "source_pins": [
+          {
+            "path": "internal/service/financial_source_lock_integration_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "bcea838d8792e34fed4663a6711e54f60e890717b02a6a6bd17c9586c3e68709"
+          },
+          {
+            "path": "internal/service/slo_savings_integration_test.go",
+            "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+            "sha256": "6adfe4c4db74fd24726335390ff8e79d9c886b378648c0195c4c594ff9a616dd"
+          }
+        ]
+      },
+      "acceptance_result_from_this_review": "NOT_RUN",
+      "argument_review": "Standard go test -count=1 and, where supplied, -run regexp. Every explicitly selected test function exists; package-only commands are component suites.",
+      "evidence_limit": "These identity/locking/append tests do not themselves establish financial arithmetic, SLO statistics, finalized customer invoices or business-work normalization."
+    }
+  },
+  "scenarios": [
+    {
+      "id": 200,
+      "title": "ACCEPTANCE TEST — FINANCIAL ACCURACY",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4539,
+        "sha256": "10c4583ceb0fc2e2ee6ed5a7e2b26bbda7a7e49d72092465c5cd24ee08f1de50",
+        "verbatim": "# 200. ACCEPTANCE TEST — FINANCIAL ACCURACY\n\nSynthetic invoice:\n\n£1,000,000.\n\nComponents:\n\n£700k usage.\n\n£150k commitment.\n\n£80k credit.\n\n£50k tax.\n\n£20k adjustment.\n\nSystem must reconcile exact source totals without double-counting.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "d3fa60d808b844756bc9323ec8fbad219a496f18c63b43cfc1df8e7b5f2833b4"
+      },
+      "assessment": "Exact signed synthetic totals and no double-counting are covered. The preserved specification inputs sum toGBP840000; the separately correctedGBP1000000 fixture usesGBP860000 usage.",
+      "existing_evidence": [
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        },
+        {
+          "path": "economics/tests/test_economics.py",
+          "sha256": "690fc6093b299ff16a91ebb14ca1428403a8caf2b0918a8f655de15047375d23",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "0eedc13988faf137bbab035887b982a85c8665a3d796af1ebc04ea5d80722665"
+        }
+      ],
+      "executable_checks": [
+        "financial_decimal"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 201,
+      "title": "ACCEPTANCE TEST — COMMITMENT AWARENESS",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4561,
+        "sha256": "4834ad7a1a3a0d898779e1eeacc140bfa4b06dff30056281b46304a4e4f4d212",
+        "verbatim": "# 201. ACCEPTANCE TEST — COMMITMENT AWARENESS\n\nVM currently costs:\n\n£10,000/month list.\n\nAlternative:\n\n£7,000.\n\nBut current resource consumes £6,000/month otherwise-stranded commitment.\n\nExpected:\n\nSystem must NOT claim £3,000 saving.\n\nTrue economic migration result must include stranded commitment.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "9ff3bcff9b3a92ef4b8ac3bfb960b5996094d512e2d82725426b63bc9ea9e0c3"
+      },
+      "assessment": "Covered or unknown commitments suppress a naive saving claim; native039observations retain used/unused spend. A complete native migration result including otherwise-strandedGBP6000 is not established.",
+      "existing_evidence": [
+        {
+          "path": "docs/commitment-portfolio.md",
+          "sha256": "df73438cd50ec8066707cca42f13be4c717079bf8a7559973a3865529b7ebf7a",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "df73438cd50ec8066707cca42f13be4c717079bf8a7559973a3865529b7ebf7a"
+        },
+        {
+          "path": "docs/fleet-joint-decision.md",
+          "sha256": "50a4a35cdb6feb0cb2d0e3d0481e486e8034de6553f6dc31184a677bc737ebad",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "50a4a35cdb6feb0cb2d0e3d0481e486e8034de6553f6dc31184a677bc737ebad"
+        }
+      ],
+      "executable_checks": [
+        "financial_decimal",
+        "native_portfolio",
+        "native_join"
+      ],
+      "unfinished_software": [
+        "Connect issued commitment allocation and post-migration residual obligations to this exactGBP10000/7000/6000 counterfactual.",
+        "Persist and expose the economic result with authentic scoped account rates; conditional standalone hourly differences are insufficient."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Customer-native invoice/allocation finality and account-specific eligibility require supervised provider acceptance.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 202,
+      "title": "ACCEPTANCE TEST — RIGHTSIZING",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4581,
+        "sha256": "a0de5ef7894ef19cdf94633db6bd47cc6e71139936991e43e6b1e67f4f39e3c9",
+        "verbatim": "# 202. ACCEPTANCE TEST — RIGHTSIZING\n\nVM fleet:\n\n10 × current instance.\n\nObserved:\n\nCPU p99 40%.\n\nMemory p99 50%.\n\nCandidate provides:\n\n30% headroom beyond forecast p99.\n\nNetwork/disk compatible.\n\nEffective monthly saving:\n\n£8,000.\n\nExpected:\n\nrecommendation valid.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "53ff1163db5e374ceaa26f123cb08d6354064fdf9aadfde44681989472d863f6"
+      },
+      "assessment": "Native per-member physical evidence and conditional candidate costs are connected. The full10member recommendation with30percent reserve, compatibility andGBP8000 effective monthly saving is not accepted.",
+      "existing_evidence": [
+        {
+          "path": "docs/fleet-native-capacity-acceptance.md",
+          "sha256": "36e6c5ea5068ff176901240f37d58d9b42dc81d09349b8b90f8b4efa4c4e7df2",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "36e6c5ea5068ff176901240f37d58d9b42dc81d09349b8b90f8b4efa4c4e7df2"
+        },
+        {
+          "path": "docs/fleet-joint-decision-acceptance.md",
+          "sha256": "bf502eae2af2cc7f5567985d9d4e05ac35e586d6fe85e55c9d684cfce74836d9",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "bf502eae2af2cc7f5567985d9d4e05ac35e586d6fe85e55c9d684cfce74836d9"
+        }
+      ],
+      "executable_checks": [
+        "capacity_model",
+        "native_capacity",
+        "native_join"
+      ],
+      "unfinished_software": [
+        "Prove the exact ten-member positive scenario with current native candidate bindings, complete physical population and post-optimization forecast.",
+        "Derive effective avoidable monthly economics including commitments and retained/incremental costs; issue a supported recommendation rather than promote conditional rates."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Customer-native workload history and account pricing require live read acceptance; execution remains separately gated.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 203,
+      "title": "ACCEPTANCE TEST — MEMORY FAILURE",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4609,
+        "sha256": "4a6c6f7dce80b2e9896d9d16900500e943520d28928830b038cb69cc51d2ac27",
+        "verbatim": "# 203. ACCEPTANCE TEST — MEMORY FAILURE\n\nCPU:\n\n15%.\n\nMemory:\n\n95%.\n\nExpected:\n\ndownsize rejected.\n\nCPU alone cannot trigger rightsizing.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "fe548503e8ffbdbeeb94ae7959e351d81bf1d2b063a409b893c74e91178f76c3"
+      },
+      "assessment": "The bounded model/native fixture rejects downsizing under95percent memory despite lowCPU. No CPU-only permission or monetary/execution claim follows.",
+      "existing_evidence": [
+        {
+          "path": "economics/tests/test_capacity.py",
+          "sha256": "8fa85c118c665d92fcf007a6716f5b0ff1f6c522c74d711c0ae6ebfaab9b18b0",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "8fa85c118c665d92fcf007a6716f5b0ff1f6c522c74d711c0ae6ebfaab9b18b0"
+        },
+        {
+          "path": "docs/fleet-native-capacity-acceptance.md",
+          "sha256": "36e6c5ea5068ff176901240f37d58d9b42dc81d09349b8b90f8b4efa4c4e7df2",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "36e6c5ea5068ff176901240f37d58d9b42dc81d09349b8b90f8b4efa4c4e7df2"
+        }
+      ],
+      "executable_checks": [
+        "capacity_model",
+        "native_capacity"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 204,
+      "title": "ACCEPTANCE TEST — SEASONALITY",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4627,
+        "sha256": "84c31cd642e831834e0a95945f0707c284ad23445243b0455c63ce82c96a1902",
+        "verbatim": "# 204. ACCEPTANCE TEST — SEASONALITY\n\n11 months low load.\n\nDecember 4× load.\n\n90-day dataset includes annual event metadata.\n\nExpected:\n\nrecommendation must preserve declared seasonal capacity requirement.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "a996db011a70f612e1d716f71d055997f72d6adf4cd6233ed0ea167c9dec5c62"
+      },
+      "assessment": "Declared fourfold seasonal demand is preserved by the physical model, including events beyond a short requested horizon. Declarations are not proof of elevenmonths observed history.",
+      "existing_evidence": [
+        {
+          "path": "economics/tests/test_capacity.py",
+          "sha256": "8fa85c118c665d92fcf007a6716f5b0ff1f6c522c74d711c0ae6ebfaab9b18b0",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "8fa85c118c665d92fcf007a6716f5b0ff1f6c522c74d711c0ae6ebfaab9b18b0"
+        },
+        {
+          "path": "docs/native-telemetry.md",
+          "sha256": "455928316631417c6f804a3a3edbf6936e1434b0d9290bb7954b6699accf10a0",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "455928316631417c6f804a3a3edbf6936e1434b0d9290bb7954b6699accf10a0"
+        }
+      ],
+      "executable_checks": [
+        "capacity_model",
+        "native_capacity"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 205,
+      "title": "ACCEPTANCE TEST — IAC",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4641,
+        "sha256": "d75161eed3ccc68cb1780216618d2ecffc94d31ecc968b5c3c0af165998f2e59",
+        "verbatim": "# 205. ACCEPTANCE TEST — IAC\n\nTerraform says:\n\n`m6i.4xlarge`.\n\nCloud currently:\n\n`m6i.4xlarge`.\n\nOptimiser proposes:\n\n`m6i.2xlarge`.\n\nExpected:\n\nopen Terraform PR.\n\nDo not directly mutate EC2.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "acd1e09f5759e36ffa98dcb1cd85d0c1bafd9bf560e28b04054c2aec4d292bd7"
+      },
+      "assessment": "Native configuration discovery, exact repository/state bindings and private Git/Terraform artifact fixtures exist. A customer Terraform PR changing the requested instance type is not implemented/accepted by the bounded package.",
+      "existing_evidence": [
+        {
+          "path": "docs/fleet-configuration.md",
+          "sha256": "24a27c49a0791274393d345899dc199faa4bfe333c4a21ffbeab55c338f88fc5",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "24a27c49a0791274393d345899dc199faa4bfe333c4a21ffbeab55c338f88fc5"
+        },
+        {
+          "path": "docs/configuration-artifact-lab.md",
+          "sha256": "6d837667f88c8de9a7a6e88398ff86faba64d2e90fbcb3d11d8e05abeb9d071d",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "6d837667f88c8de9a7a6e88398ff86faba64d2e90fbcb3d11d8e05abeb9d071d"
+        },
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        }
+      ],
+      "executable_checks": [
+        "configuration_component"
+      ],
+      "unfinished_software": [
+        "Connect the recommendation to repository-specific edit/branch/PR creation and its exact reviewed pipeline result.",
+        "Demonstrate the concretem6i.4xlarge-to-m6i.2xlarge PR and absence of directEC2 mutation."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "After software exists, an explicitly commissioned customer repository and scopedPR identity require external acceptance.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 206,
+      "title": "ACCEPTANCE TEST — UNKNOWN IAC",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4663,
+        "sha256": "11b039c3859b3ca4e203f6da4a17cd984dc02dee9730965fe7e9180f81091160",
+        "verbatim": "# 206. ACCEPTANCE TEST — UNKNOWN IAC\n\nResource appears declaratively managed but source cannot be found.\n\nExpected:\n\n`BLOCKED_CONFIGURATION_AUTHORITY_UNKNOWN`.\n\nNo autonomous change.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "ae3f2ccc347fe27b3811aecf7d86bf2c0e90a49c31ff5ec550d29f6e8e690a6c"
+      },
+      "assessment": "Unknown configuration authority blocks autonomous changes. Metadata, UI selection and imports cannot manufacture execution delegation.",
+      "existing_evidence": [
+        {
+          "path": "docs/fleet-configuration.md",
+          "sha256": "24a27c49a0791274393d345899dc199faa4bfe333c4a21ffbeab55c338f88fc5",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "24a27c49a0791274393d345899dc199faa4bfe333c4a21ffbeab55c338f88fc5"
+        },
+        {
+          "path": "internal/configuration/types_test.go",
+          "sha256": "cc41317a6548931da09fe6bd68dd353a37555303c18fcec4fe595a4a22cf642b",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "cc41317a6548931da09fe6bd68dd353a37555303c18fcec4fe595a4a22cf642b"
+        }
+      ],
+      "executable_checks": [
+        "configuration_component"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 207,
+      "title": "ACCEPTANCE TEST — KUBERNETES HPA",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4675,
+        "sha256": "0bb185f129007d0ad62f2bc16a496858ec95d24de792cd0414ba01fce88f218f",
+        "verbatim": "# 207. ACCEPTANCE TEST — KUBERNETES HPA\n\nCPU request reduced 50%.\n\nHPA target:\n\n60%.\n\nSimulation predicts replica count will increase enough that total cost increases.\n\nExpected:\n\nrecommendation rejected.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "b72ac442ed178b3ef64fc396ae90c4bd79763008619f279fdacb01fbede8a3f8"
+      },
+      "assessment": "The HPA simulator detects higher total requested capacity after per-replica reduction. Its existing fixture uses a different reduction/target; it is not the exact50percent request/60percent HPA cost scenario.",
+      "existing_evidence": [
+        {
+          "path": "internal/kubernetes/safety_test.go",
+          "sha256": "a253b362adf440c9a2b2b3f0f6c2fbf919c98824bd4010a3095492629df366e8",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "a253b362adf440c9a2b2b3f0f6c2fbf919c98824bd4010a3095492629df366e8"
+        },
+        {
+          "path": "docs/fleet-and-kubernetes-components.md",
+          "sha256": "535fac3641021107fbc4e6980f2d442cdbddab40a1bbcd8ca35267349880e705",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "535fac3641021107fbc4e6980f2d442cdbddab40a1bbcd8ca35267349880e705"
+        }
+      ],
+      "executable_checks": [
+        "kubernetes_component"
+      ],
+      "unfinished_software": [
+        "Add the exact scenario207 input and cost-coupled native pricing/evidence, then prove the persisted recommendation rejects the higher-total-cost outcome.",
+        "Do not equate resource-request totals with verified business cost or mutateHPA directly."
+      ],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 208,
+      "title": "ACCEPTANCE TEST — PDB",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4691,
+        "sha256": "be6b2244af07699ac22b547b627e54cbcc84aade6b1274a7b585e125db763a7e",
+        "verbatim": "# 208. ACCEPTANCE TEST — PDB\n\nNode optimisation requires eviction.\n\nPDB allows:\n\n0 disruptions.\n\nExpected:\n\nexecution waits/blocks.\n\nNever bypass PDB.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "52d5237fd03b707064da2abb9fc4148f169a95b7d5cda62d96c72dff0c6a761c"
+      },
+      "assessment": "A later or initially zero-disruptionPDB independently blocks the proposed eviction; supported paths do not bypassPDB.",
+      "existing_evidence": [
+        {
+          "path": "internal/kubernetes/safety_test.go",
+          "sha256": "a253b362adf440c9a2b2b3f0f6c2fbf919c98824bd4010a3095492629df366e8",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "a253b362adf440c9a2b2b3f0f6c2fbf919c98824bd4010a3095492629df366e8"
+        },
+        {
+          "path": "docs/fleet-and-kubernetes-components.md",
+          "sha256": "535fac3641021107fbc4e6980f2d442cdbddab40a1bbcd8ca35267349880e705",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "535fac3641021107fbc4e6980f2d442cdbddab40a1bbcd8ca35267349880e705"
+        }
+      ],
+      "executable_checks": [
+        "kubernetes_component"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 209,
+      "title": "ACCEPTANCE TEST — CANARY",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4707,
+        "sha256": "cc71306c52749a78ce6bfb45a907b1bb5e86b6f7a7265488554de4a040cec70f",
+        "verbatim": "# 209. ACCEPTANCE TEST — CANARY\n\nFleet:\n\n20 instances.\n\nRecommendation:\n\nnew type.\n\nPolicy max blast radius:\n\n10%.\n\nExpected:\n\nat most two candidate instances initially.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "421f8738eb915cdec4022669692af8486c49c548315b4a4cd3e89447a96f95e6"
+      },
+      "assessment": "The private protocol models twenty originals and an initial two-candidate stage under a ten-percent blast radius. This component evidence does not establish an enabled, connected twenty-instance native canary rollout.",
+      "existing_evidence": [
+        {
+          "path": "internal/fleet/fleet_test.go",
+          "sha256": "50a7da4f2c609ed1642ca6e6aee715cc63761009b0367f533bd96d31a43ec0be",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "50a7da4f2c609ed1642ca6e6aee715cc63761009b0367f533bd96d31a43ec0be"
+        },
+        {
+          "path": "docs/fleet-group-program.md",
+          "sha256": "52978501fd9ff46107cffd27f64e7ada02053e0049c2511ebf062c592ba255aa",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "52978501fd9ff46107cffd27f64e7ada02053e0049c2511ebf062c592ba255aa"
+        }
+      ],
+      "executable_checks": [
+        "fleet_component",
+        "native_join"
+      ],
+      "unfinished_software": [
+        "Register and accept the supported public Fleet authority/runtime factories and their complete current native capacity, contracted-economics, health and rollback bindings. Private protocol limits and read-only analyses alone do not supply that action path."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Only after the software path passes: a separately commissioned customer fleet/pipeline identity and supervised twenty-instance rollout require external acceptance.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Private twenty/two protocol constraint only; connected native rollout remains a software gap and customer rollout remains separately external."
+    },
+    {
+      "id": 210,
+      "title": "ACCEPTANCE TEST — ROLLBACK",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4727,
+        "sha256": "eccec50ca046de263f20c56c7bfb412a4fb98ec49b0ada5590abec55ed336cd3",
+        "verbatim": "# 210. ACCEPTANCE TEST — ROLLBACK\n\nCandidate instance group shows:\n\np95 latency +35%.\n\nPolicy allows +15%.\n\nExpected:\n\nstop rollout.\n\nRestore prior state.\n\nMark rolled back.\n\nNotify owner.\n\nNo verified saving.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "ca949a6b78c48da701b4677e20d0e7b4b739f978ee942b319f22edff703d4247"
+      },
+      "assessment": "Typed health regressions stop forward progress and retain owned inverse/restoration duties; private native rollback and no-saving boundaries have acceptance. The full exact35percent latency regression plus owner notification is not jointly evidenced here.",
+      "existing_evidence": [
+        {
+          "path": "docs/fleet-cohort-health.md",
+          "sha256": "b95e3fdd8af725f7b585899fb786a5df34e2f9d4f7f40614206f424494864c6b",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "b95e3fdd8af725f7b585899fb786a5df34e2f9d4f7f40614206f424494864c6b"
+        },
+        {
+          "path": "docs/group-recovered-health.md",
+          "sha256": "bb6cf1f688c947647f0b3db619b0cec44bd36b7f434e964c185a77f090f92c1a",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "bb6cf1f688c947647f0b3db619b0cec44bd36b7f434e964c185a77f090f92c1a"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "fleet_component",
+        "slo_guard",
+        "native_join"
+      ],
+      "unfinished_software": [
+        "Retain a single connected exactp95+35percent/allowed+15percent acceptance proving stopped rollout, restored prior state, rolled-back status and no verified claim.",
+        "Bind and verify actual owner notification/outbox delivery in that same outcome; notification configuration alone is insufficient."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Customer health endpoints, pipeline rollback authority and owner notification destination require supervised external acceptance.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 211,
+      "title": "ACCEPTANCE TEST — INCIDENT",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4749,
+        "sha256": "1c967b58213dc198bc72767a5fa01b22f2d259a1c51a61ce3e9ec435e6d72e76",
+        "verbatim": "# 211. ACCEPTANCE TEST — INCIDENT\n\nPagerDuty Sev-1 active for application.\n\nAutopilot has scheduled rightsize.\n\nExpected:\n\nchange does not start.\n\nStatus:\n\n```text\nBLOCKED_ACTIVE_INCIDENT\n```\n\n---\n\n",
+        "previous_draft_crlf_sha256": "2d41a9695703f92bbc9cc8bc4a297a4163cd49bcd047c5ff7803eb2ef9ee0223"
+      },
+      "assessment": "Fresh active-incident evidence blocks scheduling; fixtureAPI/dispatch guards exist. An authenticated PagerDutySev1 connector for a scheduled rightsize is still integration work.",
+      "existing_evidence": [
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        },
+        {
+          "path": "docs/deployment.md",
+          "sha256": "0104dbec1d610be7149f6e6bfb1300492243a65c6933d7518e62c0aea82f7faf",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "0104dbec1d610be7149f6e6bfb1300492243a65c6933d7518e62c0aea82f7faf"
+        }
+      ],
+      "executable_checks": [
+        "operating_loop",
+        "slo_guard",
+        "configuration_component"
+      ],
+      "unfinished_software": [
+        "Implement/commission the real incident connector and bind its receipt to the application/current rightsize precheck.",
+        "Demonstrate BLOCKED_ACTIVE_INCIDENT at dispatch without converting missing or stale signals to healthy."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "CustomerPagerDuty credentials, event delivery and application mapping require external acceptance after the connector exists.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 212,
+      "title": "ACCEPTANCE TEST — STALE RECOMMENDATION",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4767,
+        "sha256": "35c0d0a76b52cf09e57b8830f8834a03b377eddb83996fb25181f8d4ba28265b",
+        "verbatim": "# 212. ACCEPTANCE TEST — STALE RECOMMENDATION\n\nRecommendation created Monday.\n\nEngineer manually resized workload Tuesday.\n\nAutopilot tries execution Wednesday.\n\nPrecheck detects changed state.\n\nExpected:\n\nabort.\n\nReanalyse.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "f2455a5f2b78809f419b201b9516160c7b9295720f8a3e531b884d440adb4cce"
+      },
+      "assessment": "Configuration/state changes invalidate current bindings and stop forward publication/execution. Refreshed timestamps cannot renew an old immutable snapshot.",
+      "existing_evidence": [
+        {
+          "path": "internal/configuration/artifact_test.go",
+          "sha256": "2bcc10645e42288799fe4254dd7d82a3271f005b02e6c93c90426da5fc1ee9cc",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "2bcc10645e42288799fe4254dd7d82a3271f005b02e6c93c90426da5fc1ee9cc"
+        },
+        {
+          "path": "internal/safety/safety_test.go",
+          "sha256": "dff9be83f270f3f69747ff7bdcf2b20aa2a529d88a006efc9e5f2c794b2b8aae",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "dff9be83f270f3f69747ff7bdcf2b20aa2a529d88a006efc9e5f2c794b2b8aae"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "configuration_component"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 213,
+      "title": "ACCEPTANCE TEST — DOUBLE EXECUTION",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4785,
+        "sha256": "a899dafae4a66dd8bfcc21b50d9bc298b1c2edfeb05235e032ebbd941fdfef1c",
+        "verbatim": "# 213. ACCEPTANCE TEST — DOUBLE EXECUTION\n\nSame ChangePlan submitted twice.\n\nSame Idempotency-Key.\n\nExpected:\n\none infrastructure action.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "1f9328a02acaf04886e22e04272e5159d57f8a581ddd4abb526ba06e771f7ec6"
+      },
+      "assessment": "Scheduling fixture idempotency and provider-side operation reconciliation preserve one infrastructure action for the same plan/key. This is bounded stop/start authority, not generic resizing.",
+      "existing_evidence": [
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        },
+        {
+          "path": "internal/workflow/workflow_test.go",
+          "sha256": "fde35a37f199486fb02827e44454136f0533e804386b5278967ab24b9e5cbd50",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "fde35a37f199486fb02827e44454136f0533e804386b5278967ab24b9e5cbd50"
+        }
+      ],
+      "executable_checks": [
+        "operating_loop",
+        "process_recovery",
+        "fleet_component"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 214,
+      "title": "ACCEPTANCE TEST — CONTROL PLANE FAILURE",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4797,
+        "sha256": "1131eef223f44efefda3769e9e79a4b2fd3268553b892b42ac4e13f0434d0c52",
+        "verbatim": "# 214. ACCEPTANCE TEST — CONTROL PLANE FAILURE\n\nExecution at 25% rollout.\n\nControl plane becomes unavailable.\n\nCustomer-hosted/durable executor must:\n\neither safely pause\n\nor complete safe current step.\n\nIt must not lose execution state.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "7ebbc708d854aedb16145d98e777ccd55825a63ffea128bc1f7787a6479a633a"
+      },
+      "assessment": "Actual API/worker loss, durable journals, one-shot command reconciliation and empty-workspace fixture reconstruction retain state. They do not establish the exact25percent customer fleet/control-plane-outage scenario.",
+      "existing_evidence": [
+        {
+          "path": "docs/group-workspace-recovery.md",
+          "sha256": "06e5be10dd8cd4f6a0014c988f0437926bf51fd20f5d833d92a350c3b921d53c",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "06e5be10dd8cd4f6a0014c988f0437926bf51fd20f5d833d92a350c3b921d53c"
+        },
+        {
+          "path": "docs/group-recovered-health.md",
+          "sha256": "bb6cf1f688c947647f0b3db619b0cec44bd36b7f434e964c185a77f090f92c1a",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "bb6cf1f688c947647f0b3db619b0cec44bd36b7f434e964c185a77f090f92c1a"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "process_recovery",
+        "native_join"
+      ],
+      "unfinished_software": [
+        "Complete the exact rollout-at25percent outage acceptance, including customer-hosted executor isolation, safe pause/current-step and durable recovery policy.",
+        "Keep actual provider/pipeline state and retained ownership authoritative; local process restart is not entire control-plane loss."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "After the supported executor path exists, a supervised customer network/control-plane outage is an external operational gate.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 215,
+      "title": "ACCEPTANCE TEST — SAVINGS NORMALISATION",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4813,
+        "sha256": "c7b178ff28d4d0d6b89df520bbf6867b8c1d65a5d2b84333e41a60e5477f1983",
+        "verbatim": "# 215. ACCEPTANCE TEST — SAVINGS NORMALISATION\n\nBefore:\n\n10m requests.\n\n£100k.\n\nAfter:\n\n15m requests.\n\n£105k.\n\nExpected:\n\nVerified savings:\n\n£45k relative to old £0.01/request baseline.\n\nNot:\n\nnegative £5k.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "5539133b72fb40c4893b164261cbaf79daa748a2a63e8bcddedb7dcf595913f0"
+      },
+      "assessment": "The idle scheduling verifier rejects changed work populations rather than divide spend by runtime. It does not issueGBP45000 from10m/15m business requests.",
+      "existing_evidence": [
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        },
+        {
+          "path": "docs/readiness-evidence.md",
+          "sha256": "d2626c365c679955872d36d011935ed3a41f93978312c02cb89cbd8b6b61231c",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "d2626c365c679955872d36d011935ed3a41f93978312c02cb89cbd8b6b61231c"
+        },
+        {
+          "path": "economics/tests/test_economics.py",
+          "sha256": "690fc6093b299ff16a91ebb14ca1428403a8caf2b0918a8f655de15047375d23",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "0eedc13988faf137bbab035887b982a85c8665a3d796af1ebc04ea5d80722665"
+        }
+      ],
+      "executable_checks": [
+        "financial_decimal",
+        "financial_pg"
+      ],
+      "unfinished_software": [
+        "Implement a trusted completed-business-work denominator and applicable normalized counterfactual for the exactGBP100000/10m versusGBP105000/15m scenario.",
+        "Persist and verify the resultingGBP45000 against current source-final cost and independently preserved work; request-throughput proxies are insufficient."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Authentic customer business output, final invoice and concurrent-change review require external acceptance after the model path exists.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 216,
+      "title": "ACCEPTANCE TEST — LOWER TRAFFIC",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4839,
+        "sha256": "9f87ad932b220a0ff21e85334c8f8b7dd75ccf47bb98425e0f0e71fdf1368e94",
+        "verbatim": "# 216. ACCEPTANCE TEST — LOWER TRAFFIC\n\nBefore:\n\n£100k at 10m transactions.\n\nAfter:\n\n£60k at 5m transactions.\n\nCost/unit worsened.\n\nExpected:\n\ndo not claim £40k optimisation saving.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "dac944407bd336c6618f2d49f323821df8e1e4da2a3d6ab8b744d1269ec6d9ef"
+      },
+      "assessment": "Changed workload evidence cannot become an idle-window savings claim. The exact lower-traffic comparison and explicit worsened cost-per-business-unit result are not accepted.",
+      "existing_evidence": [
+        {
+          "path": "docs/readiness-evidence.md",
+          "sha256": "d2626c365c679955872d36d011935ed3a41f93978312c02cb89cbd8b6b61231c",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "d2626c365c679955872d36d011935ed3a41f93978312c02cb89cbd8b6b61231c"
+        },
+        {
+          "path": "economics/tests/test_economics.py",
+          "sha256": "690fc6093b299ff16a91ebb14ca1428403a8caf2b0918a8f655de15047375d23",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "0eedc13988faf137bbab035887b982a85c8665a3d796af1ebc04ea5d80722665"
+        }
+      ],
+      "executable_checks": [
+        "financial_decimal",
+        "financial_pg"
+      ],
+      "unfinished_software": [
+        "Connect exactGBP100000/10m andGBP60000/5m trusted completed-work data to the applicable business-output normalization model.",
+        "Prove that noGBP40000 optimization saving is published and the worsened unit economics remain visible."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Final customer cost and business output histories are external evidence gates, not substitutes for the missing software model.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 217,
+      "title": "ACCEPTANCE TEST — NEGATIVE RESULT",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4857,
+        "sha256": "bd8ec19c54498a685f5fb2bd9a795924e55240557a27b55dd301b7df03a3390b",
+        "verbatim": "# 217. ACCEPTANCE TEST — NEGATIVE RESULT\n\nPredicted saving:\n\n£10k/month.\n\nActual normalised saving:\n\n-£1k.\n\nExpected:\n\nledger records:\n\n```text\n-£1,000\n```\n\nRecommendation considered unsuccessful.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "63f577cc02a792d5b6fde269f65694948e6cbd7fbe2fe19cf9ff805e99035eba"
+      },
+      "assessment": "Exact negative native economics and append-only correction/ledger boundaries are covered, including retained signed negative values. This map does not identify a single exactpredictedGBP10000/actual-minusGBP1000 scenario receipt.",
+      "existing_evidence": [
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        },
+        {
+          "path": "economics/tests/test_v3.py",
+          "sha256": "dd1d5bcd57999a0d2c92a2f83de0c7327ce86af33ea3b641721b9d49b60fb645",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "dd1d5bcd57999a0d2c92a2f83de0c7327ce86af33ea3b641721b9d49b60fb645"
+        }
+      ],
+      "executable_checks": [
+        "financial_decimal",
+        "financial_pg"
+      ],
+      "unfinished_software": [
+        "Add/identify the exact requested numeric fixture through the normal immutable ledger path and expose unsuccessful recommendation status.",
+        "Retain predicted/actual distinction and one current claim without mutating the earlier record."
+      ],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 218,
+      "title": "ACCEPTANCE TEST — COMMITMENT ORDER",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4879,
+        "sha256": "d6ad67493f5ed538f4cc19164c9cda9f98b4c5ab72e0d4a7d8ad7fd00898ff4b",
+        "verbatim": "# 218. ACCEPTANCE TEST — COMMITMENT ORDER\n\nCustomer has:\n\n300 oversized instances.\n\nProvider proposes new three-year commitment.\n\nExpected:\n\nsystem first models post-rightsize demand.\n\nCommitment recommendation based on post-optimisation baseline.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "f01ec3f28b6411de873d1c91eaf3be1cf6d55726bea71f477f50546c81f906d1"
+      },
+      "assessment": "Existing039portfolio observations correctly withhold recommendations. The separate commitment-decision producer/model/UI is candidate work; it must not receive acceptance credit before issued inputs and real independentFinance flow pass.",
+      "existing_evidence": [
+        {
+          "path": "docs/commitment-portfolio.md",
+          "sha256": "df73438cd50ec8066707cca42f13be4c717079bf8a7559973a3865529b7ebf7a",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "df73438cd50ec8066707cca42f13be4c717079bf8a7559973a3865529b7ebf7a"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "native_portfolio",
+        "native_capacity"
+      ],
+      "unfinished_software": [
+        "Accept genuinely persisted continuous historical ownership with independent review, exact configuration/resource scope and the first four issued post-optimization stages; do not infer interval ownership from equal current points.",
+        "Derive and persist a calibrated forecast and its fifth stable-demand stage through the existing analyst. Missing ownership, history or stages must remain an explicit BLOCKED preparation; unavailable assessment/forecast choices cannot become positive inputs.",
+        "Join authentic issued native offers and eligible observed account PAYG evidence to all four server-selected IDs; prove positive RECOMMEND_PURCHASE_PENDING_FINANCE, genuine uneconomic DO_NOT_PURCHASE and missing-evidence BLOCKED as distinct outcomes.",
+        "Prove independent Finance review through existing approvals, audit and idempotency with exact full decision/input hashes, maker-checker separation and fresh currentness/revocation checks. Recommendation/review must leave purchase and execution false."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Authentic future offer eligibility and customer post-optimization demand are external provider/customer evidence gates after the software path passes.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 219,
+      "title": "ACCEPTANCE TEST — PRODUCTION SINGLETON",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4895,
+        "sha256": "02fa709e3955749f19d7f3c38d696e208f0165c8e8e4769c6bee6bace5812adc",
+        "verbatim": "# 219. ACCEPTANCE TEST — PRODUCTION SINGLETON\n\nOne production VM.\n\nResize requires restart.\n\nNo maintenance window.\n\nExpected:\n\nAutopilot cannot execute.\n\nRecommendation marked approval/maintenance required.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "92888d796855f398130e28638bbe268a929f28317f2459e119e4c96cb5997abe"
+      },
+      "assessment": "Current scheduling safety blocks production/singleton mutation. The full resize recommendation carrying explicit maintenance/approval-required status is outside the stop/start pilot.",
+      "existing_evidence": [
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "configuration_component",
+        "operating_loop"
+      ],
+      "unfinished_software": [
+        "Implement the supported restart-required resize recommendation and explicit maintenance/approval workflow; preserve no-execution when its window is absent.",
+        "Do not treat broad production refusal as a completed production-resize capability."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "A customer-approved maintenance window and supervised production acceptance are genuinely external once software is supported.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 220,
+      "title": "ACCEPTANCE TEST — NON-PRODUCTION SCHEDULE",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4911,
+        "sha256": "ee22eb37fdd1a2837328ab4d9f6662960e259cdf921ada20bd2d98a6c0aca2ab",
+        "verbatim": "# 220. ACCEPTANCE TEST — NON-PRODUCTION SCHEDULE\n\nDev environment unused overnight.\n\nApproved schedule:\n\n20:00 stop.\n\n07:00 start.\n\nExpected:\n\nstop.\n\nVerify stopped.\n\nStart before schedule.\n\nVerify healthy.\n\nRecord saving.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "78ceb5489a5db83cbe3085e1db396367b8f26a4cafd1d938127143478c0de549"
+      },
+      "assessment": "The bounded local non-production scheduling loop has authenticated approval, durable stop/observed state, owned early restoration, application readiness and synthetic final savings acceptance. Calendar/DST and actual process-loss checks are separate retained tests.",
+      "existing_evidence": [
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        },
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        },
+        {
+          "path": "docs/operations.md",
+          "sha256": "15db8f218ebdbf9ed31b5e1a30d7850a85544d14a4756be1d5632d7ef565fbf1",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "15db8f218ebdbf9ed31b5e1a30d7850a85544d14a4756be1d5632d7ef565fbf1"
+        }
+      ],
+      "executable_checks": [
+        "operating_loop",
+        "process_recovery",
+        "financial_decimal"
+      ],
+      "unfinished_software": [],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "A live20:00-to07:00 customer schedule requires action-specific IAM/delegation, actual history/final billing and supervised healthy restoration. Synthetic accelerated financial time is not live overnight acceptance.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    },
+    {
+      "id": 221,
+      "title": "ACCEPTANCE TEST — DESTRUCTIVE RESOURCE",
+      "status": "PARTIAL",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4935,
+        "sha256": "9db8567e8c4b5c50c4cb1220567c4916b92add22b633a070df4e2f1fcebfabdd",
+        "verbatim": "# 221. ACCEPTANCE TEST — DESTRUCTIVE RESOURCE\n\nUnattached production disk appears idle.\n\nExpected:\n\ndo not delete.\n\nEnter quarantine workflow based on customer policy.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "03df6d4b25d0f13a4ff5f6aefe46eb7ff25522683a2fa5b0364f15a834c5771b"
+      },
+      "assessment": "Deletion is outside supported execution and cannot be authorized by idle appearance. The required customer-policy quarantine lifecycle is not implemented/accepted by these packages.",
+      "existing_evidence": [
+        {
+          "path": "docs/decisions.md",
+          "sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c132214bb18a34445b3bd005b3eff5749b5b797748b3f7253de31cb0322a409e"
+        },
+        {
+          "path": "docs/acceptance.md",
+          "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+        }
+      ],
+      "executable_checks": [
+        "configuration_component"
+      ],
+      "unfinished_software": [
+        "Implement auditable quarantine policy/state/retention/owner-review flow for an unattached production disk before considering any later destructive action.",
+        "Prove no delete call occurs; refusal alone is not a quarantine workflow."
+      ],
+      "external_gates": [
+        {
+          "status": "EXTERNAL_ACCEPTANCE_REQUIRED",
+          "requirement": "Customer retention/legal policy and destructive-action approval remain external gates after quarantine software exists.",
+          "not_a_substitute_for_software_gaps": true
+        }
+      ],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Partial implementation/evidence with the listed software gaps; no full-scenario acceptance."
+    },
+    {
+      "id": 222,
+      "title": "ACCEPTANCE TEST — TAGLESS RESOURCE",
+      "status": "DETERMINISTIC",
+      "specification": {
+        "path": "docs/product-specification.md",
+        "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+        "start_line": 4947,
+        "sha256": "e08ac2185dfed163089eaa6c6916886e9fd73c536f8230025fdec8fcfc92f90a",
+        "verbatim": "# 222. ACCEPTANCE TEST — TAGLESS RESOURCE\n\nResource has no ownership tags.\n\nExpected:\n\ncost remains visible.\n\nResource enters unallocated pool.\n\nNo fabricated owner.\n\n---\n\n",
+        "previous_draft_crlf_sha256": "839b2df5ef1b0a99412054bea962725db9e0ee2898e4ba8d6beac003a3d34a1e"
+      },
+      "assessment": "Current-ownership allocation conserves signed native costs by currency and retains unknown/missing owners in an explicit unallocated pool. No owner or zero cost is fabricated.",
+      "existing_evidence": [
+        {
+          "path": "docs/cost-allocation.md",
+          "sha256": "79c45a859528669399f0d50cb16f1310fb46a036100496c5eb82e17cd3d4c51a",
+          "kind": "EXISTING_RECORDED_ACCEPTANCE_OR_LIMITS",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "79c45a859528669399f0d50cb16f1310fb46a036100496c5eb82e17cd3d4c51a"
+        },
+        {
+          "path": "internal/allocation/allocation_test.go",
+          "sha256": "500fe8f5d6374cdca9bae22ce423219ff7dd5e97c2a2a6ddc118c4d2c951107a",
+          "kind": "EXISTING_EXECUTABLE_SOURCE_NOT_RERUN_HERE",
+          "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+          "prior_draft_worktree_sha256": "500fe8f5d6374cdca9bae22ce423219ff7dd5e97c2a2a6ddc118c4d2c951107a"
+        }
+      ],
+      "executable_checks": [
+        "allocation_component"
+      ],
+      "unfinished_software": [],
+      "external_gates": [],
+      "release_acceptance": "NOT_ESTABLISHED_BY_THIS_MAPPING",
+      "official_credit_awarded": false,
+      "full_scenario_accepted": false,
+      "customer_or_production_accepted": false,
+      "evidence_coverage_scope": "Only the bounded component/fixture behavior stated in assessment; exact complete-scenario and live acceptance are not implied."
+    }
+  ],
+  "official_progress_change": 0,
+  "official_credit_awarded": false,
+  "prior_draft": {
+    "path": "work/commitment-decisions-next/candidate-source/docs/release-1-acceptance.json",
+    "sha256": "034aece5bcea2bd1123b4a8be59c849d27186a958a6b344631e0f8e33136050a",
+    "base_commit": "5f5072b29957f5c97b55824637236e34573f75f9",
+    "base_tree": "922d104cf300f8b9747b2926fe4ede4f2f095df6",
+    "preserved_byte_exact": true
+  },
+  "source_review": {
+    "method": "Read-only published Git blobs, preserved specification excerpts, existing executable definitions and documented command arguments; no acceptance commands, tests, compiler, browser, container or service launched.",
+    "changed_paths_since_prior_base": [
+      "scripts/commitment-portfolio-lab.mjs",
+      "scripts/fleet-joint-decision-lab.mjs",
+      "scripts/fleet-native-assessment-lab.mjs",
+      "scripts/fleet-native-capacity-lab.mjs",
+      "scripts/lib/commitment-portfolio-browser-host.mjs",
+      "scripts/tests/commitment-portfolio-browser.test.mjs"
+    ],
+    "application_go_sql_python_contract_ui_differences_since_prior_base": [],
+    "retarget_basis": "The exact six changes since5f are the known native-harness entrypoint/log/DAC/host-ownership corrections and their guard source; no application implementation changed.",
+    "native_joint_run_id": "18296de6-7a13-4fcf-96ce-ef344b0c4b5b",
+    "native_portfolio_run_id": "0074ff0d-3e51-486d-90c3-1269b2529cdb",
+    "native_receipts_are_separate_acceptance": true,
+    "runtime_installation_browser_and_backup_not_reviewed_here": true
+  },
+  "runbook_sources": [
+    {
+      "path": "docs/operations.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "15db8f218ebdbf9ed31b5e1a30d7850a85544d14a4756be1d5632d7ef565fbf1"
+    },
+    {
+      "path": "docs/deployment.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "0104dbec1d610be7149f6e6bfb1300492243a65c6933d7518e62c0aea82f7faf"
+    },
+    {
+      "path": "docs/acceptance.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "c862e73e56669f3b249af78e17a99c58856de3ac26be00f158fc354c9f3018ee"
+    },
+    {
+      "path": "docs/commitment-portfolio.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "df73438cd50ec8066707cca42f13be4c717079bf8a7559973a3865529b7ebf7a"
+    },
+    {
+      "path": "docs/fleet-joint-decision.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "50a4a35cdb6feb0cb2d0e3d0481e486e8034de6553f6dc31184a677bc737ebad"
+    },
+    {
+      "path": "docs/fleet-and-kubernetes-components.md",
+      "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "sha256": "535fac3641021107fbc4e6980f2d442cdbddab40a1bbcd8ca35267349880e705"
+    }
+  ],
+  "review_findings": [
+    {
+      "code": "PUBLISHED_SOURCE_LINE_ENDINGS_EXPLICIT",
+      "resolution": "Reviewed source/excerpt hashes now identify exact LF Git bytes; prior CRLF worktree hashes remain recorded and the draft remains unchanged."
+    },
+    {
+      "code": "CANARY_COMPONENT_IS_NOT_CONNECTED_ACTION",
+      "scenario": 209,
+      "resolution": "Corrected bounded DETERMINISTIC description to PARTIAL and made the unregistered execution/runtime software gate explicit; it is not an external credential-only gate."
+    },
+    {
+      "code": "PG_TARGET_IS_OPERATOR_OWNED_DISPOSABLE_ONLY",
+      "resolution": "Documented the selected SLO test helper directly migrates TEST_DATABASE_URL. No installed or unowned database is an acceptable target."
+    },
+    {
+      "code": "MISSING_DECISION_PROOF_STAYS_BLOCKED",
+      "scenario": 218,
+      "resolution": "The preparation gap path is useful but does not satisfy a calibrated positive purchasing recommendation or independent Finance acceptance."
+    }
+  ],
+  "ledger_reference": {
+    "path": "docs/progress-ledger.json",
+    "source_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+    "sha256": "fa287d523d50759056343e5de08335522a1a2d623b3176cb1dbb1c39b0f6c739",
+    "current_weighted_percent": 25.4,
+    "edited": false,
+    "mapping_credit": 0
+  }
+}

@@ -6,6 +6,10 @@ The result preserves account, class, currency, region, native rate units and sou
 
 Coverage, effective discounts, break-even utilization, remaining cash value, forecasts and purchase recommendations require further implementation and evidence. Their fields remain unavailable. This analysis grants no purchase, execution or savings-verification authority. The five optimization-order stages remain blocked until their separately issued decisions and outcomes exist.
 
+## Accepted boundary
+
+The [bounded observation acceptance record](commitment-portfolio-acceptance.md) retains the final-source native Finance journey, all sixteen required CI jobs, installed migration/restoration, fifteen runtime bindings, served bundle, 105 browser cases and encrypted PostgreSQL readback. Only this existing-commitment observation subset receives deterministic E2E maturity: **25.4% → 25.8%**, from one point at maturity 40; ten points of remaining forecast/portfolio scope stay at 0. The rough engineering range including verified partial work remains **27–31%**, without a fresh whole-product audit. This does not accept purchase recommendations, future forecasts, live AWS use or customer-verified savings. The [Release 1 mapping](release-1-acceptance.json) and [implementation versus acceptance note](release-1-implementation-vs-acceptance.md) preserve those distinctions.
+
 ## API
 
 - `GET /v1/commitment-portfolio-sources` lists scoped sources.
