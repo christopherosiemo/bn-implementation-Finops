@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {jointBrowserRealm,jointFinanceSubject,jointFinanceUsername,jointBodySHA,jointCanonicalJSON,jointWorkerEnvironment,validateJointWorkerReady,validateJointInputs,validateJointBrowserResult} from '../lib/fleet-joint-browser.mjs';
+import {jointBrowserFailure,jointCapacityProgress,jointBrowserRealm,jointFinanceSubject,jointFinanceUsername,jointBodySHA,jointCanonicalJSON,jointWorkerEnvironment,validateJointWorkerReady,validateJointInputs,validateJointBrowserResult} from '../lib/fleet-joint-browser.mjs';
 import {capacityBrowserSubject} from '../lib/fleet-capacity-browser.mjs';
 
 const id=n=>`${String(n).padStart(8,'0')}-1111-4111-8111-111111111111`,sha=n=>String(n).repeat(64);
@@ -23,6 +23,29 @@ test('signed-in result preserves unknown member, exact inputs and unavailable fi
 test('canonical decision hash matches Go map ordering/HTML escapes and refuses unsafe numeric precision',()=>{
  assert.equal(jointCanonicalJSON({z:'<>&\u2028\u2029',a:[{y:2,x:'0.00'}]}),'{"a":[{"x":"0.00","y":2}],"z":"\\u003c\\u003e\\u0026\\u2028\\u2029"}');assert.equal(jointBodySHA({a:1,b:2}),jointBodySHA({b:2,a:1}));assert.throws(()=>jointCanonicalJSON({n:9007199254740992}));assert.throws(()=>jointCanonicalJSON({n:NaN}));
 });
+test('capacity deadline has its exact own code and bounded last API progress, without copying raw bodies',()=>{
+ const record={status:'QUEUED',scope:{request_id:id(7),scope:{snapshot_sha256:sha(4),current_member_ids:['i-aaaaaaaaaaaaaaaaa','i-bbbbbbbbbbbbbbbbb']}},batch:null,secret:'Bearer fixture-sensitive-output',observations:[{value:95}]};
+ const progress={record,requestID:id(7),apiStatus:200};
+ const value=jointBrowserFailure(Error('actual capacity worker did not publish'),{phase:'ACTUAL_DAEMON_RESULT',capacityProgress:progress});
+ assert.equal(value.code,'CAPACITY_RESULT_DEADLINE_EXCEEDED');
+ assert.equal(value.error.raw_message_sha256,'93445935fdeda11e02c969126b5634abf01af1e14343bfb2a909124335b5dbc4');
+ assert.deepEqual(value.capacity_result,{request_id:id(7),api_status:200,last_record_status:'QUEUED',scope_request_id:id(7),scope_sha256:sha(4),roster_count:2,member_count:null});
+ assert.match(value.error.message,/fixed 60-second/);
+ assert.doesNotMatch(JSON.stringify(value),/fixture-sensitive-output|observations|"value"|i-aaaaaaaa/);
+ const empty=jointCapacityProgress({status:'ASSESSED',scope:{scope:{current_member_ids:[]}},batch:{members:[]}},{requestID:id(7),apiStatus:200});
+ assert.equal(empty.roster_count,0);assert.equal(empty.member_count,0);
+ const unknown=jointCapacityProgress({status:'secret-status',scope:{request_id:'https://secret.invalid/?token=secret',scope:{snapshot_sha256:'Bearer secret',current_member_ids:Array(257)}},batch:{members:Array(257)}},{requestID:'private-secret',apiStatus:999});
+ assert.deepEqual(unknown,{request_id:null,api_status:null,last_record_status:null,scope_request_id:null,scope_sha256:null,roster_count:null,member_count:null});
+});
+test('page exceptions remain distinct and win over subsequent assertions; unknown errors disclose only hashes',()=>{
+ const raw='https://private.invalid/?token=fixture-secret Bearer fixture-secret <html>secret</html>';
+ const generic=jointBrowserFailure(Error(raw),{phase:'ACTUAL_DAEMON_RESULT'});
+ assert.equal(generic.code,'BROWSER_CHECK_FAILED');assert.doesNotMatch(JSON.stringify(generic),/private.invalid|fixture-secret|<html>/);
+ const wrongPhase=jointBrowserFailure(Error('actual capacity worker did not publish'),{phase:'REAL_PKCE_SIGN_IN'});
+ assert.equal(wrongPhase.code,'BROWSER_CHECK_FAILED');
+ const page=jointBrowserFailure(Error('actual capacity worker did not publish'),{phase:'ACTUAL_DAEMON_RESULT',pageError:new TypeError("Cannot read properties of null (reading 'map')")});
+ assert.equal(page.code,'PAGE_EXECUTION_ERROR');assert.equal(page.page_error.error_class,'TypeError');assert.equal(page.page_error.message,"Cannot read properties of null (reading 'map')");assert.equal(page.capacity_result,undefined);
+});
 test('real browser keeps accepted owner flow, fixed budgets, fresh finance and actual IDs-only queue',()=>{
- const base=new URL('../../examples/fleet-joint-browser/',import.meta.url),main=readFileSync(new URL('main.mjs',base),'utf8'),joint=readFileSync(new URL('joint.mjs',base),'utf8');assert.match(main,/finance_password,password,run_id/);assert.match(main,/write\('joint-input-request\.json'/);assert.match(main,/jointBrowserPhase/);assert.match(main,/actual capacity worker did not publish',60000/);assert.match(joint,/actual replacement joint worker did not publish',60000/);assert.match(joint,/setDefaultTimeout\(15000\)/);assert.match(joint,/setDefaultNavigationTimeout\(30000\)/);assert.match(joint,/joint-decision-request\.json/);assert.match(joint,/response\.status\(\),202/);assert.match(joint,/headers\(\)\['if-match'\]/);assert.match(joint,/headers\(\)\['idempotency-key'\]/);assert.match(joint,/newContext/);assert.match(joint,/jointFinanceUsername/);assert.doesNotMatch(main+joint,/route\.fulfill|test\.skip|\.fixme\(|retries\s*:/);assert.match(joint,/browser-joint-desktop\.png/);assert.match(joint,/browser-joint-mobile\.png/);assert.match(joint,/capacityBrowserPageError\(error\)/);assert.doesNotMatch(joint,/console\.log\(|error\.stack/);
+ const base=new URL('../../examples/fleet-joint-browser/',import.meta.url),main=readFileSync(new URL('main.mjs',base),'utf8'),joint=readFileSync(new URL('joint.mjs',base),'utf8');assert.match(main,/finance_password,password,run_id/);assert.match(main,/write\('joint-input-request\.json'/);assert.match(main,/jointBrowserPhase/);assert.match(main,/actual capacity worker did not publish',60000/);assert.match(main,/jointBrowserFailure\(error,\{phase,pageError,capacityProgress\}\)/);assert.match(main,/apiStatus:response\.status\(\),record:capacityProgress\?\.record\?\?null/);assert.match(main,/capacityProgress\.record=value/);assert.match(main,/pageError=error;void page\.close\(\)/);assert.match(joint,/actual replacement joint worker did not publish',60000/);assert.match(joint,/setDefaultTimeout\(15000\)/);assert.match(joint,/setDefaultNavigationTimeout\(30000\)/);assert.match(joint,/joint-decision-request\.json/);assert.match(joint,/response\.status\(\),202/);assert.match(joint,/headers\(\)\['if-match'\]/);assert.match(joint,/headers\(\)\['idempotency-key'\]/);assert.match(joint,/newContext/);assert.match(joint,/jointFinanceUsername/);assert.doesNotMatch(main+joint,/route\.fulfill|test\.skip|\.fixme\(|retries\s*:/);assert.match(joint,/browser-joint-desktop\.png/);assert.match(joint,/browser-joint-mobile\.png/);assert.match(joint,/capacityBrowserPageError\(error\)/);assert.doesNotMatch(joint,/console\.log\(|error\.stack/);
 });

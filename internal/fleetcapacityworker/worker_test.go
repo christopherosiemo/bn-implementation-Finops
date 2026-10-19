@@ -163,6 +163,106 @@ func fakeWorker() (*Worker, *fakeRepository, *neverArchive, *neverReader, *never
 	return &Worker{config: testConfig(), repository: r, archive: a, population: p, calculator: m}, r, a, p, m
 }
 
+type wakeQueueRepository struct {
+	*fakeRepository
+	queued  bool
+	entered chan struct{}
+	release <-chan struct{}
+}
+
+func (r *wakeQueueRepository) pending(context.Context, string, string) ([]model.Document, error) {
+	if !r.queued || r.requestDoc["batch"] != nil {
+		return []model.Document{}, nil
+	}
+	return []model.Document{r.requestDoc}, nil
+}
+
+func (r *wakeQueueRepository) lock(ctx context.Context, tenant, id string) (func(), error) {
+	unlock, err := r.fakeRepository.lock(ctx, tenant, id)
+	if err != nil {
+		return nil, err
+	}
+	r.entered <- struct{}{}
+	select {
+	case <-r.release:
+		return unlock, nil
+	case <-ctx.Done():
+		unlock()
+		return nil, ctx.Err()
+	}
+}
+
+func TestIdleQueueWakePublishesOnceAndCoalescesWhileProcessing(t *testing.T) {
+	w, repository, archive, population, calculator := fakeWorker()
+	release := make(chan struct{})
+	r := &wakeQueueRepository{fakeRepository: repository, entered: make(chan struct{}, 1), release: release}
+	w.repository = r
+	wake := make(chan time.Time, 1)
+	reports := make(chan PollResult, 3)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- w.run(ctx, func(out PollResult) {
+			if out.Inspected == 0 {
+				r.queued = true
+			}
+			if out.Completed > 0 {
+				cancel()
+			}
+			reports <- out
+		}, wake)
+	}()
+	select {
+	case out := <-reports:
+		if out.Status != "IDLE" || out.Inspected != 0 {
+			t.Fatal("startup did not begin with the actual empty queue", out)
+		}
+	case <-ctx.Done():
+		t.Fatal("idle queue did not report")
+	}
+	wake <- time.Now()
+	select {
+	case <-r.entered:
+	case <-ctx.Done():
+		t.Fatal("newly queued request did not begin on its scheduled wake")
+	}
+	// Like time.Ticker, retain at most one wake while the synchronous job runs.
+	wake <- time.Now()
+	select {
+	case wake <- time.Now():
+	default:
+	}
+	select {
+	case out := <-reports:
+		t.Fatal("another poll overlapped the active request", out)
+	default:
+	}
+	close(release)
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal("worker did not exit after cancellation", err)
+		}
+	case <-ctx.Done():
+		// A completion callback cancels ctx; wait separately for its serial exit.
+		select {
+		case err := <-done:
+			if !errors.Is(err, context.Canceled) {
+				t.Fatal(err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("worker remained active after cancellation")
+		}
+	}
+	if r.completeCalls != 1 || r.appendCalls != 2 || r.locks != 1 || r.unlocks != 1 || len(r.stored) != 2 || archive.calls+population.calls+calculator.calls != 0 {
+		t.Fatal("queue wake duplicated work, lost ownership or manufactured missing evidence", r.completeCalls, r.appendCalls, r.locks, r.unlocks)
+	}
+	if len(reports) != 1 {
+		t.Fatal("cancellation permitted another queue poll")
+	}
+}
+
 func TestWorkerResumesIssuedPopulationAfterRevocationWithoutInventingFacts(t *testing.T) {
 	w, r, a, p, m := fakeWorker()
 	// Historical native template metadata exists, but a revoked member must

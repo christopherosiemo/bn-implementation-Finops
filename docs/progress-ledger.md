@@ -81,7 +81,7 @@ The next private preparation and browser review passed real Git/Terraform,
 encrypted versioned storage, replay without another apply, actual OIDC,
 self-approval refusal, independent exact-program approval and persisted reload.
 The public execution factory remains unavailable. These are tested partial
-components within the existing stage, so official progress remains **25.2%**.
+components within the existing stage; at that review, official progress remained **25.2%**.
 The rough engineering estimate including such partial work is **27–31%**. This
 range uses existing evidence rather than a fresh product audit; integration,
 recovery, financial and operational acceptance can still expose missing work.

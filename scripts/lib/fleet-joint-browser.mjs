@@ -1,10 +1,34 @@
 // Private candidate acceptance metadata. None of these files grants authority.
 import assert from 'node:assert/strict';
-import {capacityBrowserRealm,capacityBrowserSHA,validateCapacityBrowserReady} from './fleet-capacity-browser.mjs';
+import {capacityBrowserRealm,capacityBrowserSHA,capacityBrowserPageError,validateCapacityBrowserReady} from './fleet-capacity-browser.mjs';
 export const jointFinanceSubject='15b833b1-3c50-4b20-921f-a8a72d88f1f2';
 export const jointFinanceUsername='joint-finance';
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const SHA=/^[a-f0-9]{64}$/;
+// Failure evidence is a bounded API progress projection, never response bodies
+// or observations. Missing counts stay null rather than becoming observed zero.
+export function jointCapacityProgress(record,{requestID,apiStatus}={}){
+ const batch=record?.batch,scope=record?.scope;
+ const boundedCount=value=>Array.isArray(value)&&value.length<=256?value.length:null;
+ return {
+  request_id:typeof requestID==='string'&&UUID.test(requestID)?requestID:null,
+  api_status:Number.isInteger(apiStatus)&&apiStatus>=100&&apiStatus<=599?apiStatus:null,
+  last_record_status:['QUEUED','ASSESSED'].includes(record?.status)?record.status:null,
+  scope_request_id:typeof scope?.request_id==='string'&&UUID.test(scope.request_id)?scope.request_id:null,
+  scope_sha256:typeof scope?.scope?.snapshot_sha256==='string'&&SHA.test(scope.scope.snapshot_sha256)?scope.scope.snapshot_sha256:null,
+  roster_count:boundedCount(scope?.scope?.current_member_ids),
+  member_count:boundedCount(batch?.members),
+ };
+}
+export function jointBrowserFailure(error,{phase,pageError,capacityProgress}={}){
+ // A real page exception takes precedence over a later closed-page assertion.
+ if(pageError)return {phase,code:'PAGE_EXECUTION_ERROR',page_error:capacityBrowserPageError(pageError)};
+ const capacityDeadline=phase==='ACTUAL_DAEMON_RESULT'&&error?.message==='actual capacity worker did not publish';
+ const detail={phase,code:capacityDeadline?'CAPACITY_RESULT_DEADLINE_EXCEEDED':'BROWSER_CHECK_FAILED',error:capacityBrowserPageError(error)};
+ detail.error.message=capacityDeadline?'Capacity result was not ASSESSED within the fixed 60-second browser wait.':'Browser check failed; unrestricted details withheld.';
+ if(phase==='ACTUAL_DAEMON_RESULT'&&capacityProgress)detail.capacity_result=jointCapacityProgress(capacityProgress.record,capacityProgress);
+ return detail;
+}
 const keys=(value,names)=>assert.deepEqual(Object.keys(value).sort(),[...names].sort());
 export function jointCanonicalJSON(value){
  const ordered=v=>{

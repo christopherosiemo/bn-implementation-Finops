@@ -118,13 +118,22 @@ func EvaluateWindow(in WindowInput) Evaluation {
 // interval bounds. A boundary interval may extend by at most one cadence; its
 // count is never fractionally apportioned to a fabricated midnight bucket.
 func EvaluateHistory(in HistoryInput) Evaluation {
+	evaluation, _ := EvaluateHistoryWithSegments(in)
+	return evaluation
+}
+
+// EvaluateHistoryWithSegments derives intervals from the original samples and
+// returns those same intervals with their history evaluation. It accepts no
+// caller-derived segments and keeps no cache between requests. Consumers that
+// also publish the intervals can avoid deriving their provenance hashes twice.
+func EvaluateHistoryWithSegments(in HistoryInput) (Evaluation, []Segment) {
 	e := emptyEvaluation(in.Now)
 	e.HistoryDays = in.Days
 	e.Timezone = in.Timezone
 	loc, err := time.LoadLocation(in.Timezone)
 	if err != nil || in.Now.IsZero() || (in.Days != 14 && in.Days != 30 && in.Days != 90) {
 		e.ReasonCodes = []string{"TELEMETRY_HISTORY_WINDOW_INVALID"}
-		return sealEvaluation(e)
+		return sealEvaluation(e), nil
 	}
 	now := in.Now.In(loc)
 	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).UTC()
@@ -146,7 +155,7 @@ func EvaluateHistory(in HistoryInput) Evaluation {
 		}
 		e.Metrics = append(e.Metrics, summarize(d, selected, start, end, true))
 	}
-	return finishEvaluation(e)
+	return finishEvaluation(e), segments
 }
 
 // An unavailable observation is not zero demand. Retain the requested window,

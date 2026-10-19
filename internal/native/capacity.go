@@ -94,6 +94,20 @@ func capacityHistory(now time.Time, profile workload.Profile) (time.Time, time.T
 	return end.AddDate(0, 0, -days).UTC(), end.UTC(), days, nil
 }
 
+// Both wire intervals and the history summary come from one derivation of the
+// request's freshly authenticated samples. No supplied or cached segment proof
+// bypasses the native archive/current-source checks above this calculation.
+func capacityHistoryEvidence(in telemetry.HistoryInput, start, end time.Time) ([]telemetry.Segment, telemetry.Evaluation) {
+	evaluation, derived := telemetry.EvaluateHistoryWithSegments(in)
+	segments := []telemetry.Segment{}
+	for _, segment := range derived {
+		if segment.End.After(start) && segment.Start.Before(end) {
+			segments = append(segments, segment)
+		}
+	}
+	return segments, evaluation
+}
+
 func (s *Server) capacityInput(w http.ResponseWriter, r *http.Request) {
 	header := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(header, "Bearer ")
@@ -196,13 +210,7 @@ func (s *Server) capacityInput(w http.ResponseWriter, r *http.Request) {
 		nativeError(w, 409, "CAPACITY_SELECTION_CHANGED")
 		return
 	}
-	segments := []telemetry.Segment{}
-	for _, segment := range telemetry.Segments(samples, c.Definitions) {
-		if segment.End.After(start) && segment.Start.Before(end) {
-			segments = append(segments, segment)
-		}
-	}
-	evaluation := telemetry.EvaluateHistory(telemetry.HistoryInput{Now: now, Definitions: c.Definitions, Samples: samples, Days: days, Timezone: profile.Timezone})
+	segments, evaluation := capacityHistoryEvidence(telemetry.HistoryInput{Now: now, Definitions: c.Definitions, Samples: samples, Days: days, Timezone: profile.Timezone}, start, end)
 	if len(reasons) > 0 {
 		evaluation.Status = "BLOCKED"
 		evaluation.ReasonCodes = sortedUnique(append(evaluation.ReasonCodes, reasons...))

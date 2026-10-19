@@ -542,9 +542,18 @@ func (w *Worker) Poll(ctx context.Context) (PollResult, error) {
 	return out, nil
 }
 func (w *Worker) Run(ctx context.Context, report func(PollResult)) error {
-	ticker := time.NewTicker(10 * time.Second)
+	// Analytical requests already spend time reading and evaluating evidence.
+	// Keep an idle queue from adding another ten seconds before that work starts.
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+	return w.run(ctx, report, ticker.C)
+}
+
+func (w *Worker) run(ctx context.Context, report func(PollResult), wake <-chan time.Time) error {
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		out, e := w.Poll(ctx)
 		if e != nil {
 			out.Status = "REFUSED"
@@ -555,7 +564,7 @@ func (w *Worker) Run(ctx context.Context, report func(PollResult)) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-wake:
 		}
 	}
 }

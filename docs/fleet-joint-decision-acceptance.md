@@ -71,6 +71,41 @@ Receipt SHA-256: `cd06bfe4c3c809861ae6abd65f764ade5873cf48bf433e1de143584a3b7ec9
 No successful joint-worker replacement, joint browser result or extra
 completion credit follows from this failed rehearsal.
 
+Private timing diagnostic `b8deff77-103a-4795-a667-13ac43984c62`
+preserves that same indexed application source and the original failed client
+outcome. Its shared compiler caches make it explicitly noncold and ineligible
+for acceptance credit. The actual browser request committed at
+15:06:17.491289 UTC, its scope persisted 8.723 seconds later, and its complete
+batch persisted after 65.520 seconds. Two members had real model results; the
+third retained missing statistics. The sampled sessions showed continued work
+and no observed database lock wait. This establishes late completion in this
+diagnostic, rather than an unseen queue. The 8.723 seconds includes capture
+work and cannot all be attributed to polling. Cleanup passed and the shared
+caches retained their original ownership.
+Diagnostic receipt SHA-256: `b4536af1a2699a1160c7513b87491c27b0661daa33e309b8af535a5b94d5b855`.
+
+The resulting correction reduces idle capacity polling from ten seconds to
+one second, preserves serial processing and the five-minute job budget, and
+avoids deriving telemetry segments and their provenance hashes twice in a
+single native request. Nine pre-change history fixtures and two complete
+population JSON/hash fixtures remain identical, including gaps, observed zero,
+counter resets, conflicts and histogram uncertainty. Focused telemetry/native
+checks passed with five external PG/Python cases explicitly unconfigured;
+these do not replace the final connected native run. The queue wake regression
+passed twenty package repetitions and vet. The complete Linux Node 22/Git guard
+suite passed 363 checks without skips. A Windows symlink-permission failure and
+an initial local Linux test-container noexec configuration remain distinct
+tooling failures; rerunning with executable private test scratch passed.
+
+Remote rehearsal `96a026c7-1a8f-48ec-b0c2-a0277f0eff15` in CI
+`39273848287` also failed at `REAL_OIDC_CALCULATED_MEMBER_BROWSER`, with
+successful owned cleanup and identical source/host pins to the indexed local
+failure. Its uploaded receipt omitted the inner browser reason, so it cannot
+establish the same timeout. Subsequent failure receipts retain only a validated
+browser phase and fixed reason code, or null when unavailable. No arbitrary
+errors, response bodies or observations are added to public artifacts.
+Remote receipt SHA-256: `0d7d40a3e9f6ba49438216fd07ed7ed0ca9a563b03ee3ec6062ed5807e986b44`.
+
 ## Required integration and release gates
 
 Connect actual archived native hardware and billing,

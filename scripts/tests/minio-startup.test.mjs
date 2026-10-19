@@ -43,6 +43,9 @@ exec /bin/sh "$INIT_SCRIPT"
   const result = spawnSync(shell, [path.join(directory, 'launch')], {env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 15_000, maxBuffer: 128 << 10});
   const read = name => fs.existsSync(path.join(directory, name)) ? fs.readFileSync(path.join(directory, name), 'utf8').trim().split(/\r?\n/) : [];
   const evidence = {...result, calls: read('calls'), sleeps: read('sleeps'), timeouts: read('timeouts')};
+  assert.equal(path.dirname(fs.realpathSync(directory)), fs.realpathSync(os.tmpdir()));
+  assert.match(path.basename(directory), /^minio-startup-test-/);
+  assert.ok(fs.lstatSync(directory).isDirectory() && !fs.lstatSync(directory).isSymbolicLink());
   fs.rmSync(directory, {recursive: true, force: true});
   assert.equal(evidence.error, undefined);
   assert.equal((evidence.stdout + evidence.stderr).includes(sentinel), false);

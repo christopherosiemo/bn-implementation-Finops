@@ -10,6 +10,21 @@ import {canonicalCapacityDaemonJSON,parseCapacityDaemonCutpoint,validateCapacity
 
 const SHA=/^[a-f0-9]{64}$/, UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const digest=raw=>createHash('sha256').update(raw).digest('hex');
+const browserFailurePhases=new Set(['START_BROWSER','WAIT_REAL_IDP','REAL_PKCE_SIGN_IN','IDS_ONLY_UI_REQUEST','ACTUAL_DAEMON_RESULT','LAZY_NATIVE_MEMBER','PERSISTED_RELOAD','REAL_JOINT_FINANCE_PHASE']);
+const browserFailureCodes=new Set(['PAGE_EXECUTION_ERROR','CAPACITY_RESULT_DEADLINE_EXCEEDED','BROWSER_CHECK_FAILED']);
+// Only the owned browser's fixed wire shape may enter a public failure receipt.
+// Unknown diagnostics leave the original failure and outer phase untouched.
+export function projectJointBrowserFailure(raw,runID){
+ try{
+  if(!UUID.test(runID)||!Buffer.isBuffer(raw)||raw.length===0||raw.length>1024)return null;
+  const v=JSON.parse(raw.toString('utf8'));
+  if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).sort().join(',')!=='code,phase,run_id,schema_version,status')return null;
+  if(!raw.equals(Buffer.from(JSON.stringify(v)+'\n')))return null;
+  if(v.schema_version!=='1'||v.status!=='FAIL'||v.run_id!==runID||!browserFailurePhases.has(v.phase)||!browserFailureCodes.has(v.code))return null;
+  if(v.code==='CAPACITY_RESULT_DEADLINE_EXCEEDED'&&v.phase!=='ACTUAL_DAEMON_RESULT')return null;
+  return Object.freeze({phase:v.phase,code:v.code});
+ }catch{return null;}
+}
 export function canonicalJointDecisionJSON(v){const sort=x=>Array.isArray(x)?x.map(sort):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,sort(x[k])])):x;return JSON.stringify(sort(v));}
 export function validateJointNativeResult(value,validateBase){const total=value?.archived_native_readbacks,additional=value?.joint_additional_native_readbacks;assert.ok(Number.isSafeInteger(total)&&Number.isSafeInteger(additional)&&additional>0&&additional<=128&&total-additional===20);const base={...value,archived_native_readbacks:total-additional};delete base.joint_additional_native_readbacks;validateBase(base);return Object.freeze({total_readbacks:total,base_readbacks:20,joint_additional_readbacks:additional});}
 export function validateJointCURAnalytics(v,runID,tenant){assert.deepEqual(Object.keys(v).sort(),['schema_version','run_id','tenant_id','source_id','source_versions','expected_rows','readback_rows','canonical_sha256','actual_clickhouse','actual_source_pipeline','fixture','financial_execution_authorized'].sort());assert.equal(v.schema_version,'1');assert.equal(v.run_id,runID);assert.equal(v.tenant_id,tenant);assert.equal(v.source_id,'assessment-native');assert.ok(Array.isArray(v.source_versions)&&v.source_versions.length>=1&&v.source_versions.length<=2&&new Set(v.source_versions).size===v.source_versions.length);assert.deepEqual(v.source_versions,[...v.source_versions].sort());for(const x of v.source_versions)assert.match(x,SHA);assert.equal(v.expected_rows,1032);assert.equal(v.readback_rows,1032);assert.match(v.canonical_sha256,SHA);for(const k of ['actual_clickhouse','actual_source_pipeline','fixture'])assert.equal(v[k],true);assert.equal(v.financial_execution_authorized,false);return Object.freeze(v);}
