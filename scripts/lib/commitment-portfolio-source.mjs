@@ -17,6 +17,9 @@ const extraPaths = Object.freeze([
   'scripts/tests/commitment-portfolio-browser.test.mjs',
   'examples/commitment-portfolio-browser/main.mjs',
   'examples/commitment-portfolio-browser/portfolio.mjs',
+  'examples/commitment-portfolio-browser/decision.mjs',
+  'scripts/lib/commitment-decision-browser.mjs',
+  'scripts/tests/commitment-decision-browser.test.mjs',
   'cmd/commitment-portfolio-worker/main.go',
   'internal/commitmentportfolio/testdata/python-id-unicode.json',
 ]);

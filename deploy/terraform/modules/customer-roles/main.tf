@@ -143,7 +143,7 @@ resource "aws_iam_role_policy" "read" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat([
-      { Effect = "Allow", Action = ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus", "ec2:DescribeInstanceTypes", "ec2:DescribeInstanceTypeOfferings", "ec2:DescribeImages", "ec2:DescribeVolumes", "ec2:DescribeTags", "autoscaling:DescribeAutoScalingGroups", "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } }
+      { Effect = "Allow", Action = ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus", "ec2:DescribeInstanceTypes", "ec2:DescribeInstanceTypeOfferings", "ec2:DescribeImages", "ec2:DescribeVolumes", "ec2:DescribeTags", "autoscaling:DescribeAutoScalingGroups", "autoscaling:DescribeAutoScalingInstances", "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } }
       ], flatten([for bucket in compact([var.billing_bucket_arn]) : [
         { Effect = "Allow", Action = "s3:ListBucket", Resource = bucket, Condition = { StringLike = { "s3:prefix" = "${var.billing_prefix}*" } } },
         { Effect = "Allow", Action = ["s3:GetBucketVersioning", "s3:GetBucketPolicy", "s3:GetBucketLocation"], Resource = bucket },

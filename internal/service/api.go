@@ -123,7 +123,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Cached responses must obey the same current route roles as fresh writes.
-	if e := authorizeMutationRole(i, r.URL.Path); e != nil {
+	if e := authorizeMutationRole(i, r.URL.Path); e != nil && !(r.URL.Path == "/v1/approvals" && i.Roles["FINANCE"]) {
 		fail(w, e)
 		return
 	}
@@ -152,6 +152,10 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if input == nil {
 		input = model.Document{}
 	}
+	if e := authorizeMutationBodyRole(i, r.URL.Path, input); e != nil {
+		fail(w, e)
+		return
+	}
 	sum := sha256.Sum256([]byte(i.Subject + "\n" + r.Method + "\n" + r.URL.Path + "\n" + string(body)))
 	hash := hex.EncodeToString(sum[:])
 	allocationReportRequest := r.URL.Path == "/v1/allocation-reports"
@@ -169,7 +173,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r := r.WithContext(ctx)
 		status, output = 200, nil
 		return a.Store.Do(ctx, i.Tenant, func(t *store.Tx) error {
-			if e := authorizeMutationRole(i, r.URL.Path); e != nil {
+			if e := authorizeMutationBodyRole(i, r.URL.Path, input); e != nil {
 				return e
 			}
 			if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
@@ -226,6 +230,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return e
 		}
 		if result, handled, err := a.allocationGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
+		if result, handled, err := a.commitmentDecisionGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
 		}
@@ -456,6 +464,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
 	if out, status, handled, err := a.allocationMutate(ctx, t, i, r, in, parts); handled {
+		return out, status, err
+	}
+	if out, status, handled, err := a.commitmentDecisionMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}
 	if out, status, handled, err := a.fleetCapacityMutate(ctx, t, i, r, in, parts); handled {

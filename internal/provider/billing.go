@@ -107,7 +107,16 @@ func (a *BillingAWS) BillingManifestKeys(ctx context.Context, bucket, prefix, ex
 	return nil, errors.New("AWS_MANIFEST_LIST_LIMIT")
 }
 func (a *BillingAWS) BillingObject(ctx context.Context, bucket, key, version string) (BillingObject, error) {
+	return a.BillingObjectBounded(ctx, bucket, key, version, 64<<20)
+}
+
+// BillingObjectBounded keeps the registered archive contract bounded during the
+// transport read as well as after validation. Existing billing remains64MiB.
+func (a *BillingAWS) BillingObjectBounded(ctx context.Context, bucket, key, version string, maxBytes int64) (BillingObject, error) {
 	var out BillingObject
+	if maxBytes < 1 || maxBytes > 64<<20 {
+		return out, errors.New("SOURCE_OBJECT_LIMIT_INVALID")
+	}
 	in := &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key), ExpectedBucketOwner: aws.String(a.ExpectedOwner)}
 	if version != "" {
 		in.VersionId = aws.String(version)
@@ -120,14 +129,14 @@ func (a *BillingAWS) BillingObject(ctx context.Context, bucket, key, version str
 	if r.VersionId == nil || *r.VersionId == "" || *r.VersionId == "null" {
 		return out, errors.New("SOURCE_OBJECT_VERSION_REQUIRED")
 	}
-	if r.ContentLength != nil && *r.ContentLength > 64<<20 {
+	if r.ContentLength != nil && *r.ContentLength > maxBytes {
 		return out, errors.New("SOURCE_OBJECT_LIMIT")
 	}
-	b, e := io.ReadAll(io.LimitReader(r.Body, (64<<20)+1))
+	b, e := io.ReadAll(io.LimitReader(r.Body, maxBytes+1))
 	if e != nil {
 		return out, e
 	}
-	if len(b) > 64<<20 {
+	if int64(len(b)) > maxBytes {
 		return out, errors.New("SOURCE_OBJECT_LIMIT")
 	}
 	return BillingObject{Key: key, VersionID: *r.VersionId, ETag: aws.ToString(r.ETag), LastModified: aws.ToTime(r.LastModified), Data: b}, nil

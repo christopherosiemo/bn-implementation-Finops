@@ -258,6 +258,9 @@ func Build(in Input, now time.Time) (Decision, error) {
 		if e != nil {
 			return out, e
 		}
+		if m.InputKind == "CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST" {
+			out.ReasonCodes = append(out.ReasonCodes, "CURRENT_CONFIGURATION_BASELINE_ONLY")
+		}
 		if m.ResourceID != "" {
 			if resources[m.ResourceID] {
 				return out, ErrJoin
@@ -373,6 +376,20 @@ func physical(m c.MemberResult, ref Ref, in Input, ratePins map[string]b.GroupNa
 		return out, e
 	}
 	if len(mapResult.Candidates) != 1 || mapResult.Candidates[0].ID != in.Scope.CandidateTemplate.InstanceType || mapResult.Candidates[0].Count != 1 || mapResult.Current.Count != 1 || mapResult.Current.Pricing != nil || mapResult.Candidates[0].Pricing != nil || mapResult.Current.CommitmentCompatible != nil || mapResult.Candidates[0].CommitmentCompatible != nil || len(result.Candidates) != 1 || result.SchemaVersion != "4" || result.ModelVersion != native.CapacityProxyModelVersion || result.Binding != *m.Binding || result.Status != "BLOCKED" && result.Status != "INSUFFICIENT_OBSERVATION" {
+		return out, ErrJoin
+	}
+	baselineReason := false
+	for _, reason := range m.ReasonCodes {
+		baselineReason = baselineReason || reason == "CURRENT_CONFIGURATION_BASELINE_ONLY"
+	}
+	baseline := m.InputKind == "CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST"
+	if mapResult.Current.ID == mapResult.Candidates[0].ID {
+		// A same-type physical observation is a current configuration baseline,
+		// never a hypothetical default-CPU candidate or positive fleet money.
+		if !baseline || !baselineReason || !same(mapResult.Current, mapResult.Candidates[0]) || in.Assessment.NativeRates.Status == "OBSERVED_CONDITIONAL" {
+			return out, ErrJoin
+		}
+	} else if baseline || baselineReason {
 		return out, ErrJoin
 	}
 	if in.Assessment.NativeRates.Status == "OBSERVED_CONDITIONAL" && mapResult.Current.ID != in.Assessment.NativeRates.Old.InstanceType {

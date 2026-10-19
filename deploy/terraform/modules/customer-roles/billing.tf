@@ -14,6 +14,15 @@ variable "enable_commitment_inventory" {
   default     = false
   description = "Explicitly allow read-only EC2 RI inventory in every enabled region and global Savings Plans/Organizations inventory. Enable separately in every linked-account read role."
 }
+variable "enable_commitment_quotes" {
+  type        = bool
+  default     = false
+  description = "Optional read-only native SP rates and NoUpfront offering quotes. This never permits purchase or modification."
+  validation {
+    condition     = !var.enable_commitment_quotes || var.enable_commitment_inventory
+    error_message = "Commitment quotes require separately approved complete inventory access."
+  }
+}
 
 resource "aws_iam_role_policy" "trusted_billing" {
   count = length(var.billing_export_arns) > 0 ? 1 : 0
@@ -33,10 +42,13 @@ resource "aws_iam_role_policy" "commitment_inventory" {
   role  = aws_iam_role.customer["read"].id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       { Effect = "Allow", Action = ["ec2:DescribeRegions", "ec2:DescribeReservedInstances"], Resource = "*" },
       { Effect = "Allow", Action = ["savingsplans:DescribeSavingsPlans", "organizations:DescribeOrganization", "organizations:ListAccounts"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = "us-east-1" } } }
-    ]
+      ], var.enable_commitment_quotes ? [
+      { Effect = "Allow", Action = ["savingsplans:DescribeSavingsPlanRates"], Resource = "arn:aws:savingsplans::${var.expected_account_id}:savingsplan/*", Condition = { StringEquals = { "aws:RequestedRegion" = "us-east-1" } } },
+      { Effect = "Allow", Action = ["savingsplans:DescribeSavingsPlansOfferings", "savingsplans:DescribeSavingsPlansOfferingRates"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = "us-east-1" } } }
+    ] : [])
   })
 }
 

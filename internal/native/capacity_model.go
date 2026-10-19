@@ -225,6 +225,17 @@ func hardwareCatalog(e provider.HardwareEvidence, typ provider.HardwareType, cur
 // denominators must be observed throughout history; today's type cannot silently
 // reinterpret old utilization ratios from another physical configuration.
 func BuildCapacityModelInput(p CapacityPopulation, profile workload.Profile, receipt model.Document) (CapacityMapping, error) {
+	return buildCapacityModelInput(p, profile, receipt, false)
+}
+
+// BuildCurrentCapacityModelInput evaluates only the observed configuration.
+// It is not a candidate change or deployment simulation. In particular both
+// catalog sides retain the actual observed CPU options, never type defaults.
+func BuildCurrentCapacityModelInput(p CapacityPopulation, profile workload.Profile, receipt model.Document) (CapacityMapping, error) {
+	return buildCapacityModelInput(p, profile, receipt, true)
+}
+
+func buildCapacityModelInput(p CapacityPopulation, profile workload.Profile, receipt model.Document, currentBaseline bool) (CapacityMapping, error) {
 	m := CapacityMapping{Candidates: []CapacityModelCatalog{}, ReasonCodes: []string{}, CandidateReasons: map[string][]string{}, Assumptions: []string{"Per-resource analysis; candidate default CPU options are hypothetical, not deployment proof.", "CPU and memory utilization use source-observed constant denominator gauges cross-checked with native hardware.", "Network directions and disk read/write deltas are conservatively combined over identical actual intervals.", "AWS network Gbps and EBS MB/s use decimal units; volume throughput MiB/s uses binary units.", "Candidate pricing and commitment compatibility remain unknown; no execution authority or verified savings."}}
 	block := func(code string) { m.ReasonCodes = append(m.ReasonCodes, code) }
 	var e provider.HardwareEvidence
@@ -249,7 +260,19 @@ func BuildCapacityModelInput(p CapacityPopulation, profile workload.Profile, rec
 	var reasons []string
 	m.Current, reasons = hardwareCatalog(e, current, true, ref)
 	m.ReasonCodes = append(m.ReasonCodes, reasons...)
+	selected := model.Strings(receipt, "candidate_types")
+	if currentBaseline {
+		if len(selected) != 1 || selected[0] != e.Instance.Type {
+			block("CAPACITY_CURRENT_BASELINE_EXACT_TYPE_REQUIRED")
+		} else {
+			m.Candidates = append(m.Candidates, m.Current)
+			m.Assumptions[0] = "Read-only current configuration baseline; both catalogs use identical observed capacities and CPU options. No candidate change or deployment is authorized."
+		}
+	}
 	for _, name := range model.Strings(receipt, "candidate_types") {
+		if currentBaseline {
+			continue
+		}
 		if name == e.Instance.Type {
 			continue
 		}

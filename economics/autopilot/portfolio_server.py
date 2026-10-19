@@ -8,9 +8,14 @@ import ssl
 import stat
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .portfolio import EvidenceError, evaluate
+from .portfolio_decision import evaluate as evaluate_decision
+from .portfolio_forecast import produce as produce_forecast
 
 MAX_BODY = 32 * 1024 * 1024
 MAX_RESULT = 2 * 1024 * 1024
+# The new numerical producer returns8760 individually timestamped hours. This
+# additive route has its own bounded result; v5/v6decision remain2MiB.
+MAX_FORECAST_RESULT = 8 * 1024 * 1024
 TOKEN_FILE = "/run/secrets/commitment-portfolio-model-token"
 CERT_FILE = "/run/tls/commitment-portfolio/tls.crt"
 KEY_FILE = "/run/tls/commitment-portfolio/tls.key"
@@ -75,7 +80,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def reply(self, status, value):
         raw = json.dumps(value, separators=(",", ":"), allow_nan=False).encode()
-        if len(raw) > MAX_RESULT:
+        result_limit = MAX_FORECAST_RESULT if self.path == "/v6/commitment-forecast" else MAX_RESULT
+        if len(raw) > result_limit:
             status, raw = 422, b'{"error":"PORTFOLIO_RESULT_LIMIT"}'
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -88,7 +94,10 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200 if self.path == "/healthz" else 404, {"status": "ok"} if self.path == "/healthz" else {"error": "NOT_FOUND"})
 
     def do_POST(self):
-        if self.path != "/v5/commitment-portfolio":
+        evaluators = {"/v5/commitment-portfolio": evaluate,
+                      "/v6/commitment-decision": evaluate_decision,
+                      "/v6/commitment-forecast": produce_forecast}
+        if self.path not in evaluators:
             return self.reply(404, {"error": "NOT_FOUND"})
         try:
             authorization = self.headers.get("Authorization", "").encode("ascii")
@@ -107,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(raw) != length:
                 raise EvidenceError("truncated input")
             value = json.loads(raw, object_pairs_hook=unique_object, parse_float=lambda _: (_ for _ in ()).throw(EvidenceError("decimal strings required")), parse_constant=lambda _: (_ for _ in ()).throw(EvidenceError("finite values required")))
-            self.reply(200, evaluate(value))
+            self.reply(200, evaluators[self.path](value))
         except (EvidenceError, ValueError, KeyError, TypeError, UnicodeError, OverflowError, RecursionError):
             self.reply(422, {"error": "PORTFOLIO_EVIDENCE_UNSUPPORTED"})
         except (BrokenPipeError, ConnectionResetError, socket.timeout):

@@ -107,6 +107,9 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		response(w, 200, model.Document{"status": "ok", "role": "deployment-observer"})
 		return
 	}
+	if s.serveOwnership(w, r) {
+		return
+	}
 	const prefix = "/v1/deployment-callbacks/"
 	if !strings.HasPrefix(r.URL.Path, prefix) {
 		http.NotFound(w, r)

@@ -295,7 +295,8 @@ func (w *Worker) RunOnce(ctx context.Context) (int, error) {
 		}
 		completed++
 	}
-	return completed, nil
+	decisions, err := w.RunDecisionOnce(ctx)
+	return completed + decisions, err
 }
 func (w *Worker) Run(ctx context.Context, report func(int, error)) error {
 	tick := time.NewTicker(time.Second)

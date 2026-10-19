@@ -18,7 +18,7 @@ func trustedSourceTick(ctx context.Context, a *Activities, tenant string) error 
 		return e
 	}
 	if len(registered) == 0 {
-		return nil
+		return commitmentEvidenceTick(ctx, a, tenant)
 	}
 	factory, e := source.AWSFactory(os.Getenv("AWS_SOURCE_READ_BINDINGS_JSON"))
 	if e != nil {
@@ -28,5 +28,8 @@ func trustedSourceTick(ctx context.Context, a *Activities, tenant string) error 
 	pipeline := source.Pipeline{Store: a.Store, ProviderFactory: factory, Normalize: func(ctx context.Context, raw model.Document) (model.Document, error) {
 		return producer.NormalizeTrustedSource(ctx, raw)
 	}, Persist: service.PersistEvidence, ArchiveObject: service.ArchiveSourceObject}
-	return pipeline.Tick(ctx, tenant)
+	if err := pipeline.Tick(ctx, tenant); err != nil {
+		return err
+	}
+	return commitmentEvidenceTick(ctx, a, tenant)
 }

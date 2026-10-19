@@ -192,6 +192,9 @@ func scheduleDueAt(ctx context.Context, a *Activities, t *store.Tx, now time.Tim
 			return e
 		}
 		for _, r := range recs {
+			if service.IsCommitmentAdvice(r) {
+				continue
+			}
 			if model.String(r, "workload_id") != model.String(s, "workload_id") || model.String(r, "status") != "VALIDATED" {
 				continue
 			}

@@ -497,28 +497,37 @@ func (b *GroupNativeBroker) Capture(ctx context.Context, tenant, oldProposal, ca
 		return fail(e.Error())
 	}
 	out.EconomicScopeSHA256 = economicHash(records, out.Baseline)
-	out.Old, e = summarizeRates(records, oldMachines, oldTemplate, out.Baseline, target.AccountID, target.Region, currency, true)
-	if e != nil {
-		return fail(e.Error())
+	// An exact current-type baseline has no counterfactual configuration-price
+	// claim. Preserve actual population/native/CUR closure and repeat final
+	// currentness below, but do not manufacture conditional fleet economics.
+	currentBaseline := len(oldMachines) > 0
+	for _, machine := range oldMachines {
+		currentBaseline = currentBaseline && machine.InstanceType == candidateTemplate.InstanceType
 	}
-	for _, m := range candidates {
-		// Require one complete latest day for the native witness as well. A
-		// duplicate or overlapping witness row cannot inflate observed costs or
-		// masquerade as additional rate support.
-		rate, err := summarizeRates(records, []NativeMachine{m}, candidateTemplate, Period{end.Add(-24 * time.Hour), end}, target.AccountID, target.Region, currency, true)
-		if err != nil {
-			if err.Error() == "PRICE_CANDIDATE_ACCOUNT_RATE_UNAVAILABLE" {
-				continue
+	if !currentBaseline {
+		out.Old, e = summarizeRates(records, oldMachines, oldTemplate, out.Baseline, target.AccountID, target.Region, currency, true)
+		if e != nil {
+			return fail(e.Error())
+		}
+		for _, m := range candidates {
+			// Require one complete latest day for the native witness as well. A
+			// duplicate or overlapping witness row cannot inflate observed costs or
+			// masquerade as additional rate support.
+			rate, err := summarizeRates(records, []NativeMachine{m}, candidateTemplate, Period{end.Add(-24 * time.Hour), end}, target.AccountID, target.Region, currency, true)
+			if err != nil {
+				if err.Error() == "PRICE_CANDIDATE_ACCOUNT_RATE_UNAVAILABLE" {
+					continue
+				}
+				return fail(err.Error())
 			}
-			return fail(err.Error())
+			if out.Candidate.ObservedHourlyRate != nil && (Hash(out.Candidate.Dimensions) != Hash(rate.Dimensions) || *out.Candidate.ObservedHourlyRate != *rate.ObservedHourlyRate) {
+				return fail("GROUP_PRICE_CANDIDATE_ACCOUNT_RATE_AMBIGUOUS")
+			}
+			out.Candidate = rate
 		}
-		if out.Candidate.ObservedHourlyRate != nil && (Hash(out.Candidate.Dimensions) != Hash(rate.Dimensions) || *out.Candidate.ObservedHourlyRate != *rate.ObservedHourlyRate) {
-			return fail("GROUP_PRICE_CANDIDATE_ACCOUNT_RATE_AMBIGUOUS")
+		if out.Candidate.ObservedHourlyRate == nil {
+			return fail("GROUP_PRICE_CANDIDATE_ACCOUNT_RATE_REQUIRED")
 		}
-		out.Candidate = rate
-	}
-	if out.Candidate.ObservedHourlyRate == nil {
-		return fail("GROUP_PRICE_CANDIDATE_ACCOUNT_RATE_REQUIRED")
 	}
 	latest, err := b.Repository.ResolveGroupNative(ctx, tenant, oldProposal, candidateProposal)
 	if err != nil {
@@ -546,6 +555,9 @@ func (b *GroupNativeBroker) Capture(ctx context.Context, tenant, oldProposal, ca
 	}
 	if !out.ValidUntil.After(finalNow) {
 		return fail("GROUP_PRICE_BILLING_EXPIRED_DURING_CAPTURE")
+	}
+	if currentBaseline {
+		return fail("CURRENT_CONFIGURATION_BASELINE_NO_COUNTERFACTUAL_ECONOMICS")
 	}
 	out.Status = "OBSERVED_CONDITIONAL"
 	out.ID = "group-native-rate-" + Hash(out)

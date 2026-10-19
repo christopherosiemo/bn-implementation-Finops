@@ -143,5 +143,10 @@ func (p *ArtifactPipeline) resume(ctx context.Context, reg ArtifactRegistration,
 	if receipt.Archive != ref || artifactHash(receipt.Metadata) != artifactHash(meta) || receipt.Metadata.ExecutionAuthorized || receipt.Metadata.VerifiedSaving != nil || !receipt.ObservedAt.Equal(job.CreatedAt) || !receipt.ExpiresAt.Equal(job.CreatedAt.Add(15*time.Minute)) || receipt.ReceivedAt.Before(receipt.ObservedAt) {
 		return ArtifactReceipt{}, false, errors.New("CONFIGURATION_ARTIFACT_RECEIPT_INVALID")
 	}
+	if proofs, ok := p.Repository.(artifactDecisionReadbackRepository); ok {
+		if e = proofs.RecordDecisionReadback(ctx, reg, receipt, body, bundle); e != nil {
+			return ArtifactReceipt{}, false, e
+		}
+	}
 	return receipt, replay || existing, nil
 }

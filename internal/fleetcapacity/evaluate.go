@@ -183,9 +183,7 @@ func Prepare(in MemberInput, now time.Time) (Plan, error) {
 	if hardware.Instance.ImageID != c.ImageID {
 		return gap(p, "CAPACITY_CANDIDATE_IMAGE_COMPATIBILITY_UNPROVEN")
 	}
-	if hardware.Instance.Type == c.InstanceType {
-		return gap(p, "CAPACITY_CANDIDATE_TYPE_UNCHANGED")
-	}
+	currentBaseline := hardware.Instance.Type == c.InstanceType
 	allowed := false
 	for _, typ := range model.Strings(in.Hardware, "candidate_types") {
 		allowed = allowed || typ == c.InstanceType
@@ -208,7 +206,12 @@ func Prepare(in MemberInput, now time.Time) (Plan, error) {
 	}
 	forMapping := document(in.Hardware)
 	forMapping["candidate_types"] = []string{c.InstanceType}
-	mapping, e := native.BuildCapacityModelInput(population, in.Profile, forMapping)
+	var mapping native.CapacityMapping
+	if currentBaseline {
+		mapping, e = native.BuildCurrentCapacityModelInput(population, in.Profile, forMapping)
+	} else {
+		mapping, e = native.BuildCapacityModelInput(population, in.Profile, forMapping)
+	}
 	if e != nil {
 		return Plan{}, e
 	}
@@ -229,6 +232,13 @@ func Prepare(in MemberInput, now time.Time) (Plan, error) {
 	}
 	p.Result.ModelRequested = true
 	p.Result.InputKind = "MODEL_REQUEST"
+	if currentBaseline {
+		if telemetry.Hash(p.Request.Current) != telemetry.Hash(p.Request.Candidates[0]) {
+			return Plan{}, errors.New("FLEET_CAPACITY_BASELINE_CATALOG_CHANGED")
+		}
+		p.Result.InputKind = "CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST"
+		p.Result.ReasonCodes = append(p.Result.ReasonCodes, "CURRENT_CONFIGURATION_BASELINE_ONLY")
+	}
 	p.Result.InputHash = telemetry.Hash(p.Request)
 	p.Result.DemandMeaning = native.CapacityRequestProxyRole
 	p.Result, e = finish(p.Result)
@@ -242,7 +252,14 @@ func Evaluate(ctx context.Context, p Plan, calculator Calculator, now time.Time)
 	if p.Request == nil {
 		return finish(p.Result)
 	}
-	if !p.Result.ModelRequested || p.Result.ModelEvaluated || p.Result.ModelEvaluation != nil || p.Result.CapacitySuitable != nil || p.Result.InputHash != telemetry.Hash(p.Request) || p.Result.InputKind != "MODEL_REQUEST" || p.Result.Binding == nil || p.Request.Binding != *p.Result.Binding || p.Request.AsOf.Before(now.Add(-2*time.Minute)) || p.Request.AsOf.After(now.Add(5*time.Second)) {
+	baseline := p.Result.InputKind == "CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST"
+	if baseline && (len(p.Request.Candidates) != 1 || p.Result.CandidateTemplate == nil || p.Result.CandidateTemplate.InstanceType != p.Request.Current.ID || telemetry.Hash(p.Request.Current) != telemetry.Hash(p.Request.Candidates[0]) || !containsBaselineReason(p.Result.ReasonCodes)) {
+		return MemberResult{}, errors.New("FLEET_CAPACITY_BASELINE_CATALOG_CHANGED")
+	}
+	if !baseline && (containsBaselineReason(p.Result.ReasonCodes) || len(p.Request.Candidates) == 1 && p.Request.Candidates[0].ID == p.Request.Current.ID) {
+		return MemberResult{}, errors.New("FLEET_CAPACITY_BASELINE_MARKER_CHANGED")
+	}
+	if !p.Result.ModelRequested || p.Result.ModelEvaluated || p.Result.ModelEvaluation != nil || p.Result.CapacitySuitable != nil || p.Result.InputHash != telemetry.Hash(p.Request) || (p.Result.InputKind != "MODEL_REQUEST" && !baseline) || p.Result.Binding == nil || p.Request.Binding != *p.Result.Binding || p.Request.AsOf.Before(now.Add(-2*time.Minute)) || p.Request.AsOf.After(now.Add(5*time.Second)) {
 		return MemberResult{}, errors.New("FLEET_CAPACITY_MODEL_INPUT_CHANGED")
 	}
 	r := p.Result
@@ -277,6 +294,15 @@ func Evaluate(ctx context.Context, p Plan, calculator Calculator, now time.Time)
 	r.ReasonCodes = append(r.ReasonCodes, calculated.ReasonCodes...)
 	r.ReasonCodes = append(r.ReasonCodes, calculated.Candidates[0].ReasonCodes...)
 	return finish(r)
+}
+
+func containsBaselineReason(reasons []string) bool {
+	for _, reason := range reasons {
+		if reason == "CURRENT_CONFIGURATION_BASELINE_ONLY" {
+			return true
+		}
+	}
+	return false
 }
 
 func Summarize(scope Scope, members []MemberResult) (BatchResult, error) {

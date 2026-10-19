@@ -8,6 +8,158 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /commitment-decision-inputs/{id}:
+    get:
+      operationId: getCommitmentDecisionPreparation
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable evidence-preparation request and issued result IDs or explicit gaps.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentDecisionPreparationRecord'
+        '403':
+          description: Workload read scope required.
+        '404':
+          description: Scoped preparation absent.
+  /workloads/{id}/commitment-decisions:
+    get:
+      operationId: listCommitmentDecisions
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped lightweight immutable decision history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentDecisionPage'
+        '403':
+          description: Workload read scope required.
+    post:
+      operationId: requestCommitmentDecision
+      description: >-
+        Finance-scoped IDs-only request. If-Match must be quoted zero. Server resolves authentic stored offers,
+        post-optimization outcomes, forecast and portfolio evidence. No prices, metrics, authority or forecast values are
+        accepted.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitmentDecisionSelection'
+      responses:
+        '202':
+          description: Decision queued; no purchase or execution authority.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentDecisionRecord'
+        '403':
+          description: Finance write role and workload scope required.
+        '409':
+          description: Idempotency conflict.
+        '412':
+          description: Initial version precondition failed.
+        '422':
+          description: Issued input or scope binding invalid.
+  /commitment-decisions/{id}:
+    get:
+      operationId: getCommitmentDecision
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Full immutable decision and actor-specific Finance review eligibility.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentDecisionRecord'
+        '403':
+          description: Workload read scope required.
+        '404':
+          description: Scoped decision absent.
+  /workloads/{id}/commitment-decision-inputs:
+    get:
+      operationId: listCommitmentDecisionInputs
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - PORTFOLIO_ANALYSIS
+              - OFFER
+              - POST_OPTIMIZATION_ASSESSMENT
+              - FORECAST
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Server-issued choices. Only CURRENT choices are selectable; stale/unavailable choices remain explicit.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CommitmentDecisionInputPage'
+                  - $ref: '#/components/schemas/CommitmentDecisionPreparationPage'
+        '403':
+          description: Workload read scope required.
+      description: >-
+        With kind, returns issued choices; without kind, returns lightweight evidence-preparation requests. IDs in an
+        ASSESSED preparation may represent explicit evidence gaps and do not establish decision readiness.
+    post:
+      operationId: prepareCommitmentDecisionInputs
+      description: >-
+        Queues the existing analyst to resolve post-optimization and forecast evidence from two authentic stored IDs.
+        If-Match is quoted zero. Forecast values, outcome labels and evidence assertions are never public inputs.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitmentDecisionPreparationSelection'
+      responses:
+        '202':
+          description: Preparation queued; published IDs may truthfully identify unavailable evidence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentDecisionPreparationRecord'
+        '403':
+          description: Finance write role and workload scope required.
+        '409':
+          description: Idempotency conflict.
+        '412':
+          description: Initial version precondition failed.
+        '422':
+          description: Issued selection or scope invalid.
   /commitment-portfolio-analyses:
     get:
       operationId: listCommitmentPortfolioAnalyses
@@ -1909,8 +2061,53 @@ paths:
     post:
       operationId: approvePlan
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' }, { $ref: '#/components/parameters/IfMatch' } ]
-      requestBody: { $ref: '#/components/requestBodies/PlanReference' }
-      responses: { '413': { $ref: '#/components/responses/MutationBodyTooLarge' }, '201': { description: Exact plan approved; returns approval and updated change_plan } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required:
+                    - change_plan_id
+                  properties:
+                    change_plan_id:
+                      type: string
+                  not:
+                    anyOf:
+                      - required:
+                          - commitment_decision_id
+                      - required:
+                          - decision_sha256
+                - $ref: '#/components/schemas/CommitmentDecisionFinanceReviewRequest'
+      responses:
+        '201':
+          description: >-
+            Existing plan approval or exact immutable commitment recommendation Finance review. The latter never authorizes
+            purchase or execution.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CommitmentDecisionFinanceReviewResponse'
+                  - type: object
+                    required:
+                      - approval
+                      - change_plan
+                    additionalProperties: true
+                    properties:
+                      approval:
+                        type: object
+                      change_plan:
+                        type: object
+        '403':
+          description: Finance role, independent reviewer and workload scope required for a commitment target.
+        '409':
+          description: Review/version conflict or changed immutable target.
+        '413':
+          $ref: '#/components/responses/MutationBodyTooLarge'
+        '422':
+          description: Mixed target, invalid hash or no longer current input closure.
   /executions:
     post:
       operationId: executePlan
@@ -2004,6 +2201,808 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    CommitmentDecisionPreparationSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - portfolio_analysis_request_id
+        - offer_receipt_id
+      properties:
+        portfolio_analysis_request_id:
+          type: string
+          minLength: 1
+        offer_receipt_id:
+          type: string
+          minLength: 1
+    CommitmentDecisionPreparationRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - status
+        - selection
+        - post_optimization_assessment_id
+        - forecast_id
+        - input_refs
+        - reason_codes
+        - created_at
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          maximum: 2
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        selection:
+          $ref: '#/components/schemas/CommitmentDecisionPreparationSelection'
+        post_optimization_assessment_id:
+          type: string
+          nullable: true
+        forecast_id:
+          type: string
+          nullable: true
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        reason_codes:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          nullable: true
+          enum:
+            - null
+    CommitmentDecisionPreparationPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentDecisionPreparationRecord'
+        next_cursor:
+          type: string
+          nullable: true
+    CommitmentDecisionSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - portfolio_analysis_request_id
+        - offer_receipt_id
+        - post_optimization_assessment_id
+        - forecast_id
+      properties:
+        portfolio_analysis_request_id:
+          type: string
+          minLength: 1
+        offer_receipt_id:
+          type: string
+          minLength: 1
+        post_optimization_assessment_id:
+          type: string
+          minLength: 1
+        forecast_id:
+          type: string
+          minLength: 1
+    CommitmentDecisionScope:
+      type: object
+      additionalProperties: false
+      required:
+        - tenant_id
+        - workload_id
+        - payer_account_id
+        - usage_account_ids
+        - resource_ids
+        - class
+        - currency
+        - configuration_sha256
+        - ownership_ref
+        - history_period
+        - projection_period
+        - sha256
+      properties:
+        tenant_id:
+          type: string
+        workload_id:
+          type: string
+        payer_account_id:
+          type: string
+        usage_account_ids:
+          type: array
+          items:
+            type: string
+        resource_ids:
+          type: array
+          items:
+            type: string
+        class:
+          type: string
+        currency:
+          type: string
+        configuration_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        ownership_ref:
+          $ref: '#/components/schemas/CommitmentPortfolioRef'
+        history_period:
+          $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+        projection_period:
+          $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    CommitmentDecisionMetric:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - value
+        - unit
+        - currency
+        - basis
+        - period
+        - reason_codes
+        - input_refs
+      properties:
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - UNAVAILABLE
+        value:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        unit:
+          type: string
+          enum:
+            - fraction
+            - currency
+            - currency/hour
+        currency:
+          type: string
+          nullable: true
+        basis:
+          type: string
+        period:
+          $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+        reason_codes:
+          type: array
+          items:
+            type: string
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+    CommitmentDecisionConfidence:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - lower_expected_savings
+        - upper_expected_savings
+        - coverage
+        - method
+        - calibration_ref
+        - reason_codes
+      properties:
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - UNAVAILABLE
+        lower_expected_savings:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        upper_expected_savings:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        coverage:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        method:
+          type: string
+          nullable: true
+        calibration_ref:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRef'
+        reason_codes:
+          type: array
+          items:
+            type: string
+    CommitmentDecisionPriceChangeStress:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - assumption
+        - break_even_payg_rate_drop_fraction
+        - zero_usage_loss
+        - reason_codes
+      properties:
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - UNAVAILABLE
+        assumption:
+          type: string
+          enum:
+            - HELD_CURRENT_NATIVE_NET_RATE
+        break_even_payg_rate_drop_fraction:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        zero_usage_loss:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        reason_codes:
+          type: array
+          items:
+            type: string
+    CommitmentDecisionOptimizationStage:
+      type: object
+      additionalProperties: false
+      required:
+        - stage
+        - disposition
+        - decision_ref
+        - outcome_ref
+        - scope_sha256
+        - completed_at
+        - reason_codes
+      properties:
+        stage:
+          type: string
+          enum:
+            - REMOVE_IDLE
+            - SCHEDULE
+            - RIGHTSIZE
+            - AUTOSCALE
+            - RECALCULATE_STABLE_DEMAND
+        disposition:
+          type: string
+        decision_ref:
+          $ref: '#/components/schemas/CommitmentPortfolioRef'
+        outcome_ref:
+          $ref: '#/components/schemas/CommitmentPortfolioRef'
+        scope_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        completed_at:
+          type: string
+          format: date-time
+        reason_codes:
+          type: array
+          items:
+            type: string
+    CommitmentDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - request_id
+        - selection
+        - scope
+        - input_refs
+        - status
+        - observed_coverage
+        - proposed_hourly_commitment
+        - proposed_term_obligation
+        - observed_effective_discount
+        - observed_unused_exposure
+        - expected_utilization
+        - break_even_utilization
+        - expected_savings
+        - downside_exposure
+        - cash_requirement
+        - remaining_contractual_obligation
+        - paid_unamortized_value
+        - computation_policy
+        - forward_price_assumption
+        - price_change_stress
+        - confidence
+        - optimization_order
+        - reason_codes
+        - observed_at
+        - finance_approval_required
+        - purchase_authorized
+        - execution_authorized
+        - verified_saving
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '2'
+        id:
+          type: string
+        request_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/CommitmentDecisionSelection'
+        scope:
+          $ref: '#/components/schemas/CommitmentDecisionScope'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        status:
+          type: string
+          enum:
+            - RECOMMEND_PURCHASE_PENDING_FINANCE
+            - DO_NOT_PURCHASE
+            - BLOCKED
+        observed_coverage:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        proposed_hourly_commitment:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        proposed_term_obligation:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        observed_effective_discount:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        observed_unused_exposure:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        expected_utilization:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        break_even_utilization:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        expected_savings:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        downside_exposure:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        cash_requirement:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        remaining_contractual_obligation:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        paid_unamortized_value:
+          $ref: '#/components/schemas/CommitmentDecisionMetric'
+        computation_policy:
+          type: string
+          enum:
+            - DECIMAL80_INTERMEDIATE_HALF_EVEN_12_FINAL
+        forward_price_assumption:
+          type: string
+          enum:
+            - HELD_CURRENT_NATIVE_NET_RATE
+        price_change_stress:
+          $ref: '#/components/schemas/CommitmentDecisionPriceChangeStress'
+        confidence:
+          $ref: '#/components/schemas/CommitmentDecisionConfidence'
+        optimization_order:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentDecisionOptimizationStage'
+          maxItems: 5
+        reason_codes:
+          type: array
+          items:
+            type: string
+        observed_at:
+          type: string
+          format: date-time
+        finance_approval_required:
+          type: boolean
+          enum:
+            - true
+        purchase_authorized:
+          type: boolean
+          enum:
+            - false
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          nullable: true
+          enum:
+            - null
+    CommitmentDecisionFinanceReview:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - actor_id
+        - decision_id
+        - decision_sha256
+        - input_sha256
+        - approved_at
+        - approval_scope
+        - purchase_authorized
+        - execution_authorized
+      properties:
+        id:
+          type: string
+        actor_id:
+          type: string
+        decision_id:
+          type: string
+        decision_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        input_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        approved_at:
+          type: string
+          format: date-time
+        approval_scope:
+          type: string
+          enum:
+            - COMMITMENT_RECOMMENDATION_REVIEW_NO_PURCHASE
+        purchase_authorized:
+          type: boolean
+          enum:
+            - false
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+    CommitmentDecisionSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - status
+        - currency
+        - proposed_hourly_commitment
+        - expected_savings
+        - reason_codes
+        - finance_status
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - RECOMMEND_PURCHASE_PENDING_FINANCE
+            - DO_NOT_PURCHASE
+            - BLOCKED
+        currency:
+          type: string
+        proposed_hourly_commitment:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        expected_savings:
+          type: string
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: Exact decimal string; never a binary floating-point amount.
+          nullable: true
+        reason_codes:
+          type: array
+          items:
+            type: string
+        finance_status:
+          type: string
+          enum:
+            - PENDING
+            - REVIEWED
+    CommitmentDecisionRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - status
+        - selection
+        - input_refs
+        - input_sha256
+        - decision_sha256
+        - decision
+        - decision_summary
+        - refusal
+        - finance_review
+        - can_finance_review
+        - review_reason_codes
+        - created_at
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          maximum: 3
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        selection:
+          $ref: '#/components/schemas/CommitmentDecisionSelection'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        input_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        decision_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+          description: >-
+            Server-issued SHA256 of the full immutable decision, including its content ID. Echo this value for Finance
+            review; clients do not recompute it.
+        decision:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentDecision'
+        decision_summary:
+          nullable: true
+          enum:
+            - null
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRefusal'
+        finance_review:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentDecisionFinanceReview'
+        can_finance_review:
+          type: boolean
+          description: >-
+            Authenticated actor/currentness projection for display. Approval independently rechecks Finance role, maker
+            separation, exact hash and current inputs.
+        review_reason_codes:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          nullable: true
+          enum:
+            - null
+    CommitmentDecisionPageRow:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - workload_id
+        - creator_id
+        - status
+        - selection
+        - input_refs
+        - input_sha256
+        - decision_sha256
+        - decision
+        - decision_summary
+        - refusal
+        - finance_review
+        - can_finance_review
+        - review_reason_codes
+        - created_at
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          maximum: 3
+        workload_id:
+          type: string
+        creator_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        selection:
+          $ref: '#/components/schemas/CommitmentDecisionSelection'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        input_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        decision_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+          description: >-
+            Server-issued SHA256 of the full immutable decision, including its content ID. Echo this value for Finance
+            review; clients do not recompute it.
+        decision:
+          nullable: true
+          enum:
+            - null
+        decision_summary:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentDecisionSummary'
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRefusal'
+        finance_review:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentDecisionFinanceReview'
+        can_finance_review:
+          type: boolean
+          description: >-
+            Authenticated actor/currentness projection for display. Approval independently rechecks Finance role, maker
+            separation, exact hash and current inputs.
+        review_reason_codes:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          nullable: true
+          enum:
+            - null
+    CommitmentDecisionPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentDecisionPageRow'
+        next_cursor:
+          type: string
+          nullable: true
+    CommitmentDecisionInputChoice:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - label
+        - status
+        - scope_sha256
+        - period
+        - input_refs
+        - reason_codes
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - PORTFOLIO_ANALYSIS
+            - OFFER
+            - POST_OPTIMIZATION_ASSESSMENT
+            - FORECAST
+        label:
+          type: string
+        status:
+          type: string
+          enum:
+            - CURRENT
+            - STALE
+            - UNAVAILABLE
+        scope_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        period:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+        input_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        reason_codes:
+          type: array
+          items:
+            type: string
+    CommitmentDecisionInputPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommitmentDecisionInputChoice'
+        next_cursor:
+          type: string
+          nullable: true
+    CommitmentDecisionFinanceReviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - commitment_decision_id
+        - decision_sha256
+      properties:
+        commitment_decision_id:
+          type: string
+          minLength: 1
+        decision_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    CommitmentDecisionFinanceReviewResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - approval
+        - recommendation
+        - id
+        - version
+      properties:
+        approval:
+          $ref: '#/components/schemas/CommitmentDecisionFinanceReview'
+        recommendation:
+          $ref: '#/components/schemas/CommitmentDecisionRecord'
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 3
     CommitmentPortfolioRef:
       type: object
       additionalProperties: false
@@ -3638,6 +4637,7 @@ components:
             - UNAVAILABLE
             - MAPPING_OBSERVATION
             - MODEL_REQUEST
+            - CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST
         input_hash:
           type: string
           pattern: ^[a-f0-9]{64}$

@@ -66,6 +66,11 @@ sources:
   # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
   # ingester receives it; leave empty for discovery-only installations.
   readBindingsSecret: ""
+  # Optional ingester-only selectors, commissioned after read-only onboarding.
+  # No credentials, source facts or approval authority are supplied by a target.
+  commitmentQuoteTargetsSecret: ""
+  controllerBindingsSecret: ""
+  ownershipArchiveTargetsSecret: ""
 hardware:
   # Live read-only observations only; never runs against AWS in fixture mode.
   enabled: false

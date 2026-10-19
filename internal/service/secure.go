@@ -140,6 +140,9 @@ func validateApproval(ctx context.Context, t *store.Tx, d model.Document, p mode
 		return e
 	}
 	for _, a := range approvals {
+		if IsCommitmentAdvice(a) {
+			continue
+		}
 		if model.String(a, "change_plan_id") == p.ID {
 			var writer string
 			if e = t.QueryRow(ctx, "SELECT writer_role FROM entities WHERE tenant_id=$1 AND kind='approvals' AND id=$2", t.Tenant, model.String(a, "id")).Scan(&writer); e != nil {

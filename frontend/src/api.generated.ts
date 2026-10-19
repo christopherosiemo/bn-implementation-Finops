@@ -4,6 +4,73 @@
  */
 
 export interface paths {
+    "/commitment-decision-inputs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommitmentDecisionPreparation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/commitment-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCommitmentDecisions"];
+        put?: never;
+        /** @description Finance-scoped IDs-only request. If-Match must be quoted zero. Server resolves authentic stored offers, post-optimization outcomes, forecast and portfolio evidence. No prices, metrics, authority or forecast values are accepted. */
+        post: operations["requestCommitmentDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commitment-decisions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommitmentDecision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workloads/{id}/commitment-decision-inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description With kind, returns issued choices; without kind, returns lightweight evidence-preparation requests. IDs in an ASSESSED preparation may represent explicit evidence gaps and do not establish decision readiness. */
+        get: operations["listCommitmentDecisionInputs"];
+        put?: never;
+        /** @description Queues the existing analyst to resolve post-optimization and forecast evidence from two authentic stored IDs. If-Match is quoted zero. Forecast values, outcome labels and evidence assertions are never public inputs. */
+        post: operations["prepareCommitmentDecisionInputs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/commitment-portfolio-analyses": {
         parameters: {
             query?: never;
@@ -1589,6 +1656,254 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CommitmentDecisionPreparationSelection: {
+            portfolio_analysis_request_id: string;
+            offer_receipt_id: string;
+        };
+        CommitmentDecisionPreparationRecord: {
+            id: string;
+            version: number;
+            workload_id: string;
+            creator_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            selection: components["schemas"]["CommitmentDecisionPreparationSelection"];
+            post_optimization_assessment_id: string | null;
+            forecast_id: string | null;
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            reason_codes: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {unknown|null} */
+            verified_saving: null;
+        };
+        CommitmentDecisionPreparationPage: {
+            items: components["schemas"]["CommitmentDecisionPreparationRecord"][];
+            next_cursor: string | null;
+        };
+        CommitmentDecisionSelection: {
+            portfolio_analysis_request_id: string;
+            offer_receipt_id: string;
+            post_optimization_assessment_id: string;
+            forecast_id: string;
+        };
+        CommitmentDecisionScope: {
+            tenant_id: string;
+            workload_id: string;
+            payer_account_id: string;
+            usage_account_ids: string[];
+            resource_ids: string[];
+            class: string;
+            currency: string;
+            configuration_sha256: string;
+            ownership_ref: components["schemas"]["CommitmentPortfolioRef"];
+            history_period: components["schemas"]["CommitmentPortfolioPeriod"];
+            projection_period: components["schemas"]["CommitmentPortfolioPeriod"];
+            sha256: string;
+        };
+        CommitmentDecisionMetric: {
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            value: string | null;
+            /** @enum {string} */
+            unit: "fraction" | "currency" | "currency/hour";
+            currency: string | null;
+            basis: string;
+            period: components["schemas"]["CommitmentPortfolioPeriod"];
+            reason_codes: string[];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+        };
+        CommitmentDecisionConfidence: {
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            lower_expected_savings: string | null;
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            upper_expected_savings: string | null;
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            coverage: string | null;
+            method: string | null;
+            calibration_ref: components["schemas"]["CommitmentPortfolioRef"] | null;
+            reason_codes: string[];
+        };
+        CommitmentDecisionPriceChangeStress: {
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE";
+            /** @enum {string} */
+            assumption: "HELD_CURRENT_NATIVE_NET_RATE";
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            break_even_payg_rate_drop_fraction: string | null;
+            zero_usage_loss: components["schemas"]["CommitmentDecisionMetric"];
+            reason_codes: string[];
+        };
+        CommitmentDecisionOptimizationStage: {
+            /** @enum {string} */
+            stage: "REMOVE_IDLE" | "SCHEDULE" | "RIGHTSIZE" | "AUTOSCALE" | "RECALCULATE_STABLE_DEMAND";
+            disposition: string;
+            decision_ref: components["schemas"]["CommitmentPortfolioRef"];
+            outcome_ref: components["schemas"]["CommitmentPortfolioRef"];
+            scope_sha256: string;
+            /** Format: date-time */
+            completed_at: string;
+            reason_codes: string[];
+        };
+        CommitmentDecision: {
+            /** @enum {string} */
+            schema_version: "2";
+            id: string;
+            request_id: string;
+            selection: components["schemas"]["CommitmentDecisionSelection"];
+            scope: components["schemas"]["CommitmentDecisionScope"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            /** @enum {string} */
+            status: "RECOMMEND_PURCHASE_PENDING_FINANCE" | "DO_NOT_PURCHASE" | "BLOCKED";
+            observed_coverage: components["schemas"]["CommitmentDecisionMetric"];
+            proposed_hourly_commitment: components["schemas"]["CommitmentDecisionMetric"];
+            proposed_term_obligation: components["schemas"]["CommitmentDecisionMetric"];
+            observed_effective_discount: components["schemas"]["CommitmentDecisionMetric"];
+            observed_unused_exposure: components["schemas"]["CommitmentDecisionMetric"];
+            expected_utilization: components["schemas"]["CommitmentDecisionMetric"];
+            break_even_utilization: components["schemas"]["CommitmentDecisionMetric"];
+            expected_savings: components["schemas"]["CommitmentDecisionMetric"];
+            downside_exposure: components["schemas"]["CommitmentDecisionMetric"];
+            cash_requirement: components["schemas"]["CommitmentDecisionMetric"];
+            remaining_contractual_obligation: components["schemas"]["CommitmentDecisionMetric"];
+            paid_unamortized_value: components["schemas"]["CommitmentDecisionMetric"];
+            /** @enum {string} */
+            computation_policy: "DECIMAL80_INTERMEDIATE_HALF_EVEN_12_FINAL";
+            /** @enum {string} */
+            forward_price_assumption: "HELD_CURRENT_NATIVE_NET_RATE";
+            price_change_stress: components["schemas"]["CommitmentDecisionPriceChangeStress"];
+            confidence: components["schemas"]["CommitmentDecisionConfidence"];
+            optimization_order: components["schemas"]["CommitmentDecisionOptimizationStage"][];
+            reason_codes: string[];
+            /** Format: date-time */
+            observed_at: string;
+            /** @enum {boolean} */
+            finance_approval_required: true;
+            /** @enum {boolean} */
+            purchase_authorized: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {unknown|null} */
+            verified_saving: null;
+        };
+        CommitmentDecisionFinanceReview: {
+            id: string;
+            actor_id: string;
+            decision_id: string;
+            decision_sha256: string;
+            input_sha256: string;
+            /** Format: date-time */
+            approved_at: string;
+            /** @enum {string} */
+            approval_scope: "COMMITMENT_RECOMMENDATION_REVIEW_NO_PURCHASE";
+            /** @enum {boolean} */
+            purchase_authorized: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+        };
+        CommitmentDecisionSummary: {
+            id: string;
+            /** @enum {string} */
+            status: "RECOMMEND_PURCHASE_PENDING_FINANCE" | "DO_NOT_PURCHASE" | "BLOCKED";
+            currency: string;
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            proposed_hourly_commitment: string | null;
+            /** @description Exact decimal string; never a binary floating-point amount. */
+            expected_savings: string | null;
+            reason_codes: string[];
+            /** @enum {string} */
+            finance_status: "PENDING" | "REVIEWED";
+        };
+        CommitmentDecisionRecord: {
+            id: string;
+            version: number;
+            workload_id: string;
+            creator_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            selection: components["schemas"]["CommitmentDecisionSelection"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            input_sha256: string | null;
+            /** @description Server-issued SHA256 of the full immutable decision, including its content ID. Echo this value for Finance review; clients do not recompute it. */
+            decision_sha256: string | null;
+            decision: components["schemas"]["CommitmentDecision"] | null;
+            /** @enum {unknown|null} */
+            decision_summary: null;
+            refusal: components["schemas"]["CommitmentPortfolioRefusal"] | null;
+            finance_review: components["schemas"]["CommitmentDecisionFinanceReview"] | null;
+            /** @description Authenticated actor/currentness projection for display. Approval independently rechecks Finance role, maker separation, exact hash and current inputs. */
+            can_finance_review: boolean;
+            review_reason_codes: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {unknown|null} */
+            verified_saving: null;
+        };
+        CommitmentDecisionPageRow: {
+            id: string;
+            version: number;
+            workload_id: string;
+            creator_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            selection: components["schemas"]["CommitmentDecisionSelection"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            input_sha256: string | null;
+            /** @description Server-issued SHA256 of the full immutable decision, including its content ID. Echo this value for Finance review; clients do not recompute it. */
+            decision_sha256: string | null;
+            /** @enum {unknown|null} */
+            decision: null;
+            decision_summary: components["schemas"]["CommitmentDecisionSummary"] | null;
+            refusal: components["schemas"]["CommitmentPortfolioRefusal"] | null;
+            finance_review: components["schemas"]["CommitmentDecisionFinanceReview"] | null;
+            /** @description Authenticated actor/currentness projection for display. Approval independently rechecks Finance role, maker separation, exact hash and current inputs. */
+            can_finance_review: boolean;
+            review_reason_codes: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {unknown|null} */
+            verified_saving: null;
+        };
+        CommitmentDecisionPage: {
+            items: components["schemas"]["CommitmentDecisionPageRow"][];
+            next_cursor: string | null;
+        };
+        CommitmentDecisionInputChoice: {
+            id: string;
+            /** @enum {string} */
+            kind: "PORTFOLIO_ANALYSIS" | "OFFER" | "POST_OPTIMIZATION_ASSESSMENT" | "FORECAST";
+            label: string;
+            /** @enum {string} */
+            status: "CURRENT" | "STALE" | "UNAVAILABLE";
+            scope_sha256: string | null;
+            period: components["schemas"]["CommitmentPortfolioPeriod"] | null;
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            reason_codes: string[];
+        };
+        CommitmentDecisionInputPage: {
+            items: components["schemas"]["CommitmentDecisionInputChoice"][];
+            next_cursor: string | null;
+        };
+        CommitmentDecisionFinanceReviewRequest: {
+            commitment_decision_id: string;
+            decision_sha256: string;
+        };
+        CommitmentDecisionFinanceReviewResponse: {
+            approval: components["schemas"]["CommitmentDecisionFinanceReview"];
+            recommendation: components["schemas"]["CommitmentDecisionRecord"];
+            id: string;
+            /** @enum {integer} */
+            version: 3;
+        };
         CommitmentPortfolioRef: {
             kind: string;
             id: string;
@@ -2094,7 +2409,7 @@ export interface components {
             hardware: components["schemas"]["FleetNativeCapacityHardware"] | null;
             candidate_template: components["schemas"]["FleetNativeCapacityCandidateTemplate"] | null;
             /** @enum {string} */
-            input_kind: "UNAVAILABLE" | "MAPPING_OBSERVATION" | "MODEL_REQUEST";
+            input_kind: "UNAVAILABLE" | "MAPPING_OBSERVATION" | "MODEL_REQUEST" | "CURRENT_CONFIGURATION_BASELINE_MODEL_REQUEST";
             input_hash: string;
             hardware_mapping: components["schemas"]["NativeCapacityResult"]["hardware_mapping"] | null;
             model_requested: boolean;
@@ -5080,6 +5395,261 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getCommitmentDecisionPreparation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable evidence-preparation request and issued result IDs or explicit gaps. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionPreparationRecord"];
+                };
+            };
+            /** @description Workload read scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped preparation absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCommitmentDecisions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped lightweight immutable decision history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionPage"];
+                };
+            };
+            /** @description Workload read scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestCommitmentDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentDecisionSelection"];
+            };
+        };
+        responses: {
+            /** @description Decision queued; no purchase or execution authority. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionRecord"];
+                };
+            };
+            /** @description Finance write role and workload scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Issued input or scope binding invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCommitmentDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Full immutable decision and actor-specific Finance review eligibility. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionRecord"];
+                };
+            };
+            /** @description Workload read scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped decision absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCommitmentDecisionInputs: {
+        parameters: {
+            query?: {
+                kind?: "PORTFOLIO_ANALYSIS" | "OFFER" | "POST_OPTIMIZATION_ASSESSMENT" | "FORECAST";
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-issued choices. Only CURRENT choices are selectable; stale/unavailable choices remain explicit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionInputPage"] | components["schemas"]["CommitmentDecisionPreparationPage"];
+                };
+            };
+            /** @description Workload read scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    prepareCommitmentDecisionInputs: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentDecisionPreparationSelection"];
+            };
+        };
+        responses: {
+            /** @description Preparation queued; published IDs may truthfully identify unavailable evidence. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionPreparationRecord"];
+                };
+            };
+            /** @description Finance write role and workload scope required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Issued selection or scope invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listCommitmentPortfolioAnalyses: {
         parameters: {
             query?: {
@@ -9785,16 +10355,50 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: components["requestBodies"]["PlanReference"];
+        requestBody: {
+            content: {
+                "application/json": {
+                    change_plan_id: string;
+                } | components["schemas"]["CommitmentDecisionFinanceReviewRequest"];
+            };
+        };
         responses: {
-            /** @description Exact plan approved; returns approval and updated change_plan */
+            /** @description Existing plan approval or exact immutable commitment recommendation Finance review. The latter never authorizes purchase or execution. */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentDecisionFinanceReviewResponse"] | ({
+                        approval: Record<string, never>;
+                        change_plan: Record<string, never>;
+                    } & {
+                        [key: string]: unknown;
+                    });
+                };
+            };
+            /** @description Finance role, independent reviewer and workload scope required for a commitment target. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Review/version conflict or changed immutable target. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
             413: components["responses"]["MutationBodyTooLarge"];
+            /** @description Mixed target, invalid hash or no longer current input closure. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     executePlan: {

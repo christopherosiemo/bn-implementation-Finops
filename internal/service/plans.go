@@ -23,6 +23,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if e != nil {
 		return nil, e
 	}
+	if IsCommitmentAdvice(rec) {
+		return nil, problem(422, "COMMITMENT_ADVICE_NOT_EXECUTABLE", "commitment advice cannot become a scheduling or provider plan")
+	}
 	if model.String(rec, "status") != "VALIDATED" || !model.Bool(rec, "pre_execution_ready") {
 		return nil, problem(422, "RECOMMENDATION_NOT_VALIDATED", "recommendation must be validated")
 	}
@@ -150,6 +153,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	return t.Create(ctx, "change_plans", d)
 }
 func decodePlan(d model.Document) (model.Plan, error) {
+	if IsCommitmentAdvice(d) {
+		return model.Plan{}, problem(422, "COMMITMENT_ADVICE_NOT_EXECUTABLE", "commitment advice cannot become an execution envelope")
+	}
 	b, e := json.Marshal(d["payload"])
 	if e != nil {
 		return model.Plan{}, e

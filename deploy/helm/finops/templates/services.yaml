@@ -1,6 +1,17 @@
 {{- if not (has .Values.dataMode (list "fixture" "aws")) }}{{ fail "dataMode must be fixture or aws" }}{{ end }}
 {{- if ne .Values.aws.region "eu-west-1" }}{{ fail "This pilot is restricted to AWS eu-west-1" }}{{ end }}
 {{- if and .Values.notifications.webhookUrl (not (hasPrefix "https://" .Values.notifications.webhookUrl)) }}{{ fail "notifications.webhookUrl must use HTTPS" }}{{ end }}
+{{- range $field, $secret := dict "readBindingsSecret" .Values.sources.readBindingsSecret "commitmentQuoteTargetsSecret" .Values.sources.commitmentQuoteTargetsSecret "controllerBindingsSecret" .Values.sources.controllerBindingsSecret "ownershipArchiveTargetsSecret" .Values.sources.ownershipArchiveTargetsSecret }}
+{{- if not (kindIs "string" $secret) }}{{ fail (printf "sources.%s must be a Secret name string" $field) }}{{ end }}
+{{- if $secret }}
+{{- if or (gt (len $secret) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" $secret)) }}{{ fail (printf "sources.%s must be a DNS Secret name" $field) }}{{ end }}
+{{- range $part := splitList "." $secret }}{{- if gt (len $part) 63 }}{{ fail "source Secret name label is too long" }}{{ end }}{{- end }}
+{{- end }}
+{{- end }}
+{{- if or .Values.sources.commitmentQuoteTargetsSecret .Values.sources.controllerBindingsSecret .Values.sources.ownershipArchiveTargetsSecret }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "trusted commitment sources require explicit AWS read-only mode" }}{{ end }}
+{{- $_ := required "trusted commitment sources require ingester-only approved read bindings" .Values.sources.readBindingsSecret }}
+{{- end }}
 {{- if eq .Values.dataMode "aws" }}
 {{- $_ := required "aws.tenantId must bind this live pilot to exactly one customer" .Values.aws.tenantId }}
 {{- $_ := required "aws.readRoleArn required for AWS mode" .Values.aws.readRoleArn }}
@@ -145,7 +156,14 @@ spec:
             {{- if $.Values.sources.readBindingsSecret }}
             - name: AWS_SOURCE_READ_BINDINGS_JSON
               valueFrom:
-                secretKeyRef: { name: {{ $.Values.sources.readBindingsSecret }}, key: AWS_SOURCE_READ_BINDINGS_JSON }
+                secretKeyRef: { name: {{ $.Values.sources.readBindingsSecret | quote }}, key: AWS_SOURCE_READ_BINDINGS_JSON }
+            {{- end }}
+            {{- range $key, $secret := dict "AWS_SAVINGS_PLAN_QUOTE_TARGETS_JSON" $.Values.sources.commitmentQuoteTargetsSecret "AWS_CONTROLLER_DISCOVERY_BINDINGS_JSON" $.Values.sources.controllerBindingsSecret "AWS_OWNERSHIP_ARCHIVE_TARGETS_JSON" $.Values.sources.ownershipArchiveTargetsSecret }}
+            {{- if $secret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: { name: {{ $secret | quote }}, key: {{ $key }} }
+            {{- end }}
             {{- end }}
             - { name: AWS_READ_ROLE_ARN, value: {{ $.Values.aws.readRoleArn | quote }} }
             - { name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }} }

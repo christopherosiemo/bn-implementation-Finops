@@ -65,6 +65,7 @@ import type {
 } from "./types";
 
 const CommitmentPortfolio = lazy(() => import("./CommitmentPortfolio").then(module => ({ default: module.CommitmentPortfolio })));
+const CommitmentDecision = lazy(() => import("./CommitmentDecision").then(module => ({ default: module.CommitmentDecision })));
 
 type PageProps = {
   data: Dashboard;
@@ -2118,6 +2119,9 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
       <SourceTrust data={data} run={run} busy={busy} />
       <Suspense fallback={<p role="status">Loading commitment portfolio view…</p>}>
         <CommitmentPortfolio fixture={data.fixture} run={run} busy={busy} />
+      </Suspense>
+      <Suspense fallback={<p role="status">Loading commitment decision view…</p>}>
+        <CommitmentDecision workloads={data.workloads} fixture={data.fixture} run={run} busy={busy} />
       </Suspense>
       <NativeTelemetry data={data} run={run} busy={busy} />
       <div className="two-column">

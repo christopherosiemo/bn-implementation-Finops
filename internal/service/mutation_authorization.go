@@ -45,6 +45,9 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 		case "schedules":
 			return mutationAuthorization{roles: owner, scopeKind: "workloads", scopeID: model.String(in, "workload_id")}, true
 		case "approvals":
+			if in["commitment_decision_id"] != nil {
+				return rule([]string{"FINANCE"})
+			}
 			return mutationAuthorization{roles: []string{"APPROVER", "PLATFORM_ADMIN"}, scopeKind: "change_plans", scopeID: model.String(in, "change_plan_id")}, true
 		}
 	}
@@ -84,7 +87,7 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 			}
 		case "workloads":
 			switch p[2] {
-			case "fleet-native-assessments", "fleet-joint-decisions":
+			case "fleet-native-assessments", "fleet-joint-decisions", "commitment-decisions", "commitment-decision-inputs":
 				return mutationAuthorization{roles: finance, scopeKind: "workloads", scopeID: p[1]}, true
 			case "signals":
 				return mutationAuthorization{roles: owner, scopeKind: "workloads", scopeID: p[1]}, true
@@ -121,6 +124,22 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	return mutationAuthorization{}, false
 }
 
+func authorizeMutationBodyRole(i auth.Identity, path string, in model.Document) error {
+	rule, ok := mutationAuthorizationFor(path, in)
+	if !ok {
+		return problem(404, "NOT_FOUND", "route not found")
+	}
+	if path == "/v1/approvals" && in["commitment_decision_id"] != nil {
+		if !i.Roles["FINANCE"] {
+			return problem(403, "FINANCE_REQUIRED", "independent Finance review required")
+		}
+		if len(in) != 2 || in["change_plan_id"] != nil {
+			return problem(422, "EXACT_DECISION_REVIEW_REQUIRED", "select one exact financial decision")
+		}
+	}
+	return requireRole(i, rule.roles...)
+}
+
 func authorizeMutationRole(i auth.Identity, path string) error {
 	rule, ok := mutationAuthorizationFor(path, nil)
 	if !ok {
@@ -137,10 +156,13 @@ func authorizeMutationReplay(ctx context.Context, t *store.Tx, i auth.Identity, 
 	if err := requireRole(i, rule.roles...); err != nil {
 		return err
 	}
+	if path == "/v1/approvals" && in["commitment_decision_id"] != nil {
+		return commitmentDecisionReviewReplay(ctx, t, i, in)
+	}
 	// Resolve workload authorization again even on exact cached responses. A
 	// replay neither refreshes evidence nor substitutes the caller's old role.
 	parts := strings.Split(strings.TrimPrefix(path, "/v1/"), "/")
-	if len(parts) == 3 && parts[0] == "workloads" && (parts[2] == "fleet-native-assessments" || parts[2] == "fleet-native-capacity-batches" || parts[2] == "fleet-joint-decisions") {
+	if len(parts) == 3 && parts[0] == "workloads" && (parts[2] == "fleet-native-assessments" || parts[2] == "fleet-native-capacity-batches" || parts[2] == "fleet-joint-decisions" || parts[2] == "commitment-decisions" || parts[2] == "commitment-decision-inputs") {
 		if _, err := t.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", i.Tenant+":dependency-graph"); err != nil {
 			return err
 		}

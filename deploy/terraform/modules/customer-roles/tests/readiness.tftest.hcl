@@ -97,3 +97,132 @@ run "hardware_reader_cannot_borrow_main_ingester_principal" {
   variables { hardware_read_principal_arn = "arn:aws:iam::123456789012:role/reader" }
   expect_failures = [var.hardware_read_principal_arn]
 }
+
+# Mock plans only: no AWS API, provisioning, credentials, bucket or key creation.
+run "decision_source_defaults_add_no_quote_archive_or_execution_authority" {
+  command = plan
+  assert {
+    condition = (
+      length(aws_iam_role.customer) == 1 &&
+      length(aws_iam_role_policy.execution) == 0 &&
+      length(aws_iam_role_policy.commitment_inventory) == 0 &&
+      length(aws_iam_role_policy.ownership_archive_read) == 0 &&
+      output.execution_role_arn == null &&
+      !strcontains(aws_iam_role_policy.read.policy, "savingsplans:") &&
+      strcontains(aws_iam_role_policy.read.policy, "autoscaling:DescribeAutoScalingInstances") &&
+      strcontains(aws_iam_role_policy.read.policy, "aws:RequestedRegion") &&
+      length(regexall(":(Create|Put|Delete|Modify|Purchase|Update|Start|Stop|Terminate)", aws_iam_role_policy.read.policy)) == 0
+    )
+    error_message = "Default discovery may read native ASG membership but must not gain quotes, private archives or any customer mutation."
+  }
+}
+
+run "quote_lookup_requires_separate_complete_inventory_approval" {
+  command = plan
+  variables { enable_commitment_quotes = true }
+  expect_failures = [var.enable_commitment_quotes]
+}
+
+run "controller_discovery_rejects_a_different_target_region" {
+  command = plan
+  variables { region = "us-east-1" }
+  expect_failures = [var.region]
+}
+
+run "quote_lookup_adds_only_exact_native_read_actions" {
+  command = plan
+  variables {
+    enable_commitment_inventory = true
+    enable_commitment_quotes    = true
+  }
+  assert {
+    condition = (
+      toset(flatten([for statement in jsondecode(aws_iam_role_policy.commitment_inventory[0].policy).Statement : statement.Action])) == toset([
+        "ec2:DescribeRegions", "ec2:DescribeReservedInstances",
+        "savingsplans:DescribeSavingsPlans", "organizations:DescribeOrganization", "organizations:ListAccounts",
+        "savingsplans:DescribeSavingsPlanRates", "savingsplans:DescribeSavingsPlansOfferings", "savingsplans:DescribeSavingsPlansOfferingRates"
+      ]) &&
+      jsondecode(aws_iam_role_policy.commitment_inventory[0].policy).Statement[2].Resource == "arn:aws:savingsplans::111122223333:savingsplan/*" &&
+      jsondecode(aws_iam_role_policy.commitment_inventory[0].policy).Statement[2].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1" &&
+      jsondecode(aws_iam_role_policy.commitment_inventory[0].policy).Statement[3].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1" &&
+      length(aws_iam_role_policy.execution) == 0 && output.execution_role_arn == null
+    )
+    error_message = "Quotes must remain native Describe calls, with account-bound held-plan rates and no purchase/mutation role."
+  }
+}
+
+run "ownership_archive_is_exact_existing_prefix_read_only" {
+  command = plan
+  variables {
+    billing_bucket_arn = null
+    ownership_archive_reads = [{
+      bucket_arn  = "arn:aws:s3:::ownership-source"
+      prefix      = "tenant-one/history/"
+      kms_key_arn = "arn:aws:kms:eu-west-1:111122223333:key/00000000-0000-4000-8000-000000000001"
+    }]
+  }
+  assert {
+    condition = (
+      length(aws_iam_role_policy.ownership_archive_read) == 1 &&
+      length(jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement) == 3 &&
+      toset(flatten([for statement in jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement : statement.Action])) == toset([
+        "s3:GetBucketVersioning", "s3:GetBucketPolicy", "s3:GetBucketLocation", "s3:GetObject", "s3:GetObjectVersion", "kms:Decrypt", "kms:DescribeKey"
+      ]) &&
+      jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement[0].Resource == "arn:aws:s3:::ownership-source" &&
+      jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement[1].Resource == "arn:aws:s3:::ownership-source/tenant-one/history/*" &&
+      jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement[0].Condition.StringEquals["s3:ResourceAccount"] == "111122223333" &&
+      jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement[1].Condition.StringEquals["s3:ResourceAccount"] == "111122223333" &&
+      jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement[2].Resource == "arn:aws:kms:eu-west-1:111122223333:key/00000000-0000-4000-8000-000000000001" &&
+      length(aws_iam_role_policy.execution) == 0 && output.execution_role_arn == null
+    )
+    error_message = "Existing original archives may only be read at the exact registered prefix/account/key; no writes, ownership assertion or execution are provisioned."
+  }
+}
+
+run "ownership_archive_without_kms_has_no_decrypt_grant" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source", prefix = "tenant-one/history/" }] }
+  assert {
+    condition     = length(jsondecode(aws_iam_role_policy.ownership_archive_read[0].policy).Statement) == 2 && !strcontains(aws_iam_role_policy.ownership_archive_read[0].policy, "kms:")
+    error_message = "A source without an explicitly registered KMS key must not acquire KMS permissions."
+  }
+}
+
+run "ownership_archive_rejects_wildcard_prefix" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source", prefix = "tenant-*/history/" }] }
+  expect_failures = [var.ownership_archive_reads]
+}
+run "ownership_archive_rejects_parent_path" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source", prefix = "tenant-one/../history/" }] }
+  expect_failures = [var.ownership_archive_reads]
+}
+run "ownership_archive_rejects_bucket_object_arn" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source/arbitrary-object", prefix = "tenant-one/history/" }] }
+  expect_failures = [var.ownership_archive_reads]
+}
+run "ownership_archive_rejects_wrong_key_account" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source", prefix = "tenant-one/history/", kms_key_arn = "arn:aws:kms:eu-west-1:999988887777:key/00000000-0000-4000-8000-000000000001" }] }
+  expect_failures = [var.ownership_archive_reads]
+}
+run "ownership_archive_rejects_wrong_key_region" {
+  command = plan
+  variables { ownership_archive_reads = [{ bucket_arn = "arn:aws:s3:::ownership-source", prefix = "tenant-one/history/", kms_key_arn = "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-4000-8000-000000000001" }] }
+  expect_failures = [var.ownership_archive_reads]
+}
+run "ownership_archive_rejects_unbounded_source_list" {
+  command = plan
+  variables {
+    ownership_archive_reads = [
+      { bucket_arn = "arn:aws:s3:::ownership-source", prefix = "one/" },
+      { bucket_arn = "arn:aws:s3:::ownership-source", prefix = "two/" },
+      { bucket_arn = "arn:aws:s3:::ownership-source", prefix = "three/" },
+      { bucket_arn = "arn:aws:s3:::ownership-source", prefix = "four/" },
+      { bucket_arn = "arn:aws:s3:::ownership-source", prefix = "five/" }
+    ]
+  }
+  expect_failures = [var.ownership_archive_reads]
+}

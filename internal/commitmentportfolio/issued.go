@@ -28,13 +28,17 @@ type BillingRevision struct {
 // Resolved is selected by the database resolver under graph/source locks. This
 // is not an API body. Its field checks do not authenticate an uploaded copy.
 type Resolved struct {
-	TenantID     string            `json:"tenant_id"`
-	RequestID    string            `json:"-"`
-	Selection    Selection         `json:"selection"`
-	Registration model.Document    `json:"registration"`
-	Checkpoint   model.Document    `json:"checkpoint"`
-	Commitment   model.Document    `json:"commitment"`
-	Billing      []BillingRevision `json:"billing"`
+	TenantID  string `json:"tenant_id"`
+	RequestID string `json:"-"`
+	// Decision-only immutable reconstruction anchor, restored from the actual
+	// selected039 analysis after SQL authenticates the current financial heads.
+	// This is not a source-currentness timestamp and cannot enter through JSON.
+	DecisionSnapshotObservedAt time.Time         `json:"-"`
+	Selection                  Selection         `json:"selection"`
+	Registration               model.Document    `json:"registration"`
+	Checkpoint                 model.Document    `json:"checkpoint"`
+	Commitment                 model.Document    `json:"commitment"`
+	Billing                    []BillingRevision `json:"billing"`
 }
 
 func document(v any) model.Document {
