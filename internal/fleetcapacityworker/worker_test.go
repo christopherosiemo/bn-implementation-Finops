@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,9 @@ func (r *fakeRepository) members(_ context.Context, _, _, after string) ([]model
 			out = append(out, d)
 		}
 	}
+	// Match FleetCapacityBatchMemberPage's ORDER BY m.id keyset contract.
+	// Result hashes follow member content, rather than append order.
+	sort.Slice(out, func(i, j int) bool { return model.String(out[i], "id") < model.String(out[j], "id") })
 	return out, nil
 }
 func (r *fakeRepository) inputs(_ context.Context, _, _, instance string) (model.Document, error) {
