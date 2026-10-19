@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/commitmentportfolio"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/evidence"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/safety"
@@ -90,6 +91,10 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		JSON(w, 200, model.Document{"status": "ok", "role": "api", "fixture": a.Config.Fixture})
+		return
+	}
+	if commitmentportfolio.Route(r.URL.Path) {
+		(&commitmentportfolio.API{Pool: a.Store.Pool, Auth: a.Auth, Now: a.now}).ServeHTTP(w, r)
 		return
 	}
 	i, e := a.Auth.Validate(r)

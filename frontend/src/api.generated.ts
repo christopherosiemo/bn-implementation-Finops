@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+    "/commitment-portfolio-analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded immutable summaries. Full positions are returned only by selected detail. Never combine currencies or commitment classes into a portfolio total. */
+        get: operations["listCommitmentPortfolioAnalyses"];
+        put?: never;
+        /** @description IDs-only native commitment and CUR receipt selection plus whole-UTC-day interval. FINANCE or FINOPS_ADMIN checked before replay. If-Match must be the quoted integer "0". No metrics, prices, optimization proofs, credentials or authority uploads. */
+        post: operations["requestCommitmentPortfolioAnalysis"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commitment-portfolio-analyses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Immutable observed terms, nullable metrics and exact issued references. Bounded2MiB detail. Recommendation, purchase and execution remain unauthorized. */
+        get: operations["getCommitmentPortfolioAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commitment-portfolio-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Finance-scoped source choices. No raw receipt bodies or credentials. */
+        get: operations["listCommitmentPortfolioSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commitment-portfolio-sources/{id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Bounded issued receipt choices for selected source and native kind. Selecting an ID does not assert coverage or currentness. */
+        get: operations["listCommitmentPortfolioReceipts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workloads/{id}/fleet-joint-decisions": {
         parameters: {
             query?: never;
@@ -1520,6 +1589,301 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CommitmentPortfolioRef: {
+            kind: string;
+            id: string;
+            sha256: string;
+        };
+        /** @description Half-open interval of whole UTC days, at most31days. Selection does not assert source coverage. */
+        CommitmentPortfolioPeriod: {
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+        };
+        CommitmentPortfolioSelection: {
+            source_id: string;
+            commitment_receipt_id: string;
+            billing_receipt_ids: string[];
+            period: components["schemas"]["CommitmentPortfolioPeriod"];
+        };
+        CommitmentPortfolioRequest: components["schemas"]["CommitmentPortfolioSelection"];
+        CommitmentPortfolioRIRecurringCharge: {
+            /** @description Exact native amount; frequency and currency stay separate observations. */
+            amount: string | null;
+            frequency: string | null;
+        };
+        CommitmentPortfolioReservedInstanceTerms: {
+            offering_class: string | null;
+            offering_type: string | null;
+            scope: string | null;
+            duration_seconds: string | null;
+            currency_code: string | null;
+            fixed_price: string | null;
+            usage_price: string | null;
+            instance_count: string | null;
+            instance_type: string | null;
+            instance_tenancy: string | null;
+            product_description: string | null;
+            availability_zone: string | null;
+            availability_zone_id: string | null;
+            /** @description Null means the native recurring-charge collection was not issued; an empty array is an observed empty collection. */
+            recurring_charges: components["schemas"]["CommitmentPortfolioRIRecurringCharge"][] | null;
+        };
+        /** @description Observed native terms. Sparse RI snapshots retain unknown terms and prices. Observed upfront payment is not a new cash requirement. */
+        CommitmentPortfolioPosition: {
+            id: string;
+            account_id: string;
+            /** @enum {string} */
+            class: "EC2_RI_UNCLASSIFIED" | "EC2_STANDARD_RI" | "EC2_CONVERTIBLE_RI" | "COMPUTE_SAVINGS_PLAN" | "EC2_INSTANCE_SAVINGS_PLAN" | "DATABASE_SAVINGS_PLAN" | "SAGEMAKER_SAVINGS_PLAN" | "UNSUPPORTED_SAVINGS_PLAN";
+            state: string;
+            region: string | null;
+            instance_family: string | null;
+            currency: string | null;
+            /** Format: date-time */
+            start: string | null;
+            /** Format: date-time */
+            end: string | null;
+            term_seconds: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            hourly_commitment: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            upfront_amount: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            recurring_amount: string | null;
+            recurring_amount_unit: string;
+            payment_option: string | null;
+            native_ref: components["schemas"]["CommitmentPortfolioRef"];
+            reason_codes: string[];
+            reserved_instance_terms: components["schemas"]["CommitmentPortfolioReservedInstanceTerms"] | null;
+        };
+        CommitmentPortfolioExpiry: {
+            /** @enum {string} */
+            status: "ACTIVE" | "EXPIRED" | "NOT_STARTED" | "UNKNOWN";
+            /** @description Exact decimal seconds relative to the issued analysis observation, preserving microseconds without floating point; not refreshed by viewing this record. */
+            remaining_seconds: string | null;
+            /** @enum {integer} */
+            within_days: 30;
+            expires_within_window: boolean | null;
+        };
+        CommitmentPortfolioPositionShare: {
+            position_id: string;
+            /** @description Fraction of this exact partition native hourly commitment rate; unknown terms stay unavailable. */
+            share: string | null;
+        };
+        CommitmentPortfolioPositionAnalysis: {
+            expiry: components["schemas"]["CommitmentPortfolioExpiry"];
+            position: components["schemas"]["CommitmentPortfolioPosition"];
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_billed_cost: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_allocated_cost: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_committed_cost: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_used_commitment: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_unused_commitment: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            utilization: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            coverage: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            effective_discount: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            downside_if_zero_usage_observed_window: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            break_even_utilization: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            remaining_value: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            cash_requirement: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            expected_utilization: string | null;
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            confidence_interval: string | null;
+            /** @enum {string} */
+            status: "OBSERVED_PARTIAL" | "UNKNOWN";
+            reason_codes: string[];
+            /**
+             * @description Exact issued cost basis. Mixed bases retain unavailable amount and an explicit gap.
+             * @enum {string|null}
+             */
+            allocated_cost_basis: "NET_SP_EFFECTIVE" | "SP_EFFECTIVE" | "NET_RI_EFFECTIVE" | "RI_EFFECTIVE" | null;
+            /** @enum {string} */
+            commitment_cost_basis: "NATIVE_SP_HOURLY_TOTAL_AND_USED_COMMITMENT" | "UNAVAILABLE";
+        };
+        CommitmentPortfolioPartition: {
+            /** @enum {string} */
+            class: "EC2_RI_UNCLASSIFIED" | "EC2_STANDARD_RI" | "EC2_CONVERTIBLE_RI" | "COMPUTE_SAVINGS_PLAN" | "EC2_INSTANCE_SAVINGS_PLAN" | "DATABASE_SAVINGS_PLAN" | "SAGEMAKER_SAVINGS_PLAN" | "UNSUPPORTED_SAVINGS_PLAN";
+            currency: string | null;
+            account_id: string;
+            region: string | null;
+            instance_family: string | null;
+            position_ids: string[];
+            /** @description Exact decimal string. Null is unavailable; never coerce through binary floating point. */
+            observed_billed_cost: string | null;
+            position_count: number;
+            /** @description Exact observed decimal string; null means unavailable. Never coerce through binary floating point. */
+            observed_committed_cost: string | null;
+            /** @description Exact observed decimal string; null means unavailable. Never coerce through binary floating point. */
+            observed_used_commitment: string | null;
+            /** @description Exact observed decimal string; null means unavailable. Never coerce through binary floating point. */
+            observed_unused_commitment: string | null;
+            /** @description Exact observed decimal string; null means unavailable. Never coerce through binary floating point. */
+            utilization: string | null;
+            expiring_position_ids: string[];
+            /** @description Exact observed decimal string; null means unavailable. Never coerce through binary floating point. */
+            hourly_commitment_rate: string | null;
+            /** @enum {string} */
+            hourly_commitment_rate_unit: "currency/hour";
+            position_shares: components["schemas"]["CommitmentPortfolioPositionShare"][];
+            /** @enum {string} */
+            concentration_basis: "NATIVE_HOURLY_COMMITMENT_RATE";
+        };
+        CommitmentPortfolioOptimizationStage: {
+            /** @enum {string} */
+            stage: "REMOVE_IDLE" | "SCHEDULE" | "RIGHTSIZE" | "AUTOSCALE" | "RECALCULATE_STABLE_DEMAND";
+            /** @enum {string} */
+            status: "BLOCKED";
+            decision_ref: components["schemas"]["CommitmentPortfolioRef"] | null;
+            outcome_ref: components["schemas"]["CommitmentPortfolioRef"] | null;
+            scope_sha256: string | null;
+            reason_codes: string[];
+        };
+        CommitmentPortfolioUnmatchedBilling: {
+            commitment_id: string;
+            account_id: string;
+            currency: string;
+            line_ids: string[];
+            /** @description Exact observed billed amount for these rows in this currency. No native terms, utilization or forecast is inferred. */
+            observed_billed_cost: string | null;
+            reason_codes: "COMMITMENT_NOT_IN_SELECTED_NATIVE_POINT"[];
+        };
+        CommitmentPortfolioAnalysis: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            request_id: string;
+            selection: components["schemas"]["CommitmentPortfolioSelection"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            /** Format: date-time */
+            observed_at: string;
+            /** @enum {string} */
+            inventory_status: "COMPLETE_POINT_IN_TIME" | "PARTIAL" | "UNAVAILABLE";
+            /** @enum {string} */
+            billing_status: "COMPLETE_OBSERVED_WINDOW" | "PARTIAL" | "UNAVAILABLE";
+            positions: components["schemas"]["CommitmentPortfolioPositionAnalysis"][];
+            partitions: components["schemas"]["CommitmentPortfolioPartition"][];
+            optimization_order: components["schemas"]["CommitmentPortfolioOptimizationStage"][];
+            /** @enum {string} */
+            recommendation_status: "BLOCKED";
+            reason_codes: string[];
+            /** @enum {string|null} */
+            expected_savings: null;
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {boolean} */
+            recommendation_authorized: false;
+            /** @enum {boolean} */
+            purchase_authorized: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @description Issued commitment-linked billing rows absent from the selected native point, kept separate from native positions. The complete detail remains bounded to2MiB. */
+            unmatched_billing: components["schemas"]["CommitmentPortfolioUnmatchedBilling"][];
+        };
+        CommitmentPortfolioRefusal: {
+            reason_code: string;
+            /** Format: date-time */
+            observed_at: string;
+        };
+        CommitmentPortfolioRecord: {
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            creator_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            selection: components["schemas"]["CommitmentPortfolioSelection"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            analysis: components["schemas"]["CommitmentPortfolioAnalysis"] | null;
+            refusal: components["schemas"]["CommitmentPortfolioRefusal"] | null;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        CommitmentPortfolioAnalysisSummary: {
+            id: string;
+            /** @enum {string} */
+            inventory_status: "COMPLETE_POINT_IN_TIME" | "PARTIAL" | "UNAVAILABLE";
+            /** @enum {string} */
+            billing_status: "COMPLETE_OBSERVED_WINDOW" | "PARTIAL" | "UNAVAILABLE";
+            position_count: number;
+            /** @enum {string} */
+            recommendation_status: "BLOCKED";
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        CommitmentPortfolioPageRow: {
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            creator_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "REFUSED";
+            selection: components["schemas"]["CommitmentPortfolioSelection"];
+            input_refs: components["schemas"]["CommitmentPortfolioRef"][];
+            /** @enum {object|null} */
+            analysis: never | null;
+            refusal: components["schemas"]["CommitmentPortfolioRefusal"] | null;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            analysis_summary: components["schemas"]["CommitmentPortfolioAnalysisSummary"] | null;
+        };
+        CommitmentPortfolioPage: {
+            items: components["schemas"]["CommitmentPortfolioPageRow"][];
+            next_cursor: string | null;
+        };
+        CommitmentPortfolioSource: {
+            id: string;
+            version: number;
+            status: string;
+            payer_account_id: string;
+            usage_account_count: number;
+            region: string;
+            commitment_receipt_id: string | null;
+        };
+        CommitmentPortfolioSourcePage: {
+            items: components["schemas"]["CommitmentPortfolioSource"][];
+            next_cursor: string | null;
+        };
+        CommitmentPortfolioReceipt: {
+            id: string;
+            /** @enum {string} */
+            kind: "AWS_COMMITMENT" | "AWS_CUR2";
+            source_id: string;
+            /** Format: date-time */
+            observed_at: string;
+            current: boolean;
+            period: components["schemas"]["CommitmentPortfolioPeriod"] | null;
+            /** @enum {string} */
+            proof_state: "COMPLETE" | "FINAL" | "PARTIAL" | "UNKNOWN";
+        };
+        CommitmentPortfolioReceiptPage: {
+            items: components["schemas"]["CommitmentPortfolioReceipt"][];
+            next_cursor: string | null;
+        };
         FleetJointDecisionRefusal: {
             /** @enum {string} */
             schema_version: "1";
@@ -4716,6 +5080,285 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listCommitmentPortfolioAnalyses: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped portfolio history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentPortfolioPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current tenant and portfolio read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in current scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestCommitmentPortfolioAnalysis: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentPortfolioRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued read-only analysis */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentPortfolioRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current tenant and portfolio read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in current scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Selected source or receipt binding changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control-plane body too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid IDs-only selection or interval */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial quoted If-Match "0" and valid Idempotency-Key required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCommitmentPortfolioAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Selected analysis */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentPortfolioRecord"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current tenant and portfolio read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in current scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCommitmentPortfolioSources: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped source choices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentPortfolioSourcePage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current tenant and portfolio read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in current scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCommitmentPortfolioReceipts: {
+        parameters: {
+            query: {
+                kind: "AWS_COMMITMENT" | "AWS_CUR2";
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped receipt choices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentPortfolioReceiptPage"];
+                };
+            };
+            /** @description Valid OIDC token required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Current tenant and portfolio read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Record unavailable in current scope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid source, native kind or scoped cursor */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listFleetJointDecisions: {
         parameters: {
             query?: {

@@ -28,6 +28,12 @@ save versioned fixed shares and inspect sealed, paginated observed-cost reports.
 Signed credits, unknown amounts and currencies remain distinct. Reports capture
 current ownership and stay provisional; see [allocation boundaries](docs/cost-allocation.md).
 
+**Connections & quality → AWS commitment portfolio** lets Finance/FinOps users
+select issued native receipts and inspect persisted existing-commitment terms,
+observed utilization, unused commitment and expiry. Missing evidence remains
+unavailable; recommendations and purchases remain gated. See the
+[commitment observation scope and optional installation](docs/commitment-portfolio.md).
+
 ```powershell
 # Stop containers without deleting evidence.
 docker compose down

@@ -86,12 +86,13 @@ function privateDirectory(id){
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
  const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)).sort();
- assert.equal(names.length,38);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:38},(_,n)=>n+1));
- assert.equal(names.at(-1),'038_fleet_decision_credential_scope.sql');
+ assert.equal(names.length,39);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:39},(_,n)=>n+1));
+ assert.equal(names.at(-1),'039_commitment_portfolio.sql');
  const manifest=Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
  assert.equal(manifest['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051','Migration037 must equal the independently reviewed release bytes');
  assert.equal(manifest['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984','Migration038 must equal the independently reviewed credential scope bytes');
+ assert.equal(manifest['039_commitment_portfolio.sql'],'89d382c5d6b81af066774e5367aff9cd764fc53e6d79f5f49ff6359a0e8f0aaf','Migration039 must equal the independently reviewed commitment observation bytes');
  return manifest;
 }
 

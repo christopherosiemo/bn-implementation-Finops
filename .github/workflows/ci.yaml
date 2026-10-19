@@ -725,3 +725,51 @@ jobs:
       - name: Stop fixture containers
         if: always()
         run: docker compose down --volumes --remove-orphans
+  commitment-portfolio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate portfolio source, identity and local container boundaries
+        run: node --test scripts/tests/commitment-portfolio-browser.test.mjs
+      - name: Validate optional hosted portfolio identities, TLS and network isolation
+        run: |
+          mkdir -p /tmp/finops-portfolio-negative
+          docker run --rm -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml
+          docker run --rm -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml > /tmp/finops-portfolio.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-portfolio.yaml:/rendered.yaml:ro -v /tmp/finops-portfolio-negative:/negative -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/tests/test_commitment_portfolio_chart.py /rendered.yaml --write-negative-values /negative'
+          for values in /tmp/finops-portfolio-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-portfolio-negative:/negative:ro alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml -f "/negative/$(basename "$values")" > /tmp/finops-portfolio-rejected.yaml 2> /tmp/finops-portfolio-rejected.log; then exit 1; fi
+            grep -q 'commitment portfolio' /tmp/finops-portfolio-rejected.log
+          done
+      - name: Prepare pinned analysis, browser and identity toolchains
+        run: |
+          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
+          docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
+          docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          docker pull node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+          docker pull nginxinc/nginx-unprivileged@sha256:782bb89768cc87b7f95c18b95baa1af250e5d451f26794f59363540161147c01
+      - name: Prepare distinct local fixture credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build native ingestion services and private portfolio model
+        run: |
+          docker compose config --quiet
+          docker compose build minio economics
+          docker compose up --no-build -d --wait postgres minio clickhouse economics
+      - name: Exercise issued native commitments, restricted daemon and real Finance journey
+        run: node scripts/commitment-portfolio-lab.mjs
+      - name: Retain bounded portfolio acceptance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-portfolio-acceptance
+          path: work/private/commitment-portfolio/*/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Stop only this fresh job's local services
+        if: always()
+        run: docker compose down --volumes --remove-orphans

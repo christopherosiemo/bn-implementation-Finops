@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { DependencySafety } from "./DependencySafety";
 import { SloSafety } from "./SloSafety";
@@ -63,6 +63,8 @@ import type {
   Recommendation,
   Workload,
 } from "./types";
+
+const CommitmentPortfolio = lazy(() => import("./CommitmentPortfolio").then(module => ({ default: module.CommitmentPortfolio })));
 
 type PageProps = {
   data: Dashboard;
@@ -2114,6 +2116,9 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
         )}
       </Panel>
       <SourceTrust data={data} run={run} busy={busy} />
+      <Suspense fallback={<p role="status">Loading commitment portfolio view…</p>}>
+        <CommitmentPortfolio fixture={data.fixture} run={run} busy={busy} />
+      </Suspense>
       <NativeTelemetry data={data} run={run} busy={busy} />
       <div className="two-column">
         <Panel title="Read, approve, execute">

@@ -227,6 +227,125 @@ services:
       buckets: {condition: service_completed_successfully}
       clickhouse: {condition: service_healthy}
 
+  # Optional read-only portfolio analysis. Explicit profile; operator commissions
+  # only its unique LOGIN and model token. No cloud or execution credentials.
+  commitment-portfolio-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [commitment-portfolio]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        for directory in /portfolio-analyst-secrets /portfolio-model-secrets; do
+          test -d "$$directory"
+          test ! -L "$$directory"
+          chmod 0755 "$$directory"
+        done
+        temporary=''
+        trap 'test -z "$$temporary" || rm -f -- "$$temporary"' EXIT
+        for name in commitment-portfolio-database commitment-portfolio-model-token; do
+          source="/run/secrets/$$name"
+          test -f "$$source"
+          test ! -L "$$source"
+          test -r "$$source"
+          maximum=4096
+          test "$$name" != commitment-portfolio-database || maximum=8192
+          bytes=$$(wc -c < "$$source")
+          test "$$bytes" -gt 0
+          test "$$bytes" -le "$$maximum"
+          for directory in /portfolio-analyst-secrets /portfolio-model-secrets; do
+            if test "$$directory" = /portfolio-model-secrets && test "$$name" = commitment-portfolio-database; then continue; fi
+            target="$$directory/$$name"
+            if test -e "$$target" || test -L "$$target"; then
+              test -f "$$target"
+              test ! -L "$$target"
+              test "$$(stat -c '%h' "$$target")" = 1
+            fi
+            temporary=$$(mktemp "$$directory/.secret.XXXXXX")
+            cat "$$source" > "$$temporary"
+            chmod 0444 "$$temporary"
+            test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+            sync -f "$$temporary"
+            mv -fT -- "$$temporary" "$$target"
+            temporary=''
+            test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+          done
+        done
+        test ! -e /portfolio-model-secrets/commitment-portfolio-database
+        sync -f /portfolio-analyst-secrets
+        sync -f /portfolio-model-secrets
+        printf '%s\n' COMMITMENT_PORTFOLIO_SECRET_FILES_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [commitment-portfolio-database, commitment-portfolio-model-token]
+    volumes: ['commitment-portfolio-analyst-secrets:/portfolio-analyst-secrets', 'commitment-portfolio-model-secrets:/portfolio-model-secrets']
+    restart: 'no'
+
+  commitment-portfolio-model:
+    image: cloud-cost-autopilot-economics:local
+    build: {context: ., dockerfile: economics/Dockerfile}
+    profiles: [commitment-portfolio]
+    entrypoint: [python, -m, autopilot.portfolio_server]
+    environment:
+      COMMITMENT_PORTFOLIO_MODEL_MODE: LOCAL_PRIVATE
+    volumes: ['commitment-portfolio-model-secrets:/run/secrets:ro']
+    user: '10001:10001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; o=urllib.request.build_opener(urllib.request.ProxyHandler({})); r=o.open('http://127.0.0.1:8000/healthz', timeout=2); assert r.status == 200"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      commitment-portfolio-secrets-init: {condition: service_completed_successfully}
+    networks: [private]
+    restart: unless-stopped
+
+  commitment-portfolio:
+    <<: *go
+    profiles: [commitment-portfolio]
+    entrypoint: [/app/commitment-portfolio-worker]
+    environment:
+      COMMITMENT_PORTFOLIO_ENABLED: 'true'
+      COMMITMENT_PORTFOLIO_TENANT_ID: ${COMMITMENT_PORTFOLIO_TENANT_ID:-tenant-demo}
+      COMMITMENT_PORTFOLIO_DATABASE_FILE: /run/secrets/commitment-portfolio-database
+      COMMITMENT_PORTFOLIO_DATABASE_MODE: LOCAL_PRIVATE
+      COMMITMENT_PORTFOLIO_MODEL_URL: http://commitment-portfolio-model:8000
+      COMMITMENT_PORTFOLIO_MODEL_TOKEN_FILE: /run/secrets/commitment-portfolio-model-token
+    volumes: ['commitment-portfolio-analyst-secrets:/run/secrets:ro']
+    user: '10001:10001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/commitment-portfolio-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      commitment-portfolio-secrets-init: {condition: service_completed_successfully}
+      commitment-portfolio-model: {condition: service_healthy}
+
   # Optional local database-only process. Commission its unique LOGIN as an
   # operator first; commission.sql and identity.json are never runtime mounts.
   fleet-decision-secrets-init:
@@ -607,6 +726,10 @@ networks:
   private: {}
 
 secrets:
+  commitment-portfolio-database:
+    file: ./work/private/commitment-portfolio-secrets/database
+  commitment-portfolio-model-token:
+    file: ./work/private/commitment-portfolio-secrets/model-token
   group-decision-database:
     file: ./work/private/fleet-decision-secrets/database
   group-assessment-database:
@@ -628,6 +751,8 @@ secrets:
     file: ./work/private/fleet-capacity-secrets/model-token
 
 volumes:
+  commitment-portfolio-analyst-secrets: {}
+  commitment-portfolio-model-secrets: {}
   fleet-decision-secrets: {}
   fleet-capacity-secrets: {}
   fleet-assessment-secrets: {}

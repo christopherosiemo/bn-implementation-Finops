@@ -8,6 +8,160 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /commitment-portfolio-analyses:
+    get:
+      operationId: listCommitmentPortfolioAnalyses
+      description: >-
+        Bounded immutable summaries. Full positions are returned only by selected detail. Never combine currencies or
+        commitment classes into a portfolio total.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped portfolio history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentPortfolioPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current tenant and portfolio read permission required
+        '404':
+          description: Record unavailable in current scope
+        '422':
+          description: Invalid scoped cursor
+    post:
+      operationId: requestCommitmentPortfolioAnalysis
+      description: >-
+        IDs-only native commitment and CUR receipt selection plus whole-UTC-day interval. FINANCE or FINOPS_ADMIN checked
+        before replay. If-Match must be the quoted integer "0". No metrics, prices, optimization proofs, credentials or
+        authority uploads.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitmentPortfolioRequest'
+      responses:
+        '202':
+          description: Queued read-only analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentPortfolioRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current tenant and portfolio read permission required
+        '404':
+          description: Record unavailable in current scope
+        '409':
+          description: Selected source or receipt binding changed
+        '413':
+          description: Control-plane body too large
+        '422':
+          description: Invalid IDs-only selection or interval
+        '428':
+          description: Initial quoted If-Match "0" and valid Idempotency-Key required
+  /commitment-portfolio-analyses/{id}:
+    get:
+      operationId: getCommitmentPortfolioAnalysis
+      description: >-
+        Immutable observed terms, nullable metrics and exact issued references. Bounded2MiB detail. Recommendation, purchase
+        and execution remain unauthorized.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Selected analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentPortfolioRecord'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current tenant and portfolio read permission required
+        '404':
+          description: Record unavailable in current scope
+  /commitment-portfolio-sources:
+    get:
+      operationId: listCommitmentPortfolioSources
+      description: Finance-scoped source choices. No raw receipt bodies or credentials.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped source choices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentPortfolioSourcePage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current tenant and portfolio read permission required
+        '404':
+          description: Record unavailable in current scope
+        '422':
+          description: Invalid scoped cursor
+  /commitment-portfolio-sources/{id}/receipts:
+    get:
+      operationId: listCommitmentPortfolioReceipts
+      description: >-
+        Bounded issued receipt choices for selected source and native kind. Selecting an ID does not assert coverage or
+        currentness.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - AWS_COMMITMENT
+              - AWS_CUR2
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped receipt choices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitmentPortfolioReceiptPage'
+        '401':
+          description: Valid OIDC token required
+        '403':
+          description: Current tenant and portfolio read permission required
+        '404':
+          description: Record unavailable in current scope
+        '422':
+          description: Invalid source, native kind or scoped cursor
   /workloads/{id}/fleet-joint-decisions:
     get:
       operationId: listFleetJointDecisions
@@ -1850,6 +2004,951 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    CommitmentPortfolioRef:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - id
+        - sha256
+      properties:
+        kind:
+          type: string
+        id:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    CommitmentPortfolioPeriod:
+      type: object
+      additionalProperties: false
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+      description: Half-open interval of whole UTC days, at most31days. Selection does not assert source coverage.
+    CommitmentPortfolioSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - source_id
+        - commitment_receipt_id
+        - billing_receipt_ids
+        - period
+      properties:
+        source_id:
+          type: string
+        commitment_receipt_id:
+          type: string
+        billing_receipt_ids:
+          type: array
+          maxItems: 24
+          uniqueItems: true
+          items:
+            type: string
+        period:
+          $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+    CommitmentPortfolioRequest:
+      $ref: '#/components/schemas/CommitmentPortfolioSelection'
+    CommitmentPortfolioRIRecurringCharge:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+        - frequency
+      properties:
+        amount:
+          type: string
+          nullable: true
+          description: Exact native amount; frequency and currency stay separate observations.
+        frequency:
+          type: string
+          nullable: true
+    CommitmentPortfolioReservedInstanceTerms:
+      type: object
+      additionalProperties: false
+      required:
+        - offering_class
+        - offering_type
+        - scope
+        - duration_seconds
+        - currency_code
+        - fixed_price
+        - usage_price
+        - instance_count
+        - instance_type
+        - instance_tenancy
+        - product_description
+        - availability_zone
+        - availability_zone_id
+        - recurring_charges
+      properties:
+        offering_class:
+          type: string
+          nullable: true
+        offering_type:
+          type: string
+          nullable: true
+        scope:
+          type: string
+          nullable: true
+        duration_seconds:
+          type: string
+          nullable: true
+        currency_code:
+          type: string
+          nullable: true
+        fixed_price:
+          type: string
+          nullable: true
+        usage_price:
+          type: string
+          nullable: true
+        instance_count:
+          type: string
+          nullable: true
+        instance_type:
+          type: string
+          nullable: true
+        instance_tenancy:
+          type: string
+          nullable: true
+        product_description:
+          type: string
+          nullable: true
+        availability_zone:
+          type: string
+          nullable: true
+        availability_zone_id:
+          type: string
+          nullable: true
+        recurring_charges:
+          type: array
+          nullable: true
+          maxItems: 32
+          description: Null means the native recurring-charge collection was not issued; an empty array is an observed empty collection.
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRIRecurringCharge'
+    CommitmentPortfolioPosition:
+      type: object
+      additionalProperties: false
+      required:
+        - reserved_instance_terms
+        - id
+        - account_id
+        - class
+        - state
+        - region
+        - instance_family
+        - currency
+        - start
+        - end
+        - term_seconds
+        - hourly_commitment
+        - upfront_amount
+        - recurring_amount
+        - recurring_amount_unit
+        - payment_option
+        - native_ref
+        - reason_codes
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+        class:
+          type: string
+          enum:
+            - EC2_RI_UNCLASSIFIED
+            - EC2_STANDARD_RI
+            - EC2_CONVERTIBLE_RI
+            - COMPUTE_SAVINGS_PLAN
+            - EC2_INSTANCE_SAVINGS_PLAN
+            - DATABASE_SAVINGS_PLAN
+            - SAGEMAKER_SAVINGS_PLAN
+            - UNSUPPORTED_SAVINGS_PLAN
+        state:
+          type: string
+        region:
+          type: string
+          nullable: true
+        instance_family:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        start:
+          type: string
+          format: date-time
+          nullable: true
+        end:
+          type: string
+          format: date-time
+          nullable: true
+        term_seconds:
+          type: string
+          nullable: true
+        hourly_commitment:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        upfront_amount:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        recurring_amount:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        recurring_amount_unit:
+          type: string
+        payment_option:
+          type: string
+          nullable: true
+        native_ref:
+          $ref: '#/components/schemas/CommitmentPortfolioRef'
+        reason_codes:
+          type: array
+          maxItems: 128
+          items:
+            type: string
+        reserved_instance_terms:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioReservedInstanceTerms'
+      description: >-
+        Observed native terms. Sparse RI snapshots retain unknown terms and prices. Observed upfront payment is not a new cash
+        requirement.
+    CommitmentPortfolioExpiry:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - remaining_seconds
+        - within_days
+        - expires_within_window
+      properties:
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - EXPIRED
+            - NOT_STARTED
+            - UNKNOWN
+        remaining_seconds:
+          type: string
+          nullable: true
+          pattern: ^-?[0-9]+(?:\.[0-9]+)?$
+          description: >-
+            Exact decimal seconds relative to the issued analysis observation, preserving microseconds without floating point;
+            not refreshed by viewing this record.
+        within_days:
+          type: integer
+          enum:
+            - 30
+        expires_within_window:
+          type: boolean
+          nullable: true
+    CommitmentPortfolioPositionShare:
+      type: object
+      additionalProperties: false
+      required:
+        - position_id
+        - share
+      properties:
+        position_id:
+          type: string
+        share:
+          type: string
+          nullable: true
+          description: Fraction of this exact partition native hourly commitment rate; unknown terms stay unavailable.
+    CommitmentPortfolioPositionAnalysis:
+      type: object
+      additionalProperties: false
+      required:
+        - expiry
+        - position
+        - observed_billed_cost
+        - observed_allocated_cost
+        - observed_committed_cost
+        - observed_used_commitment
+        - observed_unused_commitment
+        - utilization
+        - coverage
+        - effective_discount
+        - downside_if_zero_usage_observed_window
+        - break_even_utilization
+        - remaining_value
+        - cash_requirement
+        - expected_utilization
+        - confidence_interval
+        - status
+        - reason_codes
+        - allocated_cost_basis
+        - commitment_cost_basis
+      properties:
+        expiry:
+          $ref: '#/components/schemas/CommitmentPortfolioExpiry'
+        position:
+          $ref: '#/components/schemas/CommitmentPortfolioPosition'
+        observed_billed_cost:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        observed_allocated_cost:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        observed_committed_cost:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        observed_used_commitment:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        observed_unused_commitment:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        utilization:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        coverage:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        effective_discount:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        downside_if_zero_usage_observed_window:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        break_even_utilization:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        remaining_value:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        cash_requirement:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        expected_utilization:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        confidence_interval:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        status:
+          type: string
+          enum:
+            - OBSERVED_PARTIAL
+            - UNKNOWN
+        reason_codes:
+          type: array
+          maxItems: 128
+          items:
+            type: string
+        allocated_cost_basis:
+          type: string
+          nullable: true
+          enum:
+            - NET_SP_EFFECTIVE
+            - SP_EFFECTIVE
+            - NET_RI_EFFECTIVE
+            - RI_EFFECTIVE
+            - null
+          description: Exact issued cost basis. Mixed bases retain unavailable amount and an explicit gap.
+        commitment_cost_basis:
+          type: string
+          enum:
+            - NATIVE_SP_HOURLY_TOTAL_AND_USED_COMMITMENT
+            - UNAVAILABLE
+    CommitmentPortfolioPartition:
+      type: object
+      additionalProperties: false
+      required:
+        - class
+        - currency
+        - account_id
+        - region
+        - instance_family
+        - position_ids
+        - observed_billed_cost
+        - position_count
+        - observed_committed_cost
+        - observed_used_commitment
+        - observed_unused_commitment
+        - utilization
+        - expiring_position_ids
+        - hourly_commitment_rate
+        - hourly_commitment_rate_unit
+        - position_shares
+        - concentration_basis
+      properties:
+        class:
+          type: string
+          enum:
+            - EC2_RI_UNCLASSIFIED
+            - EC2_STANDARD_RI
+            - EC2_CONVERTIBLE_RI
+            - COMPUTE_SAVINGS_PLAN
+            - EC2_INSTANCE_SAVINGS_PLAN
+            - DATABASE_SAVINGS_PLAN
+            - SAGEMAKER_SAVINGS_PLAN
+            - UNSUPPORTED_SAVINGS_PLAN
+        currency:
+          type: string
+          nullable: true
+        account_id:
+          type: string
+        region:
+          type: string
+          nullable: true
+        instance_family:
+          type: string
+          nullable: true
+        position_ids:
+          type: array
+          maxItems: 2000
+          items:
+            type: string
+        observed_billed_cost:
+          type: string
+          nullable: true
+          description: Exact decimal string. Null is unavailable; never coerce through binary floating point.
+        position_count:
+          type: integer
+          minimum: 1
+          maximum: 2000
+        observed_committed_cost:
+          type: string
+          nullable: true
+          description: Exact observed decimal string; null means unavailable. Never coerce through binary floating point.
+        observed_used_commitment:
+          type: string
+          nullable: true
+          description: Exact observed decimal string; null means unavailable. Never coerce through binary floating point.
+        observed_unused_commitment:
+          type: string
+          nullable: true
+          description: Exact observed decimal string; null means unavailable. Never coerce through binary floating point.
+        utilization:
+          type: string
+          nullable: true
+          description: Exact observed decimal string; null means unavailable. Never coerce through binary floating point.
+        expiring_position_ids:
+          type: array
+          maxItems: 2000
+          items:
+            type: string
+        hourly_commitment_rate:
+          type: string
+          nullable: true
+          description: Exact observed decimal string; null means unavailable. Never coerce through binary floating point.
+        hourly_commitment_rate_unit:
+          type: string
+          enum:
+            - currency/hour
+        position_shares:
+          type: array
+          maxItems: 2000
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioPositionShare'
+        concentration_basis:
+          type: string
+          enum:
+            - NATIVE_HOURLY_COMMITMENT_RATE
+    CommitmentPortfolioOptimizationStage:
+      type: object
+      additionalProperties: false
+      required:
+        - stage
+        - status
+        - decision_ref
+        - outcome_ref
+        - scope_sha256
+        - reason_codes
+      properties:
+        stage:
+          type: string
+          enum:
+            - REMOVE_IDLE
+            - SCHEDULE
+            - RIGHTSIZE
+            - AUTOSCALE
+            - RECALCULATE_STABLE_DEMAND
+        status:
+          type: string
+          enum:
+            - BLOCKED
+        decision_ref:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRef'
+        outcome_ref:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRef'
+        scope_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          nullable: true
+        reason_codes:
+          type: array
+          maxItems: 128
+          items:
+            type: string
+    CommitmentPortfolioUnmatchedBilling:
+      type: object
+      additionalProperties: false
+      required:
+        - commitment_id
+        - account_id
+        - currency
+        - line_ids
+        - observed_billed_cost
+        - reason_codes
+      properties:
+        commitment_id:
+          type: string
+        account_id:
+          type: string
+        currency:
+          type: string
+        line_ids:
+          type: array
+          maxItems: 100000
+          items:
+            type: string
+        observed_billed_cost:
+          type: string
+          nullable: true
+          description: >-
+            Exact observed billed amount for these rows in this currency. No native terms, utilization or forecast is
+            inferred.
+        reason_codes:
+          type: array
+          items:
+            type: string
+            enum:
+              - COMMITMENT_NOT_IN_SELECTED_NATIVE_POINT
+    CommitmentPortfolioAnalysis:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - id
+        - request_id
+        - selection
+        - input_refs
+        - observed_at
+        - inventory_status
+        - billing_status
+        - positions
+        - partitions
+        - optimization_order
+        - recommendation_status
+        - reason_codes
+        - expected_savings
+        - estimated_saving
+        - verified_saving
+        - recommendation_authorized
+        - purchase_authorized
+        - execution_authorized
+        - unmatched_billing
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - '1'
+        id:
+          type: string
+        request_id:
+          type: string
+        selection:
+          $ref: '#/components/schemas/CommitmentPortfolioSelection'
+        input_refs:
+          type: array
+          maxItems: 128
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        observed_at:
+          type: string
+          format: date-time
+        inventory_status:
+          type: string
+          enum:
+            - COMPLETE_POINT_IN_TIME
+            - PARTIAL
+            - UNAVAILABLE
+        billing_status:
+          type: string
+          enum:
+            - COMPLETE_OBSERVED_WINDOW
+            - PARTIAL
+            - UNAVAILABLE
+        positions:
+          type: array
+          maxItems: 2000
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioPositionAnalysis'
+        partitions:
+          type: array
+          maxItems: 2000
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioPartition'
+        optimization_order:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioOptimizationStage'
+        recommendation_status:
+          type: string
+          enum:
+            - BLOCKED
+        reason_codes:
+          type: array
+          maxItems: 128
+          items:
+            type: string
+        expected_savings:
+          type: string
+          nullable: true
+          enum:
+            - null
+        estimated_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        recommendation_authorized:
+          type: boolean
+          enum:
+            - false
+        purchase_authorized:
+          type: boolean
+          enum:
+            - false
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        unmatched_billing:
+          type: array
+          maxItems: 100000
+          description: >-
+            Issued commitment-linked billing rows absent from the selected native point, kept separate from native positions.
+            The complete detail remains bounded to2MiB.
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioUnmatchedBilling'
+    CommitmentPortfolioRefusal:
+      type: object
+      additionalProperties: false
+      required:
+        - reason_code
+        - observed_at
+      properties:
+        reason_code:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+    CommitmentPortfolioRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - creator_id
+        - status
+        - selection
+        - input_refs
+        - analysis
+        - refusal
+        - created_at
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        creator_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        selection:
+          $ref: '#/components/schemas/CommitmentPortfolioSelection'
+        input_refs:
+          type: array
+          maxItems: 128
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        analysis:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioAnalysis'
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRefusal'
+        created_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    CommitmentPortfolioAnalysisSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - inventory_status
+        - billing_status
+        - position_count
+        - recommendation_status
+        - execution_authorized
+        - verified_saving
+      properties:
+        id:
+          type: string
+        inventory_status:
+          type: string
+          enum:
+            - COMPLETE_POINT_IN_TIME
+            - PARTIAL
+            - UNAVAILABLE
+        billing_status:
+          type: string
+          enum:
+            - COMPLETE_OBSERVED_WINDOW
+            - PARTIAL
+            - UNAVAILABLE
+        position_count:
+          type: integer
+          minimum: 0
+          maximum: 2000
+        recommendation_status:
+          type: string
+          enum:
+            - BLOCKED
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+    CommitmentPortfolioPageRow:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - creator_id
+        - status
+        - selection
+        - input_refs
+        - analysis
+        - refusal
+        - created_at
+        - execution_authorized
+        - verified_saving
+        - analysis_summary
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          enum:
+            - 1
+        creator_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - ASSESSED
+            - REFUSED
+        selection:
+          $ref: '#/components/schemas/CommitmentPortfolioSelection'
+        input_refs:
+          type: array
+          maxItems: 128
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioRef'
+        analysis:
+          type: object
+          nullable: true
+          enum:
+            - null
+        refusal:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioRefusal'
+        created_at:
+          type: string
+          format: date-time
+        execution_authorized:
+          type: boolean
+          enum:
+            - false
+        verified_saving:
+          type: string
+          nullable: true
+          enum:
+            - null
+        analysis_summary:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioAnalysisSummary'
+    CommitmentPortfolioPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioPageRow'
+        next_cursor:
+          type: string
+          nullable: true
+    CommitmentPortfolioSource:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - status
+        - payer_account_id
+        - usage_account_count
+        - region
+        - commitment_receipt_id
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+        payer_account_id:
+          type: string
+        usage_account_count:
+          type: integer
+          minimum: 0
+        region:
+          type: string
+        commitment_receipt_id:
+          type: string
+          nullable: true
+    CommitmentPortfolioSourcePage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioSource'
+        next_cursor:
+          type: string
+          nullable: true
+    CommitmentPortfolioReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - source_id
+        - observed_at
+        - current
+        - period
+        - proof_state
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - AWS_COMMITMENT
+            - AWS_CUR2
+        source_id:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+        period:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommitmentPortfolioPeriod'
+        proof_state:
+          type: string
+          enum:
+            - COMPLETE
+            - FINAL
+            - PARTIAL
+            - UNKNOWN
+    CommitmentPortfolioReceiptPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CommitmentPortfolioReceipt'
+        next_cursor:
+          type: string
+          nullable: true
     FleetJointDecisionRefusal:
       type: object
       additionalProperties: false

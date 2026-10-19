@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bcmdataexports"
@@ -187,6 +188,105 @@ func (a *BillingAWS) BillingInvoices(ctx context.Context, payer string, year, mo
 	return nil, errors.New("AWS_INVOICE_LIMIT")
 }
 
+// reservedInstanceNativeV2 is a projection of DescribeReservedInstances, not an
+// offering, forecast or purchase authorization. Existing issued four-field RI
+// records have no discriminator and retain their original limited meaning.
+// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ReservedInstances.html
+type reservedInstanceNativeV2 struct {
+	ID                 string  `xml:"reservedInstancesId"`
+	State              string  `xml:"state"`
+	End                string  `xml:"end"`
+	OfferingClass      *string `xml:"offeringClass"`
+	OfferingType       *string `xml:"offeringType"`
+	Scope              *string `xml:"scope"`
+	Start              *string `xml:"start"`
+	Duration           *string `xml:"duration"`
+	CurrencyCode       *string `xml:"currencyCode"`
+	FixedPrice         *string `xml:"fixedPrice"`
+	UsagePrice         *string `xml:"usagePrice"`
+	InstanceCount      *string `xml:"instanceCount"`
+	InstanceType       *string `xml:"instanceType"`
+	InstanceTenancy    *string `xml:"instanceTenancy"`
+	ProductDescription *string `xml:"productDescription"`
+	AvailabilityZone   *string `xml:"availabilityZone"`
+	AvailabilityZoneID *string `xml:"availabilityZoneId"`
+	RecurringCharges   *struct {
+		Items []struct {
+			Amount    *string `xml:"amount"`
+			Frequency *string `xml:"frequency"`
+		} `xml:"item"`
+	} `xml:"recurringCharges"`
+}
+
+func nativeOptionalText(value *string) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func (v reservedInstanceNativeV2) document(region string) model.Document {
+	var recurring any
+	if v.RecurringCharges != nil {
+		items := []model.Document{}
+		for _, charge := range v.RecurringCharges.Items {
+			items = append(items, model.Document{"amount": nativeOptionalText(charge.Amount), "frequency": nativeOptionalText(charge.Frequency)})
+		}
+		recurring = items
+	}
+	// Preserve native lexical decimals/integers and presence, including explicit
+	// zero. No float conversion, default currency, inferred monthly unit or
+	// multiplication by instanceCount is applied. Consumers validate supported
+	// class/scope/units before deriving amounts; future/unknown values stay raw.
+	return model.Document{
+		"id": v.ID, "state": v.State, "region": region, "end": v.End,
+		"native_projection": "AWS_EC2_DESCRIBE_RESERVED_INSTANCES_V2",
+		"offering_class":    nativeOptionalText(v.OfferingClass), "offering_type": nativeOptionalText(v.OfferingType),
+		"scope": nativeOptionalText(v.Scope), "start": nativeOptionalText(v.Start), "duration_seconds": nativeOptionalText(v.Duration),
+		"currency_code": nativeOptionalText(v.CurrencyCode), "fixed_price": nativeOptionalText(v.FixedPrice), "usage_price": nativeOptionalText(v.UsagePrice),
+		"instance_count": nativeOptionalText(v.InstanceCount), "instance_type": nativeOptionalText(v.InstanceType), "instance_tenancy": nativeOptionalText(v.InstanceTenancy),
+		"product_description": nativeOptionalText(v.ProductDescription), "availability_zone": nativeOptionalText(v.AvailabilityZone), "availability_zone_id": nativeOptionalText(v.AvailabilityZoneID),
+		"recurring_charges": recurring,
+	}
+}
+
+// ParseReservedInstancesResponse shares the collector's native Query response
+// projection with local transport fixtures. Parsing is not authentication: only
+// the signed, account-scoped collector and issued receipt establish provenance.
+func ParseReservedInstancesResponse(raw []byte, region string) ([]model.Document, string, error) {
+	if len(raw) == 0 || len(raw) > 16<<20 || !validRegion(region) {
+		return nil, "", errors.New("COMMITMENT_RI_RESPONSE_INVALID")
+	}
+	var response struct {
+		XMLName xml.Name                   `xml:"DescribeReservedInstancesResponse"`
+		Items   []reservedInstanceNativeV2 `xml:"reservedInstancesSet>item"`
+		Next    string                     `xml:"nextToken"`
+	}
+	decoder := xml.NewDecoder(strings.NewReader(string(raw)))
+	if e := decoder.Decode(&response); e != nil {
+		return nil, "", errors.New("COMMITMENT_RI_RESPONSE_INVALID")
+	}
+	for {
+		token, e := decoder.Token()
+		if e == io.EOF {
+			break
+		}
+		if e != nil {
+			return nil, "", errors.New("COMMITMENT_RI_RESPONSE_INVALID")
+		}
+		if text, ok := token.(xml.CharData); !ok || strings.TrimSpace(string(text)) != "" {
+			return nil, "", errors.New("COMMITMENT_RI_RESPONSE_INVALID")
+		}
+	}
+	rows := []model.Document{}
+	for _, item := range response.Items {
+		if item.State != "retired" {
+			rows = append(rows, item.document(region))
+		}
+	}
+	return rows, response.Next, nil
+}
+
 func (a *BillingAWS) accountCommitments(ctx context.Context) (model.Document, error) {
 	var regions struct {
 		Items []struct {
@@ -209,29 +309,25 @@ func (a *BillingAWS) accountCommitments(ctx context.Context) (model.Document, er
 				values.Set("NextToken", token)
 			}
 			var r struct {
-				Items []struct {
-					ID    string `xml:"reservedInstancesId"`
-					State string `xml:"state"`
-					End   string `xml:"end"`
-				} `xml:"reservedInstancesSet>item"`
-				Next string `xml:"nextToken"`
+				XMLName xml.Name `xml:"DescribeReservedInstancesResponse"`
+				Inner   string   `xml:",innerxml"`
 			}
 			if e := a.query(ctx, region.Name, "DescribeReservedInstances", values, &r); e != nil {
 				return nil, e
 			}
-			for _, v := range r.Items {
-				if v.State != "retired" {
-					ris = append(ris, model.Document{"id": v.ID, "state": v.State, "region": region.Name, "end": v.End})
-				}
+			rows, next, e := ParseReservedInstancesResponse([]byte("<DescribeReservedInstancesResponse>"+r.Inner+"</DescribeReservedInstancesResponse>"), region.Name)
+			if e != nil {
+				return nil, e
 			}
-			if r.Next == "" {
+			ris = append(ris, rows...)
+			if next == "" {
 				break
 			}
-			if seen[r.Next] {
+			if seen[next] {
 				return nil, errors.New("AWS_PAGINATION_CYCLE")
 			}
-			seen[r.Next] = true
-			token = r.Next
+			seen[next] = true
+			token = next
 			if pages == 99 {
 				return nil, errors.New("AWS_COMMITMENT_LIMIT")
 			}

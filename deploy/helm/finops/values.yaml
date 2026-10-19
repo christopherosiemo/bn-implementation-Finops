@@ -46,6 +46,7 @@ database:
     fleet-assessment: finops-db-group-assessor
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
+    commitment-portfolio: finops-db-commitment-portfolio
     migrate: finops-db-migrate
 secrets:
   # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
@@ -117,6 +118,18 @@ fleetDecision:
   enabled: false
   tenantId: ""
   replicas: 1
+  postgresEgressCidrs: []
+commitmentPortfolio:
+  # Default off. Commission the existing LOGIN/tenant binding and three existing
+  # Secrets explicitly; this chart creates no Secret, IAM, purchase or execution grant.
+  enabled: false
+  tenantId: ""
+  replicas: 1
+  modelReplicas: 1
+  modelTokenSecret: ""
+  modelTLSSecret: ""
+  # Private model root CA, separate from the database CA trust file.
+  modelCAConfigMap: ""
   postgresEgressCidrs: []
 activity:
   # Dedicated machine tokens; never configure the browser/API audience here.

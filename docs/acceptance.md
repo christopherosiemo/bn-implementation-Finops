@@ -1,5 +1,25 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: native existing AWS commitment observations
+
+The [commitment observation workflow](commitment-portfolio.md) connects issued
+RI/SP and CUR evidence to a tenant-bound queue, separate Python model, restricted
+Go daemon and real Finance PKCE through the production console. Private candidate
+run `395e97a8-4a83-47ed-bae3-ffa967aa94fb` passed 218 exact canonical ClickHouse
+readbacks, versioned object evidence, API/SQL isolation, creation concurrency,
+immutable replay, repeated migration in two databases, IDs-only browser creation,
+daemon publication, persisted reload and desktop/mobile presentation. Independent
+review matched all 621 source pins and confirmed empty owned resource inventories.
+The receipt SHA256 is `661874890db085e1d00c7dce0f6bd302e6791d9f8d2b3c100ce783e579b4ba63`.
+Earlier failures remain retained. This candidate proof is separate from final
+indexed cold acceptance and full CI, which remain required before credit.
+
+Native observations retain class, scope, currencies, pricing basis, sparse RI
+unknowns and charges absent from current inventory. Coverage, forecasts, remaining
+cash value, purchase recommendations and savings remain unavailable. The optional
+component defaults off; it has no cloud, signing, execution or ledger credentials.
+No process-loss, authentic-cloud, customer or production claim is made.
+
 ## 19 October: persisted native fleet evidence comparisons
 
 The [assessment API, console and dedicated worker](fleet-native-assessments.md)

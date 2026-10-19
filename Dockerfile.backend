@@ -11,7 +11,8 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /finops ./cmd/finops && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /fleet-assessment-worker ./cmd/fleet-assessment-worker && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /fleet-capacity-worker ./cmd/fleet-capacity-worker && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /fleet-decision-worker ./cmd/fleet-decision-worker
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /fleet-decision-worker ./cmd/fleet-decision-worker && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /commitment-portfolio-worker ./cmd/commitment-portfolio-worker
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10001 finops
@@ -20,6 +21,7 @@ COPY --from=build /finops /app/finops
 COPY --from=build /fleet-assessment-worker /app/fleet-assessment-worker
 COPY --from=build /fleet-capacity-worker /app/fleet-capacity-worker
 COPY --from=build /fleet-decision-worker /app/fleet-decision-worker
+COPY --from=build /commitment-portfolio-worker /app/commitment-portfolio-worker
 COPY migrations /app/migrations
 USER 10001:10001
 EXPOSE 8080
