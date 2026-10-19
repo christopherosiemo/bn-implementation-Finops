@@ -20,6 +20,8 @@ const temporaryRoot = mkdtempSync(path.join(temporaryParent, prefix));
 const originalUmask = process.umask(0o022);
 const generatedEnv = path.join(temporaryRoot, '.env');
 const generatedRealm = path.join(temporaryRoot, 'work', 'keycloak', 'finops-realm.json');
+const assessmentDirectory = path.join(temporaryRoot, 'work', 'private', 'fleet-assessment-secrets');
+const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => path.join(assessmentDirectory, name));
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
@@ -34,15 +36,16 @@ function probeAsKeycloak(expectRealmReadable) {
     const fs = require('node:fs');
     assert.equal(process.getuid(), 1000, 'probe must actually execute as Keycloak UID 1000');
     assert.equal(process.getgid(), 1000);
-    const [realm, env, readable] = process.argv.slice(1);
+    const [realm, env, readable, ...assessmentFiles] = process.argv.slice(1);
     if (readable === 'true') {
       assert.equal(JSON.parse(fs.readFileSync(realm, 'utf8')).realm, 'finops');
     } else {
       assert.throws(() => fs.readFileSync(realm, 'utf8'), { code: 'EACCES' }, 'legacy 0600 realm reproduces the CI permission failure');
     }
     assert.throws(() => fs.readFileSync(env, 'utf8'), { code: 'EACCES' }, 'UID 1000 must never read service secrets');
+    for (const file of assessmentFiles) assert.throws(() => fs.readFileSync(file, 'utf8'), { code: 'EACCES' }, 'UID 1000 must never read assessment secrets');
   `;
-  const result = spawnSync(process.execPath, ['-e', code, generatedRealm, generatedEnv, String(expectRealmReadable)], { cwd: temporaryRoot, uid: 1000, gid: 1000, encoding: 'utf8', timeout: 15_000 });
+  const result = spawnSync(process.execPath, ['-e', code, generatedRealm, generatedEnv, String(expectRealmReadable), ...assessmentFiles], { cwd: temporaryRoot, uid: 1000, gid: 1000, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `unprivileged permission probe failed: ${result.stderr}`);
 }
@@ -60,6 +63,11 @@ try {
   assert.equal(statSync(generatedEnv).uid, 0);
   assert.equal(mode(generatedRealm), 0o644, 'public fixture realm must be readable by the container UID');
   assert.equal(mode(generatedEnv), 0o600, 'service-secret .env must remain owner-only');
+  assert.equal(mode(path.join(temporaryRoot, 'work')), 0o755, 'shared work directory must permit public realm traversal');
+  assert.equal(mode(path.dirname(assessmentDirectory)), 0o700, 'private evidence subtree remains owner-only');
+  assert.equal(mode(assessmentDirectory), 0o700, 'assessment source-secret directory remains owner-only');
+  for (const file of assessmentFiles) assert.equal(mode(file), 0o444, 'private source secret is read-only for copying into Linux files');
+  const originalAssessmentSecrets = assessmentFiles.map(file => readFileSync(file));
   const originalSecrets = readFileSync(generatedEnv);
   const realm = JSON.parse(readFileSync(generatedRealm, 'utf8'));
   const approver = realm.users.filter(user => user.username === 'approver');
@@ -86,6 +94,7 @@ try {
   assert.equal(mode(generatedRealm), 0o644, 'rerunning bootstrap must repair an existing 0600 realm');
   assert.equal(mode(generatedEnv), 0o600, 'realm permission repair must not expose .env');
   assert.deepEqual(readFileSync(generatedEnv), originalSecrets, 'rerunning bootstrap must preserve existing service secrets');
+  assert.deepEqual(assessmentFiles.map(file => readFileSync(file)), originalAssessmentSecrets, 'rerunning bootstrap preserves assessment secret values');
   probeAsKeycloak(true);
   console.log('PASS rerunning bootstrap repairs realm permissions without changing or exposing secrets');
   console.log('\n4 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');

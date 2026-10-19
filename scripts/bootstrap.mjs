@@ -46,7 +46,9 @@ function assessmentSecretDirectory() {
   let directory = base;
   for (const part of ['work', 'private', 'fleet-assessment-secrets']) {
     directory = path.join(directory, part);
-    try { mkdirSync(directory, { mode: 0o700 }); }
+    // The public fixture realm shares work/. Keep only the private subtree
+    // owner-only so an unprivileged Keycloak can still traverse its own path.
+    try { mkdirSync(directory, { mode: part === 'work' ? 0o755 : 0o700 }); }
     catch (error) { if (error.code !== 'EEXIST') throw new Error('Assessment secret directory creation refused'); }
     const stat = lstatSync(directory);
     if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(directory) !== directory) throw new Error('Assessment secret directory boundary differs');

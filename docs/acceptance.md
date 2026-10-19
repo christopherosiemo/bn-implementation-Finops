@@ -68,6 +68,16 @@ workflows remain separate. Final-commit CI must pass every standard job.
 Official completion remains **25.2% → 25.2%**; this strengthens the current
 component stage. No AWS resources or customer mutations are authorized.
 
+The first published assessment commit `352758b` failed its Linux bootstrap
+permission probe: a newly created shared `work` directory used `0700`, blocking
+UID 1000's public realm read. Bootstrap now creates that shared parent as `0755`
+while keeping `work/private` and the secret directory at `0700`. The actual
+Node 22/UID 1000 regression passes public realm access, `.env` and assessment
+secret denial, legacy realm repair and unchanged secret values on repeat.
+Application source, signed evidence and worker file validation are unchanged.
+The corrected commit must rerun all standard CI jobs; the earlier failure
+remains recorded.
+
 ## 19 October: actual recovered health and observer interruption
 
 Run `d865a860-5911-416f-9e2c-f762de214b35` passed from frozen raw indexed
