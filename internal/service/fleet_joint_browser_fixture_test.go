@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/fleetbilling"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/fleetdecisionworker"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
 	"github.com/jackc/pgx/v5"
@@ -160,6 +161,39 @@ func jointBrowserWaitPID(ctx context.Context, admin *store.Store, login string, 
 	}
 }
 
+// A removed client can leave a server backend waiting on the graph lock until
+// that lock is released. Witness the distinct replacement against the same held
+// guard first; only then release it and require the exact old backend to exit.
+func jointBrowserReleaseAfterReplacement(ctx context.Context, admin *store.Store, guard pgx.Tx, login string, guardPID, oldPID int) error {
+	if login == "" || guardPID <= 0 || oldPID <= 0 || oldPID == guardPID {
+		return errors.New("joint replacement database identity differs")
+	}
+	if _, e := jointBrowserWaitPID(ctx, admin, login, guardPID, oldPID); e != nil {
+		return e
+	}
+	if e := guard.Rollback(ctx); e != nil {
+		return e
+	}
+	exitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		var present bool
+		if e := admin.Pool.QueryRow(exitCtx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND usename=$1 AND pid=$2)`, login, oldPID).Scan(&present); e != nil {
+			return e
+		}
+		if !present {
+			return nil
+		}
+		select {
+		case <-exitCtx.Done():
+			return errors.New("joint original database process remains after guard release")
+		case <-tick.C:
+		}
+	}
+}
+
 // Called synchronously instead of merely waiting for the old036 browser file.
 // The parent journey retains its original180s bound. No worker exists before
 // the actual POST202 request is committed and the fixture graph fence is held.
@@ -274,14 +308,7 @@ func jointBrowserCoordinate(t *testing.T, ctx context.Context, f *mutationReplay
 	if restarted.SchemaVersion != "1" || restarted.RunID != signal.RunID || restarted.ReadySHA256 != signal.ReadySHA256 || restarted.RequestID != posted.RequestID || restarted.OldContainerID != started.ContainerID || !sha.MatchString(restarted.NewContainerID) || restarted.NewContainerID == started.ContainerID || !restarted.OldAbsent || !restarted.DistinctProcess || restarted.ConfigurationSHA256 != r.metadata.ConfigurationSHA256 || !regexp.MustCompile(`^sha256:[a-f0-9]{64}$`).MatchString(restarted.ImageID) || !sha.MatchString(restarted.CompiledBinarySHA256) || !sha.MatchString(restarted.FilesSHA256) {
 		return errors.New("joint replacement worker proof differs")
 	}
-	var oldPresent bool
-	if e = admin.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND usename=$1 AND pid=$2)`, r.login, oldPID).Scan(&oldPresent); e != nil || oldPresent {
-		return errors.New("joint original database process remains")
-	}
-	if _, e = jointBrowserWaitPID(ctx, admin, r.login, guardPID, oldPID); e != nil {
-		return e
-	}
-	if e = guard.Rollback(ctx); e != nil {
+	if e = jointBrowserReleaseAfterReplacement(ctx, admin, guard, r.login, guardPID, oldPID); e != nil {
 		return e
 	}
 	var proof model.Document
@@ -292,6 +319,10 @@ func jointBrowserCoordinate(t *testing.T, ctx context.Context, f *mutationReplay
 		return errors.New("joint browser proof differs")
 	}
 	if e = r.db.Do(ctx, f.tenant, func(tx *store.Tx) error {
+		var decisions, refusals int
+		if e := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM fleet_joint_decisions WHERE tenant_id=$1 AND request_id=$2),(SELECT count(*) FROM fleet_joint_decision_refusals WHERE tenant_id=$1 AND request_id=$2)`, f.tenant, posted.RequestID).Scan(&decisions, &refusals); e != nil || decisions != 1 || refusals != 0 {
+			return errors.New("joint replacement terminal cardinality differs")
+		}
 		d, e := tx.FleetJointDecisionGet(ctx, posted.RequestID)
 		if e != nil {
 			return e
@@ -314,6 +345,10 @@ func jointBrowserCoordinate(t *testing.T, ctx context.Context, f *mutationReplay
 		return nil
 	}); e != nil {
 		return e
+	}
+	replayed, wasReplay, e := (&fleetdecisionworker.Worker{Store: r.db, Tenant: f.tenant}).Process(ctx, posted.RequestID)
+	if e != nil || !wasReplay || fleetbilling.Hash(replayed["decision"]) != model.String(proof, "decision_sha256") || replayed["refusal"] != nil {
+		return errors.New("joint replacement immutable replay differs")
 	}
 	var complete jointWorkerComplete
 	if e = fleetCapacityBrowserWait(ctx, "joint-worker-complete.json", &complete); e != nil {

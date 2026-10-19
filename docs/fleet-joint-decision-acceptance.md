@@ -156,6 +156,45 @@ assuming the application transaction settings contain a stolen credential.
 Final 038 SHA-256:
 `789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984`.
 
+Indexed 038 rehearsal `247fa212-a36a-4369-9991-39e404b90546`, published
+source `d131` and tree
+`557f4e676f4af0a0041a8c4da24585e8a7a742cf`, is retained as **FAIL**.
+It completed actual native model persistence, capacity-worker replacement,
+1,032-row canonical financial readback and conditional joint-input issuance.
+The real OIDC console rendered the calculated capacity result on desktop and
+mobile. The separate finance actor then submitted the IDs-only joint request
+and received HTTP 202. Original-worker blocking and replacement handoff
+markers were retained, but they do not establish the complete replacement
+proof or a published joint result.
+
+The coordinator reported `joint original database process remains` during
+its database absence assertion and stopped the fixture API. Three joint-detail
+GETs had returned HTTP 200; the next returned HTTP 502. The browser's retained
+inner error hash exactly matches its `502 !== 200` assertion, rather than the
+fixed 60-second result timeout. This records the observed assertion and API
+cascade; that failed run alone does not establish the PostgreSQL mechanism.
+No browser, selector or deadline correction follows from
+this evidence. No joint screenshot or successful joint reload was produced.
+
+Failure receipt SHA-256:
+`f43ed69ca637baabe6870396327bdfc5a76dccefcee35cc1d54a2b712a231e4a`.
+Owned cleanup succeeded with zero published ports; main resources were not
+modified and no cloud credentials were used. Provider transports and historical
+workloads remain explicit fixture doubles. Customer execution remains false,
+verified savings remain null, and this partial rehearsal earns no additional
+acceptance or completion credit.
+
+Separate isolated reproduction `b09852d6-15d6-478b-87e9-8262515fef2a`
+passed with actual PostgreSQL and forced client-container removal. The exact
+old server backend remained an advisory waiter while the guard was held, and
+a distinct replacement waited behind the same guard. Releasing the guard
+allowed the old backend to disappear; exactly one terminal record came from
+the replacement. No server backend was forcibly terminated. Owned cleanup
+passed. The corrected native coordinator retains both process witnesses,
+releases the guard before its bounded old-backend exit check, and requires one
+decision, zero refusals and immutable same-hash worker replay. This focused
+reproduction does not replace the full indexed native acceptance.
+
 ## Required integration and release gates
 
 Connect actual archived native hardware and billing,
