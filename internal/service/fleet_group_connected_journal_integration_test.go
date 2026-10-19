@@ -29,6 +29,7 @@ type connectedJournal struct {
 	view                              g.JournalView
 	cursor                            g.ContinuationCursor
 	signerKey, pipelineKey, ledgerKey ed25519.PrivateKey
+	healthGuard                       func(context.Context, *store.Tx) error
 }
 
 func (h *connectedJournal) reopen(t *testing.T, ctx context.Context) {

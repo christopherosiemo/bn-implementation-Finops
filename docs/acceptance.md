@@ -1,5 +1,34 @@
 # AWS scheduling pilot acceptance record
 
+## 19 October: private preparation and independent program approval
+
+Published commit `eedfccca` passed ten of eleven normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39205878401),
+including both PostgreSQL versions, economics, infrastructure, security,
+generated contracts, the connected browser/recovery suite, encrypted backup,
+native artifact checks and local Kubernetes/Flux. The connected native
+operating-loop job failed. Its cause is unproved; the replacement diagnostic
+contract retains bounded phase/reason enums without uploading private logs.
+
+Local preparation `4ec0c4eb-e853-41d1-96de-d4c1795529b5` passed real
+twenty-six-entry Git/Terraform preparation, encrypted versioned readback and
+identical replay without another invocation. Temporary database/object-store
+identities and job containers were removed. Browser run
+`f778123c-eb39-4b22-b7a0-6e8ab8f8d518` then passed actual Keycloak/OIDC
+self-approval refusal, independent exact-program approval and persisted reload
+in 18.1 seconds, with zero retries. Source refresh used the normal pipeline
+with an explicitly deterministic reader. No journal authorization, native
+execution or financial authority is inferred from the approved program.
+
+The separate failed native attempt
+`f8f882ca-8e2a-4e93-ae36-391debdadc86` preserved a measured canary breach
+and both owned inverse applies, but failed the terminal P99 gate. It completed
+owned cleanup and published no acceptance. The new activation anchor retains
+the original baseline across later stages and owned recovery after parent
+expiry; focused signed-domain regressions passed in 12.815 seconds, with
+service checks and vet passing separately. These are component results; a
+successful corrected real-clock operating loop remains required.
+
 ## 19 October: connected group authority, persistence and retained restoration
 
 The preceding journal release passed all ten normal

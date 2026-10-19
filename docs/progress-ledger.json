@@ -973,6 +973,29 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Actual native Git/Terraform preparation, versioned encrypted readback, independently commissioned keys, authenticated exact-body approvals and PostgreSQL zero-head bootstrap passed. Restricted PostgreSQL tests cover immutable authority/currentness, lifetime receipt deduplication, recovery-only continuation, one-shot delivery, source/key separation and exact artifact selection. The frozen full backend test/vet run passed with real PostgreSQL and Python; a separate 103-profile JWT/PostgreSQL regression proves bounded catalog pagination. The retained local 028-to-032 upgrade preserved original R1 stopped ownership/signature and exactly one stop/start across API/worker replacement (7/7); all seven existing runtime suites and 224 Node guards passed. Ordinary browser run 19a984f5-abc9-440a-a837-69f8d8d678cd passed 74 cases with zero retries against ten running service containers whose pinned images and 32 migration hashes matched source snapshot237c2315. Separate commissioning run 492d3da2-1607-480f-b3e4-525973e94e6f passed the final real-Keycloak/OIDC browser case in 25.7 seconds (30.5 total), using a visibly deterministic fixture reader through the normal source pipeline with 20-second refresh; temporary login/jobs were removed and the installed image/profile retained. No maturity changes are awarded. Native run 0e401bd8-7942-4b30-8066-733794cebd0e failed HEALTH_COVERAGE_UNKNOWN with no acceptance; the corrected operating-loop run and final-commit CI remain pending. DISQUALIFIED is a run-inspection disposition, not native financial-ledger enforcement. No customer execution, genuine historical interval ownership, native fleet finance, fresh-workspace restoration, customer pipeline OIDC or production acceptance is inferred."
+    },
+    {
+      "id": "private-group-program-approval-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "eedfccca4d4603a3161431a264bd2b02fc5905ae",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39205878401",
+      "evidence": [
+        "docs/connected-fleet-fixture.md",
+        "docs/acceptance.md",
+        "scripts/group-fixture-prepare.mjs",
+        "scripts/group-fixture-program-review.mjs",
+        "scripts/group-fixture-review-sequence.mjs",
+        "frontend/tests/fleet-fixture-prepared-live.spec.ts",
+        "internal/groupfixtureproducer/health_anchor.go"
+      ],
+      "fixture_acceptance_runs": [
+        "4ec0c4eb-e853-41d1-96de-d4c1795529b5",
+        "f778123c-eb39-4b22-b7a0-6e8ab8f8d518"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual local Git/Terraform preparation, encrypted versioned storage and exact replay without another invocation passed. A distinct authenticated browser subject approved the exact prepared program; self-approval was denied and persisted reload passed with zero retries. Public run creation, journal authorization and native financial authority remain unavailable. The preceding release passed ten of eleven normal CI jobs; its native operating-loop job failed with unproved cause. A separate local attempt performed both owned inverse applies but failed terminal P99, so no operating-loop acceptance is awarded. Signed activation-anchor component tests preserve the frozen baseline across later stages and owned recovery after expiry. These strengthen the current component stage and award no additional maturity. Full native real-clock acceptance, fresh-workspace recovery, customer pipeline OIDC, genuine history/economics and customer/production operation remain open."
     }
   ]
 }

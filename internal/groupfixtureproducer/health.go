@@ -511,6 +511,12 @@ func EvaluateManifestHealthWindow(program g.GitProgram, entry g.GitManifestEntry
 }
 
 func evaluateHealthWindow(binding HealthBinding, stage g.Stage, start time.Time, baseline, current []HealthReceipt, limits HealthLimits, now time.Time, approvedManifest bool) HealthWindow {
+	return evaluateHealthWindowBaselineAt(binding, stage, start, baseline, current, limits, now, approvedManifest, start)
+}
+
+// The original entry points retain their original start-based baseline rule.
+// Only the separately authenticated activation-anchor path chooses baselineAt.
+func evaluateHealthWindowBaselineAt(binding HealthBinding, stage g.Stage, start time.Time, baseline, current []HealthReceipt, limits HealthLimits, now time.Time, approvedManifest bool, baselineAt time.Time) HealthWindow {
 	out := HealthWindow{Status: "BLOCKED", ReasonCodes: []string{}, Binding: binding, Start: start, Definition: HealthCompletedOperation, AvailabilityBasis: "OBSERVED_HTTP_REQUEST_SUCCESS", ReceiptSHA256s: []string{}, BaselineReceiptSHA256s: []string{}}
 	reason := func(code string) { out.ReasonCodes = append(out.ReasonCodes, code) }
 	minimum := int64(900)
@@ -607,7 +613,7 @@ func evaluateHealthWindow(binding HealthBinding, stage g.Stage, start time.Time,
 	if b.schema == "2" && b.monotonicNS < int64(2*time.Minute) {
 		reason("BASELINE_MONOTONIC_OBSERVATION_WINDOW_INCOMPLETE")
 	}
-	if b.last.IsZero() || start.Sub(b.last) > 5*time.Minute {
+	if b.last.IsZero() || baselineAt.Before(b.last) || baselineAt.Sub(b.last) > 5*time.Minute {
 		reason("BASELINE_OBSERVATION_STALE")
 	}
 	if p.first.IsZero() || !p.first.Equal(start) || p.last.Before(out.RequiredEnd) || now.Before(out.RequiredEnd) {

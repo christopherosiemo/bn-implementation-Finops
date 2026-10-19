@@ -16,9 +16,21 @@ against the verified paginated runtime. Separate commissioning run
 browser case with the normal pipeline and an explicitly deterministic reader.
 These strengthen the existing component stage and add **zero maturity credit**.
 
-The latest native operating-loop attempt failed closed with
-`HEALTH_COVERAGE_UNKNOWN`; it published no acceptance. Its corrected real-clock
-rerun and final-commit CI remain pending.
+The connected release passed ten of eleven normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39205878401).
+Its native operating-loop job failed with no retained bounded diagnostic, so its
+cause remains unproved. A separate local attempt completed the canary abort and
+two owned inverse applies, then failed the terminal P99 gate. Neither earns
+operating-loop acceptance. The corrected real-clock run remains pending.
+
+The next private preparation and browser review passed real Git/Terraform,
+encrypted versioned storage, replay without another apply, actual OIDC,
+self-approval refusal, independent exact-program approval and persisted reload.
+The public execution factory remains unavailable. These are tested partial
+components within the existing stage, so official progress remains **25.2%**.
+The rough engineering estimate including such partial work is **27–31%**. This
+range uses existing evidence rather than a fresh product audit; integration,
+recovery, financial and operational acceptance can still expose missing work.
 Run inspection's `DISQUALIFIED` financial
 disposition is not a native financial-ledger integration. Customer pipeline OIDC,
 fresh-workspace recovery, genuine interval ownership and independent demand,

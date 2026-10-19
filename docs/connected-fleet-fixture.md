@@ -109,10 +109,35 @@ permission to discard a restoration duty.
   pre-upgrade local recovery evidence; it does not establish new group-worker
   recovery, production recovery objectives or application workflow resumption.
 
-The latest native operating-loop attempt
-`0e401bd8-7942-4b30-8066-733794cebd0e` failed closed with
-`HEALTH_COVERAGE_UNKNOWN`; it completed cleanup and published no acceptance.
-Its corrected collector/operating-loop rerun and final-commit CI remain pending.
+The private console preparation run
+`4ec0c4eb-e853-41d1-96de-d4c1795529b5` passed actual twenty-six-entry
+Git preparation, encrypted versioned readback and replay without another native
+invocation. Separate browser run `f778123c-eb39-4b22-b7a0-6e8ab8f8d518`
+passed real OIDC review, self-approval refusal, independent exact-program
+approval and persisted readback. Public execution remained unavailable, native
+artifacts remained private and monetary fields remained unavailable. This adds
+one connected browser case to the preceding seventy-five. It does not approve
+the journal authorization or enable a native execution factory.
+
+The published `eedfccca` release passed ten of eleven normal
+[exact-commit CI jobs](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39205878401).
+Its connected native operating-loop job failed; its cause is unproved because
+that runner retained no bounded failure artifact. The separate local attempt
+`f8f882ca-8e2a-4e93-ae36-391debdadc86` observed the intended latency breach
+and performed both owned inverse applies, then failed its terminal P99 limit.
+All failed attempts retain their private evidence, completed owned cleanup and
+published no acceptance. They cannot be treated as a successful operating loop.
+
+The next runner retains only a fixed-vocabulary failure receipt in hosted
+artifacts; raw diagnostics stay private. Its frozen baseline binds the original
+signed activation and immutable database publication times. Later stages and
+owned recovery retain that baseline while independently checking the current
+deployment and fresh observations. A failed health window is retained as an
+immutable incident; a later healthy window cannot clear forward or financial
+disqualification. The local fixture still lacks a commissioned external alert
+adapter and a production durable recovery controller.
+
+The corrected real-clock operating-loop acceptance remains pending.
 Preparation, partial effects and repository doubles cannot satisfy these gates.
 Fresh-workspace group recovery and customer pipeline OIDC remain unproved.
 Genuine historical interval/incarnation ownership, independent complete demand,

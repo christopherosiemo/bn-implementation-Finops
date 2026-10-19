@@ -33,6 +33,7 @@ import (
 // AWS identities are explicit local dependency fixtures; their missing customer
 // history remains BLOCKED and is never replaced by the installed fixture model.
 func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T) {
+	connectedDriverStart(t)
 	if os.Getenv("FLEET_CONNECTED_FIXTURE") != "ISOLATED_FIXTURE" {
 		t.Skip("requires the owned connected native fixture runner")
 	}
@@ -45,6 +46,11 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), protocolBudget)
 	defer cancel()
+	defer func() {
+		if ctx.Err() == context.DeadlineExceeded {
+			connectedDriverMark("", "CONTEXT_EXPIRED")
+		}
+	}()
 	ready := false
 	for attempt := 0; attempt < 40; attempt++ {
 		req, e := http.NewRequestWithContext(ctx, http.MethodGet, "http://minio:9000/minio/health/ready", nil)
@@ -254,6 +260,7 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 	if err = f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error { _, e := tx.FleetFixturePreparedProgramAppend(ctx, id, prepared); return e }); err == nil {
 		t.Fatal("API acquired preparation write authority")
 	}
+	connectedDriverMark("APPROVAL", "")
 	path := "fleet-fixture-proposals/" + id + "/approvals"
 	if code, _, _ := f.request(path, `"2"`, "connected-self", f.token(f.tenant, "connected-creator", "APPROVER"), model.Document{}); code != 403 {
 		t.Fatal("self approval", code)
@@ -288,6 +295,7 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 	if code, readiness := get("fleet-fixture-proposals/"+id+"/readiness", platform); code != 200 || readiness["customer_execution_authorized"] != false || readiness["verified_saving"] != nil {
 		t.Fatal("fixture approval promoted customer authority", code)
 	}
+	connectedDriverMark("BOOTSTRAP", "")
 	journal := connectedJournalBootstrap(t, ctx, f, selected, prepared, preparedRow, approved, pipelineKey, ledgerKey)
 	if journal.cursor.RecordCount != 0 {
 		t.Fatal("approval/bootstrap dispatched a command")
@@ -320,6 +328,7 @@ func TestFleetGroupConnectedNativePreparationAndIndependentApproval(t *testing.T
 		result["native_journal_runtime_accepted"] = true
 		result["native_operating_loop"] = runtimeEvidence
 	}
+	connectedDriverMark("RESULT_PUBLICATION", "")
 	raw, _ := json.MarshalIndent(result, "", "  ")
 	if err = os.WriteFile("/results/result.json", append(raw, '\n'), 0600); err != nil {
 		t.Fatal(err)

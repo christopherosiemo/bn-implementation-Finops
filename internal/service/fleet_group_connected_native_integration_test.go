@@ -56,6 +56,11 @@ func (h *connectedJournal) appendNativeRecord(t *testing.T, ctx context.Context,
 		if e != nil {
 			return e
 		}
+		if r.Kind == g.JournalPreparing && r.Command != nil && r.Command.Preparation.Mode == g.Forward && h.healthGuard != nil {
+			if e = h.healthGuard(ctx, tx); e != nil {
+				return e
+			}
+		}
 		now := time.Now().UTC()
 		r.Sequence = uint64(len(v.Records) + 1)
 		r.PreviousSHA256 = v.Head.Head.Ref.LastRecordSHA256

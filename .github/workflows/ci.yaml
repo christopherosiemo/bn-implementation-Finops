@@ -221,7 +221,7 @@ jobs:
         with:
           node-version: "22"
       - name: Validate connected runner isolation and fixed targets
-        run: node --test scripts/tests/fleet-group-connected-lab.test.mjs
+        run: node --test scripts/tests/fleet-group-connected-lab.test.mjs scripts/tests/group-connected-failure.test.mjs
       - name: Prepare approved native toolchain images on the fresh runner
         run: |
           docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
@@ -251,12 +251,14 @@ jobs:
           NODE
       - name: Exercise approved native effects and real-clock owned recovery
         run: node scripts/fleet-group-connected-lab.mjs
-      - name: Retain bounded acceptance only after owned cleanup
+      - name: Retain bounded acceptance or fixed-vocabulary failure receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fleet-group-connected-acceptance
-          path: work/private/fleet-group-connected/*/acceptance.json
+          path: |
+            work/private/fleet-group-connected/*/acceptance.json
+            work/private/fleet-group-connected/*/failure-receipt.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Stop only this fresh job's source fixture
@@ -366,17 +368,22 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          npm run test:e2e -- --grep-invert 'real OIDC two registered groups produce a persisted isolated fixture selection while unknown-program approval and runtime remain refused'
-      - name: Commission the inspected local fixture and exercise its persisted browser selection
+          npm run test:e2e -- --grep-invert 'real OIDC two registered groups produce a persisted isolated fixture selection while unknown-program approval and runtime remain refused|real OIDC privately prepared fixture program receives an independent exact-program approval without execution authority'
+      - name: Commission, privately prepare and independently review the exact isolated fixture program
         run: |
           node --test scripts/tests/group-fixture-commission.test.mjs
-          node scripts/group-fixture-commission.mjs
+          node --test scripts/tests/group-fixture-preparer-job.test.mjs scripts/tests/group-fixture-program-review.test.mjs scripts/tests/group-fixture-review-sequence.test.mjs
+          node scripts/group-fixture-review-sequence.mjs
       - name: Preserve bounded local commissioning acceptance
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fleet-fixture-browser-acceptance
-          path: work/private/group-fixture-commission/*/acceptance.json
+          path: |
+            work/private/group-fixture-commission/*/acceptance.json
+            work/private/group-fixture-preparer/*/acceptance.json
+            work/private/group-fixture-program-review/*/acceptance.json
+            work/private/group-fixture-review-sequence/*/acceptance.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve UI failure screenshots
@@ -387,6 +394,7 @@ jobs:
           path: |
             frontend/test-results/**/test-failed-*.png
             work/private/group-fixture-commission/*/browser/results/**/test-failed-*.png
+            work/private/group-fixture-program-review/*/results/**/test-failed-*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Exercise isolated provisional multicloud publication with actual local storage
