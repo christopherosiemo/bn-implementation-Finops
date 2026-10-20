@@ -97,7 +97,7 @@ export function commissionMigrationManifest(directory){
  assert.equal(manifest['041_database_assessments.sql'],'305be6e59ed393e4d541334f1296c3f5ac208726bebd9b29b07fa3299b5d9380','Migration041 must equal the independently reviewed read-only database assessment bytes');
  assert.equal(manifest['042_storage_assessments.sql'],'4167cf4ec6df2112e8d8a9233ef005e0105dfb33bd51e413310433356d1aaa30','Migration042 must equal the independently reviewed read-only storage assessment bytes');
  assert.equal(manifest['043_object_storage_assessments.sql'],'75fc1e107f55eb7db66233304abe4bf21056376e54a9fb729fcac71571bbc7e7','Migration043 must equal the reviewed read-only object-storage assessment bytes');
- assert.equal(manifest['044_network_assessments.sql'],'d6f6e453d424f06356fc45d1d53b5b64a76325168e393db249b37d9c301b895f','Migration044 must equal the reviewed read-only network assessment bytes');
+ assert.equal(manifest['044_network_assessments.sql'],'2f98fb315df0944f6a75ec6bb1b8978c2991039257fd60d959c6d70c26b67732','Migration044 must equal the reviewed read-only network assessment bytes');
  return manifest;
 }
 

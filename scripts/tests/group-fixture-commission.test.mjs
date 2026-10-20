@@ -63,7 +63,7 @@ test('commissioning requires exact001–043 and the reviewed037/038/039/040/041/
  assert.equal(expected['040_commitment_decisions.sql'],'dec0a482c3cd0d0f1cdb11e1de02833817cd7a705b81c01d4f87dd2109a9b76f');
  assert.equal(expected['041_database_assessments.sql'],'305be6e59ed393e4d541334f1296c3f5ac208726bebd9b29b07fa3299b5d9380');
  assert.equal(expected['042_storage_assessments.sql'],'4167cf4ec6df2112e8d8a9233ef005e0105dfb33bd51e413310433356d1aaa30');
- assert.equal(expected['044_network_assessments.sql'],'d6f6e453d424f06356fc45d1d53b5b64a76325168e393db249b37d9c301b895f');
+ assert.equal(expected['044_network_assessments.sql'],'2f98fb315df0944f6a75ec6bb1b8978c2991039257fd60d959c6d70c26b67732');
  assert.equal(expected['043_object_storage_assessments.sql'],'75fc1e107f55eb7db66233304abe4bf21056376e54a9fb729fcac71571bbc7e7');
  for(const name of names.slice(0,42))assert.equal(expected[name],createHash('sha256').update(readFileSync(path.join(migrationRoot,name))).digest('hex'));
  const folder=mkdtempSync(path.join(os.tmpdir(),'commission-reviewed040-'));try{

@@ -98,4 +98,3 @@ CREATE FUNCTION guard_network_publication() RETURNS trigger LANGUAGE plpgsql AS 
  RETURN NEW;
 END $$;
 CREATE TRIGGER network_publication_writer BEFORE INSERT ON network_recommendation_publications FOR EACH ROW EXECUTE FUNCTION guard_network_publication();
-
