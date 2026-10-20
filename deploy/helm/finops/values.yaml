@@ -47,6 +47,7 @@ database:
     database-assessor: finops-db-database-analyst
     storage-assessor: finops-db-storage-analyst
     object-storage-assessor: finops-db-object-storage-analyst
+    network-assessor: finops-db-network-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -77,6 +78,9 @@ sources:
   # No credentials, source facts or approval authority are supplied by a target.
   commitmentQuoteTargetsSecret: ""
   controllerBindingsSecret: ""
+  # Existing ingester-only Secret: AWS_NETWORK_READ_BINDINGS_JSON.
+  networkReadBindingsSecret: ""
+  networkReadonlyEnabled: false
   ownershipArchiveTargetsSecret: ""
 hardware:
   # Live read-only observations only; never runs against AWS in fixture mode.
@@ -105,6 +109,14 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+networkAssessor:
+  # Separate read-only analytical LOGIN and version-only product evidence reader.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+
 objectStorageAssessor:
   # Dedicated restricted LOGIN and version-only evidence reader. Never receives
   # AWS, signing, execution or customer object/lifecycle mutation credentials.

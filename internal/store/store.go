@@ -301,5 +301,13 @@ func (s *Store) migrateOnce(ctx context.Context, dir string) error {
 			return e
 		}
 	}
+    if password:=os.Getenv("DB_NETWORK_ANALYST_PASSWORD");password!="" {
+      const login="finops_network_analyst_login"
+      var exists bool
+      if e=tx.QueryRow(ctx,"SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=$1)",login).Scan(&exists);e!=nil{return e}
+      verb:="ALTER ROLE ";if !exists {verb="CREATE ROLE "}
+      if _,e=tx.Exec(ctx,verb+pgx.Identifier{login}.Sanitize()+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '"+strings.ReplaceAll(password,"'","''")+"'");e!=nil{return e}
+      if _,e=tx.Exec(ctx,"GRANT finops_network_analyst TO "+pgx.Identifier{login}.Sanitize());e!=nil{return e}
+    }
 	return tx.Commit(ctx)
 }

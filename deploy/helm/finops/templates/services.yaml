@@ -158,6 +158,12 @@ spec:
             {{- end }}
             {{- end }}
             {{- if eq $role "ingester" }}
+            - {name: NETWORK_READONLY_ENABLED, value: {{ $.Values.sources.networkReadonlyEnabled | quote }}}
+            {{- if $.Values.sources.networkReadBindingsSecret }}
+            - name: AWS_NETWORK_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.sources.networkReadBindingsSecret | quote }}, key: AWS_NETWORK_READ_BINDINGS_JSON}
+            {{- end }}
             {{- if $.Values.sources.objectIdentitySecret }}
             {{- range $key := list "S3_OBJECT_IDENTITY_KEY_HEX" "S3_OBJECT_IDENTITY_KEY_VERSION" }}
             - name: {{ $key }}

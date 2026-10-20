@@ -74,6 +74,11 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if objectError := objectStorageTick(ctx, a, tenant); objectError != nil && e == nil {
 			e = objectError
 		}
+		// Network reads have their own short persistence transactions and bounded
+		// source reads. An optional denial never suppresses EC2 or S3 ingestion.
+		if networkError := networkTick(ctx, a, tenant); networkError != nil && e == nil {
+			e = networkError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

@@ -186,7 +186,7 @@ func run() error {
 			return &service.Problem{Status: 500, Message: "EXECUTOR_TOKEN is required"}
 		}
 		handler = (&service.SecureService{Store: db, Config: cfg, Public: key}).Handler()
-	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "hardware-reader", "fleet-history-reader":
+	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "network-assessor", "hardware-reader", "fleet-history-reader":
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
 				http.NotFound(w, r)
@@ -244,6 +244,7 @@ func run() error {
 			}
 		}()
 	}
+	if cfg.Role=="network-assessor" {go func(){if err:=service.RunNetworkAssessor(ctx,cfg,db);err!=nil{errs<-err}}()}
 	if cfg.Role == "hardware-reader" {
 		go func() {
 			if e := workflow.RunHardwareReader(ctx, cfg, db); e != nil {

@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/network"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/objectstorage"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -25,6 +27,8 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 		d := model.Clone(in)
 		allowed := map[string]bool{"kind": true, "payer_account_id": true, "usage_account_ids": true, "region": true, "export_arn": true, "read_role_binding_id": true, "bucket": true, "bucket_owner": true, "prefix": true}
 		isObjectSource := strings.HasPrefix(model.String(d, "kind"), "AWS_S3_")
+		isNetworkSource:=model.String(d,"kind")==network.FlowKind
+		if isNetworkSource {allowed=map[string]bool{"kind":true,"account_id":true,"region":true,"read_role_binding_id":true,"flow_log_id":true,"resource_ids":true,"report_bucket":true,"report_owner":true,"report_region":true,"prefix":true,"fields":true,"traffic_type":true,"max_aggregation_seconds":true}}
 		if isObjectSource {
 			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "bucket": true, "report_bucket": true, "report_owner": true, "report_region": true, "prefix": true, "inventory_id": true, "read_role_binding_id": true, "dataset_ids": true, "report_type": true}
 		}
@@ -73,7 +77,12 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 			delete(d, "dataset_ids")
 		}
 		var validation error
-		if isObjectSource {
+		if isNetworkSource {
+			var registration network.Registration
+			raw,_:=json.Marshal(d)
+			validation=json.Unmarshal(raw,&registration)
+			if validation==nil {validation=network.ValidateRegistration(registration)}
+		} else if isObjectSource {
 			validation = objectstorage.ValidateRegistration(d)
 		} else {
 			validation = source.ValidateRegistration(d)

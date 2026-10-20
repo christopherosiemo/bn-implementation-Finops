@@ -133,6 +133,131 @@ paths:
               schema: { $ref: '#/components/schemas/StorageAssessmentRecord' }
         '403': { description: Scoped storage read permission required. }
         '404': { description: Scoped assessment absent. }
+  /network-assessments:
+    get:
+      operationId: listNetworkAssessments
+      description: Tenant and workload scoped, cursor-paginated read-only network records.
+      parameters:
+        - name: resource_id
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAssessmentPage' }
+        '403': { description: Scoped network permission required. }
+    post:
+      operationId: requestNetworkAssessment
+      description: IDs-only read-only request. Server selects current topology, native metrics, commissioned Flow Logs and customer economics. If-Match is quoted zero. No observations, monetary amounts or execution authority are accepted.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkAssessmentRequest' }
+      responses:
+        '202':
+          description: Persisted versioned record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAssessmentRecord' }
+        '403': { description: Scoped write permission required. }
+        '409': { description: Idempotency conflict. }
+        '412': { description: Resource version changed. }
+        '422': { description: Invalid or unauthorised identifier or declaration. }
+  /network-assessments/{id}:
+    get:
+      operationId: getNetworkAssessment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Scoped immutable network record and server-derived currentness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkAssessmentRecord' }
+        '403': { description: Scoped network permission required. }
+        '404': { description: Scoped record absent. }
+  /network-policies:
+    get:
+      operationId: listNetworkPolicies
+      description: Tenant and workload scoped, cursor-paginated read-only network records.
+      parameters:
+        - name: resource_id
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Scoped records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPolicyPage' }
+        '403': { description: Scoped network permission required. }
+    post:
+      operationId: createNetworkPolicy
+      description: Customer business and network constraints only. Declarations do not establish native topology, traffic completeness or financial truth.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkPolicyRequest' }
+      responses:
+        '201':
+          description: Persisted versioned record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPolicy' }
+        '403': { description: Scoped write permission required. }
+        '409': { description: Idempotency conflict. }
+        '412': { description: Resource version changed. }
+        '422': { description: Invalid or unauthorised identifier or declaration. }
+  /network-policies/{id}:
+    get:
+      operationId: getNetworkPolicy
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Scoped immutable network record and server-derived currentness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPolicy' }
+        '403': { description: Scoped network permission required. }
+        '404': { description: Scoped record absent. }
+  /network-policies/{id}/revisions:
+    post:
+      operationId: reviseNetworkPolicy
+      description: Append a business-policy revision. Existing assessments remain immutable and become stale when their policy changes.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NetworkPolicyRequest' }
+      responses:
+        '201':
+          description: Persisted versioned record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NetworkPolicy' }
+        '403': { description: Scoped write permission required. }
+        '409': { description: Idempotency conflict. }
+        '412': { description: Resource version changed. }
+        '422': { description: Invalid or unauthorised identifier or declaration. }
   /object-storage-datasets:
     get:
       operationId: listObjectStorageDatasets
@@ -2317,7 +2442,7 @@ paths:
       parameters:
         - name: model_kind
           in: query
-          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1] }
+          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1] }
         - name: resource_id
           in: query
           description: Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
@@ -2606,6 +2731,294 @@ components:
         allow_durability_reduction: { type: boolean, nullable: true }
         require_multi_attach: { type: boolean, nullable: true }
         filesystem_review_required: { type: boolean, nullable: true }
+    NetworkBlockedAssessment:
+      type: object
+      additionalProperties: false
+      description: An immutable refusal before a complete model can be evaluated. No observation window, topology hash or monetary amount is fabricated.
+      required: [schema_version, model_version, model_kind, binding, status, reason_code, blockers, cohorts, candidates, economics, read_only, pre_execution_ready, execution_authorized, verified_saving]
+      properties:
+        schema_version: { type: string }
+        contract_version: { type: integer, enum: [1] }
+        model_version: { type: string, enum: [network-v1] }
+        model_kind: { type: string, enum: [NETWORK_ASSESSMENT_V1] }
+        binding: { type: object, additionalProperties: true }
+        status: { type: string, enum: [BLOCKED] }
+        reason_code: { type: string }
+        blockers: { type: array, items: { type: string } }
+        cohorts: { type: array, maxItems: 4096, items: { type: object, additionalProperties: true } }
+        candidates: { type: array, maxItems: 4096, items: { type: object, additionalProperties: true } }
+        economics:
+          type: object
+          additionalProperties: true
+          required: [status, currency]
+          properties:
+            status: { type: string, enum: [ECONOMICS_UNAVAILABLE] }
+            currency: { type: string, nullable: true }
+        confidence:
+          type: object
+          properties:
+            status: { type: string, enum: [UNAVAILABLE] }
+        proposal: { type: object, additionalProperties: true }
+        financial_references: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        source_bindings: { type: array, nullable: true, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        observed_components: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        declared_policy_ref: { $ref: '#/components/schemas/StorageSourceReference' }
+        assessment_hash: { type: string }
+        model_assessment_hash: { type: string }
+        declared_policy: { $ref: '#/components/schemas/NetworkPolicyDefinition' }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+    NetworkConfidence:
+      type: object
+      required: [status, reasons, meaning]
+      properties:
+        status: { type: string, enum: [HIGH, LIMITED, UNAVAILABLE] }
+        reasons: { type: array, items: { type: string } }
+        meaning: { type: string }
+    NetworkEconomicComponent:
+      type: object
+      required: [component, current_window_cost, candidate_window_cost, avoided_window_cost, attribution_basis]
+      properties:
+        component: { type: string, enum: [NAT_HOURLY, NAT_PROCESSING, PUBLIC_IPV4, CROSS_AZ_TRANSFER, CROSS_REGION_TRANSFER, INTERNET_EGRESS, ENDPOINT_HOURLY, ENDPOINT_PROCESSING, TRANSIT_GATEWAY, PRIVATELINK, LOAD_BALANCER_PROCESSING, CONTINUING, CREDIT] }
+        current_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        avoided_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        attribution_basis: { type: string }
+    NetworkEconomics:
+      type: object
+      required: [status, currency, observed_allocated_cost, current_window_cost, candidate_window_cost, estimated_window_saving, estimated_monthly_saving, estimated_annual_saving, component_costs, nat_hourly_retained, pricing_basis, allocation_basis]
+      properties:
+        status: { type: string }
+        currency: { type: string, nullable: true }
+        observed_allocated_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_window_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_annual_saving: { type: string, nullable: true, enum: [null] }
+        component_costs: { type: array, items: { $ref: '#/components/schemas/NetworkEconomicComponent' } }
+        nat_hourly_retained: { type: boolean, enum: [true] }
+        pricing_basis: { type: string }
+        allocation_basis: { type: string }
+    NetworkSecurityImpact:
+      type: object
+      required: [classification, effects, reviewed]
+      properties:
+        classification: { type: string, enum: [REVIEW_REQUIRED] }
+        effects: { type: array, items: { type: string } }
+        reviewed: { type: boolean }
+    NetworkCandidate:
+      type: object
+      required: [id, cohort_id, family, kind, decision, status, reason_code, blockers, classification, current_path, target_path, route_table_ids, economics, confidence, security_impact, configuration_authority, implementation_method, read_only, pre_execution_ready, execution_authorized, verified_saving]
+      properties:
+        id: { type: string }
+        cohort_id: { type: string }
+        family: { type: string, enum: [A, B, C, D, E, F, G, H] }
+        kind: { type: string }
+        decision: { type: string }
+        status: { type: string }
+        reason_code: { type: string }
+        blockers: { type: array, items: { type: string } }
+        classification: { type: string, nullable: true }
+        current_path: { type: array, items: { type: string } }
+        target_path: { type: array, items: { type: string } }
+        route_table_ids: { type: array, items: { type: string } }
+        economics: { $ref: '#/components/schemas/NetworkEconomics' }
+        confidence: { $ref: '#/components/schemas/NetworkConfidence' }
+        security_impact: { $ref: '#/components/schemas/NetworkSecurityImpact' }
+        configuration_authority: { type: string }
+        implementation_method: { type: string }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+    NetworkTrafficCohort:
+      type: object
+      required: [id, family, bytes, destination_service, destination_region, attribution_complete, traffic_complete, current_path, target_path, candidate_id, blockers]
+      properties:
+        id: { type: string }
+        family: { type: string }
+        bytes: { $ref: '#/components/schemas/NullableDecimal' }
+        destination_service: { type: string, nullable: true }
+        destination_region: { type: string, nullable: true }
+        attribution_complete: { type: boolean }
+        traffic_complete: { type: boolean }
+        current_path: { type: array, items: { type: string } }
+        target_path: { type: array, items: { type: string } }
+        candidate_id: { type: string }
+        blockers: { type: array, items: { type: string } }
+    NetworkAssessment:
+      type: object
+      required: [schema_version, contract_version, model_version, model_kind, semantics_version, semantics_sha256, binding, status, reason_code, blockers, window_start, window_end, history_days, topology_hash, cohorts, candidates, configuration_authority, economics, denominators, read_only, pre_execution_ready, execution_authorized, verified_saving, evidence_refs, source_refs, model_assumptions, assessment_hash]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        contract_version: { type: integer, enum: [1] }
+        model_version: { type: string, enum: [network-v1] }
+        model_kind: { type: string, enum: [NETWORK_ASSESSMENT_V1] }
+        semantics_version: { type: string }
+        semantics_sha256: { type: string }
+        binding: { type: object, additionalProperties: true }
+        status: { type: string }
+        reason_code: { type: string }
+        blockers: { type: array, items: { type: string } }
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        history_days: { $ref: '#/components/schemas/NullableDecimal' }
+        topology_hash: { type: string }
+        cohorts: { type: array, maxItems: 4096, items: { $ref: '#/components/schemas/NetworkTrafficCohort' } }
+        candidates: { type: array, maxItems: 4096, items: { $ref: '#/components/schemas/NetworkCandidate' } }
+        configuration_authority: { type: string }
+        economics:
+          type: object
+          required: [currency, detected_native_cost, estimated_monthly_saving, estimated_annual_saving, status]
+          properties:
+            currency: { type: string, nullable: true }
+            detected_native_cost: { $ref: '#/components/schemas/NullableDecimal' }
+            estimated_monthly_saving: { type: string, nullable: true, enum: [null] }
+            estimated_annual_saving: { type: string, nullable: true, enum: [null] }
+            status: { type: string, enum: [INDEPENDENT_CANDIDATES_NEVER_SUMMED] }
+        denominators:
+          type: object
+          required: [native_processed_bytes, observed_processed_bytes, attributed_cohort_bytes, unattributed_bytes, observation_complete, flow_complete, billing_complete, billing_scope_complete]
+          properties:
+            native_processed_bytes: { $ref: '#/components/schemas/NullableDecimal' }
+            observed_processed_bytes: { $ref: '#/components/schemas/NullableDecimal' }
+            attributed_cohort_bytes: { $ref: '#/components/schemas/NullableDecimal' }
+            unattributed_bytes: { $ref: '#/components/schemas/NullableDecimal' }
+            observation_complete: { type: boolean }
+            flow_complete: { type: boolean }
+            billing_complete: { type: boolean }
+            billing_scope_complete: { type: boolean }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        evidence_refs: { type: array, items: { $ref: '#/components/schemas/StorageSourceReference' } }
+        source_refs: { type: array, items: { $ref: '#/components/schemas/StorageSourceReference' } }
+        model_assumptions: { type: array, items: { type: string } }
+        assessment_hash: { type: string }
+        model_assessment_hash: { type: string }
+        declared_policy: { $ref: '#/components/schemas/NetworkPolicyDefinition' }
+        declared_policy_ref: { $ref: '#/components/schemas/StorageSourceReference' }
+        proposal: { $ref: '#/components/schemas/DatabaseAssessmentProposal' }
+        source_bindings: { type: array, nullable: true, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        financial_references: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+    NetworkPolicyDefinition:
+      type: object
+      additionalProperties: false
+      description: Customer declarations, independently checked against native topology, configuration authority and current evidence. Missing fields remain unknown.
+      properties:
+        owner: { type: string }
+        configuration_authority: { type: string, enum: [TERRAFORM, CLOUDFORMATION, MANUAL, UNKNOWN] }
+        criticality: { type: string, enum: [NON_PRODUCTION, PRODUCTION] }
+        seasonal: { type: boolean, nullable: true }
+        security_reviewed: { type: boolean, nullable: true }
+        network_policy_known: { type: boolean, nullable: true }
+        dependencies_known: { type: boolean, nullable: true }
+        recovery_known: { type: boolean, nullable: true }
+        resilience_known: { type: boolean, nullable: true }
+        allow_topology_change: { type: boolean, nullable: true }
+        required_azs: { type: integer, minimum: 1, maximum: 16, nullable: true }
+        ha_required: { type: boolean, nullable: true }
+        on_premises_required: { type: boolean, nullable: true }
+        cross_vpc_required: { type: boolean, nullable: true }
+        dns_change_approved: { type: boolean, nullable: true }
+        public_access_required: { type: boolean, nullable: true }
+        traffic_purpose: { type: string }
+        endpoint_policy_reviewed: { type: boolean, nullable: true }
+    NetworkPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, name, policy]
+      properties:
+        resource_id: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        policy: { $ref: '#/components/schemas/NetworkPolicyDefinition' }
+    NetworkPolicy:
+      allOf:
+        - { $ref: '#/components/schemas/NetworkPolicyRequest' }
+        - type: object
+          required: [id, version, created_at]
+          properties:
+            id: { type: string }
+            version: { type: integer, minimum: 1 }
+            created_at: { type: string, format: date-time }
+    NetworkPolicyPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/NetworkPolicy' } }
+        next_cursor: { type: string, nullable: true }
+    NetworkAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, minLength: 1 }
+        policy_id: { type: string, minLength: 1 }
+    NetworkAssessmentRecord:
+      type: object
+      required: [id, version, resource_id, status, created_at, assessment]
+      properties:
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        resource_id: { type: string }
+        policy_id: { type: string, nullable: true }
+        status: { type: string, enum: [QUEUED, RUNNING, ASSESSED, BLOCKED, FAILED] }
+        reason_code: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        current: { type: boolean }
+        currentness_blockers: { type: array, items: { type: string } }
+        assessment:
+          nullable: true
+          oneOf:
+            - { $ref: '#/components/schemas/NetworkAssessment' }
+            - { $ref: '#/components/schemas/NetworkBlockedAssessment' }
+    NetworkAssessmentPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/NetworkAssessmentRecord' } }
+        next_cursor: { type: string, nullable: true }
+    NetworkConfiguration:
+      type: object
+      description: Native network inventory projection. Unavailable ownership, AZ, topology or configuration fields remain null or explicitly unknown.
+      additionalProperties: true
+      properties:
+        topology_hash: { type: string }
+        resource_type: { type: string }
+        provider_resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        availability_zone: { type: string, nullable: true }
+        availability_mode: { type: string, nullable: true }
+        vpc_id: { type: string, nullable: true }
+        subnet_id: { type: string, nullable: true }
+        connectivity_type: { type: string, nullable: true }
+        last_seen: { type: string, format: date-time }
+        native: { type: object, additionalProperties: true }
+    NetworkSourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, account_id, region, read_role_binding_id, flow_log_id, resource_ids, report_bucket, report_owner, report_region, prefix, fields, traffic_type, max_aggregation_seconds]
+      description: Registers existing commissioned VPC Flow Logs only. No logging or network resources are enabled. The server validates account, native configuration, scope and delivery provenance.
+      properties:
+        kind: { type: string, enum: [AWS_VPC_FLOW_LOGS] }
+        account_id: { type: string, pattern: '^[0-9]{12}$' }
+        region: { type: string }
+        read_role_binding_id: { type: string }
+        flow_log_id: { type: string }
+        resource_ids: { type: array, minItems: 1, maxItems: 256, uniqueItems: true, items: { type: string } }
+        report_bucket: { type: string }
+        report_owner: { type: string, pattern: '^[0-9]{12}$' }
+        report_region: { type: string }
+        prefix: { type: string }
+        fields: { type: array, minItems: 1, maxItems: 128, uniqueItems: true, items: { type: string } }
+        traffic_type: { type: string, enum: [ALL, ACCEPT, REJECT] }
+        max_aggregation_seconds: { type: integer, enum: [60, 600] }
     ObjectStorageMetricDefinition:
       type: object
       additionalProperties: false
@@ -2978,7 +3391,7 @@ components:
         next_cursor: { type: string, nullable: true }
     AssessmentResourceKind:
       type: string
-      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET]
+      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET, VPC, SUBNET, AVAILABILITY_ZONE, ROUTE_TABLE, NAT_GATEWAY, ELASTIC_IP, PUBLIC_IPV4, INTERNET_GATEWAY, EGRESS_ONLY_INTERNET_GATEWAY, NETWORK_INTERFACE, SECURITY_GROUP, VPC_ENDPOINT, VPC_ENDPOINT_SERVICE, VPC_PEERING, FLOW_LOG, AWS_SERVICE_PREFIX_LIST, TRANSIT_GATEWAY, TRANSIT_GATEWAY_ATTACHMENT, LOAD_BALANCER]
     StorageAssessmentRequest:
       type: object
       additionalProperties: false
@@ -3389,6 +3802,19 @@ components:
       properties:
         period: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
         groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
+        network_groups:
+          type: array
+          description: Network component coverage included in, and never replacing, the all-AWS denominator. Unallocated transfer and public-IP costs remain detected spend.
+          items: { $ref: '#/components/schemas/AssessmentCoverageGroup' }
+        network_component_groups:
+          type: array
+          description: Native network component partitions of network_groups, with exactly the same source-currency and positive-charge denominator rules. These costs must not be added again to network or all-AWS totals.
+          items:
+            type: object
+            required: [component, groups]
+            properties:
+              component: { type: string }
+              groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
         object_storage_groups:
           type: array
           description: S3-only partitions for the same period and source currencies. These supplement, and never replace or reduce, the all-AWS denominator above.
@@ -9824,6 +10250,7 @@ components:
       oneOf:
         - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
         - { $ref: '#/components/schemas/ObjectStorageSourceConnectionRequest' }
+        - { $ref: '#/components/schemas/NetworkSourceConnectionRequest' }
     AWSBillingSourceConnectionRequest:
       type: object
       additionalProperties: false
@@ -9895,8 +10322,11 @@ components:
         - oneOf:
             - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
             - { $ref: '#/components/schemas/ObjectStorageSourceConnectionConfiguration' }
+            - { $ref: '#/components/schemas/NetworkSourceConnectionRequest' }
         - type: object
           properties:
+            bucket: { type: string }
+            flow_log_id: { type: string }
             payer_account_id: { type: string }
             usage_account_ids: { type: array, items: { type: string } }
             export_arn: { type: string }
@@ -10117,8 +10547,9 @@ components:
         - type: object
           properties:
             name: { type: string }
-            resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET discriminator. }
+            resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET and read-only AWS network discriminator. }
             storage_configuration: { $ref: '#/components/schemas/StorageAssessmentObject' }
+            network_configuration: { $ref: '#/components/schemas/NetworkConfiguration' }
             object_storage_configuration: { $ref: '#/components/schemas/ObjectStorageConfiguration' }
             engine: { type: string }
             engine_version: { type: string }
@@ -10135,15 +10566,18 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
-            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
+            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
             database_assessment_id: { type: string }
             storage_assessment_id: { type: string }
             object_storage_assessment_id: { type: string }
+            network_assessment_id: { type: string }
             assessment:
               oneOf:
                 - { $ref: '#/components/schemas/DatabaseAssessment' }
                 - { $ref: '#/components/schemas/StorageAssessment' }
                 - { $ref: '#/components/schemas/ObjectStorageAssessment' }
+                - { $ref: '#/components/schemas/NetworkAssessment' }
+                - { $ref: '#/components/schemas/NetworkBlockedAssessment' }
             title: { type: string }
             resource_id: { type: string }
             workload_id: { type: string, nullable: true }

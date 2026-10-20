@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { ObjectStorageSources } from "./ObjectStorageSources";
+import { NetworkSources } from "./NetworkSources";
+import { NetworkAssessmentHistory, NetworkInventory, NetworkRecommendation, NetworkRecommendationHistory, NetworkResourceAssessment, isNetworkResource } from "./NetworkAssessment";
 import { DependencySafety } from "./DependencySafety";
 import { SloSafety } from "./SloSafety";
 import { NativeTelemetry } from "./NativeTelemetry";
@@ -328,7 +330,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
               <tr key={item.id}>
                 <td>
                   <div className="resource-name">
-                    <span className="aws-icon">{isDatabaseResource(item) ? "rds" : item.resource_type?.toLowerCase() || "ec2"}</span>
+                    <span className="aws-icon">{isDatabaseResource(item) ? "rds" : isNetworkResource(item) ? "vpc" : item.resource_type?.toLowerCase() || "ec2"}</span>
                     <div>
                       <strong>{item.name || item.provider_resource_id}</strong>
                       <small className="mono">
@@ -362,7 +364,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
+                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
@@ -375,7 +377,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                     {!isMoneyKnown(item.monthly_effective_cost) ||
                     !item.currency
                       ? "No evidenced source price"
-                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : "Source currency · compute"}
+                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : isNetworkResource(item) ? "Source currency · network" : "Source currency · compute"}
                   </small>
                 </td>
                 <td>
@@ -396,6 +398,8 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
       <DatabaseAssessmentHistory />
       <StorageAssessmentHistory />
       <ObjectStorageAssessmentHistory />
+      <NetworkInventory run={run} busy={busy} />
+      <NetworkAssessmentHistory />
       <WorkloadSafety data={data} run={run} busy={busy} />
       <ConfigurationAuthority data={data} run={run} busy={busy} />
       <FleetHistory data={data} run={run} busy={busy} />
@@ -592,7 +596,7 @@ export function RecommendationsPage({
       </div>
       {items.length ? (
         <div className="recommendation-list">
-          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : (
+          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : item.model_kind === "NETWORK_ASSESSMENT_V1" ? <NetworkRecommendation key={item.id} item={item} /> : (
             <Panel key={item.id} className="recommendation-card">
               <div className="recommendation-body">
                 <span className="recommendation-symbol">
@@ -693,6 +697,7 @@ export function RecommendationsPage({
       {inspect && (
         <Evidence record={inspect} onClose={() => setInspect(null)} />
       )}
+      <NetworkRecommendationHistory />
       {planFor && (
         <PlanForm
           recommendation={planFor}
@@ -2126,6 +2131,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
       <DatabaseCoverage />
       <SourceTrust data={data} run={run} busy={busy} />
       <ObjectStorageSources data={data} run={run} busy={busy} />
+      <NetworkSources data={data} run={run} busy={busy} />
       <Suspense fallback={<p role="status">Loading commitment portfolio view…</p>}>
         <CommitmentPortfolio fixture={data.fixture} run={run} busy={busy} />
       </Suspense>

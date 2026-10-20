@@ -212,6 +212,22 @@ jobs:
                 grep -Fq 'finops/templates/object-storage-assessor.yaml' /tmp/finops-storage-refused.log
               fi
             done
+      - name: Check optional read-only network analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml > /tmp/finops-network-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-network-assessor.yaml:/network.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /network.yaml && python deploy/tests/test_network_assessor_chart.py /default.yaml /network.yaml'
+          for unsafe in 'networkAssessor.evidenceReaderSecret=finops-db-api' 'networkAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'networkAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'networkAssessor.evidenceReaderSecret=finops-db-network-analyst' 'networkAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml --set "$unsafe" > /tmp/finops-network-refused.log 2>&1; then
+              echo "Unsafe network assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-network-refused.log
+              grep -Fq 'finops/templates/network-assessor.yaml' /tmp/finops-network-refused.log
+            fi
+          done
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'

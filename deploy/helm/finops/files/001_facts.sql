@@ -66,3 +66,19 @@ CREATE TABLE IF NOT EXISTS finops.object_storage_access_observations (
  ingested_at DateTime64(3,'UTC') DEFAULT now64(3)
 ) ENGINE=MergeTree ORDER BY(tenant_id,source_version,row_id);
 ALTER TABLE finops.object_storage_access_observations MODIFY SETTING non_replicated_deduplication_window=1000;
+
+-- Network facts retain capture direction and immutable generations. Only
+-- published PostgreSQL receipt IDs are queryable; uniqExact(row_id) prevents
+-- replay inflation after the engine retry deduplication window expires.
+CREATE TABLE IF NOT EXISTS finops.network_flow_records (
+ tenant_id String,account_id String,region LowCardinality(String),
+ generation_id String,batch_id String,batch_hash String,row_id String,
+ cohort_id String,payload String,ingested_at DateTime64(3,'UTC') DEFAULT now64(3)
+) ENGINE=MergeTree ORDER BY(tenant_id,generation_id,batch_id,row_id);
+ALTER TABLE finops.network_flow_records MODIFY SETTING non_replicated_deduplication_window=1000;
+CREATE TABLE IF NOT EXISTS finops.network_metric_observations (
+ tenant_id String,account_id String,region LowCardinality(String),
+ source_version String,row_id String,payload String,
+ ingested_at DateTime64(3,'UTC') DEFAULT now64(3)
+) ENGINE=MergeTree ORDER BY(tenant_id,source_version,row_id);
+ALTER TABLE finops.network_metric_observations MODIFY SETTING non_replicated_deduplication_window=1000;

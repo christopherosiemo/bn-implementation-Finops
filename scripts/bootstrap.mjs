@@ -137,6 +137,13 @@ if (process.env.FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR === 'true') {
     if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
   }
 }
+// Network analysis is separately commissioned; ordinary bootstrap creates no
+// analytical LOGIN or reader and does not activate the network-assessment profile.
+if (process.env.FINOPS_BOOTSTRAP_NETWORK_ASSESSOR === 'true') {
+  for (const [key, value] of Object.entries({ NETWORK_DATABASE_PASSWORD: random(), NETWORK_ASSESSOR_ACCESS_KEY: 'network-assessor', NETWORK_ASSESSOR_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+}
 // Object identities are private keyed HMACs, never public hashes of object
 // names. Commission this independent ingester-only key explicitly; replay
 // preserves the key/version and ordinary bootstrap creates neither value.

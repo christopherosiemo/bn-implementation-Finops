@@ -301,6 +301,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	if objectErr != nil {
 		return nil, objectErr
 	}
+	networkPublications, networkErr := a.networkCoveragePublications(ctx, tx)
+	if networkErr != nil {
+		return nil, networkErr
+	}
 	rows, err = tx.Query(ctx, `SELECT id FROM source_registrations WHERE tenant_id=$1 AND kind='AWS_CUR2' ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1)
 	if err != nil {
 		return nil, err
@@ -355,6 +359,8 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	}
 	groups := map[string]*databaseCoverageTotals{}
 	objectGroups := map[string]*databaseCoverageTotals{}
+	networkGroups := map[string]*databaseCoverageTotals{}
+	networkComponents := map[string]map[string]*databaseCoverageTotals{}
 	groupFor := func(currency string) *databaseCoverageTotals {
 		if groups[currency] == nil {
 			groups[currency] = newDatabaseCoverageTotals()
@@ -394,8 +400,32 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				}
 				objectGroup = objectGroups[currency]
 			}
+			key := model.String(record, "SubAccountId") + "\x00" + model.String(record, "RegionId") + "\x00" + model.String(record, "ResourceId")
+			resource := resources[key]
+			networkComponent := networkCoverageComponent(record)
+			if networkComponent == "" && resource != nil && networkResource(resource) {
+				// Exact native resource attribution also retains credits and unfamiliar
+				// continuing dimensions whose provider usage classification is absent.
+				networkComponent = "UNSUPPORTED_NETWORK_COMPONENT"
+			}
+			networkPartitions := []*databaseCoverageTotals{}
+			if networkComponent != "" {
+				if networkGroups[currency] == nil {
+					networkGroups[currency] = newDatabaseCoverageTotals()
+				}
+				if networkComponents[networkComponent] == nil {
+					networkComponents[networkComponent] = map[string]*databaseCoverageTotals{}
+				}
+				if networkComponents[networkComponent][currency] == nil {
+					networkComponents[networkComponent][currency] = newDatabaseCoverageTotals()
+				}
+				networkPartitions = append(networkPartitions, networkGroups[currency], networkComponents[networkComponent][currency])
+			}
 			if e1 != nil || e2 != nil || !at.Before(until) {
 				group.known = false
+				for _, networkGroup := range networkPartitions {
+					networkGroup.known = false
+				}
 				if objectGroup != nil {
 					objectGroup.known = false
 				}
@@ -407,6 +437,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			}
 			if !complete || until.After(end) {
 				group.complete = false
+				for _, networkGroup := range networkPartitions {
+					networkGroup.complete = false
+				}
 				if objectGroup != nil {
 					objectGroup.complete = false
 				}
@@ -416,6 +449,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			cost, valid := new(big.Rat).SetString(costText)
 			if !ok || !valid || !databaseCoverageDecimal.MatchString(costText) || currency == "" {
 				group.known = false
+				for _, networkGroup := range networkPartitions {
+					networkGroup.known = false
+				}
 				if objectGroup != nil {
 					objectGroup.known = false
 				}
@@ -423,11 +459,17 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				continue
 			}
 			group.values["net_spend"].Add(group.values["net_spend"], cost)
+			for _, networkGroup := range networkPartitions {
+				networkGroup.values["net_spend"].Add(networkGroup.values["net_spend"], cost)
+			}
 			if objectGroup != nil {
 				objectGroup.values["net_spend"].Add(objectGroup.values["net_spend"], cost)
 			}
 			if cost.Sign() < 0 {
 				group.values["credits"].Add(group.values["credits"], cost)
+				for _, networkGroup := range networkPartitions {
+					networkGroup.values["credits"].Add(networkGroup.values["credits"], cost)
+				}
 				if objectGroup != nil {
 					objectGroup.values["credits"].Add(objectGroup.values["credits"], cost)
 				}
@@ -437,13 +479,26 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				continue
 			}
 			group.values["detected_spend"].Add(group.values["detected_spend"], cost)
+			for _, networkGroup := range networkPartitions {
+				networkGroup.values["detected_spend"].Add(networkGroup.values["detected_spend"], cost)
+			}
 			if objectGroup != nil {
 				objectGroup.values["detected_spend"].Add(objectGroup.values["detected_spend"], cost)
 			}
-			key := model.String(record, "SubAccountId") + "\x00" + model.String(record, "RegionId") + "\x00" + model.String(record, "ResourceId")
-			resource := resources[key]
 			category := "unsupported_spend"
-			if resource != nil && (databaseResource(resource) || storageResource(resource)) {
+			if networkComponent != "" {
+				if networkComponent != "UNSUPPORTED_NETWORK_COMPONENT" {
+					category = "observation_only_spend"
+				}
+				if resource != nil && networkResource(resource) {
+					publication := networkPublications[model.String(resource, "id")]
+					if publication.currency == currency && publication.lines[databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId"))] {
+						category = "analysed_spend"
+					} else if publication.blocked {
+						category = "blocked_spend"
+					}
+				}
+			} else if resource != nil && (databaseResource(resource) || storageResource(resource)) {
 				category = "observation_only_spend"
 				publication := publications[model.String(resource, "id")]
 				if publication.status == "BLOCKED" || model.String(publication.assessment, "status") == "BLOCKED" {
@@ -494,6 +549,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				category = "observation_only_spend"
 			}
 			group.values[category].Add(group.values[category], cost)
+			for _, networkGroup := range networkPartitions {
+				networkGroup.values[category].Add(networkGroup.values[category], cost)
+			}
 			if objectGroup != nil {
 				objectGroup.values[category].Add(objectGroup.values[category], cost)
 			}
@@ -549,7 +607,16 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			objectOut = append(objectOut, row)
 		}
 	}
-	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "blockers": codes}, nil
+	components := []model.Document{}
+	componentNames := []string{}
+	for component := range networkComponents {
+		componentNames = append(componentNames, component)
+	}
+	sort.Strings(componentNames)
+	for _, component := range componentNames {
+		components = append(components, model.Document{"component": component, "groups": networkCoverageRows(networkComponents[component], incomplete)})
+	}
+	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
 }
 
 // Only an actually issued, unexpired v3 readiness with accepted financial

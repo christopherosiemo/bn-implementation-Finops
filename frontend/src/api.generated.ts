@@ -86,6 +86,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/network-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant and workload scoped, cursor-paginated read-only network records. */
+        get: operations["listNetworkAssessments"];
+        put?: never;
+        /** @description IDs-only read-only request. Server selects current topology, native metrics, commissioned Flow Logs and customer economics. If-Match is quoted zero. No observations, monetary amounts or execution authority are accepted. */
+        post: operations["requestNetworkAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/network-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/network-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant and workload scoped, cursor-paginated read-only network records. */
+        get: operations["listNetworkPolicies"];
+        put?: never;
+        /** @description Customer business and network constraints only. Declarations do not establish native topology, traffic completeness or financial truth. */
+        post: operations["createNetworkPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/network-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNetworkPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/network-policies/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Append a business-policy revision. Existing assessments remain immutable and become stale when their policy changes. */
+        post: operations["reviseNetworkPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/object-storage-datasets": {
         parameters: {
             query?: never;
@@ -1930,6 +2015,301 @@ export interface components {
             require_multi_attach: boolean | null;
             filesystem_review_required: boolean | null;
         };
+        /** @description An immutable refusal before a complete model can be evaluated. No observation window, topology hash or monetary amount is fabricated. */
+        NetworkBlockedAssessment: {
+            schema_version: string;
+            /** @enum {integer} */
+            contract_version?: 1;
+            /** @enum {string} */
+            model_version: "network-v1";
+            /** @enum {string} */
+            model_kind: "NETWORK_ASSESSMENT_V1";
+            binding: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            status: "BLOCKED";
+            reason_code: string;
+            blockers: string[];
+            cohorts: {
+                [key: string]: unknown;
+            }[];
+            candidates: {
+                [key: string]: unknown;
+            }[];
+            economics: {
+                /** @enum {string} */
+                status: "ECONOMICS_UNAVAILABLE";
+                currency: string | null;
+            } & {
+                [key: string]: unknown;
+            };
+            confidence?: {
+                /** @enum {string} */
+                status?: "UNAVAILABLE";
+            };
+            proposal?: {
+                [key: string]: unknown;
+            };
+            financial_references?: components["schemas"]["StorageAssessmentObject"][];
+            source_bindings?: components["schemas"]["StorageAssessmentObject"][] | null;
+            observed_components?: components["schemas"]["StorageAssessmentObject"][];
+            declared_policy_ref?: components["schemas"]["StorageSourceReference"];
+            assessment_hash?: string;
+            model_assessment_hash?: string;
+            declared_policy?: components["schemas"]["NetworkPolicyDefinition"];
+            /** @enum {boolean} */
+            read_only: true;
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        NetworkConfidence: {
+            /** @enum {string} */
+            status: "HIGH" | "LIMITED" | "UNAVAILABLE";
+            reasons: string[];
+            meaning: string;
+        };
+        NetworkEconomicComponent: {
+            /** @enum {string} */
+            component: "NAT_HOURLY" | "NAT_PROCESSING" | "PUBLIC_IPV4" | "CROSS_AZ_TRANSFER" | "CROSS_REGION_TRANSFER" | "INTERNET_EGRESS" | "ENDPOINT_HOURLY" | "ENDPOINT_PROCESSING" | "TRANSIT_GATEWAY" | "PRIVATELINK" | "LOAD_BALANCER_PROCESSING" | "CONTINUING" | "CREDIT";
+            current_window_cost: components["schemas"]["NullableDecimal"];
+            candidate_window_cost: components["schemas"]["NullableDecimal"];
+            avoided_window_cost: components["schemas"]["NullableDecimal"];
+            attribution_basis: string;
+        };
+        NetworkEconomics: {
+            status: string;
+            currency: string | null;
+            observed_allocated_cost: components["schemas"]["NullableDecimal"];
+            current_window_cost: components["schemas"]["NullableDecimal"];
+            candidate_window_cost: components["schemas"]["NullableDecimal"];
+            estimated_window_saving: components["schemas"]["NullableDecimal"];
+            estimated_monthly_saving: components["schemas"]["NullableDecimal"];
+            /** @enum {string|null} */
+            estimated_annual_saving: null;
+            component_costs: components["schemas"]["NetworkEconomicComponent"][];
+            /** @enum {boolean} */
+            nat_hourly_retained: true;
+            pricing_basis: string;
+            allocation_basis: string;
+        };
+        NetworkSecurityImpact: {
+            /** @enum {string} */
+            classification: "REVIEW_REQUIRED";
+            effects: string[];
+            reviewed: boolean;
+        };
+        NetworkCandidate: {
+            id: string;
+            cohort_id: string;
+            /** @enum {string} */
+            family: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+            kind: string;
+            decision: string;
+            status: string;
+            reason_code: string;
+            blockers: string[];
+            classification: string | null;
+            current_path: string[];
+            target_path: string[];
+            route_table_ids: string[];
+            economics: components["schemas"]["NetworkEconomics"];
+            confidence: components["schemas"]["NetworkConfidence"];
+            security_impact: components["schemas"]["NetworkSecurityImpact"];
+            configuration_authority: string;
+            implementation_method: string;
+            /** @enum {boolean} */
+            read_only: true;
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        NetworkTrafficCohort: {
+            id: string;
+            family: string;
+            bytes: components["schemas"]["NullableDecimal"];
+            destination_service: string | null;
+            destination_region: string | null;
+            attribution_complete: boolean;
+            traffic_complete: boolean;
+            current_path: string[];
+            target_path: string[];
+            candidate_id: string;
+            blockers: string[];
+        };
+        NetworkAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {integer} */
+            contract_version: 1;
+            /** @enum {string} */
+            model_version: "network-v1";
+            /** @enum {string} */
+            model_kind: "NETWORK_ASSESSMENT_V1";
+            semantics_version: string;
+            semantics_sha256: string;
+            binding: {
+                [key: string]: unknown;
+            };
+            status: string;
+            reason_code: string;
+            blockers: string[];
+            /** Format: date-time */
+            window_start: string;
+            /** Format: date-time */
+            window_end: string;
+            history_days: components["schemas"]["NullableDecimal"];
+            topology_hash: string;
+            cohorts: components["schemas"]["NetworkTrafficCohort"][];
+            candidates: components["schemas"]["NetworkCandidate"][];
+            configuration_authority: string;
+            economics: {
+                currency: string | null;
+                detected_native_cost: components["schemas"]["NullableDecimal"];
+                /** @enum {string|null} */
+                estimated_monthly_saving: null;
+                /** @enum {string|null} */
+                estimated_annual_saving: null;
+                /** @enum {string} */
+                status: "INDEPENDENT_CANDIDATES_NEVER_SUMMED";
+            };
+            denominators: {
+                native_processed_bytes: components["schemas"]["NullableDecimal"];
+                observed_processed_bytes: components["schemas"]["NullableDecimal"];
+                attributed_cohort_bytes: components["schemas"]["NullableDecimal"];
+                unattributed_bytes: components["schemas"]["NullableDecimal"];
+                observation_complete: boolean;
+                flow_complete: boolean;
+                billing_complete: boolean;
+                billing_scope_complete: boolean;
+            };
+            /** @enum {boolean} */
+            read_only: true;
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            evidence_refs: components["schemas"]["StorageSourceReference"][];
+            source_refs: components["schemas"]["StorageSourceReference"][];
+            model_assumptions: string[];
+            assessment_hash: string;
+            model_assessment_hash?: string;
+            declared_policy?: components["schemas"]["NetworkPolicyDefinition"];
+            declared_policy_ref?: components["schemas"]["StorageSourceReference"];
+            proposal?: components["schemas"]["DatabaseAssessmentProposal"];
+            source_bindings?: components["schemas"]["StorageAssessmentObject"][] | null;
+            financial_references?: components["schemas"]["StorageAssessmentObject"][];
+        };
+        /** @description Customer declarations, independently checked against native topology, configuration authority and current evidence. Missing fields remain unknown. */
+        NetworkPolicyDefinition: {
+            owner?: string;
+            /** @enum {string} */
+            configuration_authority?: "TERRAFORM" | "CLOUDFORMATION" | "MANUAL" | "UNKNOWN";
+            /** @enum {string} */
+            criticality?: "NON_PRODUCTION" | "PRODUCTION";
+            seasonal?: boolean | null;
+            security_reviewed?: boolean | null;
+            network_policy_known?: boolean | null;
+            dependencies_known?: boolean | null;
+            recovery_known?: boolean | null;
+            resilience_known?: boolean | null;
+            allow_topology_change?: boolean | null;
+            required_azs?: number | null;
+            ha_required?: boolean | null;
+            on_premises_required?: boolean | null;
+            cross_vpc_required?: boolean | null;
+            dns_change_approved?: boolean | null;
+            public_access_required?: boolean | null;
+            traffic_purpose?: string;
+            endpoint_policy_reviewed?: boolean | null;
+        };
+        NetworkPolicyRequest: {
+            resource_id: string;
+            name: string;
+            policy: components["schemas"]["NetworkPolicyDefinition"];
+        };
+        NetworkPolicy: components["schemas"]["NetworkPolicyRequest"] & {
+            id: string;
+            version: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        NetworkPolicyPage: {
+            items: components["schemas"]["NetworkPolicy"][];
+            next_cursor: string | null;
+        };
+        NetworkAssessmentRequest: {
+            resource_id: string;
+            policy_id?: string;
+        };
+        NetworkAssessmentRecord: {
+            id: string;
+            version: number;
+            resource_id: string;
+            policy_id?: string | null;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "ASSESSED" | "BLOCKED" | "FAILED";
+            reason_code?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at?: string;
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: (components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"]) | null;
+        };
+        NetworkAssessmentPage: {
+            items: components["schemas"]["NetworkAssessmentRecord"][];
+            next_cursor: string | null;
+        };
+        /** @description Native network inventory projection. Unavailable ownership, AZ, topology or configuration fields remain null or explicitly unknown. */
+        NetworkConfiguration: {
+            topology_hash?: string;
+            resource_type?: string;
+            provider_resource_id?: string;
+            account_id?: string;
+            region?: string;
+            availability_zone?: string | null;
+            availability_mode?: string | null;
+            vpc_id?: string | null;
+            subnet_id?: string | null;
+            connectivity_type?: string | null;
+            /** Format: date-time */
+            last_seen?: string;
+            native?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Registers existing commissioned VPC Flow Logs only. No logging or network resources are enabled. The server validates account, native configuration, scope and delivery provenance. */
+        NetworkSourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_VPC_FLOW_LOGS";
+            account_id: string;
+            region: string;
+            read_role_binding_id: string;
+            flow_log_id: string;
+            resource_ids: string[];
+            report_bucket: string;
+            report_owner: string;
+            report_region: string;
+            prefix: string;
+            fields: string[];
+            /** @enum {string} */
+            traffic_type: "ALL" | "ACCEPT" | "REJECT";
+            /** @enum {integer} */
+            max_aggregation_seconds: 60 | 600;
+        };
         ObjectStorageMetricDefinition: {
             id: string;
             version: string;
@@ -2252,7 +2632,7 @@ export interface components {
             next_cursor: string | null;
         };
         /** @enum {string} */
-        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET";
+        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET" | "VPC" | "SUBNET" | "AVAILABILITY_ZONE" | "ROUTE_TABLE" | "NAT_GATEWAY" | "ELASTIC_IP" | "PUBLIC_IPV4" | "INTERNET_GATEWAY" | "EGRESS_ONLY_INTERNET_GATEWAY" | "NETWORK_INTERFACE" | "SECURITY_GROUP" | "VPC_ENDPOINT" | "VPC_ENDPOINT_SERVICE" | "VPC_PEERING" | "FLOW_LOG" | "AWS_SERVICE_PREFIX_LIST" | "TRANSIT_GATEWAY" | "TRANSIT_GATEWAY_ATTACHMENT" | "LOAD_BALANCER";
         StorageAssessmentRequest: {
             resource_id: string;
         };
@@ -2608,6 +2988,13 @@ export interface components {
         AssessmentCoverage: {
             period: components["schemas"]["DatabaseEvidenceWindow"];
             groups: components["schemas"]["AssessmentCoverageGroup"][];
+            /** @description Network component coverage included in, and never replacing, the all-AWS denominator. Unallocated transfer and public-IP costs remain detected spend. */
+            network_groups?: components["schemas"]["AssessmentCoverageGroup"][];
+            /** @description Native network component partitions of network_groups, with exactly the same source-currency and positive-charge denominator rules. These costs must not be added again to network or all-AWS totals. */
+            network_component_groups?: {
+                component: string;
+                groups: components["schemas"]["AssessmentCoverageGroup"][];
+            }[];
             /** @description S3-only partitions for the same period and source currencies. These supplement, and never replace or reduce, the all-AWS denominator above. */
             object_storage_groups?: components["schemas"]["AssessmentCoverageGroup"][];
             blockers: string[];
@@ -5826,7 +6213,7 @@ export interface components {
             snapshot_id?: string;
             snapshot_hash?: string;
         };
-        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"];
+        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
         AWSBillingSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
@@ -5894,7 +6281,9 @@ export interface components {
                 dataset_hash?: string;
             }[];
         };
-        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"]) & {
+        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
+            bucket?: string;
+            flow_log_id?: string;
             payer_account_id?: string;
             usage_account_ids?: string[];
             export_arn?: string;
@@ -6106,9 +6495,10 @@ export interface components {
         };
         Resource: components["schemas"]["Document"] & {
             name?: string;
-            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET discriminator. */
+            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET and read-only AWS network discriminator. */
             resource_type?: string;
             storage_configuration?: components["schemas"]["StorageAssessmentObject"];
+            network_configuration?: components["schemas"]["NetworkConfiguration"];
             object_storage_configuration?: components["schemas"]["ObjectStorageConfiguration"];
             engine?: string;
             engine_version?: string;
@@ -6126,11 +6516,12 @@ export interface components {
              * @description Absent on legacy EC2 recommendations. Database
              * @enum {string}
              */
-            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1";
+            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1";
             database_assessment_id?: string;
             storage_assessment_id?: string;
             object_storage_assessment_id?: string;
-            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"];
+            network_assessment_id?: string;
+            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
@@ -6708,6 +7099,312 @@ export interface operations {
             };
             /** @description Scoped assessment absent. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listNetworkAssessments: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped records. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAssessmentPage"];
+                };
+            };
+            /** @description Scoped network permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestNetworkAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted versioned record. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAssessmentRecord"];
+                };
+            };
+            /** @description Scoped write permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or unauthorised identifier or declaration. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNetworkAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped immutable network record and server-derived currentness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkAssessmentRecord"];
+                };
+            };
+            /** @description Scoped network permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped record absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listNetworkPolicies: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped records. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPolicyPage"];
+                };
+            };
+            /** @description Scoped network permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createNetworkPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted versioned record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPolicy"];
+                };
+            };
+            /** @description Scoped write permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or unauthorised identifier or declaration. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getNetworkPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped immutable network record and server-derived currentness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPolicy"];
+                };
+            };
+            /** @description Scoped network permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped record absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reviseNetworkPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NetworkPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted versioned record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkPolicy"];
+                };
+            };
+            /** @description Scoped write permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or unauthorised identifier or declaration. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11950,7 +12647,7 @@ export interface operations {
     listRecommendations: {
         parameters: {
             query?: {
-                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1";
+                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1";
                 /** @description Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
                 resource_id?: string;
                 limit?: number;

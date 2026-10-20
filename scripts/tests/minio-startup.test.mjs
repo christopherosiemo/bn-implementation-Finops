@@ -137,6 +137,25 @@ test('optional S3 Compose analyst receives only its database/model/version-reade
     assert.equal([...compose.matchAll(new RegExp('^      '+key+':','gm'))].length,1,'S3 identity key must be ingester-only');
   }
 });
+test('network reader is separately optional and cannot reuse any existing evidence principal', () => {
+  const off=run({NETWORK_ASSESSOR_ACCESS_KEY:'',NETWORK_ASSESSOR_SECRET_KEY:''});assert.equal(off.status,0);assert.ok(!off.policies.some(value=>value.startsWith('network-assessor ')));
+  const enabled=run({NETWORK_ASSESSOR_ACCESS_KEY:'fixture-network',NETWORK_ASSESSOR_SECRET_KEY:'fixture-network-secret'});
+  assert.equal(enabled.status,0);assert.equal(enabled.calls.length,20);assert.deepEqual(enabled.policies.filter(value=>value.startsWith('network-assessor ')),['network-assessor /config/group-assessor-policy.json']);
+  for(const key of ['fixture-root','fixture-raw','fixture-audit','fixture-assessor','fixture-capacity','fixture-db','fixture-storage','fixture-s3']){
+    const rejected=run({DATABASE_ASSESSOR_ACCESS_KEY:'fixture-db',DATABASE_ASSESSOR_SECRET_KEY:'fixture-db-secret',STORAGE_ASSESSOR_ACCESS_KEY:'fixture-storage',STORAGE_ASSESSOR_SECRET_KEY:'fixture-storage-secret',OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:'fixture-s3',OBJECT_STORAGE_ASSESSOR_SECRET_KEY:'fixture-s3-secret',NETWORK_ASSESSOR_ACCESS_KEY:key,NETWORK_ASSESSOR_SECRET_KEY:'fixture-network-secret'});
+    assert.equal(rejected.status,1);assert.equal(rejected.stderr,'MINIO_NETWORK_ASSESSOR_CONFIGURATION_INVALID\n');assert.ok(!rejected.policies.some(value=>value.startsWith('network-assessor ')));
+  }
+  const partial=run({NETWORK_ASSESSOR_ACCESS_KEY:'fixture-network',NETWORK_ASSESSOR_SECRET_KEY:''});assert.equal(partial.status,1);assert.equal(partial.stderr,'MINIO_NETWORK_ASSESSOR_CONFIGURATION_INVALID\n');
+});
+test('network assessor is disabled by default with only independent analytical credentials', () => {
+  const compose=fs.readFileSync(path.join(root,'compose.yaml'),'utf8'),block=compose.match(/^  network-assessor:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(block);
+  assert.match(block,/profiles: \[network-assessment\]/);assert.doesNotMatch(block,/<<: \*common|env_file|envFrom|AWS_|SIGNER_|SIGNING_|EXECUTOR_|CLICKHOUSE_|TEMPORAL_/);
+  assert.deepEqual([...block.matchAll(/^      ([A-Z][A-Z_]+):/gm)].map(match=>match[1]).sort(),['APP_ROLE','PORT','FIXTURE_MODE','DATABASE_URL','ECONOMICS_URL','ECONOMICS_TOKEN','OBJECT_ENDPOINT','OBJECT_REGION','OBJECT_BUCKET_RAW','OBJECT_ACCESS_KEY','OBJECT_SECRET_KEY'].sort());
+  assert.match(block,/finops_network_analyst_login:\$\{NETWORK_DATABASE_PASSWORD:-\}/);assert.match(block,/OBJECT_ACCESS_KEY: \$\{NETWORK_ASSESSOR_ACCESS_KEY:-\}/);assert.match(block,/read_only: true/);assert.match(block,/cap_drop: \[ALL\]/);
+  const example=fs.readFileSync(path.join(root,'.env.example'),'utf8');for(const key of ['NETWORK_DATABASE_PASSWORD','NETWORK_ASSESSOR_ACCESS_KEY','NETWORK_ASSESSOR_SECRET_KEY'])assert.match(example,new RegExp('^'+key+'=$','m'));
+  const ingester=compose.match(/^  ingester:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(ingester);assert.match(ingester,/NETWORK_READONLY_ENABLED: \$\{NETWORK_READONLY_ENABLED:-false\}/);
+  assert.equal([...compose.matchAll(/^      AWS_NETWORK_READ_BINDINGS_JSON:/gm)].length,1);assert.match(ingester,/AWS_NETWORK_READ_BINDINGS_JSON:/);
+});
 test('optional storage Compose process receives only analytical credentials and no action or cloud identity', () => {
   const compose=fs.readFileSync(path.join(root,'compose.yaml'),'utf8');
   const block=compose.match(/^  storage-assessor:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(block);

@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false) {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly)}, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false, network = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly), FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: String(network)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -59,6 +59,7 @@ try {
   chmodSync(copiedBootstrap, 0o644);
 
   bootstrap();
+  for (const key of ['NETWORK_DATABASE_PASSWORD', 'NETWORK_ASSESSOR_ACCESS_KEY', 'NETWORK_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission network analysis');
   assert.ok(!readFileSync(generatedEnv, 'utf8').includes('DB_GROUP_CAPACITY_PASSWORD='), 'ordinary bootstrap must not enable a capacity LOGIN');
   for (const key of ['DB_STORAGE_ANALYST_PASSWORD', 'STORAGE_ASSESSOR_ACCESS_KEY', 'STORAGE_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission storage advice');
   for (const key of ['DB_OBJECT_STORAGE_ANALYST_PASSWORD', 'OBJECT_STORAGE_ASSESSOR_ACCESS_KEY', 'OBJECT_STORAGE_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission S3 advice');
@@ -146,7 +147,7 @@ try {
   assert.equal(readFileSync(generatedEnv, 'utf8'), withS3Readonly, 'explicit S3 source replay preserves object identity key/version');
   const incompleteIdentity = withS3Readonly.replace(/^S3_OBJECT_IDENTITY_KEY_HEX=.*\n/m, '');
   writeFileSync(generatedEnv, incompleteIdentity, { mode: 0o600 });
-  const refusedIdentity = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: 'false', FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_S3_READONLY: 'true'}, encoding: 'utf8', timeout: 15_000 });
+  const refusedIdentity = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: 'false', FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_S3_READONLY: 'true', FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: 'false'}, encoding: 'utf8', timeout: 15_000 });
   assert.equal(refusedIdentity.status, 1); assert.match(refusedIdentity.stderr, /S3_OBJECT_IDENTITY_CONFIGURATION_INCOMPLETE/);
   assert.equal(readFileSync(generatedEnv, 'utf8'), incompleteIdentity, 'partial identity must not silently rotate a key under an existing version');
   writeFileSync(generatedEnv, withS3Readonly, { mode: 0o600 });
@@ -166,7 +167,16 @@ try {
   assert.equal(readFileSync(generatedEnv, 'utf8'), withObjectStorage, 'S3 credentials remain stable on explicit replay');
   probeAsKeycloak(true);
   console.log('PASS optional S3 credentials are distinct, owner-only and replay stable; no ordinary installation enables them');
-  console.log('\n8 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  bootstrap(true, true, true, true, true);
+  const withNetwork = readFileSync(generatedEnv, 'utf8');
+  assert.ok(withNetwork.startsWith(withObjectStorage), 'network commissioning preserves prior credentials');
+  const networkValues=Object.fromEntries(withNetwork.trim().split('\n').map(line=>{const at=line.indexOf('=');return [line.slice(0,at),line.slice(at+1)];}));
+  assert.equal(networkValues.NETWORK_ASSESSOR_ACCESS_KEY,'network-assessor');
+  for(const earlier of ['DB_API_PASSWORD','DB_OBJECT_STORAGE_ANALYST_PASSWORD','DB_STORAGE_ANALYST_PASSWORD','DB_DATABASE_ANALYST_PASSWORD'])assert.notEqual(networkValues.NETWORK_DATABASE_PASSWORD,networkValues[earlier]);
+  for(const earlier of ['OBJECT_SECRET_KEY','AUDIT_SECRET_KEY','OBJECT_STORAGE_ASSESSOR_SECRET_KEY','STORAGE_ASSESSOR_SECRET_KEY','DATABASE_ASSESSOR_SECRET_KEY'])assert.notEqual(networkValues.NETWORK_ASSESSOR_SECRET_KEY,networkValues[earlier]);
+  assert.equal(mode(generatedEnv),0o600);bootstrap(true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),withNetwork);probeAsKeycloak(true);
+  console.log('PASS optional network credentials are distinct, owner-only and replay stable; ordinary installations leave analysis disabled');
+  console.log('\n9 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

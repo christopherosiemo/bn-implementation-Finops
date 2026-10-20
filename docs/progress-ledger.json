@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 26.5,
-  "rounded_description": "26.5 weighted percent of the full product; approximately 27 percent",
-  "credit_review": "Bounded read-only S3 component acceptance advances a reserved one-point scope from 0 to 20, adding 0.2 points. Native/provider/source parsers, exact native-rate financial projections, independent activity ingress, IDs-only dataset/API/blocked publication and Python policy components have focused evidence. The connected native/Python/OIDC journey remains unaccepted: both retained runs stopped at the unchanged 120-second full-Python stage before native ingestion/browser execution. Maturity 40 and the additional 0.2 points are not awarded. Shared foundations, test counts, live/customer/production operation and verified savings receive no credit. Previous EBS/RDS/commitment reviews and the deferred required commitment failure remain unchanged.",
+  "current_weighted_percent": 26.7,
+  "rounded_description": "26.7 weighted percent of the full product; approximately 27 percent",
+  "credit_review": "Bounded read-only Network/NAT components advance a reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native topology/metrics/Flow Log readers, exact customer NET economics, IDs-only policy/assessment APIs, non-executable publications and ordinary console components have bounded acceptance. Native collector and synthetic canonical API/Python/browser journeys are separate acceptance boundaries; their complete persisted customer path is not accepted by this component bank. Maturity 40, live/customer/production operation, network mutations and verified savings are not credited. Fixed weights, all historical reviews and outstanding S3/EBS/RDS/commitment/fleet obligations remain unchanged. The final bounded collector and synthetic canonical API/Python/OIDC component capture subsequently passed with independent stored-result readback; it adds no maturity or percentage credit.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 2.8,
+      "contribution_points": 3,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -294,7 +294,7 @@
         },
         {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 7.5,
+          "scope_weight_percent": 6.5,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md",
@@ -311,10 +311,33 @@
             "Remaining RDS/Aurora capacity, reservation allocation and opportunity families outside the bounded read-only class component; database execution and recovery authority",
             "Remaining storage opportunity breadth, supported equivalence, retention/quarantine and filesystem migration integrations; storage mutation, recovery and verified economics remain separate unaccepted obligations"
           ]
+        },
+        {
+          "id": "bounded_readonly_network_nat_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/network-readonly-assessment.md",
+            "internal/network",
+            "internal/provider/network_discovery.go",
+            "internal/workflow/network_native_integration_test.go",
+            "internal/service/network_integration_test.go",
+            "internal/service/network_native_integration_test.go",
+            "economics/autopilot/network.py",
+            "migrations/044_network_assessments.sql"
+          ],
+          "remaining": [
+            "One complete native topology/traffic/billing-to-console customer journey remains unaccepted: native collector and synthetic canonical API/Python/browser fixtures are separate component boundaries",
+            "Native event-time Flow Log selection, complete shared-NAT workload/destination attribution, generic PrivateLink region/unit proofs and scalable snapshot evaluation",
+            "Complete alternative cost/reliability comparisons for architectural families C/F/G/H and complete IPv4 assignment assessment linkage",
+            "Final release CI and installed migration/restoration remain separately reported release gates; historical commitment/fleet failures stay enabled",
+            "Genuine AWS read-role/report commissioning, customer history and NET rates, ownership/configuration authority, security/DNS/access/resilience/DR policy and customer/production acceptance; no network mutation or verified saving"
+          ]
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 15.555555555555555
+      "current_area_maturity": 16.666666666666664
     },
     {
       "id": "execution_iac_gitops",
@@ -1595,6 +1618,63 @@
       "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
       "live_credit_awarded": false,
       "acceptance": "Bounded read-only S3 component acceptance advances a reserved one-point scope from 0 to 20, adding 0.2 points. Native/provider/source parsers, exact native-rate financial projections, independent activity ingress, IDs-only dataset/API/blocked publication and Python policy components have focused evidence. The connected native/Python/OIDC journey remains unaccepted: both retained runs stopped at the unchanged 120-second full-Python stage before native ingestion/browser execution. Maturity 40 and the additional 0.2 points are not awarded. Shared foundations, test counts, live/customer/production operation and verified savings receive no credit. Previous EBS/RDS/commitment reviews and the deferred required commitment failure remain unchanged."
+    },
+    {
+      "id": "bounded-readonly-network-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "base_commit": "e059da01e119b98dfc0aa527939f6541cea9f4f5",
+      "previous_weighted_percent": 26.5,
+      "weighted_percent": 26.7,
+      "prior_history_sha256": "583301a1adb1fae8fb562b67df60fb8a2f4b22be7f92a5d611f90ab6e5252a77",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 7.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_network_nat_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 6.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_network_nat_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Component maturity only; separate collector and synthetic API/model/UI boundaries do not establish full deterministic native customer acceptance."
+        }
+      ],
+      "evidence": [
+        "docs/network-readonly-assessment.md"
+      ],
+      "bounded_evidence": {
+        "focused": {
+          "run_id": "ccc53ba5-79f2-4295-b747-808563897073",
+          "status": "PASS",
+          "receipt_sha256": "5b3fcc4fd789a30b2be276a053fb0a211ba0e442c1197975f042cb9397ad3123",
+          "source_manifest_sha256": "385fcdcb7ec71ead031274bab6dd6db8008dde6886cbbc70c487d92b6a81d775"
+        },
+        "native_and_synthetic_api_components": {
+          "run_id": "4e764d3b-3fc0-41af-be94-72ba5814c2bc",
+          "status": "FAIL",
+          "receipt_sha256": "58934ff2223d3ef7e087fd771853302e48dc4ff54c5d282fc68aa2a9927b8d27",
+          "source_manifest_sha256": "c8ed211254943990d9381ebc8746741ad6422320c174f0acc9110a59242be337"
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only Network/NAT components advance a reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native topology/metrics/Flow Log readers, exact customer NET economics, IDs-only policy/assessment APIs, non-executable publications and ordinary console components have bounded acceptance. Native collector and synthetic canonical API/Python/browser journeys are separate acceptance boundaries; their complete persisted customer path is not accepted by this component bank. Maturity 40, live/customer/production operation, network mutations and verified savings are not credited. Fixed weights, all historical reviews and outstanding S3/EBS/RDS/commitment/fleet obligations remain unchanged."
     }
   ],
   "reserved_package": {
@@ -1608,5 +1688,28 @@
     "credit_awarded": 0.2,
     "status": "BANKED_COMPONENT_PARTIAL",
     "deterministic_maturity_40_awarded": false
+  },
+  "network_reserved_package": {
+    "id": "bounded_readonly_network_nat_assessment",
+    "base_commit": "e059da01e119b98dfc0aa527939f6541cea9f4f5",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 7.5,
+    "remaining_scope_weight_percent": 6.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "prior_reviews_sha256": "583301a1adb1fae8fb562b67df60fb8a2f4b22be7f92a5d611f90ab6e5252a77",
+    "deterministic_maturity_40_awarded": false,
+    "final_component_acceptance": {
+      "run_id": "355c77e7-e92b-49fd-a26f-193742627f81",
+      "status": "PASS",
+      "receipt_sha256": "fdbcf3f420d1ef78a9c873adcb69ed166cfa11b876c2de807abc048f0d6a6a9d",
+      "source_manifest_sha256": "14ef912fffb0a6810ec72870dcc21e374136868d337581f7723305373fc56e84",
+      "collector_and_api_are_separate_components": true,
+      "real_oidc_browser_passed": true,
+      "native_customer_e2e_accepted": false,
+      "additional_credit": 0
+    }
   }
 }
