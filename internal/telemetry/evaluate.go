@@ -357,8 +357,10 @@ func summarize(d Definition, segments []Segment, start, end time.Time, history b
 		r.Statistic = "OBSERVED_SAMPLE_DISTRIBUTION"
 		if d.Type == "SUM" {
 			r.Statistic = "OBSERVED_INTERVAL_RATE_DISTRIBUTION"
-			v := ratDecimal(total)
-			r.Total = &v
+			if len(values) > 0 {
+				v := ratDecimal(total)
+				r.Total = &v
+			}
 		}
 		r.P50 = weightedQuantile(values, 500, 2)
 		r.P90 = weightedQuantile(values, 900, 10)

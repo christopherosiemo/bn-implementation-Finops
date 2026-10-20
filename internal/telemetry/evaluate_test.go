@@ -137,6 +137,39 @@ func TestCounterRatesAreDurationWeightedAndCountWireExact(t *testing.T) {
 		}
 	}
 }
+func TestCounterTotalRequiresAnAcceptedObservationAndPreservesExplicitZero(t *testing.T) {
+	d := Definition{ID: "requests", Version: "1", Metric: "request_count", Type: "SUM", Unit: "count", CadenceSeconds: 15, MaxGapSeconds: 30}
+	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	segment := Segment{ID: "one", DefinitionID: d.ID, StreamID: "stream", Metric: d.Metric, Type: d.Type, Unit: d.Unit, Start: start, End: start.Add(15 * time.Second), Status: "OBSERVED", Value: "0"}
+	for _, tc := range []struct {
+		name   string
+		status string
+		value  string
+	}{
+		{"missing", "", ""},
+		{"reset", "RESET", ""},
+		{"unknown", "UNKNOWN", ""},
+		{"invalid", "OBSERVED", "invalid"},
+		{"negative", "OBSERVED", "-1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := segment
+			s.Status, s.Value = tc.status, tc.value
+			segments := []Segment{s}
+			if tc.name == "missing" {
+				segments = nil
+			}
+			r := summarize(d, segments, start, segment.End, true)
+			if r.Status != "BLOCKED" || r.Total != nil || r.Maximum != nil || r.P50 != nil {
+				t.Fatalf("unobserved counter became a number: %+v", r)
+			}
+		})
+	}
+	r := summarize(d, []Segment{segment}, start, segment.End, true)
+	if r.Status != "READY" || r.Total == nil || *r.Total != "0" || r.Maximum == nil || *r.Maximum != "0" || r.ObservedSamples != 1 {
+		t.Fatalf("explicit observed zero was lost: %+v", r)
+	}
+}
 func TestHistoryNativeCountsUseIntervalEndNotGaugeTimestampConvention(t *testing.T) {
 	d := Definition{ID: "requests", Version: "1", Metric: "request_count", Type: "SUM", Unit: "count", CadenceSeconds: 300, MaxGapSeconds: 600}
 	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)

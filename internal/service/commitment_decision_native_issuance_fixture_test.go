@@ -63,14 +63,14 @@ type commitmentDecisionArtifactArchive struct {
 }
 
 func (a commitmentDecisionArtifactArchive) Put(ctx context.Context, tenant, job string, raw []byte) (configuration.ArtifactArchiveRef, error) {
-	ref, err := a.put(ctx, "tenant/"+tenant+"/decision-current-artifact/"+job+"/"+source.BytesHash(raw)+".encrypted", raw)
+	ref, err := a.put(ctx, "tenant/"+tenant+"/configuration-artifacts/"+job+"/"+source.BytesHash(raw)+".encrypted", raw)
 	if err != nil {
 		return configuration.ArtifactArchiveRef{}, err
 	}
 	return configuration.ArtifactArchiveRef{Bucket: model.String(ref, "bucket"), Key: model.String(ref, "key"), VersionID: model.String(ref, "version_id"), SHA256: model.String(ref, "body_sha256"), Bytes: int64(len(raw))}, nil
 }
 func (a commitmentDecisionArtifactArchive) Read(ctx context.Context, tenant string, ref configuration.ArtifactArchiveRef) ([]byte, error) {
-	if a.client == nil || !strings.HasPrefix(ref.Key, "tenant/"+tenant+"/decision-current-artifact/") {
+	if a.client == nil || !strings.HasPrefix(ref.Key, "tenant/"+tenant+"/configuration-artifacts/") {
 		return nil, errors.New("DECISION_CURRENT_ARTIFACT_SCOPE")
 	}
 	out, err := a.client.GetObject(ctx, &s3.GetObjectInput{Bucket: &ref.Bucket, Key: &ref.Key, VersionId: &ref.VersionID})
@@ -215,7 +215,10 @@ func commitmentDecisionNativeCurrentArtifact(t *testing.T, ctx context.Context, 
 	// native bound bundle above. External-provider BLOCKED remains explicit.
 	pipeline := configuration.ArtifactPipeline{Repository: repository, Collector: decision040Collector{commitmentDecisionNativeArtifactBundle(t, registration)}, Archive: commitmentDecisionArtifactArchive{put: put, client: client}, Keys: keys, Fixture: true}
 	receipt, replayed, err := pipeline.Capture(ctx, principal, registration.ID, "decision-current-artifact")
-	if err != nil || replayed || receipt.Metadata.ExecutionAuthorized || receipt.Metadata.VerifiedSaving != nil {
+	if err != nil {
+		return scope, err
+	}
+	if replayed || receipt.Metadata.ExecutionAuthorized || receipt.Metadata.VerifiedSaving != nil {
 		return scope, errors.New("DECISION_CURRENT_ARTIFACT_ISSUANCE")
 	}
 	// The current-scope SQL helper is deliberately owner-only. Construct this
