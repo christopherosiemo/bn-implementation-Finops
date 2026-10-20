@@ -10,6 +10,7 @@ import (
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
+	"github.com/jackc/pgx/v5"
 )
 
 // This repository belongs to the existing approved ingestion identity. Archive
@@ -90,24 +91,64 @@ func (r *PostgresRepository) PersistArchiveWitness(ctx context.Context, registra
 		return result, err
 	}
 	id := portfolio.Hash(witness)
-	err = r.Store.Do(ctx, r.Tenant, func(tx *store.Tx) error {
-		_, e := tx.Exec(ctx, "INSERT INTO commitment_ownership_archive_witnesses(tenant_id,id,source_id,source_revision,source_hash,resource_id,sequence,period_start,period_end,document,content_hash,raw_envelope,archive) VALUES($1,$2,$3,$4,$5,'',0,clock_timestamp(),clock_timestamp(),$6,'',$7,$8) ON CONFLICT(tenant_id,id) DO NOTHING", r.Tenant, id, registration.ID, registration.Revision, registration.IssuedDocumentSHA256, wire, raw, archiveRaw)
-		if e != nil {
-			return e
-		}
-		var exact bool
-		if e = tx.QueryRow(ctx, "SELECT document=$3::jsonb AND raw_envelope=$4 AND content_hash=$2 FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND id=$2", r.Tenant, id, wire, raw).Scan(&exact); e != nil {
-			return e
-		}
-		if !exact {
-			return errors.New("OWNERSHIP_ARCHIVE_IMMUTABLE_WITNESS_CONFLICT")
-		}
-		return nil
-	})
+	err = r.persistWitnessTransaction(ctx, registration, id, wire, raw, archiveRaw)
 	if err != nil {
 		return result, err
 	}
 	return portfolio.Ref{Kind: "AWS_OWNERSHIP_ARCHIVE_OBJECT", ID: id, SHA256: id}, nil
+}
+
+// Pipeline the commands for ONE witness, without batching witness commits.
+// The explicit transaction retains the source fence and local tenant context
+// through the exact-row check. No reference escapes until COMMIT succeeds.
+func (r *PostgresRepository) persistWitnessTransaction(ctx context.Context, registration portfolio.DecisionOwnershipArchiveRegistration, id string, wire, raw, archiveRaw []byte) error {
+	conn, err := r.Store.Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	// An error, mismatch or cancellation rolls back before the connection is
+	// reused. pgxpool also destroys any connection released with a non-idle
+	// transaction, including when cancellation prevents this rollback.
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.Exec(ctx, "ROLLBACK")
+		}
+	}()
+	batch := &pgx.Batch{}
+	batch.Queue("BEGIN")
+	batch.Queue("SELECT set_config('app.tenant_id',$1,true)", r.Tenant)
+	batch.Queue("INSERT INTO commitment_ownership_archive_witnesses(tenant_id,id,source_id,source_revision,source_hash,resource_id,sequence,period_start,period_end,document,content_hash,raw_envelope,archive) VALUES($1,$2,$3,$4,$5,'',0,clock_timestamp(),clock_timestamp(),$6,'',$7,$8) ON CONFLICT(tenant_id,id) DO NOTHING", r.Tenant, id, registration.ID, registration.Revision, registration.IssuedDocumentSHA256, wire, raw, archiveRaw)
+	batch.Queue("SELECT document=$3::jsonb AND raw_envelope=$4 AND content_hash=$2 FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND id=$2", r.Tenant, id, wire, raw)
+	results := conn.SendBatch(ctx, batch)
+	for i := 0; i < 3; i++ {
+		if _, err := results.Exec(); err != nil {
+			_ = results.Close()
+			return err
+		}
+	}
+	var exact bool
+	err = results.QueryRow().Scan(&exact)
+	closeErr := results.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if !exact {
+		return errors.New("OWNERSHIP_ARCHIVE_IMMUTABLE_WITNESS_CONFLICT")
+	}
+	tag, err := conn.Exec(ctx, "COMMIT")
+	if err != nil {
+		return err
+	}
+	if tag.String() != "COMMIT" {
+		return pgx.ErrTxCommitRollback
+	}
+	committed = true
+	return nil
 }
 
 func (r *PostgresRepository) PublishArchiveEvidence(ctx context.Context, registration portfolio.DecisionOwnershipArchiveRegistration, value portfolio.DecisionOwnershipArchiveEvidence, rawReview []byte) error {

@@ -447,6 +447,36 @@ func TestCommitmentDecision040ArchiveRestrictedPublicationReplayAndCurrentness(t
 		if !errors.As(err, &pg) || pg.Code != "23505" {
 			t.Fatal("same original version acquired a different native time", err)
 		}
+		// A failed pipelined INSERT must be rolled back before this pool can
+		// publish another receipt. The subsequent exact replay must commit.
+		ref, err = repository.PersistArchiveWitness(ctx, registration, witness, object.Data)
+		if err != nil || ref.ID != id {
+			t.Fatal("failed witness transaction poisoned exact replay", err)
+		}
+	})
+	t.Run("witness_commit_and_error_leave_no_tenant_or_transaction_in_pool", func(t *testing.T) {
+		connections := ingester.Pool.AcquireAllIdle(ctx)
+		if len(connections) == 0 {
+			t.Fatal("witness transaction left no reusable idle connection")
+		}
+		defer func() {
+			for _, conn := range connections {
+				conn.Release()
+			}
+		}()
+		for _, conn := range connections {
+			if conn.Conn().PgConn().TxStatus() != 'I' {
+				t.Fatal("witness transaction remained open after return")
+			}
+			var tenant string
+			var exposed int
+			if err := conn.QueryRow(ctx, "SELECT coalesce(current_setting('app.tenant_id',true),'')").Scan(&tenant); err != nil || tenant != "" {
+				t.Fatal("witness tenant context escaped transaction", err)
+			}
+			if err := conn.QueryRow(ctx, "SELECT count(*) FROM commitment_ownership_archive_witnesses").Scan(&exposed); err != nil || exposed != 0 {
+				t.Fatal("unscoped reused connection exposed tenant witnesses", err)
+			}
+		}
 	})
 	t.Run("uncached_conflict_still_rechecks_revoked_source_before_returning_existing_ref", func(t *testing.T) {
 		pin := review.Objects[0]

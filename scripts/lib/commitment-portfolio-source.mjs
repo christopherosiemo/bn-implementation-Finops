@@ -12,6 +12,8 @@ import {readJointDecisionIndexedSource} from './fleet-joint-decision-host.mjs';
 const extraPaths = Object.freeze([
   'scripts/commitment-portfolio-lab.mjs',
   'scripts/lib/commitment-portfolio-source.mjs',
+  'scripts/lib/commitment-portfolio-failure.mjs',
+  'scripts/tests/commitment-portfolio-failure.test.mjs',
   'scripts/lib/commitment-portfolio-browser.mjs',
   'scripts/lib/commitment-portfolio-browser-host.mjs',
   'scripts/tests/commitment-portfolio-browser.test.mjs',
