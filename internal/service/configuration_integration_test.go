@@ -164,16 +164,78 @@ func TestConfigurationDeclarationsBindCurrentInventoryWithoutAttestation(t *test
 	}
 	// Separate role/transaction so SQL errors cannot accidentally validate a
 	// later assertion in an already-aborted transaction.
-	for _, role := range []string{"finops_worker", "finops_ingester", "finops_signer", "finops_executor", "finops_telemetry_reader"} {
+	assertDeclarationDenied := func(role, statement string) {
+		t.Helper()
 		err := f.db.Do(ctx, f.tenant, func(tx *store.Tx) error {
 			if _, e := tx.Exec(ctx, "SET LOCAL ROLE "+role); e != nil {
 				return e
 			}
-			_, e := tx.Exec(ctx, "SELECT document FROM configuration_authority_revisions")
+			_, e := tx.Exec(ctx, statement)
 			return e
 		})
-		if err == nil {
-			t.Fatalf("unexpected declaration privilege for %s", role)
+		var state interface{ SQLState() string }
+		if !errors.As(err, &state) || state.SQLState() != "42501" {
+			t.Fatalf("declaration privilege for %s was not denied with 42501: %v", role, err)
+		}
+	}
+	for _, role := range []string{"finops_ingester", "finops_telemetry_reader"} {
+		assertDeclarationDenied(role, "SELECT document FROM configuration_authority_revisions")
+	}
+	// Forward EC2 safety readers may inspect only the immutable declaration
+	// metadata selected by migration 042; the declaration still conveys no
+	// attestation, mutation or cross-tenant authority.
+	for _, role := range []string{"finops_worker", "finops_signer", "finops_executor"} {
+		var tenant, resource, hash string
+		var version int64
+		var document, snapshot []byte
+		if err := f.db.Do(ctx, f.tenant, func(tx *store.Tx) error {
+			if _, e := tx.Exec(ctx, "SET LOCAL ROLE "+role); e != nil {
+				return e
+			}
+			return tx.QueryRow(ctx, "SELECT tenant_id,resource_id,version,document,resource_snapshot,content_hash FROM configuration_authority_revisions WHERE tenant_id=$1 AND resource_id=$2", f.tenant, "resource-dev-api").Scan(&tenant, &resource, &version, &document, &snapshot, &hash)
+		}); err != nil {
+			t.Fatalf("permitted declaration metadata unavailable for %s: %v", role, err)
+		}
+		var observed, retained model.Document
+		if err := json.Unmarshal(document, &observed); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(snapshot, &retained); err != nil {
+			t.Fatal(err)
+		}
+		var binding struct {
+			Binding configuration.Binding `json:"binding"`
+		}
+		if err := json.Unmarshal(document, &binding); err != nil {
+			t.Fatal(err)
+		}
+		if tenant != f.tenant || resource != "resource-dev-api" || version != model.Number(a, "version") || hash != model.String(a, "hash") || telemetry.Hash(observed) != telemetry.Hash(a) || binding.Binding.TenantID != tenant || binding.Binding.ResourceID != resource || binding.Binding.ResourceVersion != model.Number(retained, "version") || binding.Binding.ResourceSnapshotHash != telemetry.Hash(retained) {
+			t.Fatalf("declaration metadata binding changed for %s", role)
+		}
+		if err := f.db.Do(ctx, "other-tenant-"+model.ID(), func(tx *store.Tx) error {
+			if _, e := tx.Exec(ctx, "SET LOCAL ROLE "+role); e != nil {
+				return e
+			}
+			var count int64
+			if e := tx.QueryRow(ctx, "SELECT count(document) FROM configuration_authority_revisions WHERE tenant_id=$1 AND resource_id=$2", f.tenant, resource).Scan(&count); e != nil {
+				return e
+			}
+			if count != 0 {
+				t.Fatalf("cross-tenant declaration metadata visible to %s", role)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, column := range []string{"id", "workload_id", "resource_version", "resource_snapshot_hash", "writer_role", "created_at"} {
+			assertDeclarationDenied(role, "SELECT "+column+" FROM configuration_authority_revisions WHERE false")
+		}
+		for _, statement := range []string{
+			"INSERT INTO configuration_authority_revisions (tenant_id,resource_id,version,document,resource_snapshot,content_hash) SELECT tenant_id,resource_id,version,document,resource_snapshot,content_hash FROM configuration_authority_revisions WHERE false",
+			"UPDATE configuration_authority_revisions SET document=document WHERE false",
+			"DELETE FROM configuration_authority_revisions WHERE false",
+		} {
+			assertDeclarationDenied(role, statement)
 		}
 	}
 	if err := f.db.Do(ctx, "other-tenant-"+model.ID(), func(tx *store.Tx) error {
