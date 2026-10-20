@@ -50,6 +50,7 @@ def check(path):
     hardware_enabled = "hardware-reader" in deployments
     if hardware_enabled:
         required.add("hardware-reader")
+    lambda_performance = any(value.get("name") == "LAMBDA_PERFORMANCE_ENABLED" and value.get("value") == "true" for value in deployments["activity-ingress"]["spec"]["template"]["spec"]["containers"][0].get("env", []))
     secret_keys = {}
     envs = {}
     for role in required:
@@ -81,8 +82,13 @@ def check(path):
             assert "WEBHOOK_URL" not in envs[role]
         if role not in {"ingester", "executor", "signer", "hardware-reader"} | native:
             assert "eks.amazonaws.com/role-arn" not in accounts[role]["metadata"].get("annotations", {})
-        if role not in {"ingester", "hardware-reader"} | native:
+        if role not in {"ingester", "hardware-reader"} | native and not (role == "activity-ingress" and lambda_performance):
             assert not any(key.startswith("OBJECT_") for key in envs[role])
+        if role == "activity-ingress" and lambda_performance:
+            assert not {"OBJECT_ACCESS_KEY", "OBJECT_SECRET_KEY", "CLICKHOUSE_PASSWORD", "AWS_READ_ROLE_ARN", "AWS_EXECUTION_ROLE_ARN"} & envs[role].keys()
+            assert envs[role]["OBJECT_REGION"]["value"] == "eu-west-1"
+            assert envs[role]["LAMBDA_PERFORMANCE_OIDC_AUDIENCE"]["value"] not in {envs[role]["ACTIVITY_OIDC_AUDIENCE"]["value"], envs[role]["OIDC_AUDIENCE"]["value"]}
+            assert secret_keys[role]["LAMBDA_PERFORMANCE_ACCESS_KEY"]["name"] != secret_keys[role]["LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD"]["name"]
         if role != "ingester":
             assert "AWS_READ_ROLE_ARN" not in envs[role]
         if role not in {"ingester", "hardware-reader"}:

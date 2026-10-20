@@ -86,6 +86,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lambda-performance/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Dedicated machine ingress only. Requires a separately registered issuer, single dedicated audience and exact subject; human console tokens are refused. Historical benchmarks retain their actual receipt time and cannot mint activity or SLO history. Optional and disabled by default. */
+        post: operations["ingestLambdaPerformance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lambda-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listLambdaAssessments"];
+        put?: never;
+        /** @description Select a discovered function and serving qualifier. Native observations, rates and source revisions are selected by the server. */
+        post: operations["requestLambdaAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lambda-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getLambdaAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lambda-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listLambdaPolicies"];
+        put?: never;
+        post: operations["createLambdaPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lambda-policies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getLambdaPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lambda-policies/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reviseLambdaPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/network-assessments": {
         parameters: {
             query?: never;
@@ -2015,6 +2113,277 @@ export interface components {
             require_multi_attach: boolean | null;
             filesystem_review_required: boolean | null;
         };
+        LambdaPerformanceBatch: {
+            /** @enum {string} */
+            schema_version: "1";
+            source_id: string;
+            source_version: number;
+            sequence: string;
+            /** @description Customer-attested historical performance. This cannot manufacture historical activity or SLO receipt time. Native function/qualifier, code, workload definition, mix, load and configuration fingerprints must match. */
+            point: {
+                binding: components["schemas"]["StorageAssessmentObject"];
+                qualifier: string;
+                executed_version: string;
+                code_sha256: string;
+                comparison_fingerprint: string;
+                workload_definition_id: string;
+                workload_definition_version: string;
+                workload_mix_hash: string;
+                load_profile_hash: string;
+                /** @enum {string} */
+                architecture: "x86_64" | "arm64";
+                /** Format: date-time */
+                measurement_start: string;
+                /** Format: date-time */
+                measurement_end: string;
+                memory_size_mb: components["schemas"]["Decimal"];
+                invocations: components["schemas"]["Decimal"];
+                successful_work: components["schemas"]["Decimal"];
+                errors: components["schemas"]["Decimal"];
+                throttles: components["schemas"]["Decimal"];
+                total_duration_ms: components["schemas"]["Decimal"];
+                total_billed_duration_ms: components["schemas"]["Decimal"];
+                p95_duration_ms?: components["schemas"]["NullableDecimal"];
+                p99_duration_ms?: components["schemas"]["NullableDecimal"];
+                max_memory_used_mb?: components["schemas"]["NullableDecimal"];
+                peak_concurrent_executions?: components["schemas"]["NullableDecimal"];
+                p95_application_latency_ms?: components["schemas"]["NullableDecimal"];
+                cold_start_p95_ms?: components["schemas"]["NullableDecimal"];
+            };
+        };
+        /** @description Sanitized native Lambda metadata. Environment values, code payloads and package download URLs are never retained. Unknown and denied reads remain explicit. */
+        LambdaConfiguration: {
+            function_arn?: string;
+            function_name?: string;
+            function_model?: string;
+            version?: string;
+            runtime?: string | null;
+            architecture?: string | null;
+            memory_size_mb?: number | null;
+            timeout_seconds?: number | null;
+            reserved_concurrency?: number | null;
+            /** @description Native inventory retains per-version/alias configurations; a selected model configuration carries its exact configured count. */
+            provisioned_concurrency?: (number | null) | components["schemas"]["StorageAssessmentObject"][];
+            aliases?: components["schemas"]["StorageAssessmentObject"][];
+            versions?: components["schemas"]["StorageAssessmentObject"][];
+            event_source_mappings?: components["schemas"]["StorageAssessmentObject"][];
+            read_coverage?: components["schemas"]["StorageAssessmentObject"][];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaPolicyDefinition: {
+            owner?: string | null;
+            /** @enum {string} */
+            configuration_authority?: "UNKNOWN" | "TERRAFORM" | "CLOUDFORMATION" | "SAM" | "CDK" | "MANUAL";
+            /** @enum {string} */
+            criticality?: "NON_PRODUCTION" | "PRODUCTION";
+            seasonal?: boolean | null;
+            cold_start_sensitive?: boolean | null;
+            requires_warm_capacity?: boolean | null;
+            architecture_compatibility_known?: boolean | null;
+            arm64_compatible?: boolean | null;
+            off_hours_slo_known?: boolean | null;
+            latency_sensitive?: boolean | null;
+            bursts_known?: boolean | null;
+            off_hours_warm_required?: boolean | null;
+            performance_improvement_required?: boolean | null;
+            latency_slo_ms?: components["schemas"]["NullableDecimal"];
+            max_error_rate?: components["schemas"]["NullableDecimal"];
+            max_throttle_rate?: components["schemas"]["NullableDecimal"];
+            max_queue_age_ms?: components["schemas"]["NullableDecimal"];
+            throughput_minimum?: components["schemas"]["NullableDecimal"];
+            memory_headroom_fraction?: components["schemas"]["NullableDecimal"];
+            concurrency_headroom_fraction?: components["schemas"]["NullableDecimal"];
+            max_duration_ms?: components["schemas"]["NullableDecimal"];
+            available_concurrency?: components["schemas"]["NullableDecimal"];
+            minimum_provisioned_concurrency?: components["schemas"]["NullableDecimal"];
+            performance_review_duration_ms?: components["schemas"]["NullableDecimal"];
+            architecture_compatibility?: {
+                [key: string]: "COMPATIBLE" | "INCOMPATIBLE" | "NOT_APPLICABLE" | "UNKNOWN";
+            };
+            timezone?: string | null;
+            active_windows?: {
+                days: number[];
+                start: string;
+                end: string;
+            }[];
+        };
+        LambdaPolicyRequest: {
+            resource_id: string;
+            name: string;
+            policy: components["schemas"]["LambdaPolicyDefinition"];
+        };
+        LambdaPolicy: components["schemas"]["LambdaPolicyRequest"] & {
+            id: string;
+            version: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LambdaPolicyPage: {
+            items: components["schemas"]["LambdaPolicy"][];
+            next_cursor: string;
+        };
+        LambdaAssessmentRequest: {
+            resource_id: string;
+            qualifier: string;
+            policy_id?: string;
+        };
+        LambdaCandidateEconomics: {
+            status: string;
+            currency: string | null;
+            current_window_cost: components["schemas"]["NullableDecimal"];
+            candidate_window_cost: components["schemas"]["NullableDecimal"];
+            estimated_window_saving: components["schemas"]["NullableDecimal"];
+            estimated_monthly_saving: components["schemas"]["NullableDecimal"];
+            estimated_annual_saving: components["schemas"]["NullableDecimal"];
+            pricing_basis: string;
+            component_costs: {
+                component: string;
+                current_cost: components["schemas"]["NullableDecimal"];
+                candidate_cost: components["schemas"]["NullableDecimal"];
+            }[];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaPerformance: {
+            duration_ms?: components["schemas"]["NullableDecimal"];
+            billed_duration_ms?: components["schemas"]["NullableDecimal"];
+            p95_duration_ms?: components["schemas"]["NullableDecimal"];
+            p99_duration_ms?: components["schemas"]["NullableDecimal"];
+            max_memory_used_mb?: components["schemas"]["NullableDecimal"];
+            successful_work?: components["schemas"]["NullableDecimal"];
+            errors?: components["schemas"]["NullableDecimal"];
+            throttles?: components["schemas"]["NullableDecimal"];
+            peak_concurrency?: components["schemas"]["NullableDecimal"];
+            source_receipt_ids?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaCandidate: {
+            id: string;
+            family: string;
+            status: string;
+            decision: string;
+            memory_size_mb?: number | null;
+            architecture?: string | null;
+            provisioned_concurrency?: number | null;
+            physical_status: string;
+            checks: components["schemas"]["StorageAssessmentObject"][];
+            performance: components["schemas"]["LambdaPerformance"];
+            economics: components["schemas"]["LambdaCandidateEconomics"];
+            reason_codes: string[];
+            confidence: components["schemas"]["LambdaConfidence"];
+            implementation_method: string;
+            /** @enum {boolean} */
+            read_only: true;
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            verified_saving: components["schemas"]["NullableDecimal"];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaConfidence: {
+            status: string;
+            reasons: string[];
+        };
+        LambdaEconomics: {
+            status: string;
+            currency: string | null;
+            observed_billed_cost?: components["schemas"]["NullableDecimal"];
+            current_effective_cost?: components["schemas"]["NullableDecimal"];
+            current_request_cost?: components["schemas"]["NullableDecimal"];
+            current_compute_cost?: components["schemas"]["NullableDecimal"];
+            current_provisioned_capacity_cost?: components["schemas"]["NullableDecimal"];
+            continuing_cost?: components["schemas"]["NullableDecimal"];
+            credits?: components["schemas"]["NullableDecimal"];
+            pricing_basis: string;
+            components?: components["schemas"]["StorageAssessmentObject"][];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaObservations: {
+            start?: string | null;
+            end?: string | null;
+            history_days?: components["schemas"]["NullableDecimal"];
+            metrics_summary?: {
+                [key: string]: components["schemas"]["StorageAssessmentObject"];
+            };
+            report_summary?: {
+                status?: string;
+                count?: components["schemas"]["NullableDecimal"];
+                total_duration_ms?: components["schemas"]["NullableDecimal"];
+                total_billed_duration_ms?: components["schemas"]["NullableDecimal"];
+                max_memory_used_mb?: components["schemas"]["NullableDecimal"];
+                init_duration_ms?: components["schemas"]["NullableDecimal"];
+                memory_semantics?: string;
+            } & {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            model_version: "lambda-v1";
+            /** @enum {string} */
+            model_kind: "LAMBDA_ASSESSMENT_V1";
+            binding: components["schemas"]["StorageAssessmentObject"];
+            resource_id?: string;
+            qualifier?: string;
+            config_hash?: string;
+            configuration?: components["schemas"]["LambdaConfiguration"];
+            status: string;
+            reason_codes: string[];
+            decision_families?: components["schemas"]["StorageAssessmentObject"][];
+            candidates: components["schemas"]["LambdaCandidate"][];
+            observations?: components["schemas"]["LambdaObservations"];
+            economics: components["schemas"]["LambdaEconomics"];
+            confidence?: components["schemas"]["LambdaConfidence"];
+            provider_recommendation?: components["schemas"]["StorageAssessmentObject"][];
+            our_recommendation?: string[];
+            difference?: string;
+            reason_for_difference?: string[];
+            configuration_authority?: string;
+            implementation_method?: string;
+            source_refs?: components["schemas"]["StorageAssessmentObject"][];
+            financial_references?: components["schemas"]["StorageAssessmentObject"][];
+            declared_policy?: components["schemas"]["LambdaPolicyDefinition"];
+            assessment_hash?: string;
+            /** @enum {boolean} */
+            read_only: true;
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            verified_saving: components["schemas"]["NullableDecimal"];
+        } & {
+            [key: string]: unknown;
+        };
+        LambdaAssessmentRecord: {
+            id: string;
+            version?: number;
+            resource_id: string;
+            qualifier: string;
+            workload_id?: string | null;
+            policy_id?: string | null;
+            policy_version?: number | null;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "ASSESSED" | "BLOCKED" | "FAILED";
+            /** Format: date-time */
+            created_at: string;
+            reason_code?: string;
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: components["schemas"]["LambdaAssessment"] | null;
+        };
+        LambdaAssessmentPage: {
+            items: components["schemas"]["LambdaAssessmentRecord"][];
+            next_cursor: string;
+        };
         /** @description An immutable refusal before a complete model can be evaluated. No observation window, topology hash or monetary amount is fabricated. */
         NetworkBlockedAssessment: {
             schema_version: string;
@@ -2632,7 +3001,7 @@ export interface components {
             next_cursor: string | null;
         };
         /** @enum {string} */
-        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET" | "VPC" | "SUBNET" | "AVAILABILITY_ZONE" | "ROUTE_TABLE" | "NAT_GATEWAY" | "ELASTIC_IP" | "PUBLIC_IPV4" | "INTERNET_GATEWAY" | "EGRESS_ONLY_INTERNET_GATEWAY" | "NETWORK_INTERFACE" | "SECURITY_GROUP" | "VPC_ENDPOINT" | "VPC_ENDPOINT_SERVICE" | "VPC_PEERING" | "FLOW_LOG" | "AWS_SERVICE_PREFIX_LIST" | "TRANSIT_GATEWAY" | "TRANSIT_GATEWAY_ATTACHMENT" | "LOAD_BALANCER";
+        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET" | "LAMBDA_FUNCTION" | "VPC" | "SUBNET" | "AVAILABILITY_ZONE" | "ROUTE_TABLE" | "NAT_GATEWAY" | "ELASTIC_IP" | "PUBLIC_IPV4" | "INTERNET_GATEWAY" | "EGRESS_ONLY_INTERNET_GATEWAY" | "NETWORK_INTERFACE" | "SECURITY_GROUP" | "VPC_ENDPOINT" | "VPC_ENDPOINT_SERVICE" | "VPC_PEERING" | "FLOW_LOG" | "AWS_SERVICE_PREFIX_LIST" | "TRANSIT_GATEWAY" | "TRANSIT_GATEWAY_ATTACHMENT" | "LOAD_BALANCER";
         StorageAssessmentRequest: {
             resource_id: string;
         };
@@ -2988,6 +3357,7 @@ export interface components {
         AssessmentCoverage: {
             period: components["schemas"]["DatabaseEvidenceWindow"];
             groups: components["schemas"]["AssessmentCoverageGroup"][];
+            lambda_groups?: components["schemas"]["AssessmentCoverageGroup"][];
             /** @description Network component coverage included in, and never replacing, the all-AWS denominator. Unallocated transfer and public-IP costs remain detected spend. */
             network_groups?: components["schemas"]["AssessmentCoverageGroup"][];
             /** @description Native network component partitions of network_groups, with exactly the same source-currency and positive-charge denominator rules. These costs must not be added again to network or all-AWS totals. */
@@ -6213,7 +6583,27 @@ export interface components {
             snapshot_id?: string;
             snapshot_hash?: string;
         };
-        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
+        LambdaSourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_LAMBDA_NATIVE_V1" | "AWS_LAMBDA_REPORTS_V1" | "AWS_LAMBDA_PERFORMANCE_CURVE_V1";
+            name: string;
+            account_id: string;
+            region: string;
+            /** @description Exact unqualified native function ARN. */
+            function_arn: string;
+            qualifier: string;
+            /** @description Existing ingester-only approved read binding */
+            read_role_binding_id?: string;
+            log_group_arn?: string;
+            log_group_name?: string;
+            /** @enum {string} */
+            format?: "REPORT_TEXT" | "PLATFORM_REPORT_JSON";
+            /** Format: uri */
+            issuer?: string;
+            audience?: string;
+            subject?: string;
+        };
+        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
         AWSBillingSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
@@ -6281,7 +6671,7 @@ export interface components {
                 dataset_hash?: string;
             }[];
         };
-        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
+        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
             bucket?: string;
             flow_log_id?: string;
             payer_account_id?: string;
@@ -6498,6 +6888,7 @@ export interface components {
             /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET and read-only AWS network discriminator. */
             resource_type?: string;
             storage_configuration?: components["schemas"]["StorageAssessmentObject"];
+            lambda_configuration?: components["schemas"]["LambdaConfiguration"];
             network_configuration?: components["schemas"]["NetworkConfiguration"];
             object_storage_configuration?: components["schemas"]["ObjectStorageConfiguration"];
             engine?: string;
@@ -6516,12 +6907,13 @@ export interface components {
              * @description Absent on legacy EC2 recommendations. Database
              * @enum {string}
              */
-            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1";
+            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1";
             database_assessment_id?: string;
             storage_assessment_id?: string;
             object_storage_assessment_id?: string;
+            lambda_assessment_id?: string;
             network_assessment_id?: string;
-            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
+            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["LambdaAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
@@ -7103,6 +7495,238 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ingestLambdaPerformance: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LambdaPerformanceBatch"];
+            };
+        };
+        responses: {
+            /** @description Immutable source-bound performance receipt. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageAssessmentObject"];
+                };
+            };
+            /** @description Dedicated machine identity required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registered tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicting sequence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or incompatible performance evidence. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listLambdaAssessments: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant and workload scoped immutable Lambda assessments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaAssessmentPage"];
+                };
+            };
+        };
+    };
+    requestLambdaAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LambdaAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Read-only assessment queued. No function mutation or verified saving is authorized. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaAssessmentRecord"];
+                };
+            };
+        };
+    };
+    getLambdaAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable result with server-derived currentness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaAssessmentRecord"];
+                };
+            };
+        };
+    };
+    listLambdaPolicies: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped latest immutable customer requirement revisions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaPolicyPage"];
+                };
+            };
+        };
+    };
+    createLambdaPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LambdaPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Requirements recorded; declarations establish no telemetry, pricing or execution authority. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaPolicy"];
+                };
+            };
+        };
+    };
+    getLambdaPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest scoped requirement revision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaPolicy"];
+                };
+            };
+        };
+    };
+    reviseLambdaPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LambdaPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description New immutable requirements revision. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LambdaPolicy"];
+                };
             };
         };
     };
@@ -12647,7 +13271,7 @@ export interface operations {
     listRecommendations: {
         parameters: {
             query?: {
-                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1";
+                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1";
                 /** @description Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
                 resource_id?: string;
                 limit?: number;

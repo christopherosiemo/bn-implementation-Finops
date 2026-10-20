@@ -119,6 +119,27 @@ spec:
             - { name: OIDC_JWKS_URL, value: {{ $.Values.oidc.jwksUrl | quote }} }
             {{- end }}
             {{- if eq $role "activity-ingress" }}
+            {{- if $.Values.lambdaPerformance.enabled }}
+            - {name: LAMBDA_PERFORMANCE_ENABLED, value: "true"}
+            - {name: LAMBDA_PERFORMANCE_OIDC_ISSUER, value: {{ $.Values.lambdaPerformance.issuer | quote }}}
+            - {name: LAMBDA_PERFORMANCE_OIDC_AUDIENCE, value: {{ $.Values.lambdaPerformance.audience | quote }}}
+            - {name: LAMBDA_PERFORMANCE_OIDC_JWKS_URL, value: {{ $.Values.lambdaPerformance.jwksUrl | quote }}}
+            - {name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }}}
+            - {name: OBJECT_REGION, value: eu-west-1}
+            - {name: OBJECT_BUCKET_RAW, value: {{ $.Values.aws.rawBucket | quote }}}
+            - {name: CLICKHOUSE_URL, value: {{ include "finops.clickhouse" $ | quote }}}
+            - {name: CLICKHOUSE_DATABASE, value: {{ $.Values.clickhouseCredentials.database | quote }}}
+            {{- range $key := list "LAMBDA_PERFORMANCE_ACCESS_KEY" "LAMBDA_PERFORMANCE_SECRET_KEY" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.lambdaPerformance.evidenceWriterSecret | quote }}, key: {{ $key }}}
+            {{- end }}
+            {{- range $key := list "LAMBDA_PERFORMANCE_CLICKHOUSE_USER" "LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.lambdaPerformance.analyticsSecret | quote }}, key: {{ $key }}}
+            {{- end }}
+            {{- end }}
             - { name: ACTIVITY_OIDC_AUDIENCE, value: {{ $.Values.activity.audience | quote }} }
             {{- if $.Values.activity.jwksUrl }}
             - { name: ACTIVITY_OIDC_JWKS_URL, value: {{ $.Values.activity.jwksUrl | quote }} }
@@ -158,6 +179,13 @@ spec:
             {{- end }}
             {{- end }}
             {{- if eq $role "ingester" }}
+            - {name: LAMBDA_READONLY_ENABLED, value: {{ $.Values.sources.lambdaReadonlyEnabled | quote }}}
+            - {name: LAMBDA_COMPUTE_OPTIMIZER_ENABLED, value: {{ $.Values.sources.lambdaComputeOptimizerEnabled | quote }}}
+            {{- if $.Values.sources.lambdaReadBindingsSecret }}
+            - name: AWS_LAMBDA_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.sources.lambdaReadBindingsSecret | quote }}, key: AWS_LAMBDA_READ_BINDINGS_JSON}
+            {{- end }}
             - {name: NETWORK_READONLY_ENABLED, value: {{ $.Values.sources.networkReadonlyEnabled | quote }}}
             {{- if $.Values.sources.networkReadBindingsSecret }}
             - name: AWS_NETWORK_READ_BINDINGS_JSON

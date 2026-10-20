@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/lambdacost"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
@@ -27,8 +29,14 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 		d := model.Clone(in)
 		allowed := map[string]bool{"kind": true, "payer_account_id": true, "usage_account_ids": true, "region": true, "export_arn": true, "read_role_binding_id": true, "bucket": true, "bucket_owner": true, "prefix": true}
 		isObjectSource := strings.HasPrefix(model.String(d, "kind"), "AWS_S3_")
-		isNetworkSource:=model.String(d,"kind")==network.FlowKind
-		if isNetworkSource {allowed=map[string]bool{"kind":true,"account_id":true,"region":true,"read_role_binding_id":true,"flow_log_id":true,"resource_ids":true,"report_bucket":true,"report_owner":true,"report_region":true,"prefix":true,"fields":true,"traffic_type":true,"max_aggregation_seconds":true}}
+		isLambdaSource := strings.HasPrefix(model.String(d, "kind"), "AWS_LAMBDA_")
+		isNetworkSource := model.String(d, "kind") == network.FlowKind
+		if isLambdaSource {
+			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "function_arn": true, "qualifier": true, "read_role_binding_id": true, "log_group_arn": true, "log_group_name": true, "format": true, "issuer": true, "audience": true, "subject": true, "name": true}
+		}
+		if isNetworkSource {
+			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "read_role_binding_id": true, "flow_log_id": true, "resource_ids": true, "report_bucket": true, "report_owner": true, "report_region": true, "prefix": true, "fields": true, "traffic_type": true, "max_aggregation_seconds": true}
+		}
 		if isObjectSource {
 			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "bucket": true, "report_bucket": true, "report_owner": true, "report_region": true, "prefix": true, "inventory_id": true, "read_role_binding_id": true, "dataset_ids": true, "report_type": true}
 		}
@@ -77,11 +85,28 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 			delete(d, "dataset_ids")
 		}
 		var validation error
-		if isNetworkSource {
+		if isLambdaSource {
+			validation = lambdacost.ValidateRegistration(d)
+			if model.String(d, "kind") == "AWS_LAMBDA_PERFORMANCE_CURVE_V1" {
+				issuer := os.Getenv("LAMBDA_PERFORMANCE_OIDC_ISSUER")
+				if issuer == "" {
+					issuer = a.Config.Issuer
+				}
+				aud := os.Getenv("LAMBDA_PERFORMANCE_OIDC_AUDIENCE")
+				if aud == "" {
+					aud = "finops-lambda-performance"
+				}
+				if model.String(d, "issuer") != issuer || model.String(d, "audience") != aud || aud == a.Config.Audience || aud == "finops-activity" || aud == "finops-telemetry" || aud == "finops-deployment-observer" {
+					return nil, 0, true, problem(422, "LAMBDA_MACHINE_SOURCE_BINDING_INVALID", "use the commissioned independent machine issuer and audience")
+				}
+			}
+		} else if isNetworkSource {
 			var registration network.Registration
-			raw,_:=json.Marshal(d)
-			validation=json.Unmarshal(raw,&registration)
-			if validation==nil {validation=network.ValidateRegistration(registration)}
+			raw, _ := json.Marshal(d)
+			validation = json.Unmarshal(raw, &registration)
+			if validation == nil {
+				validation = network.ValidateRegistration(registration)
+			}
 		} else if isObjectSource {
 			validation = objectstorage.ValidateRegistration(d)
 		} else {

@@ -1,12 +1,12 @@
 {
   "schema_version": "1",
-  "recorded_at": "2026-10-20",
+  "recorded_at": "2026-10-21",
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 26.7,
-  "rounded_description": "26.7 weighted percent of the full product; approximately 27 percent",
-  "credit_review": "Bounded read-only Network/NAT components advance a reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native topology/metrics/Flow Log readers, exact customer NET economics, IDs-only policy/assessment APIs, non-executable publications and ordinary console components have bounded acceptance. Native collector and synthetic canonical API/Python/browser journeys are separate acceptance boundaries; their complete persisted customer path is not accepted by this component bank. Maturity 40, live/customer/production operation, network mutations and verified savings are not credited. Fixed weights, all historical reviews and outstanding S3/EBS/RDS/commitment/fleet obligations remain unchanged. The final bounded collector and synthetic canonical API/Python/OIDC component capture subsequently passed with independent stored-result readback; it adds no maturity or percentage credit.",
+  "current_weighted_percent": 26.9,
+  "rounded_description": "26.9 weighted percent of the full product; approximately 27 percent",
+  "credit_review": "Bounded read-only Lambda components advance the reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native collection, immutable operational evidence, guarded financial/performance components, restricted persisted blocked assessments and normal authenticated UI have bounded acceptance. The connected native capture has no canonical billing or performance curve and proves a blocked result; positive economics components are separate. Full positive native financial/performance-to-console acceptance, software omissions, genuine AWS/customer commissioning and sustained operation remain outstanding. No deterministic maturity 40, live, execution or verified-savings credit. Fixed weights, all historical reviews and closed-family acceptance debts remain unchanged.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 3,
+      "contribution_points": 3.2,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -294,7 +294,7 @@
         },
         {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 6.5,
+          "scope_weight_percent": 5.5,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md",
@@ -334,10 +334,34 @@
             "Final release CI and installed migration/restoration remain separately reported release gates; historical commitment/fleet failures stay enabled",
             "Genuine AWS read-role/report commissioning, customer history and NET rates, ownership/configuration authority, security/DNS/access/resilience/DR policy and customer/production acceptance; no network mutation or verified saving"
           ]
+        },
+        {
+          "id": "bounded_readonly_lambda_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/lambda-readonly-assessment.md",
+            "internal/lambdacost",
+            "internal/provider/lambda_discovery.go",
+            "internal/workflow/lambda_native_integration_test.go",
+            "internal/service/lambda_integration_test.go",
+            "internal/activity/lambda_integration_test.go",
+            "economics/autopilot/lambda_model.py",
+            "migrations/045_lambda_assessments.sql"
+          ],
+          "remaining": [
+            "Full positive native CUR plus authenticated benchmark ingress through restricted Python, persisted justified recommendation and ordinary OIDC console is unaccepted; the connected capture proves a blocked result",
+            "Historical provisioned-concurrency allocation epochs, complete off-hours selection and priced scheduling remain incomplete",
+            "Priced architecture comparisons, complete artifact/dependency compatibility, separate Web/MicroVM inventory and richer downstream/event-source constraints remain software obligations",
+            "Large REPORT continuation and bounded cohort scale acceptance remain incomplete",
+            "Final-source required CI and installed 044-to-045 migration/restoration are separate release gates; the three historical failures remain enabled",
+            "Genuine AWS read roles/sources/history, customer rates and commitment/free-allowance scope, workload ownership/authority, compatibility/SLO requirements and sustained customer/operational acceptance; no execution or verified saving"
+          ]
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 16.666666666666664
+      "current_area_maturity": 17.77777777777778
     },
     {
       "id": "execution_iac_gitops",
@@ -1675,6 +1699,63 @@
       "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
       "live_credit_awarded": false,
       "acceptance": "Bounded read-only Network/NAT components advance a reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native topology/metrics/Flow Log readers, exact customer NET economics, IDs-only policy/assessment APIs, non-executable publications and ordinary console components have bounded acceptance. Native collector and synthetic canonical API/Python/browser journeys are separate acceptance boundaries; their complete persisted customer path is not accepted by this component bank. Maturity 40, live/customer/production operation, network mutations and verified savings are not credited. Fixed weights, all historical reviews and outstanding S3/EBS/RDS/commitment/fleet obligations remain unchanged."
+    },
+    {
+      "id": "bounded-readonly-lambda-components-2026-10-21",
+      "recorded_at": "2026-10-21",
+      "base_commit": "4dadac72182666781d16c98f7b29cf1602f9524d",
+      "previous_weighted_percent": 26.7,
+      "weighted_percent": 26.9,
+      "prior_history_sha256": "155dbeb1292edaeeb01e239df760425f4dd420f53b0d5c2b46df7ee705934f36",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 6.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_lambda_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 5.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_lambda_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Component acceptance only. The connected native result is blocked; the positive financial and performance components are separate acceptance boundaries."
+        }
+      ],
+      "evidence": [
+        "docs/lambda-readonly-assessment.md"
+      ],
+      "bounded_evidence": {
+        "focused": {
+          "run_id": "eaf54c04-af35-4366-9d7e-9f6b98c98a99",
+          "status": "PASS",
+          "receipt_sha256": "321adb7a4a4cbd28dcb2e4ddaf4e18ae3b5bbead55a3a8ef8d7e87df5bcefd1e",
+          "source_manifest_sha256": "e671ee05de6c93c5c8eeebe9530d1c603caf1aca72f901a1875306af6bb2d66b"
+        },
+        "native_blocked_python_oidc": {
+          "run_id": "fc7348fc-0572-4144-aa02-4e61b34964b4",
+          "status": "PASS",
+          "receipt_sha256": "a31bc144b663ba689110b66c14213c512711344063938fc8345f8a83d66549c3",
+          "source_manifest_sha256": "e671ee05de6c93c5c8eeebe9530d1c603caf1aca72f901a1875306af6bb2d66b"
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only Lambda components advance the reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native collection, immutable operational evidence, guarded financial/performance components, restricted persisted blocked assessments and normal authenticated UI have bounded acceptance. The connected native capture has no canonical billing or performance curve and proves a blocked result; positive economics components are separate. Full positive native financial/performance-to-console acceptance, software omissions, genuine AWS/customer commissioning and sustained operation remain outstanding. No deterministic maturity 40, live, execution or verified-savings credit. Fixed weights, all historical reviews and closed-family acceptance debts remain unchanged."
     }
   ],
   "reserved_package": {
@@ -1711,5 +1792,18 @@
       "native_customer_e2e_accepted": false,
       "additional_credit": 0
     }
+  },
+  "lambda_reserved_package": {
+    "id": "bounded_readonly_lambda_assessment",
+    "base_commit": "4dadac72182666781d16c98f7b29cf1602f9524d",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 6.5,
+    "remaining_scope_weight_percent": 5.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "prior_reviews_sha256": "155dbeb1292edaeeb01e239df760425f4dd420f53b0d5c2b46df7ee705934f36",
+    "deterministic_maturity_40_awarded": false
   }
 }

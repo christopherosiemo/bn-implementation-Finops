@@ -1,0 +1,58 @@
+{{- if .Values.lambdaPerformance.enabled }}
+{{- if not .Values.networkPolicy.enabled }}{{ fail "Lambda performance ingress requires default-deny network policy" }}{{ end }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "hosted Lambda performance ingress requires explicit AWS mode" }}{{ end }}
+{{- if not (hasPrefix "https://" .Values.lambdaPerformance.issuer) }}{{ fail "Lambda performance issuer requires HTTPS" }}{{ end }}
+{{- if not (hasPrefix "https://" .Values.lambdaPerformance.jwksUrl) }}{{ fail "Lambda performance JWKS requires explicit HTTPS" }}{{ end }}
+{{- if has .Values.lambdaPerformance.audience (list "" .Values.oidc.audience .Values.activity.audience .Values.telemetry.audience .Values.deploymentObserver.audience) }}{{ fail "Lambda performance requires an independent machine audience" }}{{ end }}
+{{- if and .Values.objectStorage.endpoint (not (hasPrefix "https://" .Values.objectStorage.endpoint)) }}{{ fail "Lambda performance evidence requires HTTPS" }}{{ end }}
+{{- $writer := required "Lambda performance requires an existing dedicated evidence writer" .Values.lambdaPerformance.evidenceWriterSecret }}
+{{- $analytics := required "Lambda performance requires a restricted native_metric_samples INSERT/SELECT analytics identity" .Values.lambdaPerformance.analyticsSecret }}
+{{- if eq $writer $analytics }}{{ fail "Lambda performance evidence and analytics Secrets must differ" }}{{ end }}
+{{- range $name := list $writer $analytics }}
+{{- if or (gt (len $name) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$" $name)) }}{{ fail "Lambda performance requires exact Secret names" }}{{ end }}
+{{- range $role,$secret := $.Values.database.secrets }}{{- if eq $name $secret }}{{ fail "Lambda performance cannot reuse a database credential" }}{{ end }}{{- end }}
+{{- range $role,$secret := $.Values.secrets }}{{- if eq $name $secret }}{{ fail "Lambda performance cannot reuse another service identity" }}{{ end }}{{- end }}
+{{- range $reader := list $.Values.databaseAssessor.evidenceReaderSecret $.Values.storageAssessor.evidenceReaderSecret $.Values.objectStorageAssessor.evidenceReaderSecret $.Values.networkAssessor.evidenceReaderSecret $.Values.lambdaAssessor.evidenceReaderSecret }}{{- if eq $name $reader }}{{ fail "Lambda performance cannot reuse an analytical evidence reader" }}{{ end }}{{- end }}
+{{- end }}
+{{- if eq (len .Values.lambdaPerformance.httpsEgressCidrs) 0 }}{{ fail "Lambda performance requires approved evidence/JWKS HTTPS destinations" }}{{ end }}
+{{- $octet := "(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])" }}
+{{- $cidr := printf "^%s([.]%s){3}/([1-9]|[12][0-9]|3[0-2])$" $octet $octet }}
+{{- range .Values.lambdaPerformance.httpsEgressCidrs }}
+{{- if or (not (regexMatch $cidr .)) (lt (int (last (splitList "/" .))) 16) (regexMatch "^(0[.]|127[.]|169[.]254[.]|2(2[4-9]|[3-5][0-9])[.])" .) }}{{ fail "Lambda performance requires bounded approved HTTPS networks" }}{{ end }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: finops-lambda-performance-egress}
+spec:
+  podSelector:
+    matchLabels: {finops-role: activity-ingress}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - podSelector:
+            matchLabels: {finops-role: clickhouse}
+      ports: [{protocol: TCP, port: 8123}]
+    - to:
+        {{- range .Values.lambdaPerformance.httpsEgressCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 443}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: finops-clickhouse-from-lambda-performance}
+spec:
+  podSelector:
+    matchLabels: {finops-role: clickhouse}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {finops-role: activity-ingress}
+      ports: [{protocol: TCP, port: 8123}]
+{{- end }}

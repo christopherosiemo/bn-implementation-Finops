@@ -12,8 +12,15 @@ import (
 )
 
 func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, bool, error) {
-	if d,status,handled,e:=a.objectStorageAccessMutate(ctx,t,i,r,in);handled{return d,status,true,e}
-	if d,status,handled,e:=a.networkMutate(ctx,t,i,r,in);handled{return d,status,true,e}
+	if d, status, handled, e := a.objectStorageAccessMutate(ctx, t, i, r, in); handled {
+		return d, status, true, e
+	}
+	if d, status, handled, e := a.lambdaMutate(ctx, t, i, r, in); handled {
+		return d, status, true, e
+	}
+	if d, status, handled, e := a.networkMutate(ctx, t, i, r, in); handled {
+		return d, status, true, e
+	}
 	if d, status, handled, e := a.objectStorageMutate(ctx, t, i, r, in); handled {
 		return d, status, true, e
 	}

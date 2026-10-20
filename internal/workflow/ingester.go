@@ -79,6 +79,12 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if networkError := networkTick(ctx, a, tenant); networkError != nil && e == nil {
 			e = networkError
 		}
+		// Lambda metadata, metrics and commissioned reports use bounded native
+		// reads outside the ordinary inventory transaction. A denied optional
+		// source cannot discard existing inventory or restoration ownership.
+		if lambdaError := lambdaTick(ctx, a, tenant); lambdaError != nil && e == nil {
+			e = lambdaError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

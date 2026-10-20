@@ -16,9 +16,10 @@ type Validator interface {
 	Validate(*http.Request) (auth.Identity, error)
 }
 type Server struct {
-	Store  *store.Store
-	Auth   Validator
-	Issuer string
+	Store             *store.Store
+	Auth              Validator
+	Issuer            string
+	LambdaPerformance *LambdaPerformance
 }
 
 func NewServer(db *store.Store, validator Validator, issuer string) *Server {
@@ -41,6 +42,10 @@ func (s *Server) Handler() http.Handler {
 				return
 			}
 			response(w, 200, map[string]string{"status": "ok", "role": "activity-ingress"})
+			return
+		}
+		if r.URL.Path == "/v1/lambda-performance/batches" {
+			s.lambdaPerformance(w, r)
 			return
 		}
 		if r.URL.Path != "/v1/activity/intervals" && r.URL.Path != "/v1/slo/intervals" && r.URL.Path != "/v1/object-storage-access/intervals" {

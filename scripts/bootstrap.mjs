@@ -144,6 +144,12 @@ if (process.env.FINOPS_BOOTSTRAP_NETWORK_ASSESSOR === 'true') {
     if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
   }
 }
+// Lambda analysis is independently commissioned; default bootstrap creates no identity.
+if (process.env.FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR === 'true') {
+  for (const [key, value] of Object.entries({ LAMBDA_DATABASE_PASSWORD: random(), LAMBDA_ASSESSOR_ACCESS_KEY: 'lambda-assessor', LAMBDA_ASSESSOR_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+}
 // Object identities are private keyed HMACs, never public hashes of object
 // names. Commission this independent ingester-only key explicitly; replay
 // preserves the key/version and ordinary bootstrap creates neither value.

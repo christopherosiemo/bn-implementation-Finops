@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
 	"net/http"
@@ -161,7 +162,37 @@ func run() error {
 		if e != nil {
 			return e
 		}
-		handler = activity.NewServer(db, v, issuer).Handler()
+		activityServer := activity.NewServer(db, v, issuer)
+		if os.Getenv("LAMBDA_PERFORMANCE_ENABLED") == "true" {
+			if cfg.AWSReadRole != "" || cfg.AWSExecutionRole != "" || cfg.PrivateKey != "" || cfg.SignerToken != "" || cfg.ExecutorToken != "" {
+				return errors.New("Lambda ingress cannot hold provider or action credentials")
+			}
+			li := os.Getenv("LAMBDA_PERFORMANCE_OIDC_ISSUER")
+			if li == "" {
+				li = cfg.Issuer
+			}
+			la := os.Getenv("LAMBDA_PERFORMANCE_OIDC_AUDIENCE")
+			if la == "" {
+				la = "finops-lambda-performance"
+			}
+			if la == cfg.Audience || la == audience || la == "finops-telemetry" || la == os.Getenv("TELEMETRY_OIDC_AUDIENCE") || la == "finops-deployment-observer" || la == os.Getenv("DEPLOYMENT_OIDC_AUDIENCE") {
+				return errors.New("Lambda performance audience must be independent")
+			}
+			lj := os.Getenv("LAMBDA_PERFORMANCE_OIDC_JWKS_URL")
+			if lj == "" && li == cfg.Issuer {
+				lj = cfg.JWKSURL
+			}
+			lv, err := auth.NewMachine(ctx, li, la, lj)
+			if err != nil {
+				return err
+			}
+			ls, err := activity.LambdaPerformanceStorageFromEnvironment(ctx, cfg.Fixture)
+			if err != nil {
+				return err
+			}
+			activityServer.LambdaPerformance = &activity.LambdaPerformance{Auth: lv, Issuer: li, Audience: la, Archive: ls}
+		}
+		handler = activityServer.Handler()
 	case "api":
 		v, e := auth.New(ctx, cfg.Issuer, cfg.Audience, cfg.JWKSURL)
 		if e != nil {
@@ -186,7 +217,7 @@ func run() error {
 			return &service.Problem{Status: 500, Message: "EXECUTOR_TOKEN is required"}
 		}
 		handler = (&service.SecureService{Store: db, Config: cfg, Public: key}).Handler()
-	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "network-assessor", "hardware-reader", "fleet-history-reader":
+	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "network-assessor", "lambda-assessor", "hardware-reader", "fleet-history-reader":
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
 				http.NotFound(w, r)
@@ -244,7 +275,20 @@ func run() error {
 			}
 		}()
 	}
-	if cfg.Role=="network-assessor" {go func(){if err:=service.RunNetworkAssessor(ctx,cfg,db);err!=nil{errs<-err}}()}
+	if cfg.Role == "lambda-assessor" {
+		go func() {
+			if err := service.RunLambdaAssessor(ctx, cfg, db); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	if cfg.Role == "network-assessor" {
+		go func() {
+			if err := service.RunNetworkAssessor(ctx, cfg, db); err != nil {
+				errs <- err
+			}
+		}()
+	}
 	if cfg.Role == "hardware-reader" {
 		go func() {
 			if e := workflow.RunHardwareReader(ctx, cfg, db); e != nil {

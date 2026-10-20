@@ -40,7 +40,7 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 			return rule(platform)
 		case "recommendations", "change-plans", "source-connections":
 			return rule(finops)
-		case "database-assessments", "storage-assessments", "object-storage-assessments", "object-storage-datasets", "network-assessments", "network-policies":
+		case "database-assessments", "storage-assessments", "object-storage-assessments", "object-storage-datasets", "network-assessments", "network-policies", "lambda-assessments", "lambda-policies":
 			return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "resources", scopeID: model.String(in, "resource_id")}, true
 		case "allocation-policies", "allocation-reports":
 			return rule(finance)
@@ -69,13 +69,21 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	if len(p) == 3 {
 		switch p[0] {
 		case "object-storage-access-sources":
-			if p[2]=="revoke" {return rule(platform)}
+			if p[2] == "revoke" {
+				return rule(platform)
+			}
 		case "object-storage-datasets":
 			if p[2] == "revisions" {
 				return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "object-storage-datasets", scopeID: p[1]}, true
 			}
+		case "lambda-policies":
+			if p[2] == "revisions" {
+				return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "lambda-policies", scopeID: p[1]}, true
+			}
 		case "network-policies":
-			if p[2]=="revisions" {return mutationAuthorization{roles:[]string{"FINOPS_ADMIN","PLATFORM_ADMIN","APPLICATION_OWNER"},scopeKind:"network-policies",scopeID:p[1]},true}
+			if p[2] == "revisions" {
+				return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "network-policies", scopeID: p[1]}, true
+			}
 		case "fleet-group-authorizations":
 			if p[2] == "approvals" {
 				return rule([]string{"APPROVER"})
@@ -217,10 +225,18 @@ func authorizeMutationReplay(ctx context.Context, t *store.Tx, i auth.Identity, 
 	if rule.scopeKind != "workloads" {
 		var current model.Document
 		var err error
-		if rule.scopeKind == "network-policies" {
+		if rule.scopeKind == "lambda-policies" {
 			var policy model.Document
-			policy,err=t.NetworkPolicyGet(ctx,rule.scopeID)
-			if err==nil {current,err=t.Get(ctx,"resources",model.String(policy,"resource_id"))}
+			policy, err = t.LambdaPolicyGet(ctx, rule.scopeID)
+			if err == nil {
+				current, err = t.Get(ctx, "resources", model.String(policy, "resource_id"))
+			}
+		} else if rule.scopeKind == "network-policies" {
+			var policy model.Document
+			policy, err = t.NetworkPolicyGet(ctx, rule.scopeID)
+			if err == nil {
+				current, err = t.Get(ctx, "resources", model.String(policy, "resource_id"))
+			}
 		} else if rule.scopeKind == "object-storage-datasets" {
 			var dataset model.Document
 			dataset, err = t.ObjectStorageDatasetGet(ctx, rule.scopeID)

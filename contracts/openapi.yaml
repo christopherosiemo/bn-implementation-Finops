@@ -133,6 +133,126 @@ paths:
               schema: { $ref: '#/components/schemas/StorageAssessmentRecord' }
         '403': { description: Scoped storage read permission required. }
         '404': { description: Scoped assessment absent. }
+  /lambda-performance/batches:
+    post:
+      operationId: ingestLambdaPerformance
+      description: Dedicated machine ingress only. Requires a separately registered issuer, single dedicated audience and exact subject; human console tokens are refused. Historical benchmarks retain their actual receipt time and cannot mint activity or SLO history. Optional and disabled by default.
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LambdaPerformanceBatch' }
+      responses:
+        '201':
+          description: Immutable source-bound performance receipt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAssessmentObject' }
+        '401': { description: Dedicated machine identity required. }
+        '403': { description: Registered tenant, function, qualifier and source subject required. }
+        '409': { description: Conflicting sequence, idempotency key or body hash. }
+        '422': { description: Invalid or incompatible performance evidence. }
+  /lambda-assessments:
+    get:
+      operationId: listLambdaAssessments
+      parameters:
+        - { name: resource_id, in: query, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Tenant and workload scoped immutable Lambda assessments.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaAssessmentPage' }
+    post:
+      operationId: requestLambdaAssessment
+      description: Select a discovered function and serving qualifier. Native observations, rates and source revisions are selected by the server.
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LambdaAssessmentRequest' }
+      responses:
+        '202':
+          description: Read-only assessment queued. No function mutation or verified saving is authorized.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaAssessmentRecord' }
+  /lambda-assessments/{id}:
+    get:
+      operationId: getLambdaAssessment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Immutable result with server-derived currentness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaAssessmentRecord' }
+  /lambda-policies:
+    get:
+      operationId: listLambdaPolicies
+      parameters:
+        - { name: resource_id, in: query, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Scoped latest immutable customer requirement revisions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaPolicyPage' }
+    post:
+      operationId: createLambdaPolicy
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LambdaPolicyRequest' }
+      responses:
+        '201':
+          description: Requirements recorded; declarations establish no telemetry, pricing or execution authority.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaPolicy' }
+  /lambda-policies/{id}:
+    get:
+      operationId: getLambdaPolicy
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Latest scoped requirement revision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaPolicy' }
+  /lambda-policies/{id}/revisions:
+    post:
+      operationId: reviseLambdaPolicy
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LambdaPolicyRequest' }
+      responses:
+        '201':
+          description: New immutable requirements revision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LambdaPolicy' }
   /network-assessments:
     get:
       operationId: listNetworkAssessments
@@ -2442,7 +2562,7 @@ paths:
       parameters:
         - name: model_kind
           in: query
-          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1] }
+          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1] }
         - name: resource_id
           in: query
           description: Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
@@ -2731,6 +2851,302 @@ components:
         allow_durability_reduction: { type: boolean, nullable: true }
         require_multi_attach: { type: boolean, nullable: true }
         filesystem_review_required: { type: boolean, nullable: true }
+    LambdaPerformanceBatch:
+      type: object
+      additionalProperties: false
+      required: [schema_version, source_id, source_version, sequence, point]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        source_id: { type: string }
+        source_version: { type: integer, minimum: 1 }
+        sequence: { type: string, pattern: '^[1-9][0-9]*$' }
+        point:
+          type: object
+          description: Customer-attested historical performance. This cannot manufacture historical activity or SLO receipt time. Native function/qualifier, code, workload definition, mix, load and configuration fingerprints must match.
+          additionalProperties: false
+          required: [binding, qualifier, executed_version, code_sha256, comparison_fingerprint, workload_definition_id, workload_definition_version, workload_mix_hash, load_profile_hash, architecture, measurement_start, measurement_end, memory_size_mb, invocations, successful_work, errors, throttles, total_duration_ms, total_billed_duration_ms]
+          properties:
+            binding: { $ref: '#/components/schemas/StorageAssessmentObject' }
+            qualifier: { type: string }
+            executed_version: { type: string }
+            code_sha256: { type: string }
+            comparison_fingerprint: { type: string }
+            workload_definition_id: { type: string }
+            workload_definition_version: { type: string }
+            workload_mix_hash: { type: string }
+            load_profile_hash: { type: string }
+            architecture: { type: string, enum: [x86_64, arm64] }
+            measurement_start: { type: string, format: date-time }
+            measurement_end: { type: string, format: date-time }
+            memory_size_mb: { $ref: '#/components/schemas/Decimal' }
+            invocations: { $ref: '#/components/schemas/Decimal' }
+            successful_work: { $ref: '#/components/schemas/Decimal' }
+            errors: { $ref: '#/components/schemas/Decimal' }
+            throttles: { $ref: '#/components/schemas/Decimal' }
+            total_duration_ms: { $ref: '#/components/schemas/Decimal' }
+            total_billed_duration_ms: { $ref: '#/components/schemas/Decimal' }
+            p95_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            p99_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            max_memory_used_mb: { $ref: '#/components/schemas/NullableDecimal' }
+            peak_concurrent_executions: { $ref: '#/components/schemas/NullableDecimal' }
+            p95_application_latency_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            cold_start_p95_ms: { $ref: '#/components/schemas/NullableDecimal' }
+    LambdaConfiguration:
+      type: object
+      additionalProperties: true
+      description: Sanitized native Lambda metadata. Environment values, code payloads and package download URLs are never retained. Unknown and denied reads remain explicit.
+      properties:
+        function_arn: { type: string }
+        function_name: { type: string }
+        function_model: { type: string }
+        version: { type: string }
+        runtime: { type: string, nullable: true }
+        architecture: { type: string, nullable: true }
+        memory_size_mb: { type: integer, nullable: true }
+        timeout_seconds: { type: integer, nullable: true }
+        reserved_concurrency: { type: integer, nullable: true }
+        provisioned_concurrency:
+          description: Native inventory retains per-version/alias configurations; a selected model configuration carries its exact configured count.
+          oneOf:
+            - { type: integer, nullable: true }
+            - { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        aliases: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        versions: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        event_source_mappings: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        read_coverage: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+    LambdaPolicyDefinition:
+      type: object
+      additionalProperties: false
+      properties:
+        owner: { type: string, nullable: true, maxLength: 200 }
+        configuration_authority: { type: string, enum: [UNKNOWN, TERRAFORM, CLOUDFORMATION, SAM, CDK, MANUAL] }
+        criticality: { type: string, enum: [NON_PRODUCTION, PRODUCTION] }
+        seasonal: { type: boolean, nullable: true }
+        cold_start_sensitive: { type: boolean, nullable: true }
+        requires_warm_capacity: { type: boolean, nullable: true }
+        architecture_compatibility_known: { type: boolean, nullable: true }
+        arm64_compatible: { type: boolean, nullable: true }
+        off_hours_slo_known: { type: boolean, nullable: true }
+        latency_sensitive: { type: boolean, nullable: true }
+        bursts_known: { type: boolean, nullable: true }
+        off_hours_warm_required: { type: boolean, nullable: true }
+        performance_improvement_required: { type: boolean, nullable: true }
+        latency_slo_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        max_error_rate: { $ref: '#/components/schemas/NullableDecimal' }
+        max_throttle_rate: { $ref: '#/components/schemas/NullableDecimal' }
+        max_queue_age_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        throughput_minimum: { $ref: '#/components/schemas/NullableDecimal' }
+        memory_headroom_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        concurrency_headroom_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        max_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        available_concurrency: { $ref: '#/components/schemas/NullableDecimal' }
+        minimum_provisioned_concurrency: { $ref: '#/components/schemas/NullableDecimal' }
+        performance_review_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        architecture_compatibility:
+          type: object
+          additionalProperties: { type: string, enum: [COMPATIBLE, INCOMPATIBLE, NOT_APPLICABLE, UNKNOWN] }
+        timezone: { type: string, nullable: true }
+        active_windows:
+          type: array
+          items:
+            type: object
+            required: [days, start, end]
+            properties:
+              days: { type: array, items: { type: integer, minimum: 1, maximum: 7 } }
+              start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+              end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    LambdaPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, name, policy]
+      properties:
+        resource_id: { type: string }
+        name: { type: string, maxLength: 200 }
+        policy: { $ref: '#/components/schemas/LambdaPolicyDefinition' }
+    LambdaPolicy:
+      allOf:
+        - { $ref: '#/components/schemas/LambdaPolicyRequest' }
+        - type: object
+          required: [id, version, created_at]
+          properties:
+            id: { type: string }
+            version: { type: integer }
+            created_at: { type: string, format: date-time }
+    LambdaPolicyPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LambdaPolicy' } }
+        next_cursor: { type: string }
+    LambdaAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id, qualifier]
+      properties:
+        resource_id: { type: string }
+        qualifier: { type: string, minLength: 1, maxLength: 128 }
+        policy_id: { type: string }
+    LambdaCandidateEconomics:
+      type: object
+      additionalProperties: true
+      required: [status, currency, current_window_cost, candidate_window_cost, estimated_window_saving, estimated_monthly_saving, estimated_annual_saving, component_costs, pricing_basis]
+      properties:
+        status: { type: string }
+        currency: { type: string, nullable: true }
+        current_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_window_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_annual_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        pricing_basis: { type: string }
+        component_costs:
+          type: array
+          items:
+            type: object
+            required: [component, current_cost, candidate_cost]
+            properties:
+              component: { type: string }
+              current_cost: { $ref: '#/components/schemas/NullableDecimal' }
+              candidate_cost: { $ref: '#/components/schemas/NullableDecimal' }
+    LambdaPerformance:
+      type: object
+      additionalProperties: true
+      properties:
+        duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        billed_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        p95_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        p99_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        max_memory_used_mb: { $ref: '#/components/schemas/NullableDecimal' }
+        successful_work: { $ref: '#/components/schemas/NullableDecimal' }
+        errors: { $ref: '#/components/schemas/NullableDecimal' }
+        throttles: { $ref: '#/components/schemas/NullableDecimal' }
+        peak_concurrency: { $ref: '#/components/schemas/NullableDecimal' }
+        source_receipt_ids: { type: array, items: { type: string } }
+    LambdaCandidate:
+      type: object
+      additionalProperties: true
+      required: [id, family, status, decision, physical_status, checks, performance, economics, reason_codes, confidence, implementation_method, read_only, pre_execution_ready, execution_authorized, verified_saving]
+      properties:
+        id: { type: string }
+        family: { type: string }
+        status: { type: string }
+        decision: { type: string }
+        memory_size_mb: { type: integer, nullable: true }
+        architecture: { type: string, nullable: true }
+        provisioned_concurrency: { type: integer, nullable: true }
+        physical_status: { type: string }
+        checks: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        performance: { $ref: '#/components/schemas/LambdaPerformance' }
+        economics: { $ref: '#/components/schemas/LambdaCandidateEconomics' }
+        reason_codes: { type: array, items: { type: string } }
+        confidence: { $ref: '#/components/schemas/LambdaConfidence' }
+        implementation_method: { type: string }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { $ref: '#/components/schemas/NullableDecimal' }
+    LambdaConfidence:
+      type: object
+      required: [status, reasons]
+      properties:
+        status: { type: string }
+        reasons: { type: array, items: { type: string } }
+    LambdaEconomics:
+      type: object
+      additionalProperties: true
+      required: [status, currency, pricing_basis]
+      properties:
+        status: { type: string }
+        currency: { type: string, nullable: true }
+        observed_billed_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_effective_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_request_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_compute_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_provisioned_capacity_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        continuing_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        credits: { $ref: '#/components/schemas/NullableDecimal' }
+        pricing_basis: { type: string }
+        components: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+    LambdaObservations:
+      type: object
+      additionalProperties: true
+      properties:
+        start: { type: string, nullable: true }
+        end: { type: string, nullable: true }
+        history_days: { $ref: '#/components/schemas/NullableDecimal' }
+        metrics_summary:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/StorageAssessmentObject' }
+        report_summary:
+          type: object
+          additionalProperties: true
+          properties:
+            status: { type: string }
+            count: { $ref: '#/components/schemas/NullableDecimal' }
+            total_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            total_billed_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            max_memory_used_mb: { $ref: '#/components/schemas/NullableDecimal' }
+            init_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            memory_semantics: { type: string }
+    LambdaAssessment:
+      type: object
+      additionalProperties: true
+      required: [schema_version, model_version, model_kind, binding, status, reason_codes, candidates, economics, read_only, pre_execution_ready, execution_authorized, verified_saving]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        model_version: { type: string, enum: [lambda-v1] }
+        model_kind: { type: string, enum: [LAMBDA_ASSESSMENT_V1] }
+        binding: { $ref: '#/components/schemas/StorageAssessmentObject' }
+        resource_id: { type: string }
+        qualifier: { type: string }
+        config_hash: { type: string }
+        configuration: { $ref: '#/components/schemas/LambdaConfiguration' }
+        status: { type: string }
+        reason_codes: { type: array, items: { type: string } }
+        decision_families: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        candidates: { type: array, maxItems: 4096, items: { $ref: '#/components/schemas/LambdaCandidate' } }
+        observations: { $ref: '#/components/schemas/LambdaObservations' }
+        economics: { $ref: '#/components/schemas/LambdaEconomics' }
+        confidence: { $ref: '#/components/schemas/LambdaConfidence' }
+        provider_recommendation: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        our_recommendation: { type: array, items: { type: string } }
+        difference: { type: string }
+        reason_for_difference: { type: array, items: { type: string } }
+        configuration_authority: { type: string }
+        implementation_method: { type: string }
+        source_refs: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        financial_references: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        declared_policy: { $ref: '#/components/schemas/LambdaPolicyDefinition' }
+        assessment_hash: { type: string }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { $ref: '#/components/schemas/NullableDecimal' }
+    LambdaAssessmentRecord:
+      type: object
+      required: [id, resource_id, qualifier, status, created_at, assessment]
+      properties:
+        id: { type: string }
+        version: { type: integer }
+        resource_id: { type: string }
+        qualifier: { type: string }
+        workload_id: { type: string, nullable: true }
+        policy_id: { type: string, nullable: true }
+        policy_version: { type: integer, nullable: true }
+        status: { type: string, enum: [QUEUED, RUNNING, ASSESSED, BLOCKED, FAILED] }
+        created_at: { type: string, format: date-time }
+        reason_code: { type: string }
+        current: { type: boolean }
+        currentness_blockers: { type: array, items: { type: string } }
+        assessment:
+          allOf: [{ $ref: '#/components/schemas/LambdaAssessment' }]
+          nullable: true
+    LambdaAssessmentPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LambdaAssessmentRecord' } }
+        next_cursor: { type: string }
     NetworkBlockedAssessment:
       type: object
       additionalProperties: false
@@ -3391,7 +3807,7 @@ components:
         next_cursor: { type: string, nullable: true }
     AssessmentResourceKind:
       type: string
-      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET, VPC, SUBNET, AVAILABILITY_ZONE, ROUTE_TABLE, NAT_GATEWAY, ELASTIC_IP, PUBLIC_IPV4, INTERNET_GATEWAY, EGRESS_ONLY_INTERNET_GATEWAY, NETWORK_INTERFACE, SECURITY_GROUP, VPC_ENDPOINT, VPC_ENDPOINT_SERVICE, VPC_PEERING, FLOW_LOG, AWS_SERVICE_PREFIX_LIST, TRANSIT_GATEWAY, TRANSIT_GATEWAY_ATTACHMENT, LOAD_BALANCER]
+      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET, LAMBDA_FUNCTION, VPC, SUBNET, AVAILABILITY_ZONE, ROUTE_TABLE, NAT_GATEWAY, ELASTIC_IP, PUBLIC_IPV4, INTERNET_GATEWAY, EGRESS_ONLY_INTERNET_GATEWAY, NETWORK_INTERFACE, SECURITY_GROUP, VPC_ENDPOINT, VPC_ENDPOINT_SERVICE, VPC_PEERING, FLOW_LOG, AWS_SERVICE_PREFIX_LIST, TRANSIT_GATEWAY, TRANSIT_GATEWAY_ATTACHMENT, LOAD_BALANCER]
     StorageAssessmentRequest:
       type: object
       additionalProperties: false
@@ -3802,6 +4218,9 @@ components:
       properties:
         period: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
         groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
+        lambda_groups:
+          type: array
+          items: { $ref: '#/components/schemas/AssessmentCoverageGroup' }
         network_groups:
           type: array
           description: Network component coverage included in, and never replacing, the all-AWS denominator. Unallocated transfer and public-IP costs remain detected spend.
@@ -10246,10 +10665,29 @@ components:
         evaluation: { $ref: '#/components/schemas/SloEvaluation' }
         snapshot_id: { type: string }
         snapshot_hash: { type: string }
+    LambdaSourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, name, account_id, region, function_arn, qualifier]
+      properties:
+        kind: { type: string, enum: [AWS_LAMBDA_NATIVE_V1, AWS_LAMBDA_REPORTS_V1, AWS_LAMBDA_PERFORMANCE_CURVE_V1] }
+        name: { type: string, maxLength: 200 }
+        account_id: { type: string, pattern: '^[0-9]{12}$' }
+        region: { type: string }
+        function_arn: { type: string, description: Exact unqualified native function ARN. }
+        qualifier: { type: string, minLength: 1, maxLength: 128 }
+        read_role_binding_id: { type: string, description: Existing ingester-only approved read binding, never credentials. }
+        log_group_arn: { type: string }
+        log_group_name: { type: string }
+        format: { type: string, enum: [REPORT_TEXT, PLATFORM_REPORT_JSON] }
+        issuer: { type: string, format: uri }
+        audience: { type: string }
+        subject: { type: string }
     SourceConnectionRequest:
       oneOf:
         - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
         - { $ref: '#/components/schemas/ObjectStorageSourceConnectionRequest' }
+        - { $ref: '#/components/schemas/LambdaSourceConnectionRequest' }
         - { $ref: '#/components/schemas/NetworkSourceConnectionRequest' }
     AWSBillingSourceConnectionRequest:
       type: object
@@ -10322,6 +10760,7 @@ components:
         - oneOf:
             - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
             - { $ref: '#/components/schemas/ObjectStorageSourceConnectionConfiguration' }
+            - { $ref: '#/components/schemas/LambdaSourceConnectionRequest' }
             - { $ref: '#/components/schemas/NetworkSourceConnectionRequest' }
         - type: object
           properties:
@@ -10549,6 +10988,7 @@ components:
             name: { type: string }
             resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET and read-only AWS network discriminator. }
             storage_configuration: { $ref: '#/components/schemas/StorageAssessmentObject' }
+            lambda_configuration: { $ref: '#/components/schemas/LambdaConfiguration' }
             network_configuration: { $ref: '#/components/schemas/NetworkConfiguration' }
             object_storage_configuration: { $ref: '#/components/schemas/ObjectStorageConfiguration' }
             engine: { type: string }
@@ -10566,16 +11006,18 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
-            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
+            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
             database_assessment_id: { type: string }
             storage_assessment_id: { type: string }
             object_storage_assessment_id: { type: string }
+            lambda_assessment_id: { type: string }
             network_assessment_id: { type: string }
             assessment:
               oneOf:
                 - { $ref: '#/components/schemas/DatabaseAssessment' }
                 - { $ref: '#/components/schemas/StorageAssessment' }
                 - { $ref: '#/components/schemas/ObjectStorageAssessment' }
+                - { $ref: '#/components/schemas/LambdaAssessment' }
                 - { $ref: '#/components/schemas/NetworkAssessment' }
                 - { $ref: '#/components/schemas/NetworkBlockedAssessment' }
             title: { type: string }

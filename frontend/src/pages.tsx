@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { ObjectStorageSources } from "./ObjectStorageSources";
+import { LambdaAssessmentHistory, LambdaInventory, LambdaRecommendation, LambdaRecommendationHistory, LambdaResourceAssessment, isLambdaResource } from "./LambdaAssessment";
+import { LambdaSources } from "./LambdaSources";
 import { NetworkSources } from "./NetworkSources";
 import { NetworkAssessmentHistory, NetworkInventory, NetworkRecommendation, NetworkRecommendationHistory, NetworkResourceAssessment, isNetworkResource } from "./NetworkAssessment";
 import { DependencySafety } from "./DependencySafety";
@@ -364,7 +366,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
+                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : isLambdaResource(item) ? <LambdaResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
@@ -377,7 +379,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                     {!isMoneyKnown(item.monthly_effective_cost) ||
                     !item.currency
                       ? "No evidenced source price"
-                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : isNetworkResource(item) ? "Source currency · network" : "Source currency · compute"}
+                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : isNetworkResource(item) ? "Source currency · network" : isLambdaResource(item) ? "Source currency · Lambda" : "Source currency · compute"}
                   </small>
                 </td>
                 <td>
@@ -400,6 +402,8 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
       <ObjectStorageAssessmentHistory />
       <NetworkInventory run={run} busy={busy} />
       <NetworkAssessmentHistory />
+      <LambdaInventory run={run} busy={busy} />
+      <LambdaAssessmentHistory />
       <WorkloadSafety data={data} run={run} busy={busy} />
       <ConfigurationAuthority data={data} run={run} busy={busy} />
       <FleetHistory data={data} run={run} busy={busy} />
@@ -596,7 +600,7 @@ export function RecommendationsPage({
       </div>
       {items.length ? (
         <div className="recommendation-list">
-          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : item.model_kind === "NETWORK_ASSESSMENT_V1" ? <NetworkRecommendation key={item.id} item={item} /> : (
+          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : item.model_kind === "NETWORK_ASSESSMENT_V1" ? <NetworkRecommendation key={item.id} item={item} /> : item.model_kind === "LAMBDA_ASSESSMENT_V1" ? <LambdaRecommendation key={item.id} item={item} /> : (
             <Panel key={item.id} className="recommendation-card">
               <div className="recommendation-body">
                 <span className="recommendation-symbol">
@@ -698,6 +702,7 @@ export function RecommendationsPage({
         <Evidence record={inspect} onClose={() => setInspect(null)} />
       )}
       <NetworkRecommendationHistory />
+      <LambdaRecommendationHistory />
       {planFor && (
         <PlanForm
           recommendation={planFor}
@@ -2132,6 +2137,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
       <SourceTrust data={data} run={run} busy={busy} />
       <ObjectStorageSources data={data} run={run} busy={busy} />
       <NetworkSources data={data} run={run} busy={busy} />
+      <LambdaSources data={data} run={run} busy={busy} />
       <Suspense fallback={<p role="status">Loading commitment portfolio view…</p>}>
         <CommitmentPortfolio fixture={data.fixture} run={run} busy={busy} />
       </Suspense>

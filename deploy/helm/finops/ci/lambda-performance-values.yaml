@@ -1,0 +1,11 @@
+# Render only. Existing identities must be independently commissioned.
+lambdaPerformance:
+  enabled: true
+  issuer: https://machine.example.invalid/realms/performance
+  audience: finops-lambda-performance
+  jwksUrl: https://machine.example.invalid/realms/performance/protocol/openid-connect/certs
+  evidenceWriterSecret: finops-lambda-performance-writer
+  analyticsSecret: finops-lambda-performance-analytics
+  httpsEgressCidrs: [10.44.16.0/24]
+objectStorage:
+  endpoint: https://evidence.example.invalid

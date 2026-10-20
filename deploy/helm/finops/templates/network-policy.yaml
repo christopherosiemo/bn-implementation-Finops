@@ -14,7 +14,7 @@ metadata:
 spec:
   podSelector:
     matchExpressions:
-      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress, deployment-observer, hardware-reader, fleet-history-reader, fleet-assessment, database-assessor, storage-assessor, object-storage-assessor, network-assessor, fleet-capacity, fleet-decision, commitment-portfolio, commitment-portfolio-model]}
+      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress, deployment-observer, hardware-reader, fleet-history-reader, fleet-assessment, database-assessor, storage-assessor, object-storage-assessor, network-assessor, lambda-assessor, {{ if .Values.lambdaPerformance.enabled }}activity-ingress, {{ end }}fleet-capacity, fleet-decision, commitment-portfolio, commitment-portfolio-model]}
   policyTypes: [Egress]
   egress:
     - to:

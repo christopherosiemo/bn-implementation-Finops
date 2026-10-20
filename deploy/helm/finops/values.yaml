@@ -48,6 +48,7 @@ database:
     storage-assessor: finops-db-storage-analyst
     object-storage-assessor: finops-db-object-storage-analyst
     network-assessor: finops-db-network-analyst
+    lambda-assessor: finops-db-lambda-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -81,6 +82,9 @@ sources:
   # Existing ingester-only Secret: AWS_NETWORK_READ_BINDINGS_JSON.
   networkReadBindingsSecret: ""
   networkReadonlyEnabled: false
+  lambdaReadonlyEnabled: false
+  lambdaComputeOptimizerEnabled: false
+  lambdaReadBindingsSecret: ""
   ownershipArchiveTargetsSecret: ""
 hardware:
   # Live read-only observations only; never runs against AWS in fixture mode.
@@ -109,6 +113,22 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+lambdaPerformance:
+  # Existing writer/analytics identities only; no provider credentials.
+  enabled: false
+  issuer: ""
+  audience: finops-lambda-performance
+  jwksUrl: ""
+  evidenceWriterSecret: ""
+  analyticsSecret: ""
+  httpsEgressCidrs: []
+lambdaAssessor:
+  # Optional analytical LOGIN and version-only evidence reader; no AWS or execution credentials.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
 networkAssessor:
   # Separate read-only analytical LOGIN and version-only product evidence reader.
   enabled: false

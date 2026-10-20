@@ -301,6 +301,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	if objectErr != nil {
 		return nil, objectErr
 	}
+	lambdaPublications, lambdaErr := a.lambdaCoveragePublications(ctx, tx)
+	if lambdaErr != nil {
+		return nil, lambdaErr
+	}
 	networkPublications, networkErr := a.networkCoveragePublications(ctx, tx)
 	if networkErr != nil {
 		return nil, networkErr
@@ -360,6 +364,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	groups := map[string]*databaseCoverageTotals{}
 	objectGroups := map[string]*databaseCoverageTotals{}
 	networkGroups := map[string]*databaseCoverageTotals{}
+	lambdaGroups := map[string]*databaseCoverageTotals{}
 	networkComponents := map[string]map[string]*databaseCoverageTotals{}
 	groupFor := func(currency string) *databaseCoverageTotals {
 		if groups[currency] == nil {
@@ -402,6 +407,13 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			}
 			key := model.String(record, "SubAccountId") + "\x00" + model.String(record, "RegionId") + "\x00" + model.String(record, "ResourceId")
 			resource := resources[key]
+			isLambda := lambdaCharge(record)
+			if isLambda && resource == nil {
+				parts := strings.Split(model.String(record, "ResourceId"), ":")
+				if len(parts) >= 7 && parts[2] == "lambda" && parts[5] == "function" {
+					resource = resources[model.String(record, "SubAccountId")+"\x00"+model.String(record, "RegionId")+"\x00"+strings.Join(parts[:7], ":")]
+				}
+			}
 			networkComponent := networkCoverageComponent(record)
 			if networkComponent == "" && resource != nil && networkResource(resource) {
 				// Exact native resource attribution also retains credits and unfamiliar
@@ -420,6 +432,12 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 					networkComponents[networkComponent][currency] = newDatabaseCoverageTotals()
 				}
 				networkPartitions = append(networkPartitions, networkGroups[currency], networkComponents[networkComponent][currency])
+			}
+			if isLambda {
+				if lambdaGroups[currency] == nil {
+					lambdaGroups[currency] = newDatabaseCoverageTotals()
+				}
+				networkPartitions = append(networkPartitions, lambdaGroups[currency])
 			}
 			if e1 != nil || e2 != nil || !at.Before(until) {
 				group.known = false
@@ -486,7 +504,23 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				objectGroup.values["detected_spend"].Add(objectGroup.values["detected_spend"], cost)
 			}
 			category := "unsupported_spend"
-			if networkComponent != "" {
+			if isLambda {
+				category = "observation_only_spend"
+				if resource != nil && lambdaResource(resource) {
+					configuration := storageObject(resource["lambda_configuration"])
+					if model.String(configuration, "model") == "UNSUPPORTED" || model.String(configuration, "compute_type") == "MANAGED_INSTANCES" {
+						category = "unsupported_spend"
+					}
+					publication := lambdaPublications[model.String(resource, "id")]
+					if publication.currency == currency && publication.lines[databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId"))] {
+						category = "analysed_spend"
+					} else if publication.blocked {
+						category = "blocked_spend"
+					}
+				} else {
+					category = "unsupported_spend"
+				}
+			} else if networkComponent != "" {
 				if networkComponent != "UNSUPPORTED_NETWORK_COMPONENT" {
 					category = "observation_only_spend"
 				}
@@ -616,7 +650,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	for _, component := range componentNames {
 		components = append(components, model.Document{"component": component, "groups": networkCoverageRows(networkComponents[component], incomplete)})
 	}
-	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
+	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "lambda_groups": networkCoverageRows(lambdaGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
 }
 
 // Only an actually issued, unexpired v3 readiness with accepted financial

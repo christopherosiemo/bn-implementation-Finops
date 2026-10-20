@@ -228,6 +228,30 @@ jobs:
               grep -Fq 'finops/templates/network-assessor.yaml' /tmp/finops-network-refused.log
             fi
           done
+      - name: Check optional read-only Lambda analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml > /tmp/finops-lambda-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-lambda-assessor.yaml:/lambda.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /lambda.yaml && python deploy/tests/test_lambda_assessor_chart.py /default.yaml /lambda.yaml'
+          for unsafe in 'lambdaAssessor.evidenceReaderSecret=finops-db-api' 'lambdaAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'lambdaAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'lambdaAssessor.evidenceReaderSecret=finops-db-lambda-analyst' 'lambdaAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml --set "$unsafe" > /tmp/finops-lambda-refused.log 2>&1; then
+              echo "Unsafe Lambda assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-lambda-refused.log
+              grep -Fq 'finops/templates/lambda-assessor.yaml' /tmp/finops-lambda-refused.log
+            fi
+          done
+      - name: Check optional Lambda machine performance ingress
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-performance-values.yaml > /tmp/finops-lambda-performance.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-lambda-performance.yaml:/performance.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/tests/test_lambda_performance_chart.py /default.yaml /performance.yaml'
+          for unsafe in 'lambdaPerformance.evidenceWriterSecret=finops-db-api' 'lambdaPerformance.audience=finops' 'lambdaPerformance.httpsEgressCidrs[0]=0.0.0.0/0' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-performance-values.yaml --set "$unsafe" > /tmp/finops-lambda-performance-refused.log 2>&1; then exit 1; else test "$?" -eq 1; fi
+            grep -Fq 'finops/templates/lambda-performance.yaml' /tmp/finops-lambda-performance-refused.log
+          done
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
