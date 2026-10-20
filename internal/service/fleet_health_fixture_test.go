@@ -76,7 +76,7 @@ func newFleetCohortProtocolFixture(t *testing.T, greenCount ...int) *fleetCohort
 		return e
 	})
 	f.installObjective()
-	f.observe(time.Now().UTC().Truncate(time.Minute))
+	f.observeCurrentCohortWindow()
 	return f
 }
 
@@ -101,6 +101,49 @@ func (f *fleetCohortProtocolFixture) installObjective() {
 		}
 		return nil
 	})
+}
+
+// The oldest of the two complete minutes ends one minute before end. Near a
+// minute boundary it can cross SQL's unchanged two-minute receive limit while
+// this fixture serially records every member and its native projection.
+// Admit the whole common window from the real database receive clock with a
+// bounded margin; a wait never manufactures a future interval or changes limits.
+const fleetCohortObservationAdmissionMargin = 15 * time.Second
+
+func fleetCohortObservationAdmission(now time.Time) (time.Time, time.Duration) {
+	now = now.UTC()
+	end := now.Truncate(time.Minute)
+	remaining := end.Add(time.Minute).Sub(now)
+	if remaining < fleetCohortObservationAdmissionMargin {
+		return time.Time{}, remaining + 100*time.Millisecond
+	}
+	return end, 0
+}
+
+func (f *fleetCohortProtocolFixture) observeCurrentCohortWindow() {
+	f.t.Helper()
+	receiveTime := func() time.Time {
+		var now time.Time
+		f.must("finops_activity", func(tx *store.Tx) error {
+			return tx.QueryRow(f.ctx, "SELECT slo_receive_time()").Scan(&now)
+		})
+		return now
+	}
+	end, delay := fleetCohortObservationAdmission(receiveTime())
+	if delay > 0 {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-f.ctx.Done():
+			f.t.Fatal("actual cohort collection admission context ended")
+		case <-timer.C:
+		}
+		end, delay = fleetCohortObservationAdmission(receiveTime())
+		if delay > 0 {
+			f.t.Fatal("actual cohort collector missed its bounded admission window")
+		}
+	}
+	f.observe(end)
 }
 
 func (f *fleetCohortProtocolFixture) observe(end time.Time) {

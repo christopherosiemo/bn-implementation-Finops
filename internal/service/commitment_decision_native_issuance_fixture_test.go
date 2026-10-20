@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -293,15 +292,8 @@ func commitmentDecisionNativeArchive(t *testing.T, ctx context.Context, f *mutat
 	if err != nil {
 		return empty, nil, err
 	}
-	savedEnvironment := map[string]string{}
-	for _, key := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_EC2_METADATA_DISABLED", "AWS_ENDPOINT_URL_STS", "AWS_ENDPOINT_URL_S3", "AWS_ENDPOINT_URL", "AWS_PROFILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_CONFIG_FILE"} {
-		savedEnvironment[key] = os.Getenv(key)
-	}
-	defer func() {
-		for key, value := range savedEnvironment {
-			t.Setenv(key, value)
-		}
-	}()
+	restoreEnvironment := commitmentDecisionPreserveEnvironment(t, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_EC2_METADATA_DISABLED", "AWS_ENDPOINT_URL_STS", "AWS_ENDPOINT_URL_S3", "AWS_ENDPOINT_URL", "AWS_PROFILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_CONFIG_FILE")
+	defer restoreEnvironment()
 	transport := commitmentDecisionOriginalHTTPServer(t, originalBucket, resource.AccountID, role, externalID, policy, original.Objects)
 	bindings, _ := json.Marshal(map[string]source.AWSReadBinding{bindingID: {TenantID: f.tenant, PayerAccountID: resource.AccountID, AccountID: resource.AccountID, RoleARN: role, ExternalID: externalID, Region: resource.Region}})
 	target := commitmentarchive.Target{TenantID: f.tenant, SourceID: registration.ID, Review: original.Review}
