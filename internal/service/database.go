@@ -305,6 +305,13 @@ func (a *API) databaseRecommendationGet(ctx context.Context, t *store.Tx, id str
 	return a.databaseRecommendationCurrent(ctx, t, d)
 }
 func (a *API) databaseRecommendations(ctx context.Context, t *store.Tx) ([]model.Document, error) {
+	var hasDatabases bool
+	if e := t.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM entities WHERE tenant_id=$1 AND kind='resources' AND document->>'resource_type' IN ('RDS_INSTANCE','RDS_CLUSTER'))`, t.Tenant).Scan(&hasDatabases); e != nil {
+		return nil, e
+	}
+	if !hasDatabases {
+		return []model.Document{}, nil
+	}
 	rows, e := t.Query(ctx, `SELECT p.document FROM database_recommendation_publications p JOIN database_assessments a ON a.tenant_id=p.tenant_id AND a.id=p.assessment_id
  WHERE p.tenant_id=$1 AND NOT EXISTS(SELECT FROM database_recommendation_publications n WHERE n.tenant_id=p.tenant_id AND n.resource_id=p.resource_id AND (n.created_at,n.assessment_id)>(p.created_at,p.assessment_id)) ORDER BY p.created_at,p.assessment_id LIMIT 100`, t.Tenant)
 	if e != nil {

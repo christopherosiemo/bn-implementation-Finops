@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
@@ -13,6 +15,92 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+// The existing EC2 native browser deliberately installs only 001..036. Its
+// authenticated dashboard must not depend on optional 041 database tables.
+func TestDatabaseDashboardEC2LegacyPrefixWithoutOptionalDatabaseSchema(t *testing.T) {
+	f, _ := newFleetFixtureHTTPTest(t)
+	ctx := context.Background()
+	admin := databaseAssessmentTestAdmin(t, ctx, f)
+	dir := t.TempDir()
+	entries, err := os.ReadDir("../../migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := regexp.MustCompile(`^(00[1-9]|0[12][0-9]|03[0-6])_[a-z0-9_]+\.sql$`)
+	count := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !prefix.MatchString(entry.Name()) {
+			continue
+		}
+		raw, e := os.ReadFile(filepath.Join("../../migrations", entry.Name()))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = os.WriteFile(filepath.Join(dir, entry.Name()), raw, 0600); e != nil {
+			t.Fatal(e)
+		}
+		count++
+	}
+	if count != 36 {
+		t.Fatal("legacy browser schema prefix differs", count)
+	}
+	if err = admin.Migrate(ctx, dir); err != nil {
+		t.Fatal(err)
+	}
+	var absent bool
+	if err = admin.Pool.QueryRow(ctx, "SELECT to_regclass('public.database_recommendation_publications') IS NULL AND to_regclass('public.database_assessments') IS NULL").Scan(&absent); err != nil || !absent {
+		t.Fatal("legacy test unexpectedly installed optional database tables", err)
+	}
+	// Retain the exact missing-relation diagnosis independently of HTTP's
+	// deliberately bounded internal-error response. The failed read rolls back.
+	err = f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		_, e := tx.Exec(ctx, "SELECT 1 FROM database_recommendation_publications WHERE tenant_id=$1 LIMIT 1", f.tenant)
+		return e
+	})
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "42P01" {
+		t.Fatal("optional relation absence did not match native failure", err)
+	}
+	t.Log("legacy schema 001..036: optional database publications absent, SQLSTATE 42P01")
+	// A foreign tenant's RDS inventory must not turn this tenant's EC2-only
+	// dashboard into a database-module consumer.
+	resource := model.Document{"id": "database-other-tenant", "resource_type": "RDS_INSTANCE", "provider": "AWS", "provider_resource_id": "arn:aws:rds:eu-west-1:111122223333:db:other-tenant"}
+	if err = f.roles["ingester"].Do(ctx, f.tenant+"-other", func(tx *store.Tx) error {
+		_, e := tx.Create(ctx, "resources", resource)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	token := f.token(f.tenant, "legacy-dashboard", "PLATFORM_ADMIN")
+	code, dashboard := fleetNativeHTTPGet(t, f, "dashboard", token)
+	t.Logf("authenticated EC2-only legacy dashboard HTTP %d", code)
+	if code != 200 {
+		t.Fatal("EC2-only dashboard depends on optional database schema", code)
+	}
+	resources, ok := dashboard["resources"].([]any)
+	if !ok || len(resources) == 0 {
+		t.Fatal("legacy dashboard lost actual EC2 inventory")
+	}
+	for _, value := range resources {
+		row := databaseObject(value)
+		if model.String(row, "resource_type") == "RDS_INSTANCE" || model.String(row, "resource_type") == "RDS_CLUSTER" {
+			t.Fatal("foreign database inventory escaped tenant scope")
+		}
+	}
+	// With a database in the actual tenant, missing 041 remains a real error:
+	// the guard must not become a generic undefined-table fallback.
+	resource["id"] = "database-this-tenant"
+	if err = f.roles["ingester"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		_, e := tx.Create(ctx, "resources", resource)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ = fleetNativeHTTPGet(t, f, "dashboard", token); code != 500 {
+		t.Fatal("missing database module was hidden for actual database inventory", code)
+	}
+}
 
 // This exercises real authenticated API requests and a separately authenticated
 // analytical database login. Missing evidence is a persisted blocked result,

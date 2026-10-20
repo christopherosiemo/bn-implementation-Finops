@@ -51,3 +51,13 @@ The commissioned native browser case is excluded from ordinary discovery unless 
 **EXTERNAL_ACCEPTANCE_REQUIRED:** actual AWS read-role access, genuine customer billing/telemetry history, confirmed ownership/SLOs and supervised customer commissioning after the relevant software path exists. No live AWS, production, customer-use or verified-savings credit is awarded.
 
 This package stops after the final commit and report. Commitment recommendations remain deferred; VM, Terraform-execution and Kubernetes candidates stay frozen. No cloud resources or database mutations were created.
+
+## EC2 dashboard compatibility follow-up
+
+The first final-source CI run [39419771672](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39419771672) exposed failures in the two existing fleet browser journeys. Their retained public diagnostics identify a broad sign-in/dashboard/navigation phase; the inner browser exception was not retained and is not reconstructed here.
+
+The shared browser fixture deliberately installs migrations 001–036. The new unconditional database-publication query made an EC2-only dashboard depend on absent 041 tables. A narrow tenant-scoped inventory predicate now avoids that optional query when the tenant has no canonical RDS resources. It does not catch missing-table errors or bypass database requirements for an actual RDS tenant. No schema, fixture, time budget, authority or permission was relaxed.
+
+Actual focused run `49ca4a15-de1d-4cb4-8991-51e1770acb13` passed all three selected tests with owned cleanup: native persisted database assessment (40.68 seconds), collector (10.74 seconds), and the real legacy-schema API regression (3.40 seconds). The latter independently observed SQLSTATE `42P01` from the old publication query, then authenticated dashboard HTTP 200; foreign-tenant RDS isolation and same-tenant missing-module refusal also passed. Receipt SHA-256: `10a3dfb3469cc9ab0b1a7447808a494a9618384d069071b59132a95ce1a4b116`.
+
+This compatibility repair earns no additional credit: official completion remains **25.9%**, the combined database/browser 120-second gate remains failed, and commitment acceptance remains deferred. The corrected source receives the full existing CI suite through PR #1. The preceding failed run is not relabelled green.
