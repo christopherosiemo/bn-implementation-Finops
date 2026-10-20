@@ -57,10 +57,10 @@ type commitmentDecisionNativeStages struct {
 	Snapshot                                                                        func() commitmentDecisionNativeStages
 }
 
-type commitmentDecisionStageFleetReader struct{ oldName, candidateName, oldARN, candidateARN, instance string }
+type commitmentDecisionStageFleetReader struct{ tenant, oldName, candidateName, oldARN, candidateARN, instance string }
 
 func (r commitmentDecisionStageFleetReader) FleetInventory(_ context.Context, region, account string, names []string) (provider.FleetInventoryEvidence, error) {
-	if region != "eu-west-1" || account != nativeAssessmentAccount || len(names) < 1 || len(names) > 2 {
+	if r.tenant == "" || region != "eu-west-1" || account != nativeAssessmentAccount || len(names) < 1 || len(names) > 2 {
 		return provider.FleetInventoryEvidence{}, errors.New("DECISION_STAGE_NATIVE_GROUP_SCOPE_DIFFERS")
 	}
 	ordered := append([]string{}, names...)
@@ -77,7 +77,7 @@ func (r commitmentDecisionStageFleetReader) FleetInventory(_ context.Context, re
 			count, version, arn = 1, 1, r.oldARN
 			members = fmt.Sprintf("<member><InstanceId>%s</InstanceId><AvailabilityZone>eu-west-1a</AvailabilityZone><LifecycleState>InService</LifecycleState><HealthStatus>Healthy</HealthStatus><LaunchTemplate><LaunchTemplateId>%s</LaunchTemplateId><Version>1</Version></LaunchTemplate></member>", r.instance, nativeAssessmentTemplate)
 		}
-		body += fmt.Sprintf("<member><AutoScalingGroupName>%s</AutoScalingGroupName><AutoScalingGroupARN>%s</AutoScalingGroupARN><MinSize>%d</MinSize><MaxSize>%d</MaxSize><DesiredCapacity>%d</DesiredCapacity><DesiredCapacityType>units</DesiredCapacityType><AvailabilityZones><member>eu-west-1a</member></AvailabilityZones><VPCZoneIdentifier>subnet-0123456789abcdef0</VPCZoneIdentifier><CapacityRebalance>false</CapacityRebalance><NewInstancesProtectedFromScaleIn>false</NewInstancesProtectedFromScaleIn><LaunchTemplate><LaunchTemplateId>%s</LaunchTemplateId><Version>%d</Version></LaunchTemplate><Instances>%s</Instances></member>", name, arn, count, count, count, nativeAssessmentTemplate, version, members)
+		body += fmt.Sprintf("<member><AutoScalingGroupName>%s</AutoScalingGroupName><AutoScalingGroupARN>%s</AutoScalingGroupARN><MinSize>%d</MinSize><MaxSize>%d</MaxSize><DesiredCapacity>%d</DesiredCapacity><DesiredCapacityType>units</DesiredCapacityType><AvailabilityZones><member>eu-west-1a</member></AvailabilityZones><VPCZoneIdentifier>subnet-0123456789abcdef0</VPCZoneIdentifier><CapacityRebalance>false</CapacityRebalance><NewInstancesProtectedFromScaleIn>false</NewInstancesProtectedFromScaleIn><Tags><member><Key>finops:tenant</Key><Value>%s</Value></member><member><Key>finops:environment</Key><Value>NON_PRODUCTION</Value></member></Tags><LaunchTemplate><LaunchTemplateId>%s</LaunchTemplateId><Version>%d</Version></LaunchTemplate><Instances>%s</Instances></member>", name, arn, count, count, count, r.tenant, nativeAssessmentTemplate, version, members)
 	}
 	body += "</AutoScalingGroups></DescribeAutoScalingGroupsResult></DescribeAutoScalingGroupsResponse>"
 	var parsed struct {
@@ -253,7 +253,7 @@ func commitmentDecisionIssueNativeStages(t *testing.T, ctx context.Context, f *m
 	if proof.SafetyProfileVersion < 1 {
 		return proof, errors.New("DECISION_STAGE_CURRENT_SAFETY_PROFILE_REQUIRED")
 	}
-	reader := commitmentDecisionStageFleetReader{oldName: oldName, candidateName: candidateName, oldARN: oldARN, candidateARN: candidateARN, instance: nativeID}
+	reader := commitmentDecisionStageFleetReader{tenant: f.tenant, oldName: oldName, candidateName: candidateName, oldARN: oldARN, candidateARN: candidateARN, instance: nativeID}
 	bucket := ""
 	archive := func(c context.Context, tenant, id string, raw []byte) (model.Document, error) {
 		ref, err := put(c, "tenant/"+tenant+"/fleet/"+id+"/"+source.BytesHash(raw)+".bin", raw)
