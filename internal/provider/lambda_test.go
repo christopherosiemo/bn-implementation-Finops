@@ -137,7 +137,7 @@ func TestLambdaPaginationThrottlingDenialAndScopeFailures(t *testing.T) {
 	if config["function_urls"] != nil || strings.Contains(string(d.Raw), "sensitive diagnostic") {
 		t.Fatal("denied metadata became empty complete source")
 	}
-	for _, bad := range []lambdacost.Scope{{"tenant-lambda", "999999999999", "eu-west-1"}, {"tenant-lambda", "111122223333", "us-east-1"}} {
+	for _, bad := range []lambdacost.Scope{{TenantID: "tenant-lambda", AccountID: "999999999999", Region: "eu-west-1"}, {TenantID: "tenant-lambda", AccountID: "111122223333", Region: "us-east-1"}} {
 		if _, e = reader.LambdaDiscover(context.Background(), bad, lambdacost.DiscoverySelection{}); e == nil {
 			t.Fatal("wrong native account/region accepted")
 		}
