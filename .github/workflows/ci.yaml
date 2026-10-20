@@ -734,7 +734,7 @@ jobs:
         with:
           node-version: "22"
       - name: Validate portfolio source, identity and local container boundaries
-        run: node --test scripts/tests/commitment-portfolio-browser.test.mjs
+        run: node --test scripts/tests/commitment-portfolio-browser.test.mjs scripts/tests/commitment-portfolio-diagnostic.test.mjs
       - name: Validate optional hosted portfolio identities, TLS and network isolation
         run: |
           mkdir -p /tmp/finops-portfolio-negative
@@ -768,6 +768,14 @@ jobs:
         with:
           name: commitment-portfolio-acceptance
           path: work/private/commitment-portfolio/*/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain encrypted native failure diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-portfolio-private-failure
+          path: work/private/commitment-portfolio/*/native-failure.encrypted.json
           if-no-files-found: error
           retention-days: 7
       - name: Stop only this fresh job's local services
