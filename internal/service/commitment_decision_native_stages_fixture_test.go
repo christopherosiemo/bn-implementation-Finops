@@ -515,8 +515,7 @@ func commitmentDecisionIssueNativeStages(t *testing.T, ctx context.Context, f *m
 		options.BaseEndpoint = aws.String("http://minio:9000")
 		options.UsePathStyle = true
 	})
-	httpClient := &http.Client{Timeout: 45 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	t.Cleanup(httpClient.CloseIdleConnections)
+	httpClient := commitmentDecisionAnalyticsClient(t)
 	storage := &native.Storage{S3: s3client, Bucket: bucket, Database: "finops", AnalyticsURL: "http://clickhouse:8123", AnalyticsUser: "finops", AnalyticsSecret: chSecret, Client: httpClient}
 	sql := func(statement string) error {
 		request, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://clickhouse:8123/?database=finops", strings.NewReader(statement))

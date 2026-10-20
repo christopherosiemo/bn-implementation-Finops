@@ -17,6 +17,7 @@ import (
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,54 @@ import (
 // No operation is allowed until root explicitly schedules this tagged lab.
 const decisionNativeSetupBudget = 15 * time.Minute
 const decisionNativeOverallBudget = 20 * time.Minute
+
+type commitmentDecisionMinioDisposal struct {
+	SchemaVersion string `json:"schema_version"`
+	Mode          string `json:"mode"`
+	RunID         string `json:"run_id"`
+	ContainerID   string `json:"container_id"`
+	ImageID       string `json:"image_id"`
+	Endpoint      string `json:"endpoint"`
+	Bucket        string `json:"bucket"`
+	OwnerTag      string `json:"owner_tag"`
+}
+
+// Only the no-argument owned lab supplies these private test values. This is
+// a deferred disposal request, never a cleanup success proof: the outer lab
+// must still inspect and remove the exact labelled tmpfs-backed container.
+func commitmentDecisionMinioCleanupScope(get func(string) string) (*commitmentDecisionMinioDisposal, error) {
+	mode, run, cid, image := get("COMMITMENT_PORTFOLIO_OWNED_MINIO_DISPOSAL"), get("COMMITMENT_PORTFOLIO_OWNED_MINIO_RUN_ID"), get("COMMITMENT_PORTFOLIO_OWNED_MINIO_CONTAINER_ID"), get("COMMITMENT_PORTFOLIO_OWNED_MINIO_IMAGE_ID")
+	if mode == "" && run == "" && cid == "" && image == "" {
+		return nil, nil
+	}
+	if mode != "OWNED_EPHEMERAL_MINIO_TMPFS_V1" || !regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`).MatchString(run) || run != get("COMMITMENT_PORTFOLIO_BROWSER_RUN_ID") || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(cid) || !regexp.MustCompile(`^sha256:[a-f0-9]{64}$`).MatchString(image) || get("COMMITMENT_PORTFOLIO_NATIVE_LAB") != "ISOLATED_VERSIONED_MINIO_CLICKHOUSE" || get("TEST_FLEET_HISTORY_S3_ENDPOINT") != "http://minio:9000" {
+		return nil, errors.New("owned private MinIO disposal context differs")
+	}
+	return &commitmentDecisionMinioDisposal{SchemaVersion: "1", Mode: mode, RunID: run, ContainerID: cid, ImageID: image, Endpoint: "http://minio:9000"}, nil
+}
+func TestCommitmentDecisionOwnedMinioDisposalContext(t *testing.T) {
+	scope, e := commitmentDecisionMinioCleanupScope(func(string) string { return "" })
+	if e != nil || scope != nil {
+		t.Fatal("general S3 cleanup path changed")
+	}
+	valid := map[string]string{"COMMITMENT_PORTFOLIO_OWNED_MINIO_DISPOSAL": "OWNED_EPHEMERAL_MINIO_TMPFS_V1", "COMMITMENT_PORTFOLIO_OWNED_MINIO_RUN_ID": "b912365d-3c0d-47a0-8ece-71ee1e64c951", "COMMITMENT_PORTFOLIO_BROWSER_RUN_ID": "b912365d-3c0d-47a0-8ece-71ee1e64c951", "COMMITMENT_PORTFOLIO_OWNED_MINIO_CONTAINER_ID": strings.Repeat("a", 64), "COMMITMENT_PORTFOLIO_OWNED_MINIO_IMAGE_ID": "sha256:" + strings.Repeat("b", 64), "COMMITMENT_PORTFOLIO_NATIVE_LAB": "ISOLATED_VERSIONED_MINIO_CLICKHOUSE", "TEST_FLEET_HISTORY_S3_ENDPOINT": "http://minio:9000"}
+	scope, e = commitmentDecisionMinioCleanupScope(func(k string) string { return valid[k] })
+	if e != nil || scope == nil || scope.RunID != valid["COMMITMENT_PORTFOLIO_BROWSER_RUN_ID"] {
+		t.Fatal("exact private disposal context refused")
+	}
+	for key := range valid {
+		t.Run(key, func(t *testing.T) {
+			mutated := map[string]string{}
+			for k, v := range valid {
+				mutated[k] = v
+			}
+			mutated[key] = "wrong"
+			if _, e := commitmentDecisionMinioCleanupScope(func(k string) string { return mutated[k] }); e == nil {
+				t.Fatal("mismatched private disposal context accepted")
+			}
+		})
+	}
+}
 
 func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *testing.T) {
 	if os.Getenv("COMMITMENT_PORTFOLIO_NATIVE_LAB") != "ISOLATED_VERSIONED_MINIO_CLICKHOUSE" {
@@ -53,7 +102,14 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 	commitmentPortfolioCheckModelAuthentication(t, ctx)
 	archive := s3.NewFromConfig(aws.Config{Region: "eu-west-1", Credentials: credentials.NewStaticCredentialsProvider(access, secret, "")}, func(o *s3.Options) { o.BaseEndpoint = aws.String("http://minio:9000"); o.UsePathStyle = true })
 	bucket := "native-portfolio-" + strings.ReplaceAll(model.ID(), "-", "")
+	cleanupScope, cleanupScopeError := commitmentDecisionMinioCleanupScope(os.Getenv)
+	if cleanupScopeError != nil {
+		t.Fatal(cleanupScopeError)
+	}
 	owner := model.ID()
+	if cleanupScope != nil {
+		owner = cleanupScope.RunID
+	}
 	if _, e := archive.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); e != nil {
 		t.Fatal(e)
 	}
@@ -72,6 +128,19 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 		}
 		if !owned {
 			t.Error("portfolio archive cleanup ownership differs")
+			return
+		}
+		if cleanupScope != nil {
+			// GetBucketTagging above must have authenticated this exact run tag.
+			if owner != cleanupScope.RunID || len(tags.TagSet) != 1 || aws.ToString(tags.TagSet[0].Key) != "finops-portfolio-owner" || aws.ToString(tags.TagSet[0].Value) != cleanupScope.RunID {
+				t.Error("owned MinIO disposal owner differs")
+				return
+			}
+			deferred := *cleanupScope
+			deferred.Bucket, deferred.OwnerTag = bucket, owner
+			if _, e := fleetCapacityBrowserWrite("/results/decision-native-minio-disposal.json", deferred); e != nil {
+				t.Errorf("owned MinIO deferred disposal marker failed: %v", e)
+			}
 			return
 		}
 		pages := s3.NewListObjectVersionsPaginator(archive, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
@@ -327,7 +396,14 @@ func TestCommitmentDecisionNativeStagesDiagnostic(t *testing.T) {
 	commitmentPortfolioCheckModelAuthentication(t, ctx)
 	archive := s3.NewFromConfig(aws.Config{Region: "eu-west-1", Credentials: credentials.NewStaticCredentialsProvider(access, secret, "")}, func(o *s3.Options) { o.BaseEndpoint = aws.String("http://minio:9000"); o.UsePathStyle = true })
 	bucket := "native-portfolio-" + strings.ReplaceAll(model.ID(), "-", "")
+	cleanupScope, cleanupScopeError := commitmentDecisionMinioCleanupScope(os.Getenv)
+	if cleanupScopeError != nil {
+		t.Fatal(cleanupScopeError)
+	}
 	owner := model.ID()
+	if cleanupScope != nil {
+		owner = cleanupScope.RunID
+	}
 	if _, e := archive.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); e != nil {
 		t.Fatal(e)
 	}
@@ -346,6 +422,19 @@ func TestCommitmentDecisionNativeStagesDiagnostic(t *testing.T) {
 		}
 		if !owned {
 			t.Error("portfolio archive cleanup ownership differs")
+			return
+		}
+		if cleanupScope != nil {
+			// GetBucketTagging above must have authenticated this exact run tag.
+			if owner != cleanupScope.RunID || len(tags.TagSet) != 1 || aws.ToString(tags.TagSet[0].Key) != "finops-portfolio-owner" || aws.ToString(tags.TagSet[0].Value) != cleanupScope.RunID {
+				t.Error("owned MinIO disposal owner differs")
+				return
+			}
+			deferred := *cleanupScope
+			deferred.Bucket, deferred.OwnerTag = bucket, owner
+			if _, e := fleetCapacityBrowserWrite("/results/decision-native-minio-disposal.json", deferred); e != nil {
+				t.Errorf("owned MinIO deferred disposal marker failed: %v", e)
+			}
 			return
 		}
 		pages := s3.NewListObjectVersionsPaginator(archive, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
