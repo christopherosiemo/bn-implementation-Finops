@@ -110,8 +110,13 @@ func (p *Pipeline) Capture(parent context.Context, target Target) (portfolio.Dec
 		return none, errors.New("OWNERSHIP_ARCHIVE_REVIEW_SCOPE_INVALID")
 	}
 	replay = NewReplayCache(repository, p.Storage, envelope.Review.Objects)
-	reader.CachedObject = replay.Lookup
-	value, err := portfolio.VerifyDecisionOwnershipArchive(ctx, reader, target.SourceID, original.Data, envelope.Review.Query, time.Now().UTC())
+	window, err := newArchiveObjectWindow(envelope.Review.Objects)
+	if err != nil {
+		return none, err
+	}
+	window.lookup, window.read, window.write = replay.Lookup, reader.ArchiveObject, p.Storage.Witness
+	repository.Archive = window.mirror
+	value, err := portfolio.VerifyDecisionOwnershipArchive(ctx, archiveWindowReader{reader, window}, target.SourceID, original.Data, envelope.Review.Query, time.Now().UTC())
 	if err != nil {
 		return none, err
 	}

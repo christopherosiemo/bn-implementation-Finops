@@ -115,6 +115,11 @@ func (s *Storage) WriteFacts(ctx context.Context, tenant, batchID string, b tele
 	q.Set("query", "INSERT INTO native_metric_samples FORMAT JSONEachRow")
 	q.Set("date_time_input_format", "best_effort")
 	q.Set("insert_deduplicate", "1")
+	// Shrink unused column capacity before MergeTree sorts/writes the block.
+	// Unlike changing insertion block limits, this retains existing block/token
+	// boundaries for an exact retry, including an older partial insertion.
+	q.Set("shrink_over_allocated_columns_min_waste_ratio", "1.1")
+	q.Set("shrink_over_allocated_columns_min_waste_bytes", "1048576")
 	canonicalHash := telemetry.CanonicalHash(b)
 	q.Set("insert_deduplication_token", tenant+":"+batchID+":"+canonicalHash)
 	u.RawQuery = q.Encode()
@@ -149,6 +154,8 @@ func (s *Storage) WriteFacts(ctx context.Context, tenant, batchID string, b tele
 		}
 	}
 	q.Set("query", "INSERT INTO native_metric_batches FORMAT JSONEachRow")
+	q.Del("shrink_over_allocated_columns_min_waste_ratio")
+	q.Del("shrink_over_allocated_columns_min_waste_bytes")
 	q.Set("insert_deduplication_token", tenant+":"+batchID+":batch:"+canonicalHash)
 	u.RawQuery = q.Encode()
 	batchBody, _ := json.Marshal(model.Document{"tenant_id": tenant, "batch_id": batchID, "connection_id": b.ConnectionID, "config_hash": b.ConfigHash, "canonical_hash": canonicalHash, "sample_count": len(b.Samples), "raw_sha256": b.RawSHA256})

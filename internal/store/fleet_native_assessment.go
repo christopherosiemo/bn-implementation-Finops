@@ -24,6 +24,22 @@ func fleetNativeHash(v any) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// The broker accepts a fourteen-day baseline ending at an actual complete UTC
+// billing day no more than forty-eight hours old. Only these calendar heads can
+// intersect that baseline. Whole jobs are retained and bounded after selection.
+func fleetNativeBillingCheckpointKeys(config string, now time.Time) []string {
+	now = now.UTC()
+	start := now.Add(-16 * 24 * time.Hour)
+	month := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
+	last := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	keys := []string{}
+	for !month.After(last) {
+		keys = append(keys, "month:"+config+":"+month.Format("2006-01"))
+		month = month.AddDate(0, 1, 0)
+	}
+	return keys
+}
+
 func (t *Tx) FleetNativeSelectionCurrent(ctx context.Context, oldID, candidateID string) (g.Binding, error) {
 	var out g.Binding
 	var raw []byte
@@ -210,7 +226,7 @@ func (t *Tx) FleetNativeAssessmentSnapshot(ctx context.Context, requestID string
 	if commitment == nil {
 		commitment = model.Document{}
 	}
-	heads, e := t.sourceRows(ctx, `SELECT r.document||jsonb_build_object('writer_role',r.writer_role,'created_at',r.created_at,'_selected_head',c.document->>'receipt_id') FROM public.source_checkpoints c JOIN public.source_receipts r ON r.tenant_id=c.tenant_id AND r.id=c.document->>'receipt_id' WHERE c.tenant_id=$1 AND c.source_id=$2 AND c.checkpoint_key LIKE $3 AND r.kind='AWS_CUR2' AND r.source_id=$2 ORDER BY c.checkpoint_key LIMIT 25`, t.Tenant, current.Old.SourceID, "month:"+current.Old.SourceConfigSHA256+":%")
+	heads, e := t.sourceRows(ctx, `SELECT r.document||jsonb_build_object('writer_role',r.writer_role,'created_at',r.created_at,'_selected_head',c.document->>'receipt_id') FROM public.source_checkpoints c JOIN public.source_receipts r ON r.tenant_id=c.tenant_id AND r.id=c.document->>'receipt_id' WHERE c.tenant_id=$1 AND c.source_id=$2 AND c.checkpoint_key=ANY($3::text[]) AND r.kind='AWS_CUR2' AND r.source_id=$2 ORDER BY c.checkpoint_key LIMIT 25`, t.Tenant, current.Old.SourceID, fleetNativeBillingCheckpointKeys(current.Old.SourceConfigSHA256, time.Now().UTC()))
 	if e != nil {
 		return nil, e
 	}

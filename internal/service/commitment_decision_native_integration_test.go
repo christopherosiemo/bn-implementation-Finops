@@ -277,6 +277,131 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 	t.Log("Actual native decision: simulated provider-shaped full hourly history, actual source/CH/versioned app mirror and archive Pipeline; actual public PREPARE/model + positive/DNP + dedicated daemon + independent Finance PKCE/persisted replay; no live history, purchase, execution or verified savings claim")
 }
 
+// Focused diagnostic only. The public lab selects its original full test exactly;
+// this separate entry never substitutes for original ownership/native acceptance.
+func TestCommitmentDecisionNativeStagesDiagnostic(t *testing.T) {
+	if os.Getenv("COMMITMENT_PORTFOLIO_NATIVE_LAB") != "ISOLATED_VERSIONED_MINIO_CLICKHOUSE" {
+		t.Fatal("explicit decision native lab mode required")
+	}
+	if os.Getenv("TEST_FLEET_HISTORY_S3_ENDPOINT") != "http://minio:9000" || os.Getenv("FLEET_CAPACITY_CLICKHOUSE_URL") != "http://clickhouse:8123" {
+		t.Fatal("portfolio isolated endpoint boundary differs")
+	}
+	modelToken := os.Getenv("TEST_COMMITMENT_PORTFOLIO_MODEL_TOKEN")
+	access, secret := os.Getenv("TEST_FLEET_HISTORY_S3_ACCESS_KEY"), os.Getenv("TEST_FLEET_HISTORY_S3_SECRET_KEY")
+	if len(modelToken) < 32 || access == "" || secret == "" || modelToken == secret {
+		t.Fatal("portfolio private service credentials unavailable")
+	}
+	f, admin, _, _ := newFleetNativeHTTPTest(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	setupCtx := ctx
+	if err := admin.Migrate(ctx, "../../migrations"); err != nil {
+		t.Fatal("decision native schema unavailable", err)
+	}
+	analyst := commitmentPortfolioNativeRuntime(t, ctx, admin, f.tenant)
+	commitmentPortfolioAssertSharedRoleMigration(t, ctx, admin)
+	commitmentPortfolioCheckModelAuthentication(t, ctx)
+	archive := s3.NewFromConfig(aws.Config{Region: "eu-west-1", Credentials: credentials.NewStaticCredentialsProvider(access, secret, "")}, func(o *s3.Options) { o.BaseEndpoint = aws.String("http://minio:9000"); o.UsePathStyle = true })
+	bucket := "native-portfolio-" + strings.ReplaceAll(model.ID(), "-", "")
+	owner := model.ID()
+	if _, e := archive.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := archive.PutBucketTagging(ctx, &s3.PutBucketTaggingInput{Bucket: aws.String(bucket), Tagging: &s3types.Tagging{TagSet: []s3types.Tag{{Key: aws.String("finops-portfolio-owner"), Value: aws.String(owner)}}}}); e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() {
+		c, stop := context.WithTimeout(context.Background(), 30*time.Second)
+		defer stop()
+		tags, e := archive.GetBucketTagging(c, &s3.GetBucketTaggingInput{Bucket: aws.String(bucket)})
+		owned := false
+		if e == nil {
+			for _, tag := range tags.TagSet {
+				owned = owned || aws.ToString(tag.Key) == "finops-portfolio-owner" && aws.ToString(tag.Value) == owner
+			}
+		}
+		if !owned {
+			t.Error("portfolio archive cleanup ownership differs")
+			return
+		}
+		pages := s3.NewListObjectVersionsPaginator(archive, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
+		for pages.HasMorePages() {
+			page, e := pages.NextPage(c)
+			if e != nil || len(page.Versions)+len(page.DeleteMarkers) > 1000 {
+				t.Error("portfolio archive cleanup enumeration failed")
+				return
+			}
+			objects := []s3types.ObjectIdentifier{}
+			for _, v := range page.Versions {
+				objects = append(objects, s3types.ObjectIdentifier{Key: v.Key, VersionId: v.VersionId})
+			}
+			for _, v := range page.DeleteMarkers {
+				objects = append(objects, s3types.ObjectIdentifier{Key: v.Key, VersionId: v.VersionId})
+			}
+			if len(objects) > 0 {
+				out, e := archive.DeleteObjects(c, &s3.DeleteObjectsInput{Bucket: aws.String(bucket), Delete: &s3types.Delete{Objects: objects, Quiet: aws.Bool(true)}})
+				if e != nil || len(out.Errors) > 0 {
+					t.Error("portfolio archive version cleanup failed")
+					return
+				}
+			}
+		}
+		if _, e = archive.DeleteBucket(c, &s3.DeleteBucketInput{Bucket: aws.String(bucket)}); e != nil {
+			t.Error("portfolio archive bucket cleanup failed")
+		}
+	})
+	if _, e := archive.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{Bucket: aws.String(bucket), VersioningConfiguration: &s3types.VersioningConfiguration{Status: s3types.BucketVersioningStatusEnabled}}); e != nil {
+		t.Fatal(e)
+	}
+	put := func(c context.Context, key string, raw []byte) (model.Document, error) {
+		t.Helper()
+		out, e := archive.PutObject(c, &s3.PutObjectInput{Bucket: aws.String(bucket), Key: aws.String(key), Body: bytes.NewReader(raw)})
+		if e != nil || out.VersionId == nil || aws.ToString(out.VersionId) == "null" {
+			return nil, errors.New("DECISION_NATIVE_APP_VERSION_WRITE_FAILED")
+		}
+		back, e := archive.GetObject(c, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key), VersionId: out.VersionId})
+		if e != nil {
+			return nil, errors.New("DECISION_NATIVE_APP_VERSION_READ_FAILED")
+		}
+		body, e := io.ReadAll(io.LimitReader(back.Body, (32<<20)+1))
+		_ = back.Body.Close()
+		if e != nil || len(body) > 32<<20 || !bytes.Equal(body, raw) || aws.ToString(back.VersionId) != aws.ToString(out.VersionId) {
+			return nil, errors.New("DECISION_NATIVE_APP_VERSION_BYTES_DIFFER")
+		}
+		return model.Document{"bucket": bucket, "key": key, "version_id": aws.ToString(out.VersionId), "body_sha256": source.BytesHash(raw)}, nil
+	}
+	t.Log("PRIVATE_STAGE_FACTORY_DIAGNOSTIC: actual native035/036/037 adapters; original ownership archive, financial advice and Finance journey are deliberately outside this component test")
+	if err := commitmentDecisionNativeDeclarations(setupCtx, f); err != nil {
+		t.Fatal("stage diagnostic native declarations failed", err)
+	}
+	history, err := commitmentDecisionIssueNativeHistory(t, setupCtx, f, decisionNativeSource, decisionNativeID, put)
+	if err != nil {
+		t.Fatal("stage diagnostic actual monthly native billing issuance failed", err)
+	}
+	if history.NativeHourlyRows < 23376 || history.AnalyticsReadbacks != history.NativeHourlyRows {
+		t.Fatal("stage diagnostic complete native hourly source/readback differs")
+	}
+	var refreshArtifact func(context.Context) error
+	scope, err := commitmentDecisionNativeCurrentArtifact(t, setupCtx, f, admin, analyst, archive, put, &refreshArtifact)
+	if err != nil {
+		t.Fatal("stage diagnostic actual current attestor/readback failed", err)
+	}
+	if len(scope.Resources) != 1 || scope.Resources[0].ProviderResourceID != decisionNativeID {
+		t.Fatal("stage diagnostic actual bound artifact resource differs")
+	}
+	if err = history.Refresh(setupCtx); err != nil {
+		t.Fatal("stage diagnostic current financial source refresh failed", err)
+	}
+	stages, err := commitmentDecisionIssueNativeStages(t, setupCtx, f, admin, decisionNativeSource, decisionNativeWorkload, decisionNativeResource, decisionNativeID, put, os.Getenv("TEST_COMMITMENT_PORTFOLIO_NORMALIZER_TOKEN"))
+	if err != nil {
+		t.Fatal("stage diagnostic actual035/036/037 issuance failed", err)
+	}
+	if stages.AssessmentRequestID == "" || stages.CapacityRequestID == "" || stages.JointRequestID == "" || stages.JointDecisionID == "" || len(stages.NativePins) != 1 {
+		t.Fatal("stage diagnostic persisted actual stage references absent")
+	}
+	t.Log("PRIVATE_STAGE_FACTORY_DIAGNOSTIC_PASS: actual monthly native CUR/CH/versioned archive and bound current artifact,035/036/037 persisted current baseline with unknown money; no original historical ownership, advice, Finance or native acceptance claim")
+}
+
 func commitmentDecisionNativePolicy(ctx context.Context, f *mutationReplayFixture, admin *store.Store, scope portfolio.DecisionOwnershipScope, stages commitmentDecisionNativeStages) error {
 	var revision int64
 	if err := admin.Pool.QueryRow(ctx, "SELECT coalesce(max(revision),0)+1 FROM commitment_optimization_policies WHERE tenant_id=$1 AND workload_id=$2", f.tenant, decisionNativeWorkload).Scan(&revision); err != nil {

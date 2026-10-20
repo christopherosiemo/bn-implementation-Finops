@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -282,14 +283,15 @@ func TestFleetNativeAssessmentPredecodeSelectedJobBudgets(t *testing.T) {
 			request := fleetNativeRequest(t, f, pair)
 			// These deliberately synthetic ingester headers select oversized private
 			// jobs. No billing decoder or conditional amount is reached or claimed.
-			for n := 0; n < 2; n++ {
+			keys := fleetNativeBillingCheckpointKeys(f.registration.SourceConfigHash, time.Now().UTC())
+			for n, key := range keys {
 				id := "oversized-job-" + strconv.Itoa(n)
 				records := []any{model.Document{}}
 				job := model.Document{"id": id, "status": "PERSISTED", "raw": model.Document{"records": records}}
 				if which == "aggregate-bytes" {
-					job["padding"] = strings.Repeat("x", 17<<20)
+					job["padding"] = strings.Repeat("x", (32<<20)/len(keys)+(1<<20))
 				} else {
-					records = make([]any, 50001)
+					records = make([]any, 100000/len(keys)+1)
 					for i := range records {
 						records[i] = model.Document{}
 					}
@@ -302,7 +304,7 @@ func TestFleetNativeAssessmentPredecodeSelectedJobBudgets(t *testing.T) {
 					}
 					revision := "budget-revision-" + strconv.Itoa(n)
 					receipt := "budget-receipt-" + strconv.Itoa(n)
-					period := time.Now().UTC().AddDate(0, -n, 0).Format("2006-01") + "-01T00:00:00Z"
+					period := strings.TrimPrefix(key, "month:"+f.registration.SourceConfigHash+":") + "-01T00:00:00Z"
 					_, e = tx.SourceRevisionCreate(f.ctx, model.Document{"id": revision, "source_id": f.registration.SourceID, "revision_hash": fleetNativeHash(model.Document{"id": revision}), "config_hash": f.registration.SourceConfigHash})
 					if e != nil {
 						return e
@@ -311,7 +313,7 @@ func TestFleetNativeAssessmentPredecodeSelectedJobBudgets(t *testing.T) {
 					if e != nil {
 						return e
 					}
-					return tx.SourceCheckpointSet(f.ctx, f.registration.SourceID, "month:"+f.registration.SourceConfigHash+":"+period, model.Document{"receipt_id": receipt})
+					return tx.SourceCheckpointSet(f.ctx, f.registration.SourceID, key, model.Document{"receipt_id": receipt})
 				})
 			}
 			if e := f.run("finops_group_assessor", func(tx *Tx) error {
@@ -329,6 +331,111 @@ func TestFleetNativeAssessmentPredecodeSelectedJobBudgets(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestFleetNativeBillingCheckpointKeysUTCWindow(t *testing.T) {
+	for _, test := range []struct {
+		name, at string
+		months   []string
+	}{
+		{"same-month", "2026-10-20T02:00:00Z", []string{"2026-10"}},
+		{"month-start", "2026-11-01T00:00:00Z", []string{"2026-10", "2026-11"}},
+		{"year-boundary", "2026-01-10T02:00:00Z", []string{"2025-12", "2026-01"}},
+		{"leap-month", "2024-03-01T00:00:00Z", []string{"2024-02", "2024-03"}},
+		{"local-next-month-is-utc-previous", "2024-03-01T00:30:00+02:00", []string{"2024-02"}},
+		{"local-previous-month-is-utc-next", "2026-10-31T23:30:00-02:00", []string{"2026-10", "2026-11"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			at, err := time.Parse(time.RFC3339, test.at)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := []string{}
+			for _, month := range test.months {
+				want = append(want, "month:actual-config:"+month)
+			}
+			if actual := fleetNativeBillingCheckpointKeys("actual-config", at); !reflect.DeepEqual(actual, want) || len(actual) < 1 || len(actual) > 2 {
+				t.Fatal("possible fourteen-day/forty-eight-hour UTC head set differs", actual, want)
+			}
+		})
+	}
+}
+
+func TestFleetNativeAssessmentSnapshotIgnoresUnrelatedOldMonthsAndKeepsCorrections(t *testing.T) {
+	f, pair := newFleetNativeAssessmentTest(t)
+	request := fleetNativeRequest(t, f, pair)
+	config := f.registration.SourceConfigHash
+	now := time.Now().UTC()
+	keys := fleetNativeBillingCheckpointKeys(config, now)
+	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	write := func(id, key, padding string) {
+		t.Helper()
+		f.must("finops_ingester", func(tx *Tx) error {
+			// Issued ingester metadata doubles test only bounded head selection;
+			// they do not establish native billing/financial authority.
+			job := model.Document{"id": id + "-job", "raw": model.Document{"records": []any{model.Document{"native_record": "first"}, model.Document{"native_record": "second"}, model.Document{"native_record": "third"}}}, "padding": padding}
+			if _, err := tx.Create(f.ctx, "ingestion_jobs", job); err != nil {
+				return err
+			}
+			if _, err := tx.SourceRevisionCreate(f.ctx, model.Document{"id": id + "-revision", "source_id": f.registration.SourceID, "revision_hash": fleetNativeHash(job)}); err != nil {
+				return err
+			}
+			if _, err := tx.SourceReceiptCreate(f.ctx, model.Document{"id": id, "source_id": f.registration.SourceID, "revision_id": id + "-revision", "kind": "AWS_CUR2", "config_hash": config, "ingestion_job_id": id + "-job"}); err != nil {
+				return err
+			}
+			return tx.SourceCheckpointSet(f.ctx, f.registration.SourceID, key, model.Document{"receipt_id": id})
+		})
+	}
+	for n := 0; n < 33; n++ {
+		write("irrelevant-old-month-"+strconv.Itoa(n), "month:"+config+":"+month.AddDate(0, -n-2, 0).Format("2006-01"), strings.Repeat("x", 1<<20))
+	}
+	expected := map[string]bool{}
+	for n, key := range keys {
+		id := "relevant-current-month-" + strconv.Itoa(n)
+		write(id, key, "whole-current-job")
+		expected[id] = true
+	}
+	read := func(want map[string]bool) model.Document {
+		t.Helper()
+		var snapshot model.Document
+		f.must("finops_group_assessor", func(tx *Tx) error {
+			var err error
+			snapshot, err = tx.FleetNativeAssessmentSnapshot(f.ctx, model.String(request, "id"))
+			return err
+		})
+		var billing []model.Document
+		if fleetFixtureDecode(snapshot["billing"], &billing) != nil || len(billing) != len(want) {
+			t.Fatal("irrelevant monthly history displaced the actual baseline heads")
+		}
+		for _, selected := range billing {
+			receipt, revision, job := sourceDocument(selected["receipt"]), sourceDocument(selected["revision"]), sourceDocument(selected["job"])
+			id := model.String(receipt, "id")
+			var records []model.Document
+			if !want[id] || model.String(selected, "current_receipt_id") != id || model.String(revision, "id") != id+"-revision" || model.String(job, "id") != id+"-job" || fleetFixtureDecode(sourceDocument(job["raw"])["records"], &records) != nil || len(records) != 3 {
+				t.Fatal("selected whole receipt/revision/job/head population changed")
+			}
+		}
+		return snapshot
+	}
+	snapshot := read(expected)
+	old := unavailableFleetNativeResult(request, snapshot)
+	write("relevant-current-month-correction", keys[0], "whole-corrected-job")
+	delete(expected, "relevant-current-month-0")
+	expected["relevant-current-month-correction"] = true
+	read(expected)
+	if err := f.run("finops_group_assessor", func(tx *Tx) error {
+		_, _, err := tx.FleetNativeAssessmentAppend(f.ctx, model.String(request, "id"), fleetNativeHash(snapshot), old)
+		return err
+	}); !errors.Is(err, ErrFleetNativeEvidence) {
+		t.Fatal("current monthly correction accepted an old snapshot", err)
+	}
+	f.must("finops_api", func(tx *Tx) error {
+		current, err := tx.FleetNativeAssessmentGet(f.ctx, model.String(request, "id"))
+		if err == nil && current["assessment"] != nil {
+			return errors.New("stale head refusal published an assessment")
+		}
+		return err
+	})
 }
 
 func TestFleetNativeAssessmentNativeHeadSameInstantConflict(t *testing.T) {

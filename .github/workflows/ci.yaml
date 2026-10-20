@@ -75,7 +75,7 @@ jobs:
           curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
       - name: Go tests and vet in container
         run: |
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... -timeout=25m && go vet ./...'
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... -timeout=25m && go test -race -count=1 ./internal/commitmentarchive -timeout=3m && go vet ./...'
       - name: Stop isolated economics worker
         if: always()
         run: docker rm -f economics-tests || true
