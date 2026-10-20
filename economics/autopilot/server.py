@@ -11,6 +11,7 @@ from .v2 import evaluate_v2
 from .v3 import evaluate_v3
 from .native import normalize_v3
 from .capacity import evaluate_capacity
+from .database import evaluate_database, unique_object as database_unique_object
 
 MAX_BODY = 64 * 1024 * 1024
 
@@ -46,7 +47,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(404, {"error": "not_found"})
 
     def do_POST(self):
-        if self.path not in ("/v4/capacity", "/v3/evaluate", "/v3/normalize", "/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
+        if self.path not in ("/v7/database-assessment", "/v4/capacity", "/v3/evaluate", "/v3/normalize", "/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
             return self.reply(404, {"error": "not_found"})
         try:
             expected = runtime_token()
@@ -68,8 +69,11 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/normalize/csv":
                 data = {"records": list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))), "source_id": self.headers.get("X-Source-Id"), "source_version": self.headers.get("X-Source-Version")}
             else:
-                data = json.loads(raw, parse_float=Decimal, parse_constant=lambda _: (_ for _ in ()).throw(EvidenceError("non-finite number")))
-            if self.path == "/v4/capacity":
+                data = json.loads(raw, parse_float=Decimal, parse_constant=lambda _: (_ for _ in ()).throw(EvidenceError("non-finite number")),
+                                  object_pairs_hook=database_unique_object if self.path == "/v7/database-assessment" else dict)
+            if self.path == "/v7/database-assessment":
+                result = evaluate_database(data)
+            elif self.path == "/v4/capacity":
                 result = evaluate_capacity(data)
             elif self.path == "/v3/normalize":
                 result = normalize_v3(data)

@@ -333,6 +333,7 @@ function SafetyForm({
               end_time,
             }));
           const body: WorkloadSafetyRequest = {
+            ...(profile?.database ? { database: profile.database } : {}),
             schema_version: "1",
             criticality: criticality as WorkloadSafetyRequest["criticality"],
             statefulness: statefulness as WorkloadSafetyRequest["statefulness"],

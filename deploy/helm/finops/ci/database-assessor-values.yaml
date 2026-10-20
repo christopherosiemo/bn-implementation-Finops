@@ -1,0 +1,9 @@
+# Render-only values. Existing Secret names and documentation networks are not
+# credentials or provisioned infrastructure. Combine with aws-readonly-values.
+databaseAssessor:
+  enabled: true
+  evidenceReaderSecret: finops-database-evidence-reader
+  httpsEgressCidrs: [10.44.16.0/24]
+  postgresEgressCidrs: [10.44.32.0/24]
+objectStorage:
+  endpoint: https://evidence.example.invalid

@@ -63,7 +63,7 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   ).toBeVisible();
   const inventory = page.getByRole("table").filter({
     has: page.getByRole("columnheader", {
-      name: "Monthly compute",
+      name: "Monthly source cost",
       exact: true,
     }),
   });

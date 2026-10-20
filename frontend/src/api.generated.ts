@@ -4,6 +4,71 @@
  */
 
 export interface paths {
+    "/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listResources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/database-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDatabaseAssessments"];
+        put?: never;
+        /** @description IDs-only read-only assessment. Server resolves native inventory, metrics and economics. If-Match must be quoted zero; no prices, metrics, configurations or authority are accepted from the caller. */
+        post: operations["requestDatabaseAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/database-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDatabaseAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAssessmentCoverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/commitment-decision-inputs/{id}": {
         parameters: {
             query?: never;
@@ -1323,7 +1388,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["listRecommendations"];
         put?: never;
         post: operations["generateRecommendations"];
         delete?: never;
@@ -1656,6 +1721,174 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DatabaseLimits: {
+            connections_max_fraction: components["schemas"]["Decimal"];
+            iops_max_fraction: components["schemas"]["Decimal"];
+            throughput_max_fraction: components["schemas"]["Decimal"];
+            storage_max_fraction: components["schemas"]["Decimal"];
+            max_read_latency_seconds: components["schemas"]["Decimal"];
+            max_write_latency_seconds: components["schemas"]["Decimal"];
+            max_disk_queue_depth: components["schemas"]["Decimal"];
+            max_replica_lag_seconds: components["schemas"]["Decimal"];
+        };
+        DatabaseAssessmentRequest: {
+            resource_id: string;
+        };
+        /** @enum {string} */
+        DatabaseResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER";
+        /** @enum {string} */
+        DatabaseRecommendationKind: "DATABASE_IDLE_REVIEW" | "DATABASE_INSTANCE_RIGHTSIZE" | "DATABASE_REPLICA_REVIEW" | "DATABASE_SERVERLESS_CAPACITY" | "DATABASE_STORAGE_CONFIGURATION";
+        /** @description Server-issued configuration or immutable native reference projection. Response-only; never accepted as authoritative assessment input. */
+        DatabaseAssessmentObject: {
+            [key: string]: unknown;
+        };
+        DatabaseEvidenceWindow: {
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            observed_utc_days?: number;
+            required_utc_days?: number;
+            expected_member_hours?: number;
+            observed_member_hours?: number;
+            coverage_basis?: string;
+        };
+        DatabaseMetricDistribution: {
+            metric: string;
+            member_id: string;
+            unit: string;
+            /** @description Original explicit hourly statistic of native period values. Percentiles are of these period statistics */
+            statistic: string;
+            /** @enum {string} */
+            status: "NOT_APPLICABLE" | "COMPLETE" | "INCOMPLETE";
+            expected_hours: number;
+            observed_hours: number;
+            expected_sample_count: number | null;
+            sample_count: number;
+            /** @description Expected native one-minute sample count over all required member-hours; distinct from CloudWatch period bins. */
+            expected_native_sample_count: number | null;
+            native_sample_count: components["schemas"]["NullableDecimal"];
+            minimum: components["schemas"]["NullableDecimal"];
+            maximum: components["schemas"]["NullableDecimal"];
+            p50_of_period_statistics: components["schemas"]["NullableDecimal"];
+            p95_of_period_statistics: components["schemas"]["NullableDecimal"];
+            p99_of_period_statistics: components["schemas"]["NullableDecimal"];
+        };
+        DatabaseAssessmentEconomics: {
+            current_hourly_cost: components["schemas"]["NullableDecimal"];
+            current_monthly_cost: components["schemas"]["NullableDecimal"];
+            candidate_hourly_cost: components["schemas"]["NullableDecimal"];
+            candidate_monthly_cost: components["schemas"]["NullableDecimal"];
+            estimated_monthly_saving: components["schemas"]["NullableDecimal"];
+            estimated_annual_saving: components["schemas"]["NullableDecimal"];
+            currency: string | null;
+            basis: string;
+            /** @enum {string} */
+            status?: "UNAVAILABLE" | "CHEAPER" | "NO_CHANGE" | "NOT_CHEAPER";
+            continuing_costs_preserved?: boolean;
+            /** @enum {string|null} */
+            verified_saving?: null;
+        };
+        DatabaseAssessmentConfidence: {
+            /**
+             * @description Evidence-quality label; never a probability or guarantee.
+             * @enum {string}
+             */
+            status: "UNAVAILABLE" | "LOW" | "MEDIUM" | "HIGH";
+            reasons: string[];
+            /** @enum {string} */
+            meaning?: "OBSERVED_DEMAND_SCREEN_NOT_STATISTICAL_CONFIDENCE";
+        };
+        DatabaseAssessmentProposal: {
+            /** @enum {string} */
+            risk_class: "R3";
+            /** @enum {boolean} */
+            executable: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+        };
+        DatabaseProviderComparison: {
+            /** @description Full retained native Compute Optimizer recommendations, when observed. Availability alone does not establish comparable options or current public pricing. */
+            provider_recommendation: components["schemas"]["DatabaseAssessmentObject"][] | null;
+            our_recommendation: components["schemas"]["DatabaseAssessmentObject"];
+            /** @enum {string} */
+            difference: "UNAVAILABLE" | "MATCH" | "DIFFERENT";
+            reason_for_difference: string;
+        };
+        DatabaseAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            model_version?: string;
+            binding?: components["schemas"]["DatabaseAssessmentObject"];
+            decision_code?: string;
+            unsupported_opportunities?: string[];
+            model_assumptions?: string[];
+            assessment_hash?: string;
+            provider_comparison?: components["schemas"]["DatabaseProviderComparison"];
+            model_assessment_hash?: string;
+            resource_kind: components["schemas"]["DatabaseResourceKind"];
+            engine: string;
+            current_configuration: components["schemas"]["DatabaseAssessmentObject"] | null;
+            candidate_configuration: components["schemas"]["DatabaseAssessmentObject"] | null;
+            evidence_window: components["schemas"]["DatabaseEvidenceWindow"] | null;
+            metric_distributions: components["schemas"]["DatabaseMetricDistribution"][];
+            economics: components["schemas"]["DatabaseAssessmentEconomics"];
+            source_refs: components["schemas"]["DatabaseAssessmentObject"][];
+            blockers: string[];
+            confidence: components["schemas"]["DatabaseAssessmentConfidence"];
+            proposal: components["schemas"]["DatabaseAssessmentProposal"];
+            /** @enum {string|null} */
+            verified_saving: null;
+            candidates: components["schemas"]["DatabaseAssessmentObject"][];
+            recommendation_kind: components["schemas"]["DatabaseRecommendationKind"];
+            /** @enum {string} */
+            status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED";
+        };
+        DatabaseAssessmentRecord: {
+            id: string;
+            version: number;
+            resource_id: string;
+            workload_id: string | null;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "ASSESSED" | "BLOCKED" | "FAILED";
+            /** Format: date-time */
+            created_at: string;
+            /** @description Server-rechecked current source and configuration equality; missing does not assert currentness. */
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: components["schemas"]["DatabaseAssessment"] | null;
+        };
+        DatabaseResourcePage: {
+            items: components["schemas"]["Resource"][];
+            next_cursor: string | null;
+        };
+        DatabaseRecommendationPage: {
+            items: components["schemas"]["Recommendation"][];
+            next_cursor: string | null;
+        };
+        DatabaseAssessmentPage: {
+            items: components["schemas"]["DatabaseAssessmentRecord"][];
+            next_cursor: string | null;
+        };
+        AssessmentCoverageGroup: {
+            currency: string | null;
+            detected_spend: components["schemas"]["NullableDecimal"];
+            analysed_spend: components["schemas"]["NullableDecimal"];
+            observation_only_spend: components["schemas"]["NullableDecimal"];
+            blocked_spend: components["schemas"]["NullableDecimal"];
+            unsupported_spend: components["schemas"]["NullableDecimal"];
+            credits: components["schemas"]["NullableDecimal"];
+            net_spend: components["schemas"]["NullableDecimal"];
+            analysed_percent: components["schemas"]["NullableDecimal"];
+            /** @enum {string} */
+            basis: "POSITIVE_BILLED_CHARGES";
+            complete: boolean;
+        };
+        AssessmentCoverage: {
+            period: components["schemas"]["DatabaseEvidenceWindow"];
+            groups: components["schemas"]["AssessmentCoverageGroup"][];
+            blockers: string[];
+        };
         CommitmentDecisionPreparationSelection: {
             portfolio_analysis_request_id: string;
             offer_receipt_id: string;
@@ -4598,6 +4831,7 @@ export interface components {
             demand_multiplier_ppm: number;
         };
         WorkloadSafetyRequest: {
+            database?: components["schemas"]["DatabaseLimits"];
             /** @enum {string} */
             schema_version: "1";
             /** @enum {string} */
@@ -4632,6 +4866,7 @@ export interface components {
             vm_cooldown_seconds: number;
         };
         WorkloadSafetyProfile: {
+            database?: components["schemas"]["DatabaseLimits"];
             id: string;
             workload_id: string;
             version: number;
@@ -4712,8 +4947,8 @@ export interface components {
             mode: "ALWAYS" | "WINDOWS";
             /** @description Explicit IANA timezone */
             timezone: string;
-            /** @description Empty for ALWAYS; at least one same-day window for WINDOWS */
-            windows: components["schemas"]["SloAvailabilityWindow"][];
+            /** @description Empty or null for ALWAYS; an actual nonempty same-day array is required for WINDOWS. Null never proves WINDOWS availability. */
+            windows: components["schemas"]["SloAvailabilityWindow"][] | null;
         };
         SloRegression: {
             /** @description Requires a measurable frozen server-selected pre-plan latency baseline when enabled */
@@ -5083,6 +5318,10 @@ export interface components {
         };
         Resource: components["schemas"]["Document"] & {
             name?: string;
+            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER discriminator. */
+            resource_type?: string;
+            engine?: string;
+            engine_version?: string;
             provider_resource_id?: string;
             workload_id?: string;
             state?: string;
@@ -5093,9 +5332,16 @@ export interface components {
             currency?: string | null;
         };
         Recommendation: components["schemas"]["Document"] & {
+            /**
+             * @description Absent on legacy EC2 recommendations. Database advice never enables EC2 change plans.
+             * @enum {string}
+             */
+            model_kind?: "DATABASE_ASSESSMENT_V1";
+            database_assessment_id?: string;
+            assessment?: components["schemas"]["DatabaseAssessment"];
             title?: string;
             resource_id?: string;
-            workload_id?: string;
+            workload_id?: string | null;
             status?: string;
             reason_code?: string;
             annual_saving?: components["schemas"]["NullableDecimal"];
@@ -5395,6 +5641,190 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listResources: {
+        parameters: {
+            query?: {
+                resource_type?: components["schemas"]["DatabaseResourceKind"];
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Existing resource array or paginated native database resources when resource_type is selected. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resource"][] | components["schemas"]["DatabaseResourcePage"];
+                };
+            };
+            /** @description Resource scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listDatabaseAssessments: {
+        parameters: {
+            query?: {
+                /** @description Exact resource filter. Required for a scoped application owner; other permitted roles may read tenant-wide history. */
+                resource_id?: string;
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant-scoped persisted database assessment history; no execution authority. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseAssessmentPage"];
+                };
+            };
+            /** @description Scoped database read permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestDatabaseAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatabaseAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted queued request; all proposals remain non-executable R3 advice. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseAssessmentRecord"];
+                };
+            };
+            /** @description Scoped assessment write permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource is absent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getDatabaseAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable database assessment and its source-bound evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseAssessmentRecord"];
+                };
+            };
+            /** @description Scoped database read permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped assessment absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAssessmentCoverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All-AWS positive billed-charge denominator, separated by currency. Credits are shown separately; unknown or zero denominators have null analysed_percent. Coverage is not a savings or execution claim. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentCoverage"];
+                };
+            };
+            /** @description Tenant financial read permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getCommitmentDecisionPreparation: {
         parameters: {
             query?: never;
@@ -10078,6 +10508,40 @@ export interface operations {
                 };
             };
             413: components["responses"]["MutationBodyTooLarge"];
+        };
+    };
+    listRecommendations: {
+        parameters: {
+            query?: {
+                model_kind?: "DATABASE_ASSESSMENT_V1";
+                /** @description Exact resource filter for DATABASE_ASSESSMENT_V1 publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
+                resource_id?: string;
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Existing recommendation array, or scoped immutable database publication page when model_kind is selected. Currentness is server-derived. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendation"][] | components["schemas"]["DatabaseRecommendationPage"];
+                };
+            };
+            /** @description Requested resource or financial scope is not available to the authenticated actor. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     generateRecommendations: {

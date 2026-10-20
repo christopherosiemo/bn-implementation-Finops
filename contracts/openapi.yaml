@@ -8,6 +8,88 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /resources:
+    get:
+      operationId: listResources
+      parameters:
+        - name: resource_type
+          in: query
+          schema: { $ref: '#/components/schemas/DatabaseResourceKind' }
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Existing resource array or paginated native database resources when resource_type is selected.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { type: array, items: { $ref: '#/components/schemas/Resource' } }
+                  - { $ref: '#/components/schemas/DatabaseResourcePage' }
+        '403': { description: Resource scope denied. }
+  /database-assessments:
+    get:
+      operationId: listDatabaseAssessments
+      parameters:
+        - name: resource_id
+          in: query
+          description: Exact resource filter. Required for a scoped application owner; other permitted roles may read tenant-wide history.
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Tenant-scoped persisted database assessment history; no execution authority.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DatabaseAssessmentPage' }
+        '403': { description: Scoped database read permission required. }
+    post:
+      operationId: requestDatabaseAssessment
+      description: IDs-only read-only assessment. Server resolves native inventory, metrics and economics. If-Match must be quoted zero; no prices, metrics, configurations or authority are accepted from the caller.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DatabaseAssessmentRequest' }
+      responses:
+        '202':
+          description: Persisted queued request; all proposals remain non-executable R3 advice.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DatabaseAssessmentRecord' }
+        '403': { description: Scoped assessment write permission required. }
+        '409': { description: Idempotency conflict. }
+        '412': { description: Initial version precondition failed. }
+        '422': { description: Resource is absent, unsupported or outside the authenticated scope. }
+  /database-assessments/{id}:
+    get:
+      operationId: getDatabaseAssessment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable database assessment and its source-bound evidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DatabaseAssessmentRecord' }
+        '403': { description: Scoped database read permission required. }
+        '404': { description: Scoped assessment absent. }
+  /coverage:
+    get:
+      operationId: getAssessmentCoverage
+      responses:
+        '200':
+          description: All-AWS positive billed-charge denominator, separated by currency. Credits are shown separately; unknown or zero denominators have null analysed_percent. Coverage is not a savings or execution claim.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssessmentCoverage' }
+        '403': { description: Tenant financial read permission required. }
   /commitment-decision-inputs/{id}:
     get:
       operationId: getCommitmentDecisionPreparation
@@ -1962,6 +2044,30 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CloudAccount' }
   /recommendations:
+    get:
+      operationId: listRecommendations
+      parameters:
+        - name: model_kind
+          in: query
+          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1] }
+        - name: resource_id
+          in: query
+          description: Exact resource filter for DATABASE_ASSESSMENT_V1 publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Existing recommendation array, or scoped immutable database publication page when model_kind is selected. Currentness is server-derived.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { type: array, items: { $ref: '#/components/schemas/Recommendation' } }
+                  - { $ref: '#/components/schemas/DatabaseRecommendationPage' }
+        '403': { description: Requested resource or financial scope is not available to the authenticated actor. }
     post:
       operationId: generateRecommendations
       parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
@@ -2201,6 +2307,209 @@ components:
             properties:
               change_plan_id: { type: string }
   schemas:
+    DatabaseLimits:
+      type: object
+      additionalProperties: false
+      required: [connections_max_fraction, iops_max_fraction, throughput_max_fraction, storage_max_fraction, max_read_latency_seconds, max_write_latency_seconds, max_disk_queue_depth, max_replica_lag_seconds]
+      properties:
+        connections_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        iops_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        throughput_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        storage_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        max_read_latency_seconds: { $ref: '#/components/schemas/Decimal' }
+        max_write_latency_seconds: { $ref: '#/components/schemas/Decimal' }
+        max_disk_queue_depth: { $ref: '#/components/schemas/Decimal' }
+        max_replica_lag_seconds: { $ref: '#/components/schemas/Decimal' }
+    DatabaseAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, minLength: 1, maxLength: 200 }
+    DatabaseResourceKind:
+      type: string
+      enum: [RDS_INSTANCE, RDS_CLUSTER]
+    DatabaseRecommendationKind:
+      type: string
+      enum: [DATABASE_IDLE_REVIEW, DATABASE_INSTANCE_RIGHTSIZE, DATABASE_REPLICA_REVIEW, DATABASE_SERVERLESS_CAPACITY, DATABASE_STORAGE_CONFIGURATION]
+    DatabaseAssessmentObject:
+      type: object
+      additionalProperties: true
+      description: Server-issued configuration or immutable native reference projection. Response-only; never accepted as authoritative assessment input.
+    DatabaseEvidenceWindow:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        observed_utc_days: { type: integer, minimum: 0 }
+        required_utc_days: { type: integer, minimum: 0 }
+        expected_member_hours: { type: integer, minimum: 0 }
+        observed_member_hours: { type: integer, minimum: 0 }
+        coverage_basis: { type: string }
+    DatabaseMetricDistribution:
+      type: object
+      additionalProperties: false
+      required: [metric, member_id, unit, statistic, status, expected_hours, observed_hours, expected_sample_count, sample_count, expected_native_sample_count, native_sample_count, minimum, maximum, p50_of_period_statistics, p95_of_period_statistics, p99_of_period_statistics]
+      properties:
+        metric: { type: string }
+        member_id: { type: string }
+        unit: { type: string }
+        statistic: { type: string, description: Original explicit hourly statistic of native period values. Percentiles are of these period statistics, never raw observations. }
+        status: { type: string, enum: [NOT_APPLICABLE, COMPLETE, INCOMPLETE] }
+        expected_hours: { type: integer, minimum: 0 }
+        observed_hours: { type: integer, minimum: 0 }
+        expected_sample_count: { type: integer, nullable: true, minimum: 0 }
+        sample_count: { type: integer, minimum: 0 }
+        expected_native_sample_count: { type: integer, nullable: true, minimum: 0, description: Expected native one-minute sample count over all required member-hours; distinct from CloudWatch period bins. }
+        native_sample_count: { $ref: '#/components/schemas/NullableDecimal' }
+        minimum: { $ref: '#/components/schemas/NullableDecimal' }
+        maximum: { $ref: '#/components/schemas/NullableDecimal' }
+        p50_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+        p95_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+        p99_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+    DatabaseAssessmentEconomics:
+      type: object
+      additionalProperties: false
+      required: [current_hourly_cost, current_monthly_cost, candidate_hourly_cost, candidate_monthly_cost, estimated_monthly_saving, estimated_annual_saving, currency, basis]
+      properties:
+        current_hourly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_hourly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_annual_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        currency: { type: string, nullable: true }
+        basis: { type: string }
+        status: { type: string, enum: [UNAVAILABLE, CHEAPER, NO_CHANGE, NOT_CHEAPER] }
+        continuing_costs_preserved: { type: boolean }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+    DatabaseAssessmentConfidence:
+      type: object
+      additionalProperties: false
+      required: [status, reasons]
+      properties:
+        status: { type: string, enum: [UNAVAILABLE, LOW, MEDIUM, HIGH], description: Evidence-quality label; never a probability or guarantee. }
+        reasons: { type: array, items: { type: string } }
+        meaning: { type: string, enum: [OBSERVED_DEMAND_SCREEN_NOT_STATISTICAL_CONFIDENCE] }
+    DatabaseAssessmentProposal:
+      type: object
+      additionalProperties: false
+      required: [risk_class, executable, execution_authorized]
+      properties:
+        risk_class: { type: string, enum: [R3] }
+        executable: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+    DatabaseProviderComparison:
+      type: object
+      additionalProperties: false
+      required: [provider_recommendation, our_recommendation, difference, reason_for_difference]
+      properties:
+        provider_recommendation:
+          type: array
+          nullable: true
+          description: Full retained native Compute Optimizer recommendations, when observed. Availability alone does not establish comparable options or current public pricing.
+          items: { $ref: '#/components/schemas/DatabaseAssessmentObject' }
+        our_recommendation: { $ref: '#/components/schemas/DatabaseAssessmentObject' }
+        difference: { type: string, enum: [UNAVAILABLE, MATCH, DIFFERENT] }
+        reason_for_difference: { type: string }
+    DatabaseAssessment:
+      type: object
+      additionalProperties: false
+      required: [schema_version, resource_kind, engine, current_configuration, candidate_configuration, evidence_window, metric_distributions, economics, source_refs, blockers, confidence, proposal, verified_saving, candidates, recommendation_kind, status]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        model_version: { type: string }
+        binding: { $ref: '#/components/schemas/DatabaseAssessmentObject' }
+        decision_code: { type: string }
+        unsupported_opportunities: { type: array, items: { type: string } }
+        model_assumptions: { type: array, items: { type: string } }
+        assessment_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        provider_comparison: { $ref: '#/components/schemas/DatabaseProviderComparison' }
+        model_assessment_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        resource_kind: { $ref: '#/components/schemas/DatabaseResourceKind' }
+        engine: { type: string }
+        current_configuration:
+          allOf: [{ $ref: '#/components/schemas/DatabaseAssessmentObject' }]
+          nullable: true
+        candidate_configuration:
+          allOf: [{ $ref: '#/components/schemas/DatabaseAssessmentObject' }]
+          nullable: true
+        evidence_window:
+          allOf: [{ $ref: '#/components/schemas/DatabaseEvidenceWindow' }]
+          nullable: true
+        metric_distributions: { type: array, items: { $ref: '#/components/schemas/DatabaseMetricDistribution' } }
+        economics: { $ref: '#/components/schemas/DatabaseAssessmentEconomics' }
+        source_refs: { type: array, items: { $ref: '#/components/schemas/DatabaseAssessmentObject' } }
+        blockers: { type: array, items: { type: string } }
+        confidence: { $ref: '#/components/schemas/DatabaseAssessmentConfidence' }
+        proposal: { $ref: '#/components/schemas/DatabaseAssessmentProposal' }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        candidates: { type: array, items: { $ref: '#/components/schemas/DatabaseAssessmentObject' } }
+        recommendation_kind: { $ref: '#/components/schemas/DatabaseRecommendationKind' }
+        status: { type: string, enum: [RECOMMENDED, NO_CHANGE, BLOCKED] }
+    DatabaseAssessmentRecord:
+      type: object
+      additionalProperties: false
+      required: [id, version, resource_id, workload_id, status, created_at, assessment]
+      properties:
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        resource_id: { type: string }
+        workload_id: { type: string, nullable: true }
+        status: { type: string, enum: [QUEUED, RUNNING, ASSESSED, BLOCKED, FAILED] }
+        created_at: { type: string, format: date-time }
+        current: { type: boolean, description: Server-rechecked current source and configuration equality; missing does not assert currentness. }
+        currentness_blockers: { type: array, items: { type: string } }
+        assessment:
+          allOf: [{ $ref: '#/components/schemas/DatabaseAssessment' }]
+          nullable: true
+    DatabaseResourcePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Resource' } }
+        next_cursor: { type: string, nullable: true }
+    DatabaseRecommendationPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Recommendation' } }
+        next_cursor: { type: string, nullable: true }
+    DatabaseAssessmentPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/DatabaseAssessmentRecord' } }
+        next_cursor: { type: string, nullable: true }
+    AssessmentCoverageGroup:
+      type: object
+      additionalProperties: false
+      required: [currency, detected_spend, analysed_spend, observation_only_spend, blocked_spend, unsupported_spend, credits, net_spend, analysed_percent, basis, complete]
+      properties:
+        currency: { type: string, nullable: true }
+        detected_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        analysed_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        observation_only_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        blocked_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        unsupported_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        credits: { $ref: '#/components/schemas/NullableDecimal' }
+        net_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        analysed_percent: { $ref: '#/components/schemas/NullableDecimal' }
+        basis: { type: string, enum: [POSITIVE_BILLED_CHARGES] }
+        complete: { type: boolean }
+    AssessmentCoverage:
+      type: object
+      additionalProperties: false
+      required: [period, groups, blockers]
+      properties:
+        period: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
+        groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
+        blockers: { type: array, items: { type: string } }
     CommitmentDecisionPreparationSelection:
       type: object
       additionalProperties: false
@@ -8353,6 +8662,7 @@ components:
       additionalProperties: false
       required: [schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
+        database: { $ref: '#/components/schemas/DatabaseLimits' }
         schema_version: { type: string, enum: ['1'] }
         criticality: { type: string, enum: [TIER_0, TIER_1, TIER_2, TIER_3, NON_PRODUCTION] }
         statefulness: { type: string, enum: [STATELESS, STATEFUL, UNKNOWN] }
@@ -8387,6 +8697,7 @@ components:
       type: object
       required: [id, workload_id, version, hash, schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
+        database: { $ref: '#/components/schemas/DatabaseLimits' }
         id: { type: string }
         workload_id: { type: string }
         version: { type: integer, minimum: 1 }
@@ -8464,7 +8775,7 @@ components:
       properties:
         mode: { type: string, enum: [ALWAYS, WINDOWS], description: ALWAYS blocks a standalone singleton STOP. WINDOWS requires the whole stop-to-readiness interval outside the declared availability windows. }
         timezone: { type: string, description: Explicit IANA timezone }
-        windows: { type: array, maxItems: 32, items: { $ref: '#/components/schemas/SloAvailabilityWindow' }, description: Empty for ALWAYS; at least one same-day window for WINDOWS }
+        windows: { type: array, nullable: true, maxItems: 32, items: { $ref: '#/components/schemas/SloAvailabilityWindow' }, description: Empty or null for ALWAYS; an actual nonempty same-day array is required for WINDOWS. Null never proves WINDOWS availability. }
     SloRegression:
       type: object
       additionalProperties: false
@@ -8854,6 +9165,9 @@ components:
         - type: object
           properties:
             name: { type: string }
+            resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER discriminator. }
+            engine: { type: string }
+            engine_version: { type: string }
             provider_resource_id: { type: string }
             workload_id: { type: string }
             state: { type: string }
@@ -8867,9 +9181,12 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
+            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database advice never enables EC2 change plans. }
+            database_assessment_id: { type: string }
+            assessment: { $ref: '#/components/schemas/DatabaseAssessment' }
             title: { type: string }
             resource_id: { type: string }
-            workload_id: { type: string }
+            workload_id: { type: string, nullable: true }
             status: { type: string }
             reason_code: { type: string }
             annual_saving: { $ref: '#/components/schemas/NullableDecimal' }

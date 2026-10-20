@@ -12,6 +12,9 @@ import (
 )
 
 func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, bool, error) {
+	if d, status, handled, e := a.databaseMutate(ctx, t, i, r, in); handled {
+		return d, status, true, e
+	}
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
 	if d, status, handled, e := a.sloMutate(ctx, t, i, r, in, parts); handled {
@@ -34,7 +37,9 @@ func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *
 		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
 			return nil, 0, true, e
 		}
-		if model.String(in, "name") == "" || model.String(in, "owner") == "" || model.String(in, "environment") != "NON_PRODUCTION" || model.String(in, "health_url") == "" {
+		observeOnly := in["observation_only"] == true
+		validEnvironment := model.String(in, "environment") == "NON_PRODUCTION" || (observeOnly && model.String(in, "environment") == "PRODUCTION")
+		if model.String(in, "name") == "" || model.String(in, "owner") == "" || !validEnvironment || (!observeOnly && model.String(in, "health_url") == "") {
 			return nil, 0, true, problem(422, "WORKLOAD_FIELDS_REQUIRED", "name,owner,NON_PRODUCTION environment and health_url required")
 		}
 		d := model.Clone(in)

@@ -41,6 +41,16 @@ func NewFixtureReader(r Registration, records []model.Document) (*FixtureReader,
 	return fixtureReaderForPeriod(r, records, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
 }
 
+// NewFixtureReaderForBillingPeriod uses the same explicitly synthetic provider
+// transport for a selected month. This is not a live ingestion entry point and
+// does not change receipt, row, manifest or completeness validation.
+func NewFixtureReaderForBillingPeriod(r Registration, records []model.Document, start time.Time) (*FixtureReader, error) {
+	if start.Location() != time.UTC || start.Day() != 1 || start.Hour() != 0 || start.Minute() != 0 || start.Second() != 0 || start.Nanosecond() != 0 {
+		return nil, errors.New("SOURCE_FIXTURE_BILLING_MONTH_REQUIRED")
+	}
+	return fixtureReaderForPeriod(r, records, start)
+}
+
 func fixtureReaderForPeriod(r Registration, records []model.Document, start time.Time) (*FixtureReader, error) {
 	if len(r.UsageAccountIDs) == 0 {
 		return nil, errors.New("SOURCE_USAGE_SCOPE_REQUIRED")

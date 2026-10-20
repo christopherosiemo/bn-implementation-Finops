@@ -214,6 +214,44 @@ async function openSlo(
   return writes;
 }
 
+test("null availability windows are optional for ALWAYS and unavailable for required WINDOWS", async ({ page }) => {
+  const data = dashboard();
+  data.slo_objectives![0].availability = {
+    mode: "ALWAYS",
+    timezone: "UTC",
+    windows: null,
+  };
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const writes = await openSlo(page, data, async route => {
+    const saved = { ...objective(4), ...route.request().postDataJSON() } as SloObjective;
+    data.slo_objectives = [saved];
+    await route.fulfill({ status: 201, json: saved });
+  });
+  const table = page.getByRole("region", { name: "Workload SLO objectives" });
+  await expect(table).toContainText("Always available · singleton stop blocked");
+  expect(writes).toEqual([]);
+  await page.getByRole("button", { name: "Configure SLO objectives for Development API" }).click();
+  let dialog = page.getByRole("dialog", { name: "Configure service objectives" });
+  await expect(dialog.getByLabel("Required availability")).toHaveValue("ALWAYS");
+  await dialog.getByRole("button", { name: "Save objective revision" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(writes).toHaveLength(1);
+  expect(writes[0].body.availability).toEqual({ mode: "ALWAYS", timezone: "UTC", windows: [] });
+
+  data.slo_objectives = [{ ...objective(5), availability: { mode: "WINDOWS", timezone: "UTC", windows: null } }];
+  await page.getByRole("button", { name: "Refresh data" }).click();
+  await expect(table).toContainText("Availability windows unavailable");
+  await page.getByRole("button", { name: "Configure SLO objectives for Development API" }).click();
+  dialog = page.getByRole("dialog", { name: "Configure service objectives" });
+  await expect(dialog.getByRole("alert")).toContainText("Stored availability windows are unavailable");
+  await dialog.getByRole("button", { name: "Save objective revision" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("alert").filter({ hasText: "Add at least one same-day availability window" })).toBeVisible();
+  expect(writes).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
 test("hard-limit failure remains separate from a passing regression guard with trusted coverage", async ({
   page,
 }, testInfo) => {

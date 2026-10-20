@@ -54,6 +54,7 @@ services:
       DB_DEPLOYMENT_OBSERVER_PASSWORD: ${DB_DEPLOYMENT_OBSERVER_PASSWORD:-}
       DB_HARDWARE_READER_PASSWORD: ${DB_HARDWARE_READER_PASSWORD:-}
       DB_GROUP_ASSESSOR_PASSWORD: ${DB_GROUP_ASSESSOR_PASSWORD:-}
+      DB_DATABASE_ANALYST_PASSWORD: ${DB_DATABASE_ANALYST_PASSWORD:-}
       DB_GROUP_CAPACITY_PASSWORD: ${DB_GROUP_CAPACITY_PASSWORD:-}
     depends_on:
       postgres: {condition: service_healthy}
@@ -134,6 +135,8 @@ services:
       OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
       AUDIT_ACCESS_KEY: ${AUDIT_ACCESS_KEY}
       AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
+      DATABASE_ASSESSOR_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY:-}
+      DATABASE_ASSESSOR_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY:-}
       ASSESSMENT_ACCESS_KEY: ${ASSESSMENT_ACCESS_KEY:-}
       ASSESSMENT_SECRET_KEY: ${ASSESSMENT_SECRET_KEY:-}
       CAPACITY_ACCESS_KEY: ${CAPACITY_ACCESS_KEY:-}
@@ -229,6 +232,34 @@ services:
       economics: {condition: service_healthy}
       buckets: {condition: service_completed_successfully}
       clickhouse: {condition: service_healthy}
+
+  # Optional database advice uses only its dedicated database, economics and
+  # version-only product evidence credentials. No customer AWS or action keys.
+  database-assessor:
+    <<: *go
+    profiles: [database-assessment]
+    environment:
+      APP_ROLE: database-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_database_analyst_login:${DB_DATABASE_ANALYST_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
 
   # Optional read-only portfolio analysis. Explicit profile; operator commissions
   # only its unique LOGIN and model token. No cloud or execution credentials.

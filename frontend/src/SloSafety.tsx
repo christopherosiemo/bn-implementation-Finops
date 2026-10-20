@@ -93,10 +93,17 @@ function ObjectiveForm({
   );
   const [windows, setWindows] = useState(
     () =>
-      objective?.availability.windows.map((window) => ({
-        ...window,
-        key: crypto.randomUUID(),
-      })) ?? [],
+      Array.isArray(objective?.availability.windows)
+        ? objective.availability.windows.map((window) => ({
+            ...window,
+            key: crypto.randomUUID(),
+          }))
+        : [],
+  );
+  const [windowsUnavailable, setWindowsUnavailable] = useState(
+    objective?.availability.mode === "WINDOWS" &&
+      (!Array.isArray(objective.availability.windows) ||
+        objective.availability.windows.length === 0),
   );
   const [regression, setRegression] = useState(
     objective?.regression.enabled ?? false,
@@ -160,7 +167,7 @@ function ObjectiveForm({
           }
           if (
             mode === "WINDOWS" &&
-            (!windows.length ||
+            (windowsUnavailable || !windows.length ||
               windows.some(
                 (window) =>
                   !window.days.length || window.start_time >= window.end_time,
@@ -296,6 +303,12 @@ function ObjectiveForm({
           </p>
           {mode === "WINDOWS" && (
             <>
+              {windowsUnavailable && (
+                <p className="form-note" role="alert">
+                  Stored availability windows are unavailable. Add explicit
+                  windows before saving a weekly-window policy.
+                </p>
+              )}
               {windows.map((window, index) => (
                 <fieldset className="days-fieldset" key={window.key}>
                   <legend>Availability window {index + 1}</legend>
@@ -366,7 +379,8 @@ function ObjectiveForm({
                 secondary
                 small
                 disabled={windows.length >= 32}
-                onClick={() =>
+                onClick={() => {
+                  setWindowsUnavailable(false);
                   setWindows((current) => [
                     ...current,
                     {
@@ -375,8 +389,8 @@ function ObjectiveForm({
                       start_time: "",
                       end_time: "",
                     },
-                  ])
-                }
+                  ]);
+                }}
               >
                 Add availability window
               </Button>
@@ -883,14 +897,18 @@ export function SloSafety({
                             {objective.availability.timezone} ·{" "}
                             {objective.evaluation_minutes}-minute evaluation
                           </small>
-                          {objective.availability.windows.map(
-                            (window, index) => (
-                              <small key={index}>
-                                {window.days.map((day) => days[day]).join(", ")}{" "}
-                                · {window.start_time}–{window.end_time}
-                              </small>
-                            ),
-                          )}
+                          {objective.availability.mode === "WINDOWS" &&
+                            (Array.isArray(objective.availability.windows) &&
+                            objective.availability.windows.length > 0 ? (
+                              objective.availability.windows.map((window, index) => (
+                                <small key={index}>
+                                  {window.days.map((day) => days[day]).join(", ")}{" "}
+                                  · {window.start_time}–{window.end_time}
+                                </small>
+                              ))
+                            ) : (
+                              <small>Availability windows unavailable</small>
+                            ))}
                         </>
                       ) : (
                         "Unknown availability obligation"

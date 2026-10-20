@@ -1,12 +1,12 @@
 {
   "schema_version": "1",
-  "recorded_at": "2026-10-19",
+  "recorded_at": "2026-10-20",
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 25.8,
-  "rounded_description": "25.8 weighted percent of the full product; approximately 26 percent",
-  "credit_review": "Bounded existing AWS RI/SP observations pass ordinary provider-shaped ingestion, immutable object/ClickHouse evidence, a restricted tenant-bound daemon and separate Python model, real Finance PKCE, IDs-only request and persisted reload. All16 required implementation CI jobs passed. Installed36-to39 migration preserves the same signed stopped-instance ownership through exactly one stop/start;15 runtime bindings, all39 migration hashes, complete16-file served console,105 browser cases with zero retry/skip and8 quarantined encrypted physical PostgreSQL recovery checks passed. Only this one-point observation subset advances0→40, adding0.4points. Coverage, commitment decisions, forecasts, cash valuation, purchasing, full fleet safety and customer/production acceptance remain outside this credit. No shared foundation, test-count, cloud, purchase or verified-savings credit is added.",
+  "current_weighted_percent": 25.9,
+  "rounded_description": "25.9 weighted percent of the full product; approximately 26 percent",
+  "credit_review": "Bounded read-only database components advance 0 to 20 only. Actual native backend and collector pass versioned storage, ClickHouse, tenant-isolated PostgreSQL and Python economics. A real OIDC browser component passes new persisted positive, blocked and no-change requests through the separate analyst. The combined run remains FAIL because independent Go readback missed its original 120-second context; no maturity-40 credit is awarded. Only 0.5 points of the existing unaccepted optimisation pool advance, adding 0.1 points. Shared foundations, test counts, wider database families, live/customer/production acceptance, execution and verified savings earn no credit. Commitment acceptance remains deferred and its required failing job stays enabled.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 2.1,
+      "contribution_points": 2.2,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -229,8 +229,28 @@
           ]
         },
         {
+          "id": "bounded_readonly_database_class_assessment",
+          "scope_weight_percent": 0.5,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/rds-readonly-assessment.md",
+            "internal/provider/rds_discovery.go",
+            "internal/workflow/database_discovery.go",
+            "internal/service/database_native_integration_test.go",
+            "internal/workflow/database_discovery_integration_test.go",
+            "economics/autopilot/database.py",
+            "frontend/tests/database-live.spec.ts"
+          ],
+          "remaining": [
+            "Combined native/browser independent readback within the unchanged 120-second deadline",
+            "Supervised genuine AWS/customer acceptance of the bounded class advice",
+            "Sustained production operation and contractual completion of this bounded component"
+          ]
+        },
+        {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 10,
+          "scope_weight_percent": 9.5,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md",
@@ -243,12 +263,13 @@
             "Portfolio allocation, forecasting and broader optimisation",
             "Historical ownership, complete chargeback/showback policy breadth, tag/account hierarchies and multi-level allocation",
             "Provider-scale asynchronous or streaming reports and wider cost definitions",
-            "Azure/GCP authoritative financial reporting, native Kubernetes/node attribution and customer commissioning"
+            "Azure/GCP authoritative financial reporting, native Kubernetes/node attribution and customer commissioning",
+            "Remaining RDS/Aurora capacity, reservation allocation and opportunity families outside the bounded read-only class component; database execution and recovery authority"
           ]
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 11.666666666666666
+      "current_area_maturity": 12.222222222222223
     },
     {
       "id": "execution_iac_gitops",
@@ -1329,6 +1350,81 @@
       },
       "live_credit_awarded": false,
       "acceptance": "Bounded existing AWS RI/SP observations pass ordinary provider-shaped ingestion, immutable object/ClickHouse evidence, a restricted tenant-bound daemon and separate Python model, real Finance PKCE, IDs-only request and persisted reload. All16 required implementation CI jobs passed. Installed36-to39 migration preserves the same signed stopped-instance ownership through exactly one stop/start;15 runtime bindings, all39 migration hashes, complete16-file served console,105 browser cases with zero retry/skip and8 quarantined encrypted physical PostgreSQL recovery checks passed. Only this one-point observation subset advances0→40, adding0.4points. Coverage, commitment decisions, forecasts, cash valuation, purchasing, full fleet safety and customer/production acceptance remain outside this credit. No shared foundation, test-count, cloud, purchase or verified-savings credit is added."
+    },
+    {
+      "id": "readonly-database-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "previous_weighted_percent": 25.8,
+      "weighted_percent": 25.9,
+      "prior_history_sha256": "e71ed1a914da66aeeea5747a594896c180330896c839502ff496034b1467226a",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 10,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_database_class_assessment",
+              "scope_weight_percent": 0.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 9.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_database_class_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.1,
+          "acceptance": "Component acceptance only; combined native/browser original deadline remains unaccepted."
+        }
+      ],
+      "implementation_tree": "49e53849cf135b1b450031b51e84da3bca281420",
+      "final_required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "evidence": [
+        "docs/rds-readonly-assessment.md",
+        "docs/commitment-acceptance-deferred.md"
+      ],
+      "bounded_evidence": {
+        "native": {
+          "run_id": "921d96fd-f7ec-4c5c-a311-257c95fdcffa",
+          "receipt_sha256": "20e80180e2a14242cf4d71c1d730416111a535f4e1d55d49980b3357579bea99",
+          "status": "PASS"
+        },
+        "browser": {
+          "run_id": "90fdcd8f-0a3e-4723-93dc-d41029576ccd",
+          "receipt_sha256": "b013d93b5043dc58842bfd0f575cfbe48ec29aac25fb82f3cd0ec591d9771f35",
+          "browser_component_status": "PASS",
+          "combined_status": "FAIL",
+          "failure": "Original 120-second context elapsed before independent Go browser-result readback; service elapsed 125.36 seconds"
+        },
+        "final_presentation": {
+          "run_id": "7cf15c29-b266-4e8f-86e6-e4f9d85728fc",
+          "receipt_sha256": "9198af8f602bd288b0ab8293c39538d7956665ccae004cd178232021cc5e1f72"
+        },
+        "final_build": {
+          "run_id": "2a751fef-a99b-4dcf-9065-ac10c0790338",
+          "receipt_sha256": "983b4870efd8e9102f07eaf686a255268f21d1f68f0a391b5884e4c1cbf374a8"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only database components advance 0 to 20 only. Actual native backend and collector pass versioned storage, ClickHouse, tenant-isolated PostgreSQL and Python economics. A real OIDC browser component passes new persisted positive, blocked and no-change requests through the separate analyst. The combined run remains FAIL because independent Go readback missed its original 120-second context; no maturity-40 credit is awarded. Only 0.5 points of the existing unaccepted optimisation pool advance, adding 0.1 points. Shared foundations, test counts, wider database families, live/customer/production acceptance, execution and verified savings earn no credit. Commitment acceptance remains deferred and its required failing job stays enabled.",
+      "release_evidence": {
+        "implementation_tree": "49e53849cf135b1b450031b51e84da3bca281420",
+        "core_recovery": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/process-recovery-result.json",
+        "installed_browser": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/installed-browser.json",
+        "installed_bindings": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/installed-bindings-result.json",
+        "physical_recovery_terminal_receipt": "work/private/postgres-recovery/aa45df7d-5645-4352-ba51-576c930fc8d5/acceptance.json",
+        "final_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+        "no_extra_maturity_credit": true
+      }
     }
   ]
 }

@@ -281,6 +281,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result, handled, err := a.databaseGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if r.URL.Path == "/v1/dashboard" {
 			d := model.Document{"fixture": a.Config.Fixture}
 			org, e := t.Get(r.Context(), "org", i.Tenant)
@@ -318,6 +322,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				}
 				d[k] = rows
 			}
+			databaseRows, err := a.databaseRecommendations(r.Context(), t)
+			if err != nil {
+				return err
+			}
+			d["recommendations"] = append(d["recommendations"].([]model.Document), databaseRows...)
 			if _, e := t.Exec(r.Context(), "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
 				return e
 			}
@@ -431,6 +440,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			return nil
 		}
 		rows, e := t.List(r.Context(), kind)
+		if e == nil && kind == "recommendations" {
+			var dbRows []model.Document
+			dbRows, e = a.databaseRecommendations(r.Context(), t)
+			rows = append(rows, dbRows...)
+		}
 		out = rows
 		return e
 	})
@@ -556,6 +570,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		}
 		created := []model.Document{}
 		for _, res := range resources {
+			if databaseResource(res) {
+				continue
+			}
 			wid := model.String(res, "workload_id")
 			if filter := model.String(in, "workload_id"); filter != "" && filter != wid {
 				continue
@@ -584,6 +601,15 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		_ = t.Audit(ctx, i.Subject, "recommendations.generated", i.Tenant, model.Document{"count": len(created)})
 		return model.Document{"recommendations": created}, 201, nil
 	case "schedules":
+		if wid := model.String(in, "workload_id"); wid != "" {
+			w, e := t.Get(ctx, "workloads", wid)
+			if e != nil {
+				return nil, 0, e
+			}
+			if model.Bool(w, "observation_only") {
+				return nil, 0, problem(422, "OBSERVATION_ONLY_WORKLOAD", "this workload is registered for read-only assessment")
+			}
+		}
 		if e := requireRole(i, "PLATFORM_ADMIN", "APPLICATION_OWNER"); e != nil {
 			return nil, 0, e
 		}

@@ -6,6 +6,7 @@ import { NativeTelemetry } from "./NativeTelemetry";
 import { WorkloadSafety } from "./WorkloadSafety";
 import { ConfigurationAuthority } from "./ConfigurationAuthority";
 import { FleetHistory } from "./FleetHistory";
+import { DatabaseAssessmentHistory, DatabaseCoverage, DatabaseRecommendation, DatabaseResourceAssessment, isDatabaseResource } from "./DatabaseAssessment";
 import {
   Activity,
   ArrowDownRight,
@@ -74,8 +75,8 @@ type PageProps = {
   query: string;
 };
 const weekdayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const titleFor = (data: Dashboard, id: string) =>
-  data.workloads.find((item) => item.id === id)?.name || shortId(id);
+const titleFor = (data: Dashboard, id: string | null) =>
+  data.workloads.find((item) => item.id === id)?.name || shortId(id ?? undefined);
 const resourceFor = (data: Dashboard, id: string) =>
   data.resources.find((item) => item.id === id)?.name || shortId(id);
 function Heading({
@@ -315,8 +316,8 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
               "Workload / environment",
               "State",
               "Eligibility",
-              "Execution readiness",
-              "Monthly compute",
+              "Assessment / execution",
+              "Monthly source cost",
               "",
             ]}
           >
@@ -324,7 +325,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
               <tr key={item.id}>
                 <td>
                   <div className="resource-name">
-                    <span className="aws-icon">ec2</span>
+                    <span className="aws-icon">{isDatabaseResource(item) ? "rds" : item.resource_type?.toLowerCase() || "ec2"}</span>
                     <div>
                       <strong>{item.name || item.provider_resource_id}</strong>
                       <small className="mono">
@@ -358,20 +359,20 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  <ReadinessCell
+                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
                     busy={busy}
-                  />
+                  />}
                 </td>
                 <td className="numeric">
                   {money(item.monthly_effective_cost, item.currency)}
                   <small>
                     {!isMoneyKnown(item.monthly_effective_cost) ||
                     !item.currency
-                      ? "No evidenced compute price"
-                      : "Source currency · compute"}
+                      ? "No evidenced source price"
+                      : isDatabaseResource(item) ? "Source currency · database" : "Source currency · compute"}
                   </small>
                 </td>
                 <td>
@@ -385,10 +386,11 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
         ) : (
           <Empty
             title="Inventory will appear here"
-            text="Connect an AWS account to discover eligible and excluded EC2 resources."
+            text="Connect an AWS account to discover EC2 resources and read-only RDS instances and clusters."
           />
         )}
       </Panel>
+      <DatabaseAssessmentHistory />
       <WorkloadSafety data={data} run={run} busy={busy} />
       <ConfigurationAuthority data={data} run={run} busy={busy} />
       <FleetHistory data={data} run={run} busy={busy} />
@@ -585,7 +587,7 @@ export function RecommendationsPage({
       </div>
       {items.length ? (
         <div className="recommendation-list">
-          {items.map((item) => (
+          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : (
             <Panel key={item.id} className="recommendation-card">
               <div className="recommendation-body">
                 <span className="recommendation-symbol">
@@ -2116,6 +2118,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
+      <DatabaseCoverage />
       <SourceTrust data={data} run={run} busy={busy} />
       <Suspense fallback={<p role="status">Loading commitment portfolio view…</p>}>
         <CommitmentPortfolio fixture={data.fixture} run={run} busy={busy} />

@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math/big"
+	"regexp"
 	"sort"
 	"time"
 )
@@ -43,26 +45,39 @@ type Saturation struct {
 	MemoryP99PPM int64 `json:"memory_p99_ppm"`
 }
 type Profile struct {
-	SchemaVersion            string         `json:"schema_version"`
-	ID                       string         `json:"id,omitempty"`
-	WorkloadID               string         `json:"workload_id,omitempty"`
-	Version                  int64          `json:"version,omitempty"`
-	Criticality              string         `json:"criticality"`
-	Statefulness             string         `json:"statefulness"`
-	HighSeasonality          bool           `json:"high_seasonality"`
-	Timezone                 string         `json:"timezone"`
-	MinReplicas              int            `json:"min_replicas"`
-	MinZones                 int            `json:"min_zones"`
-	Headroom                 Headroom       `json:"headroom"`
-	Saturation               Saturation     `json:"saturation"`
-	RTOSeconds               int64          `json:"rto_seconds"`
-	RPOSeconds               *int64         `json:"rpo_seconds"`
-	Maintenance              []WeeklyWindow `json:"maintenance"`
-	RecurringBlackouts       []WeeklyWindow `json:"recurring_blackouts"`
-	Blackouts                []Blackout     `json:"blackouts"`
-	DemandEvents             []DemandEvent  `json:"demand_events"`
-	MaxSimultaneousChangePPM int64          `json:"max_simultaneous_change_ppm"`
-	VMCooldownSeconds        int64          `json:"vm_cooldown_seconds"`
+	SchemaVersion            string          `json:"schema_version"`
+	ID                       string          `json:"id,omitempty"`
+	WorkloadID               string          `json:"workload_id,omitempty"`
+	Version                  int64           `json:"version,omitempty"`
+	Criticality              string          `json:"criticality"`
+	Statefulness             string          `json:"statefulness"`
+	HighSeasonality          bool            `json:"high_seasonality"`
+	Timezone                 string          `json:"timezone"`
+	MinReplicas              int             `json:"min_replicas"`
+	MinZones                 int             `json:"min_zones"`
+	Headroom                 Headroom        `json:"headroom"`
+	Saturation               Saturation      `json:"saturation"`
+	RTOSeconds               int64           `json:"rto_seconds"`
+	RPOSeconds               *int64          `json:"rpo_seconds"`
+	Maintenance              []WeeklyWindow  `json:"maintenance"`
+	RecurringBlackouts       []WeeklyWindow  `json:"recurring_blackouts"`
+	Blackouts                []Blackout      `json:"blackouts"`
+	DemandEvents             []DemandEvent   `json:"demand_events"`
+	MaxSimultaneousChangePPM int64           `json:"max_simultaneous_change_ppm"`
+	VMCooldownSeconds        int64           `json:"vm_cooldown_seconds"`
+	Database                 *DatabaseLimits `json:"database,omitempty"`
+}
+
+// These are customer policy limits, not assertions that an observation exists.
+type DatabaseLimits struct {
+	ConnectionsMaxFraction string `json:"connections_max_fraction"`
+	IOPSMaxFraction        string `json:"iops_max_fraction"`
+	ThroughputMaxFraction  string `json:"throughput_max_fraction"`
+	StorageMaxFraction     string `json:"storage_max_fraction"`
+	MaxReadLatencySeconds  string `json:"max_read_latency_seconds"`
+	MaxWriteLatencySeconds string `json:"max_write_latency_seconds"`
+	MaxDiskQueueDepth      string `json:"max_disk_queue_depth"`
+	MaxReplicaLagSeconds   string `json:"max_replica_lag_seconds"`
 }
 
 func Decode(raw []byte) (Profile, error) {
@@ -112,6 +127,21 @@ func validWeekly(w WeeklyWindow) bool {
 }
 func Validate(p Profile) error {
 	invalid := errors.New("SAFETY_PROFILE_INVALID")
+	if p.Database != nil {
+		decimal := regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]{1,12})?$`)
+		for _, text := range []string{p.Database.ConnectionsMaxFraction, p.Database.IOPSMaxFraction, p.Database.ThroughputMaxFraction, p.Database.StorageMaxFraction} {
+			v, ok := new(big.Rat).SetString(text)
+			if !decimal.MatchString(text) || !ok || v.Sign() <= 0 || v.Cmp(big.NewRat(1, 1)) > 0 {
+				return invalid
+			}
+		}
+		for _, text := range []string{p.Database.MaxReadLatencySeconds, p.Database.MaxWriteLatencySeconds, p.Database.MaxDiskQueueDepth, p.Database.MaxReplicaLagSeconds} {
+			v, ok := new(big.Rat).SetString(text)
+			if !decimal.MatchString(text) || !ok || v.Sign() < 0 {
+				return invalid
+			}
+		}
+	}
 	if p.SchemaVersion != "1" || p.MinReplicas < 1 || p.MinReplicas > 1000000 || p.MinZones < 1 || p.MinZones > p.MinReplicas || p.MinZones > 100 {
 		return invalid
 	}

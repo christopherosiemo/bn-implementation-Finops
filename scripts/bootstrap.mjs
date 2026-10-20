@@ -118,6 +118,11 @@ if (process.env.FINOPS_BOOTSTRAP_FLEET_CAPACITY === 'true') {
   const directory = assessmentSecretDirectory('fleet-capacity-secrets');
   for (const [name, value] of [['database', env.FLEET_CAPACITY_DATABASE_URL], ['access-key', env.CAPACITY_ACCESS_KEY], ['secret-key', env.CAPACITY_SECRET_KEY], ['reader-token', env.TELEMETRY_READER_TOKEN], ['model-token', env.ECONOMICS_TOKEN]]) atomicAssessmentSecret(directory, name, value);
 }
+// Optional database advice has a separate restricted DB login and version-only
+// evidence reader. No customer AWS, mutation or signing credentials are reused.
+for (const [key, value] of Object.entries({ DB_DATABASE_ANALYST_PASSWORD: random(), DATABASE_ASSESSOR_ACCESS_KEY: 'database-assessor', DATABASE_ASSESSOR_SECRET_KEY: random() })) {
+  if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+}
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
 const userProfile = {

@@ -44,6 +44,9 @@ func Inventory(resources, workloads []model.Document) []model.Document {
 		for _, k := range []string{"name", "provider", "provider_resource_id", "resource_type", "account_id", "region", "environment", "configuration_authority", "runtime_stop_start_delegated", "fleet_managed", "criticality"} {
 			n[k] = r[k]
 		}
+		if r["provider_relationships"] != nil {
+			n["provider_relationships"] = r["provider_relationships"]
+		}
 		nodes = append(nodes, n)
 	}
 	sort.Slice(nodes, func(i, j int) bool { return model.String(nodes[i], "id") < model.String(nodes[j], "id") })
@@ -100,6 +103,24 @@ func Edges(nodes, submitted []model.Document) ([]model.Document, error) {
 		if model.String(n, "kind") == "RESOURCE" && model.String(n, "workload_id") != "" {
 			if e = put("RUNS_ON", "workload:"+model.String(n, "workload_id"), model.String(n, "id"), "DISCOVERED_MAPPING"); e != nil {
 				return nil, e
+			}
+		}
+		if model.String(n, "kind") == "RESOURCE" && (model.String(n, "resource_type") == "RDS_INSTANCE" || model.String(n, "resource_type") == "RDS_CLUSTER") {
+			raw, _ := json.Marshal(n["provider_relationships"])
+			var relationships []model.Document
+			_ = json.Unmarshal(raw, &relationships)
+			for _, rel := range relationships {
+				target := index["resource:"+model.String(rel, "target_resource_id")]
+				if target == nil || model.String(target, "provider_resource_id") != model.String(rel, "target_provider_resource_id") || model.String(target, "account_id") != model.String(n, "account_id") || model.String(target, "region") != model.String(n, "region") {
+					return nil, invalid("BLOCKED_DEPENDENCY_NATIVE_BINDING", model.String(n, "id"))
+				}
+				kind := model.String(rel, "type")
+				if kind != "MEMBER_OF" && kind != "DEPENDS_ON" {
+					return nil, invalid("BLOCKED_DEPENDENCY_EDGE_TYPE", kind)
+				}
+				if e = put(kind, model.String(n, "id"), model.String(target, "id"), "DISCOVERED_MAPPING"); e != nil {
+					return nil, e
+				}
 			}
 		}
 	}
@@ -164,6 +185,9 @@ func InventoryHash(nodes []model.Document) string {
 		copy := model.Document{}
 		for _, k := range []string{"id", "kind", "resource_id", "workload_id", "owner", "owner_subject", "environment", "workload_environment", "criticality", "provider", "provider_resource_id", "resource_type", "account_id", "region", "configuration_authority", "runtime_stop_start_delegated", "fleet_managed"} {
 			copy[k] = node[k]
+		}
+		if node["provider_relationships"] != nil {
+			copy["provider_relationships"] = node["provider_relationships"]
 		}
 		stable = append(stable, copy)
 	}

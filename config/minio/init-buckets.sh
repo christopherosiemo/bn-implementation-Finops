@@ -68,3 +68,18 @@ if [ -n "${CAPACITY_ACCESS_KEY:-}" ] || [ -n "${CAPACITY_SECRET_KEY:-}" ]; then
   run_mc MINIO_CAPACITY_USER_FAILED admin user add local "$CAPACITY_ACCESS_KEY" "$CAPACITY_SECRET_KEY"
   run_mc MINIO_CAPACITY_POLICY_ATTACH_FAILED admin policy attach local group-capacity --user "$CAPACITY_ACCESS_KEY"
 fi
+
+if [ -n "${DATABASE_ASSESSOR_ACCESS_KEY:-}" ] || [ -n "${DATABASE_ASSESSOR_SECRET_KEY:-}" ]; then
+  if [ -z "${DATABASE_ASSESSOR_ACCESS_KEY:-}" ] || [ -z "${DATABASE_ASSESSOR_SECRET_KEY:-}" ] ||
+     [ "$DATABASE_ASSESSOR_ACCESS_KEY" = "$MINIO_ROOT_USER" ] ||
+     [ "$DATABASE_ASSESSOR_ACCESS_KEY" = "$OBJECT_ACCESS_KEY" ] ||
+     [ "$DATABASE_ASSESSOR_ACCESS_KEY" = "$AUDIT_ACCESS_KEY" ] ||
+     [ "$DATABASE_ASSESSOR_ACCESS_KEY" = "${ASSESSMENT_ACCESS_KEY:-}" ] ||
+     [ "$DATABASE_ASSESSOR_ACCESS_KEY" = "${CAPACITY_ACCESS_KEY:-}" ]; then
+    printf '%s\n' MINIO_DATABASE_ASSESSOR_CONFIGURATION_INVALID >&2
+    exit 1
+  fi
+  run_mc MINIO_DATABASE_ASSESSOR_POLICY_FAILED admin policy create local database-assessor /config/group-assessor-policy.json
+  run_mc MINIO_DATABASE_ASSESSOR_USER_FAILED admin user add local "$DATABASE_ASSESSOR_ACCESS_KEY" "$DATABASE_ASSESSOR_SECRET_KEY"
+  run_mc MINIO_DATABASE_ASSESSOR_POLICY_ATTACH_FAILED admin policy attach local database-assessor --user "$DATABASE_ASSESSOR_ACCESS_KEY"
+fi

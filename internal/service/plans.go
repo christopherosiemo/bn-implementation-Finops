@@ -26,6 +26,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if IsCommitmentAdvice(rec) {
 		return nil, problem(422, "COMMITMENT_ADVICE_NOT_EXECUTABLE", "commitment advice cannot become a scheduling or provider plan")
 	}
+	if model.String(rec, "model_kind") == "DATABASE_ASSESSMENT_V1" {
+		return nil, problem(422, "DATABASE_ADVICE_NOT_EXECUTABLE", "database advice cannot authorize provider actions")
+	}
 	if model.String(rec, "status") != "VALIDATED" || !model.Bool(rec, "pre_execution_ready") {
 		return nil, problem(422, "RECOMMENDATION_NOT_VALIDATED", "recommendation must be validated")
 	}
@@ -58,6 +61,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if e != nil {
 		return nil, e
 	}
+	if databaseResource(res) {
+		return nil, problem(422, "DATABASE_ADVICE_NOT_EXECUTABLE", "database resources are observation-only")
+	}
 	ready, e := t.EvidenceGet(ctx, "readiness", model.String(rec, "readiness_id"))
 	if e != nil {
 		return nil, problem(422, "READINESS_REQUIRED", "refresh execution readiness before planning")
@@ -75,6 +81,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	w, e := t.Get(ctx, "workloads", model.String(rec, "workload_id"))
 	if e != nil {
 		return nil, e
+	}
+	if model.Bool(w, "observation_only") {
+		return nil, problem(422, "OBSERVATION_ONLY_WORKLOAD", "this workload does not delegate execution")
 	}
 	if model.String(baseline, "schema_version") == "3" {
 		w, e = trustedWorkload(ctx, t, res, w)

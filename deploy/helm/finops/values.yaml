@@ -44,6 +44,7 @@ database:
     # A distinct LOGIN member of finops_ingester; never reuse another process login.
     fleet-history-reader: finops-db-fleet-history-reader
     fleet-assessment: finops-db-group-assessor
+    database-assessor: finops-db-database-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -98,6 +99,14 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+databaseAssessor:
+  # Existing restricted LOGIN + version-only evidence reader; no cloud-role,
+  # signing, execution or purchase credentials. Hosted deployment is opt-in.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
 fleetAssessment:
   # Optional read-only consumer of persisted requests and versioned evidence.
   # Existing dedicated IRSA: GetObjectVersion/GetBucketLocation + scoped KMS

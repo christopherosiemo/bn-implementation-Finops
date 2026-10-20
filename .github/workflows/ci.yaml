@@ -170,6 +170,20 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml > /tmp/finops-fleet-capacity.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-decision-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-decision-values.yaml > /tmp/finops-fleet-decision.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml > /tmp/finops-database-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-database-assessor.yaml:/database.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /database.yaml && python deploy/tests/test_database_assessor_chart.py /default.yaml /database.yaml'
+          for unsafe in 'databaseAssessor.evidenceReaderSecret=finops-db-api' 'databaseAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml --set "$unsafe" > /tmp/finops-database-refused.log 2>&1; then
+              echo "Unsafe database assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-database-refused.log
+              grep -Fq 'finops/templates/database-assessor.yaml' /tmp/finops-database-refused.log
+            fi
+          done
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'

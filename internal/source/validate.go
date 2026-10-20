@@ -275,7 +275,7 @@ func ValidateRows(r Registration, m Manifest, rows []model.Document) error {
 			return errors.New("SOURCE_BILLING_PERIOD_MISMATCH")
 		}
 		account := model.String(row, "line_item_usage_account_id")
-		if !accountPattern.MatchString(account) {
+		if !accountPattern.MatchString(account) && !PayerScopedNonResourceCharge(row, r.PayerAccountID) {
 			return errors.New("SOURCE_USAGE_ACCOUNT_INVALID")
 		}
 		if !currencyPattern.MatchString(model.String(row, "line_item_currency_code")) {
@@ -283,4 +283,24 @@ func ValidateRows(r Registration, m Manifest, rows []model.Document) error {
 		}
 	}
 	return nil
+}
+
+// PayerScopedNonResourceCharge validates only native row shape. It is not
+// evidence of delivery authenticity: Pipeline still requires ValidateExecution's
+// exact unfiltered payer export and the original manifest/object readback gates.
+func PayerScopedNonResourceCharge(row model.Document, payer string) bool {
+	if payer == "" || model.String(row, "bill_payer_account_id") != payer {
+		return false
+	}
+	account, accountOK := row["line_item_usage_account_id"].(string)
+	resource, resourceOK := row["line_item_resource_id"].(string)
+	if !accountOK || !resourceOK || account != "" || resource != "" {
+		return false
+	}
+	switch model.String(row, "line_item_line_item_type") {
+	case "Fee", "RIFee", "SavingsPlanRecurringFee", "SavingsPlanUpfrontFee", "Credit", "Refund", "Tax":
+		return true
+	default:
+		return false
+	}
 }

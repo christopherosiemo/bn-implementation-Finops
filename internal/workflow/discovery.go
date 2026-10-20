@@ -37,6 +37,25 @@ func discoverTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 				return e
 			}
 			rows, e := aws.Inventory(ctx, model.String(account, "region"), id)
+			// Optional database reads have their own rollback boundary; EC2 inventory
+			// and the ordinary schedule path retain their existing contracts.
+			if _, databaseError := t.Exec(ctx, "SAVEPOINT rds_optional_discovery"); databaseError != nil {
+				return databaseError
+			}
+			databaseError := discoverRDSAccount(ctx, a, t, aws, account)
+			if databaseError != nil {
+				if _, rollbackError := t.Exec(ctx, "ROLLBACK TO SAVEPOINT rds_optional_discovery"); rollbackError != nil {
+					return rollbackError
+				}
+			}
+			if _, releaseError := t.Exec(ctx, "RELEASE SAVEPOINT rds_optional_discovery"); releaseError != nil {
+				return releaseError
+			}
+			if databaseError != nil {
+				if qualityError := databaseQuality(ctx, t, "quality-rds-"+id+"-"+model.String(account, "region"), "DEGRADED", "NATIVE_RDS_OPTIONAL_COLLECTION_UNAVAILABLE"); qualityError != nil {
+					return qualityError
+				}
+			}
 			if e != nil {
 				account["status"], account["error"] = "DEGRADED", e.Error()
 			} else {

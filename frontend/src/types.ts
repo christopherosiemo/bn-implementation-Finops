@@ -102,8 +102,11 @@ export interface Resource extends Document {
   currency?: string | null;
 }
 export interface Recommendation extends Document, EvidenceFields {
+  model_kind?: "DATABASE_ASSESSMENT_V1";
+  database_assessment_id?: string;
+  assessment?: components["schemas"]["DatabaseAssessment"];
   resource_id?: string;
-  workload_id: string;
+  workload_id: string | null;
   title: string;
   category: string;
   risk_class: string;
