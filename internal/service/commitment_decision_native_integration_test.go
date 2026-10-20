@@ -90,8 +90,14 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 			}
 			if len(objects) > 0 {
 				out, e := archive.DeleteObjects(c, &s3.DeleteObjectsInput{Bucket: aws.String(bucket), Delete: &s3types.Delete{Objects: objects, Quiet: aws.Bool(true)}})
-				if e != nil || len(out.Errors) > 0 {
-					t.Error("portfolio archive version cleanup failed")
+				if e != nil {
+					// The lab retains this raw Go log only as authenticated ciphertext.
+					// Preserve the actual cleanup cause without relaxing its deadline.
+					t.Errorf("portfolio archive version cleanup request failed: %v", e)
+					return
+				}
+				if len(out.Errors) > 0 {
+					t.Errorf("portfolio archive version cleanup provider errors: count=%d first=%+v", len(out.Errors), out.Errors[0])
 					return
 				}
 			}
@@ -163,7 +169,25 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 		t.Fatal("decision two genuine issued offer receipts absent", err)
 	}
 	finance := f.token(f.tenant, jointFinanceSubject, "FINANCE")
-	code, queued, _ := f.request("commitment-portfolio-analyses", `"0"`, "decision-native-financial-basis", finance, source.Object(history.Selection))
+	// A normal source refresh issues a new immutable inventory receipt. The
+	// original history selection stays sealed; select the current issued head
+	// for this NEW analysis instead of submitting its superseded inventory ID.
+	code, refused, _ := f.request("commitment-portfolio-analyses", `"0"`, "decision-native-stale-financial-basis", finance, source.Object(history.Selection))
+	if code != 409 || model.String(refused, "error") != "PORTFOLIO_INPUTS_NOT_CURRENT" {
+		t.Fatal("decision superseded inventory must not create a new039 analysis", code)
+	}
+	basisSelection := history.Selection
+	if err = f.roles["api"].Do(setupCtx, f.tenant, func(tx *store.Tx) error {
+		current, err := tx.SourceGet(setupCtx, decisionNativeSource)
+		if err != nil {
+			return err
+		}
+		basisSelection.CommitmentReceiptID = model.String(current, "commitment_receipt_id")
+		return nil
+	}); err != nil || basisSelection.CommitmentReceiptID == "" || basisSelection.CommitmentReceiptID == history.Selection.CommitmentReceiptID {
+		t.Fatal("decision refreshed native inventory selection unavailable", err)
+	}
+	code, queued, _ := f.request("commitment-portfolio-analyses", `"0"`, "decision-native-financial-basis", finance, source.Object(basisSelection))
 	if code != 202 {
 		t.Fatal("decision actual039 IDs-only basis request failed", code)
 	}
@@ -176,7 +200,7 @@ func TestCommitmentDecisionActualNativeProviderHistoryAndIndependentFinance(t *t
 		t.Fatal("decision actual039 native/model basis failed", err)
 	}
 	record := commitmentPortfolioGet(t, f, finance, model.String(queued, "id"))
-	if model.String(record, "status") != "ASSESSED" || portfolio.Hash(record["selection"]) != portfolio.Hash(history.Selection) {
+	if model.String(record, "status") != "ASSESSED" || portfolio.Hash(record["selection"]) != portfolio.Hash(basisSelection) {
 		t.Fatal("decision actual039 basis differs")
 	}
 	nativeOffers := map[string]string{}
@@ -340,8 +364,14 @@ func TestCommitmentDecisionNativeStagesDiagnostic(t *testing.T) {
 			}
 			if len(objects) > 0 {
 				out, e := archive.DeleteObjects(c, &s3.DeleteObjectsInput{Bucket: aws.String(bucket), Delete: &s3types.Delete{Objects: objects, Quiet: aws.Bool(true)}})
-				if e != nil || len(out.Errors) > 0 {
-					t.Error("portfolio archive version cleanup failed")
+				if e != nil {
+					// The lab retains this raw Go log only as authenticated ciphertext.
+					// Preserve the actual cleanup cause without relaxing its deadline.
+					t.Errorf("portfolio archive version cleanup request failed: %v", e)
+					return
+				}
+				if len(out.Errors) > 0 {
+					t.Errorf("portfolio archive version cleanup provider errors: count=%d first=%+v", len(out.Errors), out.Errors[0])
 					return
 				}
 			}

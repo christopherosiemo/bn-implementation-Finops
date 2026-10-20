@@ -263,6 +263,30 @@ func TestCommitmentDecision040FinancialRenewalSnapshotAndCurrentness(t *testing.
 	if err = admin.Pool.QueryRow(ctx, "SELECT count(*) FROM commitment_financial_renewals WHERE tenant_id=$1 AND portfolio_request_id=$2 AND original_receipt_id<>current_receipt_id", f.tenant, queued["id"]).Scan(&proofs); err != nil || proofs != 1 {
 		t.Fatal("actual source renewal was not separately persisted")
 	}
+	// Existing analyses retain their original selection through an equivalent
+	// renewal. A NEW039 request must select the actual current receipt instead.
+	code, refused, _ := f.request("commitment-portfolio-analyses", `"0"`, "financial-renewal-stale-new-request", finance, source.Object(selected))
+	if code != 409 || model.String(refused, "error") != "PORTFOLIO_INPUTS_NOT_CURRENT" {
+		t.Fatal("superseded inventory authorized a new039 analysis", code)
+	}
+	currentSelection := selected
+	if err = f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		current, err := tx.SourceGet(ctx, selected.SourceID)
+		if err != nil {
+			return err
+		}
+		currentSelection.CommitmentReceiptID = model.String(current, "commitment_receipt_id")
+		return nil
+	}); err != nil || currentSelection.CommitmentReceiptID == "" || currentSelection.CommitmentReceiptID == selected.CommitmentReceiptID {
+		t.Fatal("actual renewed inventory selection unavailable", err)
+	}
+	code, currentRequest, _ := f.request("commitment-portfolio-analyses", `"0"`, "financial-renewal-current-new-request", finance, source.Object(currentSelection))
+	if code != 202 || model.String(currentRequest, "id") == model.String(queued, "id") || portfolio.Hash(currentRequest["selection"]) != portfolio.Hash(currentSelection) {
+		t.Fatal("new039 analysis did not bind the current issued inventory", code)
+	}
+	if err = admin.Pool.QueryRow(ctx, "SELECT input_snapshot,input_hash FROM commitment_portfolio_requests WHERE tenant_id=$1 AND id=$2", f.tenant, queued["id"]).Scan(&snapshotAfter, &afterHash); err != nil || source.BytesHash(snapshotBefore) != source.BytesHash(snapshotAfter) || inputHash != afterHash {
+		t.Fatal("new039 selection changed the original immutable analysis")
+	}
 	// Internal helper remains owner-only; the existing public/private base is
 	// the only granted route exercised above. No test grants are necessary.
 	err = analyst.Do(ctx, f.tenant, func(tx *store.Tx) error {
