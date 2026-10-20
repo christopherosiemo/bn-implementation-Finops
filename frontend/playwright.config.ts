@@ -16,6 +16,7 @@ export default defineConfig({
       name: "production",
       testIgnore: [
         ...(process.env.FINOPS_DATABASE_COMMISSIONED === "true" ? [] : ["database-live.spec.ts"]),
+        ...(process.env.FINOPS_STORAGE_COMMISSIONED === "true" ? [] : ["storage-live.spec.ts"]),
         "fleet-group-authorization.spec.ts",
         "fleet-fixture-runs.spec.ts",
         "fleet-native-assessment.spec.ts",
@@ -24,6 +25,7 @@ export default defineConfig({
         "commitment-portfolio.spec.ts",
         "commitment-decision.spec.ts",
         "database-assessment.spec.ts",
+        "storage-assessment.spec.ts",
       ],
       use: { baseURL: process.env.FINOPS_WEB_URL || "http://localhost:3000" },
     },
@@ -38,6 +40,7 @@ export default defineConfig({
         "commitment-portfolio.spec.ts",
         "commitment-decision.spec.ts",
         "database-assessment.spec.ts",
+        "storage-assessment.spec.ts",
       ],
       use: { baseURL: "http://127.0.0.1:4177" },
     },

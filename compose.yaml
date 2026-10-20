@@ -55,6 +55,7 @@ services:
       DB_HARDWARE_READER_PASSWORD: ${DB_HARDWARE_READER_PASSWORD:-}
       DB_GROUP_ASSESSOR_PASSWORD: ${DB_GROUP_ASSESSOR_PASSWORD:-}
       DB_DATABASE_ANALYST_PASSWORD: ${DB_DATABASE_ANALYST_PASSWORD:-}
+      DB_STORAGE_ANALYST_PASSWORD: ${DB_STORAGE_ANALYST_PASSWORD:-}
       DB_GROUP_CAPACITY_PASSWORD: ${DB_GROUP_CAPACITY_PASSWORD:-}
     depends_on:
       postgres: {condition: service_healthy}
@@ -137,6 +138,8 @@ services:
       AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
       DATABASE_ASSESSOR_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY:-}
       DATABASE_ASSESSOR_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY:-}
+      STORAGE_ASSESSOR_ACCESS_KEY: ${STORAGE_ASSESSOR_ACCESS_KEY:-}
+      STORAGE_ASSESSOR_SECRET_KEY: ${STORAGE_ASSESSOR_SECRET_KEY:-}
       ASSESSMENT_ACCESS_KEY: ${ASSESSMENT_ACCESS_KEY:-}
       ASSESSMENT_SECRET_KEY: ${ASSESSMENT_SECRET_KEY:-}
       CAPACITY_ACCESS_KEY: ${CAPACITY_ACCESS_KEY:-}
@@ -250,6 +253,34 @@ services:
       OBJECT_BUCKET_RAW: finops-raw
       OBJECT_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY}
       OBJECT_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  # Optional EBS advice has only a dedicated analytical LOGIN, model token and
+  # version-only product evidence reader. No customer AWS or storage action keys.
+  storage-assessor:
+    <<: *go
+    profiles: [storage-assessment]
+    environment:
+      APP_ROLE: storage-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_storage_analyst_login:${DB_STORAGE_ANALYST_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${STORAGE_ASSESSOR_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${STORAGE_ASSESSOR_SECRET_KEY}
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

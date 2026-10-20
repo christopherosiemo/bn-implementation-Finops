@@ -283,6 +283,13 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		publication.economicLines = databaseCoverageEconomicLines(publication.assessment)
 		publications[row.resource] = publication
 	}
+	storagePublications, storageErr := a.storageCoveragePublications(ctx, tx)
+	if storageErr != nil {
+		return nil, storageErr
+	}
+	for id, publication := range storagePublications {
+		publications[id] = publication
+	}
 	rows, err = tx.Query(ctx, `SELECT id FROM source_registrations WHERE tenant_id=$1 AND kind='AWS_CUR2' ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1)
 	if err != nil {
 		return nil, err
@@ -398,7 +405,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			key := model.String(record, "SubAccountId") + "\x00" + model.String(record, "RegionId") + "\x00" + model.String(record, "ResourceId")
 			resource := resources[key]
 			category := "unsupported_spend"
-			if resource != nil && databaseResource(resource) {
+			if resource != nil && (databaseResource(resource) || storageResource(resource)) {
 				category = "observation_only_spend"
 				publication := publications[model.String(resource, "id")]
 				if publication.status == "BLOCKED" || model.String(publication.assessment, "status") == "BLOCKED" {
@@ -408,6 +415,13 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 					price, ok := new(big.Rat).SetString(model.String(economics, "current_hourly_cost"))
 					if ok && model.String(economics, "currency") == currency && price.Cmp(publication.hourly) == 0 && publication.economicLines[databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId"))] {
 						category = "analysed_spend"
+					}
+				}
+				if storageResource(resource) && model.String(resource, "resource_type") == "EBS_VOLUME" {
+					switch model.String(evidence.Object(resource["storage_configuration"]), "volume_type") {
+					case "gp2", "gp3", "io1", "io2":
+					default:
+						category = "unsupported_spend"
 					}
 				}
 			} else if resource != nil && model.String(resource, "resource_type") == "EC2" {
@@ -429,6 +443,8 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 					}
 				}
 			} else if model.String(record, "ServiceName") == "AmazonRDS" || model.String(evidence.Object(record["x_ProviderFields"]), "product_servicecode") == "AmazonRDS" {
+				category = "observation_only_spend"
+			} else if component, _, _ := storageChargeKind(evidence.Object(record["x_ProviderFields"])); component != "" {
 				category = "observation_only_spend"
 			}
 			group.values[category].Add(group.values[category], cost)

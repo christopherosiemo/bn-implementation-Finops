@@ -53,6 +53,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/storage-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listStorageAssessments"];
+        put?: never;
+        /** @description IDs-only read-only EBS assessment. Server resolves native inventory, telemetry, dependencies and customer economics. If-Match must be quoted zero. No amounts, observations, configuration or authority are accepted from the caller. */
+        post: operations["requestStorageAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/storage-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getStorageAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coverage": {
         parameters: {
             query?: never;
@@ -1730,6 +1763,222 @@ export interface components {
             max_write_latency_seconds: components["schemas"]["Decimal"];
             max_disk_queue_depth: components["schemas"]["Decimal"];
             max_replica_lag_seconds: components["schemas"]["Decimal"];
+        };
+        /** @description Optional customer storage requirements. These declarations are not native observations, dependency proof, backup proof or permission to change storage. Null booleans retain unknown requirements. */
+        StorageLimits: {
+            iops_max_fraction: components["schemas"]["Decimal"];
+            throughput_max_fraction: components["schemas"]["Decimal"];
+            max_read_latency_seconds: components["schemas"]["Decimal"];
+            max_write_latency_seconds: components["schemas"]["Decimal"];
+            max_disk_queue_depth: components["schemas"]["Decimal"];
+            min_burst_balance_percent: components["schemas"]["Decimal"];
+            snapshot_retention_days: number;
+            quarantine_days: number;
+            backup_required: boolean | null;
+            allow_durability_reduction: boolean | null;
+            require_multi_attach: boolean | null;
+            filesystem_review_required: boolean | null;
+        };
+        /** @enum {string} */
+        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT";
+        StorageAssessmentRequest: {
+            resource_id: string;
+        };
+        /** @enum {string} */
+        StorageResourceKind: "EBS_VOLUME" | "EBS_SNAPSHOT";
+        /** @enum {string} */
+        StorageRecommendationKind: "STORAGE_GP2_TO_GP3" | "STORAGE_GP3_IOPS_RIGHTSIZE" | "STORAGE_GP3_THROUGHPUT_RIGHTSIZE" | "STORAGE_IO_TO_GP3" | "STORAGE_UNATTACHED_REVIEW" | "STORAGE_SNAPSHOT_RETENTION_REVIEW" | "STORAGE_UNSUPPORTED_CONFIGURATION" | "MIGRATION_OPPORTUNITY";
+        /** @description Server-issued native configuration, attachment, dependency, candidate, check or immutable source-reference projection. Response-only; never authoritative browser input. */
+        StorageAssessmentObject: {
+            [key: string]: unknown;
+        };
+        StorageSourceReference: {
+            kind: string;
+            id: string;
+            version: string;
+            sha256: string;
+        };
+        StorageEvidenceWindow: {
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            observed_utc_days: number;
+            required_utc_days: number | null;
+            expected_hours: number;
+            observed_hours: number;
+            /** @enum {string} */
+            coverage_basis: "ACTUAL_NATIVE_BINS_AND_SAMPLE_COUNTS_NO_INTERPOLATION";
+        };
+        StorageMetricDistribution: {
+            metric: string;
+            unit: string;
+            /** @description Explicit native-period aggregation. Rate distributions summarize hourly maxima of native-period rates; latency summarizes maxima of native-period operation-weighted means, never raw-operation percentiles or forecasts. */
+            statistic: string;
+            /** @enum {string} */
+            status: "COMPLETE_ZERO_OPERATIONS" | "COMPLETE" | "INCOMPLETE";
+            expected_hours: number;
+            observed_hours: number;
+            expected_sample_count: number | null;
+            sample_count: number;
+            expected_native_sample_count: number | null;
+            native_sample_count: components["schemas"]["NullableDecimal"];
+            minimum: components["schemas"]["NullableDecimal"];
+            maximum: components["schemas"]["NullableDecimal"];
+            p50_of_period_statistics: components["schemas"]["NullableDecimal"];
+            p95_of_period_statistics: components["schemas"]["NullableDecimal"];
+            p99_of_period_statistics: components["schemas"]["NullableDecimal"];
+            /** @description Known zero operations leave operation latency undefined; they do not create zero-latency observations. */
+            zero_operation_hours: number;
+        };
+        StorageCostComponent: {
+            component: string;
+            unit: string;
+            /** @enum {string} */
+            basis: "NATIVE_CUSTOMER_EFFECTIVE_COMPONENT_RATE" | "NATIVE_ATTRIBUTABLE_CONTINUING_COST";
+            current_monthly_cost: components["schemas"]["NullableDecimal"];
+            candidate_monthly_cost: components["schemas"]["NullableDecimal"];
+            actual_period_amount: components["schemas"]["NullableDecimal"];
+            currency: string;
+            current_source_refs: components["schemas"]["StorageSourceReference"][];
+            candidate_source_refs: components["schemas"]["StorageSourceReference"][];
+            continuing: boolean;
+        };
+        StorageAssessmentEconomics: {
+            current_hourly_cost: components["schemas"]["NullableDecimal"];
+            current_monthly_cost: components["schemas"]["NullableDecimal"];
+            candidate_hourly_cost: components["schemas"]["NullableDecimal"];
+            candidate_monthly_cost: components["schemas"]["NullableDecimal"];
+            estimated_monthly_saving: components["schemas"]["NullableDecimal"];
+            estimated_annual_saving: components["schemas"]["NullableDecimal"];
+            currency: string | null;
+            basis: string;
+            /** @enum {string} */
+            status: "UNAVAILABLE" | "CARRYING_COST_ONLY" | "CHEAPER" | "NOT_CHEAPER" | "NO_CHANGE";
+            component_costs: components["schemas"]["StorageCostComponent"][];
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        StorageAssessmentCheck: {
+            dimension: string;
+            /** @enum {string} */
+            status: "PASS" | "FAIL" | "BLOCKED" | "NOT_APPLICABLE_ZERO_OPERATIONS";
+            unit: string;
+            observed_demand: components["schemas"]["NullableDecimal"];
+            required_with_reserve: components["schemas"]["NullableDecimal"];
+            available: components["schemas"]["NullableDecimal"];
+            planning_limit: components["schemas"]["NullableDecimal"];
+            basis: string;
+        };
+        StorageSnapshotReview: {
+            snapshot_id: string;
+            source_volume_id: string | null;
+            /** @enum {string} */
+            classification: "POLICY_REQUIRED" | "AMI_OR_RESTORE_DEPENDENT" | "UNKNOWN_DEPENDENCY" | "RETENTION_POLICY_UNKNOWN" | "STATE_UNKNOWN_OR_NOT_COMPLETE" | "POTENTIALLY_REDUNDANT" | "WITHIN_RETENTION";
+            age_days: number | null;
+            monthly_carrying_cost: components["schemas"]["NullableDecimal"];
+            currency: string | null;
+            dependency_state: string | null;
+            ami_ids: string[] | null;
+            restore_references: string[] | null;
+            next_action: string;
+            blockers: string[];
+            /** @enum {boolean} */
+            deletion_recommended: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            estimated_saving: null;
+        };
+        StorageUnattachedReview: {
+            owner: string | null;
+            age_days: number | null;
+            /** @description Unknown unless authenticated recorded attachment context is present. AWS Config capture time is not an exact detach time and does not establish current ownership or deletion authority. */
+            prior_attachment_context: string;
+            backup_observed: boolean | null;
+            quarantine_days: number | null;
+            next_action: string;
+            /** @enum {boolean} */
+            deletion_recommended: false;
+        };
+        StorageAssessmentCandidate: {
+            id: string;
+            /** @enum {string} */
+            status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED" | "OBSERVATION_ONLY";
+            recommendation_kind: components["schemas"]["StorageRecommendationKind"];
+            decision_code: string;
+            candidate_configuration: components["schemas"]["StorageAssessmentObject"] | null;
+            checks: components["schemas"]["StorageAssessmentCheck"][];
+            economics: components["schemas"]["StorageAssessmentEconomics"];
+            blockers: string[];
+            /** @enum {boolean} */
+            target_validation_required: true;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            migration_requirements?: ("NEW_VOLUME" | "DATA_MIGRATION" | "FILESYSTEM_HANDLING" | "VALIDATION" | "CUTOVER" | "ROLLBACK")[];
+        };
+        StorageAssessmentConfidence: {
+            /**
+             * @description Evidence-quality label; never a probability or guarantee.
+             * @enum {string}
+             */
+            status: "UNAVAILABLE" | "LOW" | "MEDIUM" | "HIGH";
+            reasons: string[];
+            /** @enum {string} */
+            meaning?: "OBSERVED_DEMAND_SCREEN_NOT_STATISTICAL_CONFIDENCE" | "INSUFFICIENT_SERVER_SELECTED_EVIDENCE" | "SERVER_EVIDENCE_BLOCKED";
+        };
+        StorageAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            model_version: "storage-observed-demand-v1";
+            resource_kind: components["schemas"]["StorageResourceKind"];
+            binding: components["schemas"]["StorageAssessmentObject"];
+            current_configuration: components["schemas"]["StorageAssessmentObject"];
+            candidate_configuration: components["schemas"]["StorageAssessmentObject"] | null;
+            evidence_window: components["schemas"]["StorageEvidenceWindow"] | null;
+            metric_distributions: components["schemas"]["StorageMetricDistribution"][];
+            economics: components["schemas"]["StorageAssessmentEconomics"];
+            checks: components["schemas"]["StorageAssessmentCheck"][];
+            blockers: string[];
+            confidence: components["schemas"]["StorageAssessmentConfidence"];
+            proposal: components["schemas"]["DatabaseAssessmentProposal"];
+            /** @enum {string|null} */
+            verified_saving: null;
+            configuration_authority: string | null;
+            implementation_method: string;
+            unattached_review: components["schemas"]["StorageUnattachedReview"] | null;
+            snapshot_reviews: components["schemas"]["StorageSnapshotReview"][];
+            source_refs: components["schemas"]["StorageAssessmentObject"][];
+            candidates: components["schemas"]["StorageAssessmentCandidate"][];
+            recommendation_kind: components["schemas"]["StorageRecommendationKind"];
+            decision_code: string;
+            /** @enum {string} */
+            status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED" | "OBSERVATION_ONLY";
+            model_assumptions: string[];
+            migration_requirements?: ("NEW_VOLUME" | "DATA_MIGRATION" | "FILESYSTEM_HANDLING" | "VALIDATION" | "CUTOVER" | "ROLLBACK")[];
+            assessment_hash: string;
+            model_assessment_hash?: string;
+        };
+        StorageAssessmentRecord: {
+            id: string;
+            version: number;
+            resource_id: string;
+            workload_id: string | null;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "ASSESSED" | "BLOCKED" | "FAILED";
+            /** Format: date-time */
+            created_at: string;
+            /** @description Server-rechecked source and configuration equality; missing does not assert currentness. */
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: components["schemas"]["StorageAssessment"] | null;
+        };
+        StorageAssessmentPage: {
+            items: components["schemas"]["StorageAssessmentRecord"][];
+            next_cursor: string | null;
         };
         DatabaseAssessmentRequest: {
             resource_id: string;
@@ -4832,6 +5081,7 @@ export interface components {
         };
         WorkloadSafetyRequest: {
             database?: components["schemas"]["DatabaseLimits"];
+            storage?: components["schemas"]["StorageLimits"];
             /** @enum {string} */
             schema_version: "1";
             /** @enum {string} */
@@ -4867,6 +5117,7 @@ export interface components {
         };
         WorkloadSafetyProfile: {
             database?: components["schemas"]["DatabaseLimits"];
+            storage?: components["schemas"]["StorageLimits"];
             id: string;
             workload_id: string;
             version: number;
@@ -5318,8 +5569,9 @@ export interface components {
         };
         Resource: components["schemas"]["Document"] & {
             name?: string;
-            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER discriminator. */
+            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT discriminator. */
             resource_type?: string;
+            storage_configuration?: components["schemas"]["StorageAssessmentObject"];
             engine?: string;
             engine_version?: string;
             provider_resource_id?: string;
@@ -5333,12 +5585,13 @@ export interface components {
         };
         Recommendation: components["schemas"]["Document"] & {
             /**
-             * @description Absent on legacy EC2 recommendations. Database advice never enables EC2 change plans.
+             * @description Absent on legacy EC2 recommendations. Database and storage advice never enable EC2 change plans.
              * @enum {string}
              */
-            model_kind?: "DATABASE_ASSESSMENT_V1";
+            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1";
             database_assessment_id?: string;
-            assessment?: components["schemas"]["DatabaseAssessment"];
+            storage_assessment_id?: string;
+            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"];
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
@@ -5644,7 +5897,7 @@ export interface operations {
     listResources: {
         parameters: {
             query?: {
-                resource_type?: components["schemas"]["DatabaseResourceKind"];
+                resource_type?: components["schemas"]["AssessmentResourceKind"];
                 limit?: components["parameters"]["PageLimit"];
                 /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
                 cursor?: components["parameters"]["PageCursor"];
@@ -5655,7 +5908,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Existing resource array or paginated native database resources when resource_type is selected. */
+            /** @description Existing resource array or paginated native database and block-storage resources when resource_type is selected. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5783,6 +6036,131 @@ export interface operations {
                 };
             };
             /** @description Scoped database read permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped assessment absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listStorageAssessments: {
+        parameters: {
+            query?: {
+                /** @description Exact resource filter. Required for a scoped application owner; other permitted roles may read tenant-wide history. */
+                resource_id?: string;
+                limit?: number;
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant-scoped persisted storage assessment history; no mutation or execution authority. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageAssessmentPage"];
+                };
+            };
+            /** @description Scoped storage read permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestStorageAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted queued assessment; all proposals remain non-executable R3 advice. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageAssessmentRecord"];
+                };
+            };
+            /** @description Scoped assessment write permission required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource is absent */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getStorageAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable storage assessment and source-bound evidence, annotated with server-derived currentness. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageAssessmentRecord"];
+                };
+            };
+            /** @description Scoped storage read permission required. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -10513,8 +10891,8 @@ export interface operations {
     listRecommendations: {
         parameters: {
             query?: {
-                model_kind?: "DATABASE_ASSESSMENT_V1";
-                /** @description Exact resource filter for DATABASE_ASSESSMENT_V1 publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
+                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1";
+                /** @description Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
                 resource_id?: string;
                 limit?: number;
                 /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
@@ -10526,7 +10904,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Existing recommendation array, or scoped immutable database publication page when model_kind is selected. Currentness is server-derived. */
+            /** @description Existing recommendation array, or scoped immutable database or storage publication page when model_kind is selected. Currentness is server-derived. */
             200: {
                 headers: {
                     [name: string]: unknown;

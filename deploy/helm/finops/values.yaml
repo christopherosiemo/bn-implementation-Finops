@@ -45,6 +45,7 @@ database:
     fleet-history-reader: finops-db-fleet-history-reader
     fleet-assessment: finops-db-group-assessor
     database-assessor: finops-db-database-analyst
+    storage-assessor: finops-db-storage-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -99,6 +100,14 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+storageAssessor:
+  # Existing restricted LOGIN and version-only evidence reader. No AWS role,
+  # signing or storage mutation credentials. Optional in every deployment mode.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
 databaseAssessor:
   # Existing restricted LOGIN + version-only evidence reader; no cloud-role,
   # signing, execution or purchase credentials. Hosted deployment is opt-in.

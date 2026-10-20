@@ -263,5 +263,24 @@ func (s *Store) migrateOnce(ctx context.Context, dir string) error {
 			return e
 		}
 	}
+	// Storage advice is separately commissioned. Leave its analytical group
+	// NOLOGIN and install a process LOGIN only when explicitly configured.
+	if password := os.Getenv("DB_STORAGE_ANALYST_PASSWORD"); password != "" {
+		const login = "finops_storage_analyst_login"
+		var exists bool
+		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=$1)", login).Scan(&exists); e != nil {
+			return e
+		}
+		verb := "ALTER ROLE "
+		if !exists {
+			verb = "CREATE ROLE "
+		}
+		if _, e = tx.Exec(ctx, verb+pgx.Identifier{login}.Sanitize()+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '"+strings.ReplaceAll(password, "'", "''")+"'"); e != nil {
+			return e
+		}
+		if _, e = tx.Exec(ctx, "GRANT finops_storage_analyst TO "+pgx.Identifier{login}.Sanitize()); e != nil {
+			return e
+		}
+	}
 	return tx.Commit(ctx)
 }

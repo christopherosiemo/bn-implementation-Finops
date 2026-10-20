@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
@@ -19,6 +20,9 @@ import (
 )
 
 func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixture bool) (model.Document, error) {
+	if strings.HasPrefix(recID, "storage-") {
+		return nil, problem(422, "STORAGE_ADVICE_NOT_EXECUTABLE", "storage advice cannot authorize provider actions")
+	}
 	rec, e := t.Get(ctx, "recommendations", recID)
 	if e != nil {
 		return nil, e
@@ -28,6 +32,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	}
 	if model.String(rec, "model_kind") == "DATABASE_ASSESSMENT_V1" {
 		return nil, problem(422, "DATABASE_ADVICE_NOT_EXECUTABLE", "database advice cannot authorize provider actions")
+	}
+	if model.String(rec, "model_kind") == "STORAGE_ASSESSMENT_V1" {
+		return nil, problem(422, "STORAGE_ADVICE_NOT_EXECUTABLE", "storage advice cannot authorize provider actions")
 	}
 	if model.String(rec, "status") != "VALIDATED" || !model.Bool(rec, "pre_execution_ready") {
 		return nil, problem(422, "RECOMMENDATION_NOT_VALIDATED", "recommendation must be validated")
@@ -63,6 +70,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	}
 	if databaseResource(res) {
 		return nil, problem(422, "DATABASE_ADVICE_NOT_EXECUTABLE", "database resources are observation-only")
+	}
+	if storageResource(res) {
+		return nil, problem(422, "STORAGE_ADVICE_NOT_EXECUTABLE", "persistent storage resources are read-only")
 	}
 	ready, e := t.EvidenceGet(ctx, "readiness", model.String(rec, "readiness_id"))
 	if e != nil {

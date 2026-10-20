@@ -26,6 +26,7 @@ var edgeTypes = map[string]bool{"RUNS_ON": true, "ATTACHED_TO": true, "ROUTES_TO
 // cannot establish ownership, classification or an AWS target binding.
 func Inventory(resources, workloads []model.Document) []model.Document {
 	nodes := []model.Document{}
+	storageScope := storageNativeScope(resources)
 	byWorkload := map[string]model.Document{}
 	for _, w := range workloads {
 		id := model.String(w, "id")
@@ -46,6 +47,15 @@ func Inventory(resources, workloads []model.Document) []model.Document {
 		}
 		if r["provider_relationships"] != nil {
 			n["provider_relationships"] = r["provider_relationships"]
+		}
+		if storageScope[id] {
+			n["tenant_id"] = r["tenant_id"]
+		}
+		if model.String(r, "resource_type") == "IAC_AUTHORITY_REFERENCE" && r["configuration_authority_reference"] != nil {
+			n["configuration_authority_reference"] = r["configuration_authority_reference"]
+		}
+		if storageNativeResource(r) && r["storage_stop_context"] != nil {
+			n["storage_stop_context"] = r["storage_stop_context"]
 		}
 		nodes = append(nodes, n)
 	}
@@ -123,6 +133,17 @@ func Edges(nodes, submitted []model.Document) ([]model.Document, error) {
 				}
 			}
 		}
+		if storageNativeResource(n) {
+			relationships, err := storageNativeRelationships(n, index)
+			if err != nil {
+				return nil, err
+			}
+			for _, rel := range relationships {
+				if e = put(model.String(rel, "type"), model.String(n, "id"), model.String(rel, "to"), "DISCOVERED_MAPPING"); e != nil {
+					return nil, e
+				}
+			}
+		}
 	}
 	for _, edge := range submitted {
 		for k := range edge {
@@ -188,6 +209,15 @@ func InventoryHash(nodes []model.Document) string {
 		}
 		if node["provider_relationships"] != nil {
 			copy["provider_relationships"] = node["provider_relationships"]
+		}
+		if node["tenant_id"] != nil {
+			copy["tenant_id"] = node["tenant_id"]
+		}
+		if node["configuration_authority_reference"] != nil {
+			copy["configuration_authority_reference"] = node["configuration_authority_reference"]
+		}
+		if node["storage_stop_context"] != nil {
+			copy["storage_stop_context"] = node["storage_stop_context"]
 		}
 		stable = append(stable, copy)
 	}

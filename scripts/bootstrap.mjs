@@ -123,6 +123,13 @@ if (process.env.FINOPS_BOOTSTRAP_FLEET_CAPACITY === 'true') {
 for (const [key, value] of Object.entries({ DB_DATABASE_ANALYST_PASSWORD: random(), DATABASE_ASSESSOR_ACCESS_KEY: 'database-assessor', DATABASE_ASSESSOR_SECRET_KEY: random() })) {
   if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
 }
+// Explicit opt-in only. Ordinary bootstrap creates no EBS analyst LOGIN or
+// evidence identity and does not activate the storage-assessment Compose profile.
+if (process.env.FINOPS_BOOTSTRAP_STORAGE_ASSESSOR === 'true') {
+  for (const [key, value] of Object.entries({ DB_STORAGE_ANALYST_PASSWORD: random(), STORAGE_ASSESSOR_ACCESS_KEY: 'storage-assessor', STORAGE_ASSESSOR_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+}
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
 const userProfile = {

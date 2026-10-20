@@ -20,6 +20,10 @@ func dependencyGraph(ctx context.Context, t *store.Tx) (model.Document, error) {
 	if e != nil {
 		return nil, e
 	}
+	resources, e = storageGraphResources(ctx, t, resources)
+	if e != nil {
+		return nil, e
+	}
 	workloads, e := t.List(ctx, "workloads")
 	if e != nil {
 		return nil, e
@@ -88,7 +92,7 @@ func currentDependencyReview(ctx context.Context, t *store.Tx, resource, reviewI
 	if model.Number(review, "graph_version") != model.Number(g, "version") || model.String(review, "graph_hash") != model.String(g, "graph_hash") || model.String(review, "inventory_hash") != model.String(g, "inventory_hash") || graphHash != "" && graphHash != model.String(g, "graph_hash") {
 		return nil, errors.New("DEPENDENCY_GRAPH_CHANGED")
 	}
-	reasons := dependency.Assess(evidence.Rows(g["nodes"]), evidence.Rows(g["edges"]), resource)
+	reasons := dependency.AssessEC2Stop(evidence.Rows(g["nodes"]), evidence.Rows(g["edges"]), resource)
 	if len(reasons) > 0 {
 		return nil, errors.New(reasons[0])
 	}
@@ -212,7 +216,7 @@ func (a *API) dependencyMutate(ctx context.Context, t *store.Tx, i auth.Identity
 	if model.String(g, "status") != "DECLARED" {
 		return nil, 0, true, problem(422, "DEPENDENCY_GRAPH_UNRESOLVED", "resolve graph endpoints before reviewing")
 	}
-	reasons := dependency.Assess(evidence.Rows(g["nodes"]), evidence.Rows(g["edges"]), parts[1])
+	reasons := dependency.AssessEC2Stop(evidence.Rows(g["nodes"]), evidence.Rows(g["edges"]), parts[1])
 	status := "READY"
 	if len(reasons) > 0 {
 		status = "BLOCKED"

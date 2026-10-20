@@ -281,6 +281,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result, handled, err := a.storageGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.databaseGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
@@ -327,6 +331,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				return err
 			}
 			d["recommendations"] = append(d["recommendations"].([]model.Document), databaseRows...)
+			storageRows, err := a.storageRecommendations(r.Context(), t)
+			if err != nil {
+				return err
+			}
+			d["recommendations"] = append(d["recommendations"].([]model.Document), storageRows...)
 			if _, e := t.Exec(r.Context(), "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", t.Tenant+":dependency-graph"); e != nil {
 				return e
 			}
@@ -444,6 +453,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			var dbRows []model.Document
 			dbRows, e = a.databaseRecommendations(r.Context(), t)
 			rows = append(rows, dbRows...)
+			if e == nil {
+				var storageRows []model.Document
+				storageRows, e = a.storageRecommendations(r.Context(), t)
+				rows = append(rows, storageRows...)
+			}
 		}
 		out = rows
 		return e
@@ -570,7 +584,7 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		}
 		created := []model.Document{}
 		for _, res := range resources {
-			if databaseResource(res) {
+			if databaseResource(res) || storageResource(res) {
 				continue
 			}
 			wid := model.String(res, "workload_id")

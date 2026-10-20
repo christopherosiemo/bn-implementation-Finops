@@ -17,6 +17,7 @@ function run(overrides = {}) {
 printf '%s\\n' '${sentinel}'
 printf '%s\\n' '${sentinel}' >&2
 printf '%s %s %s\\n' "$1" "\${2:-}" "\${3:-}" >> "$CASE_DIR/calls"
+if [ "$1" = admin ] && [ "\${2:-}" = policy ] && [ "\${3:-}" = create ]; then printf '%s %s\\n' "\${5:-}" "\${6:-}" >> "$CASE_DIR/policies"; fi
 if [ "$1" = alias ]; then
   count=0
   if [ -f "$CASE_DIR/attempts" ]; then count=$(cat "$CASE_DIR/attempts"); fi
@@ -39,10 +40,10 @@ export CASE_DIR INIT_SCRIPT
 export PATH="$CASE_DIR:/usr/bin:/bin"
 exec /bin/sh "$INIT_SCRIPT"
 `);
-  const env = {...process.env, CASE_DIR: directory, INIT_SCRIPT: path.join(root, 'config/minio/init-buckets.sh'), ALIAS_SUCCEED_AT: '1', MINIO_ROOT_USER: 'fixture-root', MINIO_ROOT_PASSWORD: 'fixture-root-secret', OBJECT_ACCESS_KEY: 'fixture-raw', OBJECT_SECRET_KEY: 'fixture-raw-secret', AUDIT_ACCESS_KEY: 'fixture-audit', AUDIT_SECRET_KEY: 'fixture-audit-secret', ASSESSMENT_ACCESS_KEY: 'fixture-assessor', ASSESSMENT_SECRET_KEY: 'fixture-assessor-secret', CAPACITY_ACCESS_KEY: 'fixture-capacity', CAPACITY_SECRET_KEY: 'fixture-capacity-secret', ...overrides};
+  const env = {...process.env, CASE_DIR: directory, INIT_SCRIPT: path.join(root, 'config/minio/init-buckets.sh'), ALIAS_SUCCEED_AT: '1', MINIO_ROOT_USER: 'fixture-root', MINIO_ROOT_PASSWORD: 'fixture-root-secret', OBJECT_ACCESS_KEY: 'fixture-raw', OBJECT_SECRET_KEY: 'fixture-raw-secret', AUDIT_ACCESS_KEY: 'fixture-audit', AUDIT_SECRET_KEY: 'fixture-audit-secret', ASSESSMENT_ACCESS_KEY: 'fixture-assessor', ASSESSMENT_SECRET_KEY: 'fixture-assessor-secret', CAPACITY_ACCESS_KEY: 'fixture-capacity', CAPACITY_SECRET_KEY: 'fixture-capacity-secret', DATABASE_ASSESSOR_ACCESS_KEY: '', DATABASE_ASSESSOR_SECRET_KEY: '', STORAGE_ASSESSOR_ACCESS_KEY: '', STORAGE_ASSESSOR_SECRET_KEY: '', ...overrides};
   const result = spawnSync(shell, [path.join(directory, 'launch')], {env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 15_000, maxBuffer: 128 << 10});
   const read = name => fs.existsSync(path.join(directory, name)) ? fs.readFileSync(path.join(directory, name), 'utf8').trim().split(/\r?\n/) : [];
-  const evidence = {...result, calls: read('calls'), sleeps: read('sleeps'), timeouts: read('timeouts')};
+  const evidence = {...result, calls: read('calls'), policies: read('policies'), sleeps: read('sleeps'), timeouts: read('timeouts')};
   assert.equal(path.dirname(fs.realpathSync(directory)), fs.realpathSync(os.tmpdir()));
   assert.match(path.basename(directory), /^minio-startup-test-/);
   assert.ok(fs.lstatSync(directory).isDirectory() && !fs.lstatSync(directory).isSymbolicLink());
@@ -92,6 +93,32 @@ test('missing required credentials refuse before any external command', () => {
   assert.equal(result.status, 1);
   assert.equal(result.stderr, 'MINIO_CONFIGURATION_INVALID\n');
   assert.equal(result.calls.length, 0);
+});
+test('storage evidence identity is opt-in, distinct and attaches only the existing version-only policy', () => {
+  const off = run(); assert.equal(off.status, 0); assert.ok(!off.policies.some(value => value.startsWith('storage-assessor ')));
+  const enabled = run({STORAGE_ASSESSOR_ACCESS_KEY:'fixture-storage',STORAGE_ASSESSOR_SECRET_KEY:'fixture-storage-secret'});
+  assert.equal(enabled.status, 0); assert.equal(enabled.calls.length, 20);
+  assert.deepEqual(enabled.policies.filter(value => value.startsWith('storage-assessor ')), ['storage-assessor /config/group-assessor-policy.json']);
+  const policy=JSON.parse(fs.readFileSync(path.join(root,'config/minio/group-assessor-policy.json'),'utf8'));
+  assert.deepEqual(policy.Statement.filter(row=>row.Effect==='Allow').map(row=>row.Action), [['s3:GetObjectVersion']]);
+  assert.ok(policy.Statement.some(row=>row.Effect==='Deny'&&row.Condition?.Null?.['s3:versionid']==='true'));
+  assert.ok(policy.Statement.some(row=>row.Effect==='Deny'&&row.Condition?.StringEquals?.['s3:versionid']?.includes('null')));
+  for(const key of ['fixture-root','fixture-raw','fixture-audit','fixture-assessor','fixture-capacity','fixture-db']){
+    const rejected=run({DATABASE_ASSESSOR_ACCESS_KEY:'fixture-db',DATABASE_ASSESSOR_SECRET_KEY:'fixture-db-secret',STORAGE_ASSESSOR_ACCESS_KEY:key,STORAGE_ASSESSOR_SECRET_KEY:'fixture-storage-secret'});
+    assert.equal(rejected.status, 1); assert.equal(rejected.stderr, 'MINIO_STORAGE_ASSESSOR_CONFIGURATION_INVALID\n');
+    assert.ok(!rejected.policies.some(value=>value.startsWith('storage-assessor ')));
+  }
+  const partial=run({STORAGE_ASSESSOR_ACCESS_KEY:'fixture-storage'});
+  assert.equal(partial.status, 1); assert.equal(partial.stderr, 'MINIO_STORAGE_ASSESSOR_CONFIGURATION_INVALID\n');
+});
+test('optional storage Compose process receives only analytical credentials and no action or cloud identity', () => {
+  const compose=fs.readFileSync(path.join(root,'compose.yaml'),'utf8');
+  const block=compose.match(/^  storage-assessor:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(block);
+  assert.match(block,/profiles: \[storage-assessment\]/);assert.doesNotMatch(block,/<<: \*common|env_file|envFrom|AWS_|SIGNER_|SIGNING_|EXECUTOR_|CLICKHOUSE_|TEMPORAL_/);
+  const names=[...block.matchAll(/^      ([A-Z][A-Z_]+):/gm)].map(match=>match[1]).sort();
+  assert.deepEqual(names,['APP_ROLE','PORT','FIXTURE_MODE','DATABASE_URL','ECONOMICS_URL','ECONOMICS_TOKEN','OBJECT_ENDPOINT','OBJECT_REGION','OBJECT_BUCKET_RAW','OBJECT_ACCESS_KEY','OBJECT_SECRET_KEY'].sort());
+  assert.match(block,/finops_storage_analyst_login:\$\{DB_STORAGE_ANALYST_PASSWORD\}/);assert.match(block,/OBJECT_ACCESS_KEY: \$\{STORAGE_ASSESSOR_ACCESS_KEY\}/);assert.match(block,/OBJECT_SECRET_KEY: \$\{STORAGE_ASSESSOR_SECRET_KEY\}/);
+  assert.match(block,/read_only: true/);assert.match(block,/cap_drop: \[ALL\]/);
 });
 test('one-shot Compose initializer and CI startup have independent finite bounds', () => {
   const compose = fs.readFileSync(path.join(root, 'compose.yaml'), 'utf8');

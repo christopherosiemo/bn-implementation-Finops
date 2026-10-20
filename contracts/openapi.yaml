@@ -14,12 +14,12 @@ paths:
       parameters:
         - name: resource_type
           in: query
-          schema: { $ref: '#/components/schemas/DatabaseResourceKind' }
+          schema: { $ref: '#/components/schemas/AssessmentResourceKind' }
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
-          description: Existing resource array or paginated native database resources when resource_type is selected.
+          description: Existing resource array or paginated native database and block-storage resources when resource_type is selected.
           content:
             application/json:
               schema:
@@ -79,6 +79,59 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/DatabaseAssessmentRecord' }
         '403': { description: Scoped database read permission required. }
+        '404': { description: Scoped assessment absent. }
+  /storage-assessments:
+    get:
+      operationId: listStorageAssessments
+      parameters:
+        - name: resource_id
+          in: query
+          description: Exact resource filter. Required for a scoped application owner; other permitted roles may read tenant-wide history.
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Tenant-scoped persisted storage assessment history; no mutation or execution authority.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAssessmentPage' }
+        '403': { description: Scoped storage read permission required. }
+    post:
+      operationId: requestStorageAssessment
+      description: IDs-only read-only EBS assessment. Server resolves native inventory, telemetry, dependencies and customer economics. If-Match must be quoted zero. No amounts, observations, configuration or authority are accepted from the caller.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StorageAssessmentRequest' }
+      responses:
+        '202':
+          description: Persisted queued assessment; all proposals remain non-executable R3 advice.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAssessmentRecord' }
+        '403': { description: Scoped assessment write permission required. }
+        '409': { description: Idempotency conflict. }
+        '412': { description: Initial version precondition failed. }
+        '422': { description: Resource is absent, unsupported or outside the authenticated scope. }
+  /storage-assessments/{id}:
+    get:
+      operationId: getStorageAssessment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Immutable storage assessment and source-bound evidence, annotated with server-derived currentness.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAssessmentRecord' }
+        '403': { description: Scoped storage read permission required. }
         '404': { description: Scoped assessment absent. }
   /coverage:
     get:
@@ -2049,10 +2102,10 @@ paths:
       parameters:
         - name: model_kind
           in: query
-          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1] }
+          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1] }
         - name: resource_id
           in: query
-          description: Exact resource filter for DATABASE_ASSESSMENT_V1 publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
+          description: Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
           schema: { type: string }
         - name: limit
           in: query
@@ -2060,7 +2113,7 @@ paths:
         - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
-          description: Existing recommendation array, or scoped immutable database publication page when model_kind is selected. Currentness is server-derived.
+          description: Existing recommendation array, or scoped immutable database or storage publication page when model_kind is selected. Currentness is server-derived.
           content:
             application/json:
               schema:
@@ -2320,6 +2373,248 @@ components:
         max_write_latency_seconds: { $ref: '#/components/schemas/Decimal' }
         max_disk_queue_depth: { $ref: '#/components/schemas/Decimal' }
         max_replica_lag_seconds: { $ref: '#/components/schemas/Decimal' }
+    StorageLimits:
+      type: object
+      additionalProperties: false
+      description: Optional customer storage requirements. These declarations are not native observations, dependency proof, backup proof or permission to change storage. Null booleans retain unknown requirements.
+      required: [iops_max_fraction, throughput_max_fraction, max_read_latency_seconds, max_write_latency_seconds, max_disk_queue_depth, min_burst_balance_percent, snapshot_retention_days, quarantine_days, backup_required, allow_durability_reduction, require_multi_attach, filesystem_review_required]
+      properties:
+        iops_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        throughput_max_fraction: { $ref: '#/components/schemas/Decimal' }
+        max_read_latency_seconds: { $ref: '#/components/schemas/Decimal' }
+        max_write_latency_seconds: { $ref: '#/components/schemas/Decimal' }
+        max_disk_queue_depth: { $ref: '#/components/schemas/Decimal' }
+        min_burst_balance_percent: { $ref: '#/components/schemas/Decimal' }
+        snapshot_retention_days: { type: integer, minimum: 1, maximum: 36500 }
+        quarantine_days: { type: integer, minimum: 1, maximum: 36500 }
+        backup_required: { type: boolean, nullable: true }
+        allow_durability_reduction: { type: boolean, nullable: true }
+        require_multi_attach: { type: boolean, nullable: true }
+        filesystem_review_required: { type: boolean, nullable: true }
+    AssessmentResourceKind:
+      type: string
+      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT]
+    StorageAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, minLength: 1, maxLength: 200 }
+    StorageResourceKind:
+      type: string
+      enum: [EBS_VOLUME, EBS_SNAPSHOT]
+    StorageRecommendationKind:
+      type: string
+      enum: [STORAGE_GP2_TO_GP3, STORAGE_GP3_IOPS_RIGHTSIZE, STORAGE_GP3_THROUGHPUT_RIGHTSIZE, STORAGE_IO_TO_GP3, STORAGE_UNATTACHED_REVIEW, STORAGE_SNAPSHOT_RETENTION_REVIEW, STORAGE_UNSUPPORTED_CONFIGURATION, MIGRATION_OPPORTUNITY]
+    StorageAssessmentObject:
+      type: object
+      additionalProperties: true
+      description: Server-issued native configuration, attachment, dependency, candidate, check or immutable source-reference projection. Response-only; never authoritative browser input.
+    StorageSourceReference:
+      type: object
+      additionalProperties: false
+      required: [kind, id, version, sha256]
+      properties:
+        kind: { type: string }
+        id: { type: string }
+        version: { type: string }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+    StorageEvidenceWindow:
+      type: object
+      additionalProperties: false
+      required: [start, end, observed_utc_days, required_utc_days, expected_hours, observed_hours, coverage_basis]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        observed_utc_days: { type: integer, minimum: 0 }
+        required_utc_days: { type: integer, minimum: 0, nullable: true }
+        expected_hours: { type: integer, minimum: 0 }
+        observed_hours: { type: integer, minimum: 0 }
+        coverage_basis: { type: string, enum: [ACTUAL_NATIVE_BINS_AND_SAMPLE_COUNTS_NO_INTERPOLATION] }
+    StorageMetricDistribution:
+      type: object
+      additionalProperties: false
+      required: [metric, unit, statistic, status, expected_hours, observed_hours, expected_sample_count, sample_count, expected_native_sample_count, native_sample_count, minimum, maximum, p50_of_period_statistics, p95_of_period_statistics, p99_of_period_statistics, zero_operation_hours]
+      properties:
+        metric: { type: string }
+        unit: { type: string }
+        statistic: { type: string, description: "Explicit native-period aggregation. Rate distributions summarize hourly maxima of native-period rates; latency summarizes maxima of native-period operation-weighted means, never raw-operation percentiles or forecasts." }
+        status: { type: string, enum: [COMPLETE_ZERO_OPERATIONS, COMPLETE, INCOMPLETE] }
+        expected_hours: { type: integer, minimum: 0 }
+        observed_hours: { type: integer, minimum: 0 }
+        expected_sample_count: { type: integer, nullable: true, minimum: 0 }
+        sample_count: { type: integer, minimum: 0 }
+        expected_native_sample_count: { type: integer, nullable: true, minimum: 0 }
+        native_sample_count: { $ref: '#/components/schemas/NullableDecimal' }
+        minimum: { $ref: '#/components/schemas/NullableDecimal' }
+        maximum: { $ref: '#/components/schemas/NullableDecimal' }
+        p50_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+        p95_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+        p99_of_period_statistics: { $ref: '#/components/schemas/NullableDecimal' }
+        zero_operation_hours: { type: integer, minimum: 0, description: Known zero operations leave operation latency undefined; they do not create zero-latency observations. }
+    StorageCostComponent:
+      type: object
+      additionalProperties: false
+      required: [component, unit, basis, current_monthly_cost, candidate_monthly_cost, actual_period_amount, currency, current_source_refs, candidate_source_refs, continuing]
+      properties:
+        component: { type: string }
+        unit: { type: string }
+        basis: { type: string, enum: [NATIVE_CUSTOMER_EFFECTIVE_COMPONENT_RATE, NATIVE_ATTRIBUTABLE_CONTINUING_COST] }
+        current_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        actual_period_amount: { $ref: '#/components/schemas/NullableDecimal' }
+        currency: { type: string }
+        current_source_refs: { type: array, items: { $ref: '#/components/schemas/StorageSourceReference' } }
+        candidate_source_refs: { type: array, items: { $ref: '#/components/schemas/StorageSourceReference' } }
+        continuing: { type: boolean }
+    StorageAssessmentEconomics:
+      type: object
+      additionalProperties: false
+      required: [current_hourly_cost, current_monthly_cost, candidate_hourly_cost, candidate_monthly_cost, estimated_monthly_saving, estimated_annual_saving, currency, basis, status, component_costs, verified_saving]
+      properties:
+        current_hourly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        current_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_hourly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_monthly_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_annual_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        currency: { type: string, nullable: true }
+        basis: { type: string }
+        status: { type: string, enum: [UNAVAILABLE, CARRYING_COST_ONLY, CHEAPER, NOT_CHEAPER, NO_CHANGE] }
+        component_costs: { type: array, items: { $ref: '#/components/schemas/StorageCostComponent' } }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+    StorageAssessmentCheck:
+      type: object
+      additionalProperties: false
+      required: [dimension, status, unit, observed_demand, required_with_reserve, available, planning_limit, basis]
+      properties:
+        dimension: { type: string }
+        status: { type: string, enum: [PASS, FAIL, BLOCKED, NOT_APPLICABLE_ZERO_OPERATIONS] }
+        unit: { type: string }
+        observed_demand: { $ref: '#/components/schemas/NullableDecimal' }
+        required_with_reserve: { $ref: '#/components/schemas/NullableDecimal' }
+        available: { $ref: '#/components/schemas/NullableDecimal' }
+        planning_limit: { $ref: '#/components/schemas/NullableDecimal' }
+        basis: { type: string }
+    StorageSnapshotReview:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, source_volume_id, classification, age_days, monthly_carrying_cost, currency, dependency_state, ami_ids, restore_references, next_action, blockers, deletion_recommended, execution_authorized, estimated_saving]
+      properties:
+        snapshot_id: { type: string }
+        source_volume_id: { type: string, nullable: true }
+        classification: { type: string, enum: [POLICY_REQUIRED, AMI_OR_RESTORE_DEPENDENT, UNKNOWN_DEPENDENCY, RETENTION_POLICY_UNKNOWN, STATE_UNKNOWN_OR_NOT_COMPLETE, POTENTIALLY_REDUNDANT, WITHIN_RETENTION] }
+        age_days: { type: integer, nullable: true, minimum: 0 }
+        monthly_carrying_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        currency: { type: string, nullable: true }
+        dependency_state: { type: string, nullable: true }
+        ami_ids: { type: array, nullable: true, items: { type: string } }
+        restore_references: { type: array, nullable: true, items: { type: string } }
+        next_action: { type: string }
+        blockers: { type: array, items: { type: string } }
+        deletion_recommended: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        estimated_saving: { type: string, nullable: true, enum: [null] }
+    StorageUnattachedReview:
+      type: object
+      additionalProperties: false
+      required: [owner, age_days, prior_attachment_context, backup_observed, quarantine_days, next_action, deletion_recommended]
+      properties:
+        owner: { type: string, nullable: true }
+        age_days: { type: integer, nullable: true, minimum: 0 }
+        prior_attachment_context: { type: string, description: Unknown unless authenticated recorded attachment context is present. AWS Config capture time is not an exact detach time and does not establish current ownership or deletion authority. }
+        backup_observed: { type: boolean, nullable: true }
+        quarantine_days: { type: integer, nullable: true, minimum: 1 }
+        next_action: { type: string }
+        deletion_recommended: { type: boolean, enum: [false] }
+    StorageAssessmentCandidate:
+      type: object
+      additionalProperties: false
+      required: [id, status, recommendation_kind, decision_code, candidate_configuration, checks, economics, blockers, target_validation_required, execution_authorized, verified_saving]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [RECOMMENDED, NO_CHANGE, BLOCKED, OBSERVATION_ONLY] }
+        recommendation_kind: { $ref: '#/components/schemas/StorageRecommendationKind' }
+        decision_code: { type: string }
+        candidate_configuration:
+          allOf: [{ $ref: '#/components/schemas/StorageAssessmentObject' }]
+          nullable: true
+        checks: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentCheck' } }
+        economics: { $ref: '#/components/schemas/StorageAssessmentEconomics' }
+        blockers: { type: array, items: { type: string } }
+        target_validation_required: { type: boolean, enum: [true] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        migration_requirements: { type: array, uniqueItems: true, minItems: 6, maxItems: 6, items: { type: string, enum: [NEW_VOLUME, DATA_MIGRATION, FILESYSTEM_HANDLING, VALIDATION, CUTOVER, ROLLBACK] } }
+    StorageAssessmentConfidence:
+      type: object
+      additionalProperties: false
+      required: [status, reasons]
+      properties:
+        status: { type: string, enum: [UNAVAILABLE, LOW, MEDIUM, HIGH], description: Evidence-quality label; never a probability or guarantee. }
+        reasons: { type: array, items: { type: string } }
+        meaning: { type: string, enum: [OBSERVED_DEMAND_SCREEN_NOT_STATISTICAL_CONFIDENCE, INSUFFICIENT_SERVER_SELECTED_EVIDENCE, SERVER_EVIDENCE_BLOCKED] }
+    StorageAssessment:
+      type: object
+      additionalProperties: false
+      required: [schema_version, model_version, resource_kind, binding, current_configuration, candidate_configuration, evidence_window, metric_distributions, economics, checks, blockers, confidence, proposal, verified_saving, configuration_authority, implementation_method, unattached_review, snapshot_reviews, source_refs, candidates, recommendation_kind, decision_code, status, model_assumptions, assessment_hash]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        model_version: { type: string, enum: [storage-observed-demand-v1] }
+        resource_kind: { $ref: '#/components/schemas/StorageResourceKind' }
+        binding: { $ref: '#/components/schemas/StorageAssessmentObject' }
+        current_configuration: { $ref: '#/components/schemas/StorageAssessmentObject' }
+        candidate_configuration:
+          allOf: [{ $ref: '#/components/schemas/StorageAssessmentObject' }]
+          nullable: true
+        evidence_window:
+          allOf: [{ $ref: '#/components/schemas/StorageEvidenceWindow' }]
+          nullable: true
+        metric_distributions: { type: array, items: { $ref: '#/components/schemas/StorageMetricDistribution' } }
+        economics: { $ref: '#/components/schemas/StorageAssessmentEconomics' }
+        checks: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentCheck' } }
+        blockers: { type: array, items: { type: string } }
+        confidence: { $ref: '#/components/schemas/StorageAssessmentConfidence' }
+        proposal: { $ref: '#/components/schemas/DatabaseAssessmentProposal' }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        configuration_authority: { type: string, nullable: true }
+        implementation_method: { type: string }
+        unattached_review:
+          allOf: [{ $ref: '#/components/schemas/StorageUnattachedReview' }]
+          nullable: true
+        snapshot_reviews: { type: array, items: { $ref: '#/components/schemas/StorageSnapshotReview' } }
+        source_refs: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentObject' } }
+        candidates: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentCandidate' } }
+        recommendation_kind: { $ref: '#/components/schemas/StorageRecommendationKind' }
+        decision_code: { type: string }
+        status: { type: string, enum: [RECOMMENDED, NO_CHANGE, BLOCKED, OBSERVATION_ONLY] }
+        model_assumptions: { type: array, items: { type: string } }
+        migration_requirements: { type: array, uniqueItems: true, minItems: 6, maxItems: 6, items: { type: string, enum: [NEW_VOLUME, DATA_MIGRATION, FILESYSTEM_HANDLING, VALIDATION, CUTOVER, ROLLBACK] } }
+        assessment_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        model_assessment_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+    StorageAssessmentRecord:
+      type: object
+      additionalProperties: false
+      required: [id, version, resource_id, workload_id, status, created_at, assessment]
+      properties:
+        id: { type: string }
+        version: { type: integer, minimum: 1 }
+        resource_id: { type: string }
+        workload_id: { type: string, nullable: true }
+        status: { type: string, enum: [QUEUED, RUNNING, ASSESSED, BLOCKED, FAILED] }
+        created_at: { type: string, format: date-time }
+        current: { type: boolean, description: Server-rechecked source and configuration equality; missing does not assert currentness. }
+        currentness_blockers: { type: array, items: { type: string } }
+        assessment:
+          allOf: [{ $ref: '#/components/schemas/StorageAssessment' }]
+          nullable: true
+    StorageAssessmentPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/StorageAssessmentRecord' } }
+        next_cursor: { type: string, nullable: true }
     DatabaseAssessmentRequest:
       type: object
       additionalProperties: false
@@ -8663,6 +8958,7 @@ components:
       required: [schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
         database: { $ref: '#/components/schemas/DatabaseLimits' }
+        storage: { $ref: '#/components/schemas/StorageLimits' }
         schema_version: { type: string, enum: ['1'] }
         criticality: { type: string, enum: [TIER_0, TIER_1, TIER_2, TIER_3, NON_PRODUCTION] }
         statefulness: { type: string, enum: [STATELESS, STATEFUL, UNKNOWN] }
@@ -8698,6 +8994,7 @@ components:
       required: [id, workload_id, version, hash, schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
         database: { $ref: '#/components/schemas/DatabaseLimits' }
+        storage: { $ref: '#/components/schemas/StorageLimits' }
         id: { type: string }
         workload_id: { type: string }
         version: { type: integer, minimum: 1 }
@@ -9165,7 +9462,8 @@ components:
         - type: object
           properties:
             name: { type: string }
-            resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER discriminator. }
+            resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT discriminator. }
+            storage_configuration: { $ref: '#/components/schemas/StorageAssessmentObject' }
             engine: { type: string }
             engine_version: { type: string }
             provider_resource_id: { type: string }
@@ -9181,9 +9479,13 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
-            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database advice never enables EC2 change plans. }
+            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database and storage advice never enable EC2 change plans. }
             database_assessment_id: { type: string }
-            assessment: { $ref: '#/components/schemas/DatabaseAssessment' }
+            storage_assessment_id: { type: string }
+            assessment:
+              oneOf:
+                - { $ref: '#/components/schemas/DatabaseAssessment' }
+                - { $ref: '#/components/schemas/StorageAssessment' }
             title: { type: string }
             resource_id: { type: string }
             workload_id: { type: string, nullable: true }

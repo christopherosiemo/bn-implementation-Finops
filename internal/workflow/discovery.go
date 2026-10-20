@@ -90,6 +90,26 @@ func discoverTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 				}
 				account["status"], account["discovered_resources"], account["error"] = "CONNECTED", len(rows), ""
 			}
+			// EBS follows the EC2 upserts so exact native attachment endpoints
+			// already exist. Its optional read/archive boundary cannot discard
+			// those rows or the independent RDS discovery above.
+			if _, storageError := t.Exec(ctx, "SAVEPOINT ebs_optional_discovery"); storageError != nil {
+				return storageError
+			}
+			storageError := discoverBlockStorageAccount(ctx, a, t, aws, account)
+			if storageError != nil {
+				if _, rollbackError := t.Exec(ctx, "ROLLBACK TO SAVEPOINT ebs_optional_discovery"); rollbackError != nil {
+					return rollbackError
+				}
+			}
+			if _, releaseError := t.Exec(ctx, "RELEASE SAVEPOINT ebs_optional_discovery"); releaseError != nil {
+				return releaseError
+			}
+			if storageError != nil {
+				if qualityError := blockStorageQuality(ctx, t, "quality-ebs-"+id+"-"+model.String(account, "region"), "DEGRADED", "EBS_SCOPE_OPTIONAL_COLLECTION_UNAVAILABLE"); qualityError != nil {
+					return qualityError
+				}
+			}
 		}
 		account["last_discovered_at"] = model.Now()
 		if _, e = t.Update(ctx, "cloud_accounts", model.String(account, "id"), model.Number(account, "version"), account); e != nil {

@@ -21,6 +21,22 @@ import {
 } from "./ui";
 
 type Window = components["schemas"]["SafetyWeeklyWindow"];
+type StorageLimits = components["schemas"]["StorageLimits"];
+const storageDecimals = [
+  ["iops_max_fraction", "Maximum IOPS capacity fraction"],
+  ["throughput_max_fraction", "Maximum throughput capacity fraction"],
+  ["max_read_latency_seconds", "Maximum read latency (seconds)"],
+  ["max_write_latency_seconds", "Maximum write latency (seconds)"],
+  ["max_disk_queue_depth", "Maximum disk queue depth"],
+  ["min_burst_balance_percent", "Minimum burst balance (percent)"],
+] as const;
+const storageDays = [["snapshot_retention_days", "Snapshot retention requirement (days)"], ["quarantine_days", "Unattached-volume quarantine requirement (days)"]] as const;
+const storageBooleans = [
+  ["backup_required", "Backup required"],
+  ["allow_durability_reduction", "Durability reduction allowed"],
+  ["require_multi_attach", "Multi-Attach required"],
+  ["filesystem_review_required", "Filesystem review required"],
+] as const;
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const fields = [
   ["min_replicas", "Minimum healthy replicas", 1, 1000000],
@@ -210,6 +226,13 @@ function SafetyForm({
   );
   const [rpoKnown, setRpoKnown] = useState(profile?.rpo_seconds != null);
   const [rpo, setRpo] = useState(profile?.rpo_seconds?.toString() ?? "");
+  const [storageEnabled, setStorageEnabled] = useState(!!profile?.storage);
+  const [storageValues, setStorageValues] = useState<Record<string, string>>(() => Object.fromEntries(
+    [...storageDecimals, ...storageDays].map(([key]) => [key, profile?.storage?.[key]?.toString() ?? ""]),
+  ));
+  const [storageFlags, setStorageFlags] = useState<Record<string, string>>(() => Object.fromEntries(
+    storageBooleans.map(([key]) => [key, profile?.storage?.[key] == null ? "" : String(profile.storage[key])]),
+  ));
   const [maintenance, setMaintenance] = useState<(Window & { key: string })[]>(
     () =>
       availableItems(profile?.maintenance).map((window) => ({
@@ -295,6 +318,15 @@ function SafetyForm({
             );
             return;
           }
+          if (storageEnabled && (
+            storageDecimals.some(([key]) => !/^(?:0|[1-9]\d*)(?:\.\d{1,12})?$/.test(storageValues[key])) ||
+            ["iops_max_fraction", "throughput_max_fraction"].some(key => Number(storageValues[key]) <= 0 || Number(storageValues[key]) > 1) ||
+            Number(storageValues.min_burst_balance_percent) > 100 ||
+            storageDays.some(([key]) => storageValues[key] === "" || !Number.isSafeInteger(Number(storageValues[key])) || Number(storageValues[key]) < 1 || Number(storageValues[key]) > 36500)
+          )) {
+            setError("Provide storage fractions above zero and at most one, non-negative decimal limits (up to 12 decimal places), burst balance at most 100%, and retention/quarantine days from 1 to 36500. Unknown booleans remain unknown.");
+            return;
+          }
           try {
             new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
           } catch {
@@ -334,6 +366,20 @@ function SafetyForm({
             }));
           const body: WorkloadSafetyRequest = {
             ...(profile?.database ? { database: profile.database } : {}),
+            ...(storageEnabled ? { storage: {
+              iops_max_fraction: storageValues.iops_max_fraction,
+              throughput_max_fraction: storageValues.throughput_max_fraction,
+              max_read_latency_seconds: storageValues.max_read_latency_seconds,
+              max_write_latency_seconds: storageValues.max_write_latency_seconds,
+              max_disk_queue_depth: storageValues.max_disk_queue_depth,
+              min_burst_balance_percent: storageValues.min_burst_balance_percent,
+              snapshot_retention_days: Number(storageValues.snapshot_retention_days),
+              quarantine_days: Number(storageValues.quarantine_days),
+              backup_required: storageFlags.backup_required === "" ? null : storageFlags.backup_required === "true",
+              allow_durability_reduction: storageFlags.allow_durability_reduction === "" ? null : storageFlags.allow_durability_reduction === "true",
+              require_multi_attach: storageFlags.require_multi_attach === "" ? null : storageFlags.require_multi_attach === "true",
+              filesystem_review_required: storageFlags.filesystem_review_required === "" ? null : storageFlags.filesystem_review_required === "true",
+            } satisfies StorageLimits } : {}),
             schema_version: "1",
             criticality: criticality as WorkloadSafetyRequest["criticality"],
             statefulness: statefulness as WorkloadSafetyRequest["statefulness"],
@@ -511,6 +557,16 @@ function SafetyForm({
               inferred.
             </p>
           )}
+        </fieldset>
+        <fieldset className="days-fieldset">
+          <legend>Optional storage requirements</legend>
+          <label className="checkbox-field"><input type="checkbox" checked={storageEnabled} onChange={event => setStorageEnabled(event.target.checked)} /><span>Declare storage requirements for this workload</span></label>
+          <p className="form-note">Customer requirements only. These values do not prove demand, safe modification, successful backup or permission to delete storage. The existing reserve above forecast and demand-event requirements also apply. Disabling this section omits storage requirements from the new revision.</p>
+          {storageEnabled && <div className="form-grid">
+            {storageDecimals.map(([key, label]) => <label className="field" key={key}><span>{label}</span><input required inputMode="decimal" pattern="(?:0|[1-9][0-9]*)(?:\.[0-9]{1,12})?" value={storageValues[key]} onChange={event => setStorageValues(current => ({ ...current, [key]: event.target.value }))} /></label>)}
+            {storageDays.map(([key, label]) => <label className="field" key={key}><span>{label}</span><input required type="number" min={1} max={36500} step={1} value={storageValues[key]} onChange={event => setStorageValues(current => ({ ...current, [key]: event.target.value }))} /></label>)}
+            {storageBooleans.map(([key, label]) => <label className="field" key={key}><span>{label}</span><select value={storageFlags[key]} onChange={event => setStorageFlags(current => ({ ...current, [key]: event.target.value }))}><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></label>)}
+          </div>}
         </fieldset>
         <WeeklyWindows
           label="Maintenance windows"

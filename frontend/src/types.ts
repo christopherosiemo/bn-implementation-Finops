@@ -100,11 +100,13 @@ export interface Resource extends Document {
   eligibility: string | boolean;
   blockers: string[];
   currency?: string | null;
+  storage_configuration?: components["schemas"]["StorageAssessmentObject"];
 }
 export interface Recommendation extends Document, EvidenceFields {
-  model_kind?: "DATABASE_ASSESSMENT_V1";
+  model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1";
   database_assessment_id?: string;
-  assessment?: components["schemas"]["DatabaseAssessment"];
+  storage_assessment_id?: string;
+  assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"];
   resource_id?: string;
   workload_id: string | null;
   title: string;

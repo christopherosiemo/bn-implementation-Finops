@@ -7,6 +7,7 @@ import { WorkloadSafety } from "./WorkloadSafety";
 import { ConfigurationAuthority } from "./ConfigurationAuthority";
 import { FleetHistory } from "./FleetHistory";
 import { DatabaseAssessmentHistory, DatabaseCoverage, DatabaseRecommendation, DatabaseResourceAssessment, isDatabaseResource } from "./DatabaseAssessment";
+import { StorageAssessmentHistory, StorageRecommendation, StorageResourceAssessment, isStorageResource } from "./StorageAssessment";
 import {
   Activity,
   ArrowDownRight,
@@ -359,7 +360,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
+                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
@@ -372,7 +373,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                     {!isMoneyKnown(item.monthly_effective_cost) ||
                     !item.currency
                       ? "No evidenced source price"
-                      : isDatabaseResource(item) ? "Source currency · database" : "Source currency · compute"}
+                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : "Source currency · compute"}
                   </small>
                 </td>
                 <td>
@@ -386,11 +387,12 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
         ) : (
           <Empty
             title="Inventory will appear here"
-            text="Connect an AWS account to discover EC2 resources and read-only RDS instances and clusters."
+            text="Connect an AWS account to discover EC2 resources, read-only RDS instances and clusters, and EBS volumes and snapshots."
           />
         )}
       </Panel>
       <DatabaseAssessmentHistory />
+      <StorageAssessmentHistory />
       <WorkloadSafety data={data} run={run} busy={busy} />
       <ConfigurationAuthority data={data} run={run} busy={busy} />
       <FleetHistory data={data} run={run} busy={busy} />
@@ -587,7 +589,7 @@ export function RecommendationsPage({
       </div>
       {items.length ? (
         <div className="recommendation-list">
-          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : (
+          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : (
             <Panel key={item.id} className="recommendation-card">
               <div className="recommendation-body">
                 <span className="recommendation-symbol">

@@ -66,6 +66,24 @@ type Profile struct {
 	MaxSimultaneousChangePPM int64           `json:"max_simultaneous_change_ppm"`
 	VMCooldownSeconds        int64           `json:"vm_cooldown_seconds"`
 	Database                 *DatabaseLimits `json:"database,omitempty"`
+	Storage                  *StorageLimits  `json:"storage,omitempty"`
+}
+
+// Requirements only. Nullable flags preserve an undeclared requirement; none
+// of these declarations is proof of a backup, attachment or healthy workload.
+type StorageLimits struct {
+	IOPSMaxFraction          string `json:"iops_max_fraction"`
+	ThroughputMaxFraction    string `json:"throughput_max_fraction"`
+	MaxReadLatencySeconds    string `json:"max_read_latency_seconds"`
+	MaxWriteLatencySeconds   string `json:"max_write_latency_seconds"`
+	MaxDiskQueueDepth        string `json:"max_disk_queue_depth"`
+	MinBurstBalancePercent   string `json:"min_burst_balance_percent"`
+	SnapshotRetentionDays    int    `json:"snapshot_retention_days"`
+	QuarantineDays           int    `json:"quarantine_days"`
+	BackupRequired           *bool  `json:"backup_required"`
+	AllowDurabilityReduction *bool  `json:"allow_durability_reduction"`
+	RequireMultiAttach       *bool  `json:"require_multi_attach"`
+	FilesystemReviewRequired *bool  `json:"filesystem_review_required"`
 }
 
 // These are customer policy limits, not assertions that an observation exists.
@@ -127,6 +145,25 @@ func validWeekly(w WeeklyWindow) bool {
 }
 func Validate(p Profile) error {
 	invalid := errors.New("SAFETY_PROFILE_INVALID")
+	if p.Storage != nil {
+		decimal := regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]{1,12})?$`)
+		for _, text := range []string{p.Storage.IOPSMaxFraction, p.Storage.ThroughputMaxFraction} {
+			v, ok := new(big.Rat).SetString(text)
+			if !decimal.MatchString(text) || !ok || v.Sign() <= 0 || v.Cmp(big.NewRat(1, 1)) > 0 {
+				return invalid
+			}
+		}
+		for _, text := range []string{p.Storage.MaxReadLatencySeconds, p.Storage.MaxWriteLatencySeconds, p.Storage.MaxDiskQueueDepth, p.Storage.MinBurstBalancePercent} {
+			v, ok := new(big.Rat).SetString(text)
+			if !decimal.MatchString(text) || !ok || v.Sign() < 0 {
+				return invalid
+			}
+		}
+		burst, _ := new(big.Rat).SetString(p.Storage.MinBurstBalancePercent)
+		if burst.Cmp(big.NewRat(100, 1)) > 0 || p.Storage.SnapshotRetentionDays < 1 || p.Storage.SnapshotRetentionDays > 36500 || p.Storage.QuarantineDays < 1 || p.Storage.QuarantineDays > 36500 {
+			return invalid
+		}
+	}
 	if p.Database != nil {
 		decimal := regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]{1,12})?$`)
 		for _, text := range []string{p.Database.ConnectionsMaxFraction, p.Database.IOPSMaxFraction, p.Database.ThroughputMaxFraction, p.Database.StorageMaxFraction} {

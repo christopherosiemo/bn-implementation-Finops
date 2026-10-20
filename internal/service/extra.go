@@ -12,6 +12,9 @@ import (
 )
 
 func (a *API) extraMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, bool, error) {
+	if d, status, handled, e := a.storageMutate(ctx, t, i, r, in); handled {
+		return d, status, true, e
+	}
 	if d, status, handled, e := a.databaseMutate(ctx, t, i, r, in); handled {
 		return d, status, true, e
 	}

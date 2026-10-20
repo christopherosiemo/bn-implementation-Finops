@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap(capacity = false) {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity)}, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false, storage = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -60,6 +60,7 @@ try {
 
   bootstrap();
   assert.ok(!readFileSync(generatedEnv, 'utf8').includes('DB_GROUP_CAPACITY_PASSWORD='), 'ordinary bootstrap must not enable a capacity LOGIN');
+  for (const key of ['DB_STORAGE_ANALYST_PASSWORD', 'STORAGE_ASSESSOR_ACCESS_KEY', 'STORAGE_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission storage advice');
   assert.equal(existsSync(path.join(temporaryRoot, 'work', 'private', 'fleet-capacity-secrets')), false);
   assert.equal(statSync(generatedRealm).uid, 0);
   assert.equal(statSync(generatedEnv).uid, 0);
@@ -116,7 +117,22 @@ try {
   assert.deepEqual(assessmentFiles.map(file => readFileSync(file)), originalAssessmentSecrets);
   probeAsKeycloak(true);
   console.log('PASS optional capacity credentials are distinct, private and stable; ordinary bootstrap leaves them absent');
-  console.log('\n5 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  const beforeStorage = readFileSync(generatedEnv, 'utf8');
+  bootstrap(true, true);
+  const withStorage = readFileSync(generatedEnv, 'utf8');
+  assert.ok(withStorage.startsWith(beforeStorage), 'storage commissioning must preserve all existing credentials');
+  const values = Object.fromEntries(withStorage.trim().split('\n').map(line => { const at=line.indexOf('='); return [line.slice(0,at),line.slice(at+1)]; }));
+  assert.ok(values.DB_STORAGE_ANALYST_PASSWORD && values.STORAGE_ASSESSOR_SECRET_KEY);
+  assert.equal(values.STORAGE_ASSESSOR_ACCESS_KEY, 'storage-assessor');
+  assert.notEqual(values.DB_STORAGE_ANALYST_PASSWORD, values.DB_DATABASE_ANALYST_PASSWORD);
+  assert.notEqual(values.STORAGE_ASSESSOR_ACCESS_KEY, values.DATABASE_ASSESSOR_ACCESS_KEY);
+  assert.notEqual(values.STORAGE_ASSESSOR_SECRET_KEY, values.DATABASE_ASSESSOR_SECRET_KEY);
+  assert.equal(mode(generatedEnv), 0o600);
+  bootstrap(true, true);
+  assert.equal(readFileSync(generatedEnv, 'utf8'), withStorage, 'storage credentials must remain stable on explicit replay');
+  probeAsKeycloak(true);
+  console.log('PASS optional storage credentials are independent, owner-only and stable; ordinary bootstrap leaves them absent');
+  console.log('\n6 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

@@ -93,7 +93,7 @@ The original text remains in [product-specification.md](product-specification.md
 | 77 | RDS EXECUTION | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
 | 78 | STORAGE OPTIMISATION | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
 | 79 | STORAGE SHRINKING | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
-| 80 | EBS OPTIMISATION | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
+| 80 | EBS OPTIMISATION | Read-only assessment increment / M6 / Release 2–3 | [Bounded EBS assessment](ebs-readonly-assessment.md): native volumes/snapshots, observed performance, customer NET economics, same-capacity candidates, review-only retention and ordinary authenticated console. Implementation and acceptance are recorded separately there. Live/customer validation, broader storage support, execution and all remaining GA controls stay mandatory. |
 | 81 | OBJECT STORAGE | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
 | 82 | SERVERLESS | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
 | 83 | NETWORK COST | M6 / Release 2–3 | GA recommendations and required controls before commercial GA; deeper execution follows Releases 2–3. |
