@@ -416,5 +416,54 @@ func TestCommitmentDecision040ArchiveRestrictedPublicationReplayAndCurrentness(t
 			})
 		}
 	})
+	t.Run("uncached_witness_insert_reconciles_exact_concurrent_row_and_refuses_changed_native_time", func(t *testing.T) {
+		pin := review.Objects[0]
+		object := reader.objects[pin.Key+"\x00"+pin.VersionID]
+		witness := portfolio.DecisionOwnershipArchiveWitness{TenantID: f.tenant, SourceRegistrationSHA256: registration.IssuedDocumentSHA256, AccountID: registration.AccountID, BucketOwner: registration.BucketOwner, Bucket: registration.Bucket, Region: registration.Region, Pin: pin, NativeLastModified: object.LastModified, NativeTimeResolutionSeconds: 1}
+		id := portfolio.Hash(witness)
+		var before time.Time
+		if err := admin.Pool.QueryRow(ctx, "SELECT server_recorded_at FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND id=$2", f.tenant, id).Scan(&before); err != nil {
+			t.Fatal("original witness absent", err)
+		}
+		// Models a row committed after a request-local page reported a miss.
+		// No speculative SELECT precedes the guarded insert; the existing row,
+		// raw bytes, digest and original DB receipt time must remain exact.
+		ref, err := repository.PersistArchiveWitness(ctx, registration, witness, object.Data)
+		if err != nil || ref.ID != id || ref.SHA256 != id || ref.Kind != "AWS_OWNERSHIP_ARCHIVE_OBJECT" {
+			t.Fatal("uncached exact witness reconciliation failed", err)
+		}
+		var after time.Time
+		var rows int
+		if err = admin.Pool.QueryRow(ctx, "SELECT server_recorded_at FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND id=$2", f.tenant, id).Scan(&after); err != nil || !before.Equal(after) {
+			t.Fatal("uncached replay changed original witness time", err)
+		}
+		if err = admin.Pool.QueryRow(ctx, "SELECT count(*) FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND source_id=$2", f.tenant, registration.ID).Scan(&rows); err != nil || rows != 2 {
+			t.Fatal("uncached replay duplicated a native version", err)
+		}
+		changed := witness
+		changed.NativeLastModified = changed.NativeLastModified.Add(time.Second)
+		_, err = repository.PersistArchiveWitness(ctx, registration, changed, object.Data)
+		var pg *pgconn.PgError
+		if !errors.As(err, &pg) || pg.Code != "23505" {
+			t.Fatal("same original version acquired a different native time", err)
+		}
+	})
+	t.Run("uncached_conflict_still_rechecks_revoked_source_before_returning_existing_ref", func(t *testing.T) {
+		pin := review.Objects[0]
+		object := reader.objects[pin.Key+"\x00"+pin.VersionID]
+		witness := portfolio.DecisionOwnershipArchiveWitness{TenantID: f.tenant, SourceRegistrationSHA256: registration.IssuedDocumentSHA256, AccountID: registration.AccountID, BucketOwner: registration.BucketOwner, Bucket: registration.Bucket, Region: registration.Region, Pin: pin, NativeLastModified: object.LastModified, NativeTimeResolutionSeconds: 1}
+		if _, err := admin.Pool.Exec(ctx, "INSERT INTO commitment_ownership_archive_revocations(tenant_id,id,revision,reason_code) VALUES($1,$2,1,'COMPONENT_FINAL_REVOKED')", f.tenant, registration.ID); err != nil {
+			t.Fatal("component source revocation failed", err)
+		}
+		_, err := repository.PersistArchiveWitness(ctx, registration, witness, object.Data)
+		var pg *pgconn.PgError
+		if !errors.As(err, &pg) || pg.Code != "P0001" {
+			t.Fatal("ON CONFLICT returned an existing witness after source revocation", err)
+		}
+		var rows int
+		if err = admin.Pool.QueryRow(ctx, "SELECT count(*) FROM commitment_ownership_archive_witnesses WHERE tenant_id=$1 AND source_id=$2", f.tenant, registration.ID).Scan(&rows); err != nil || rows != 2 {
+			t.Fatal("source revocation changed historical witness population", err)
+		}
+	})
 	t.Log("ARCHIVE_COMPONENT: actual restricted ingester LOGIN/RLS, present-time operator/reviewer commission, two signed historical-interval transport doubles, actual immutable write/readback, native-issued witness cache/root/heads publication, scoped analyst resolution/replay and current mapping/revocation controls; no live journal/backfill/native-history/forecast/purchase claim")
 }

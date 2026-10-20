@@ -80,10 +80,10 @@ func (p *Pipeline) Capture(parent context.Context, target Target) (portfolio.Dec
 		if ref, found, err := replay.RecordedWitness(w, raw); err != nil || found {
 			return ref, err
 		}
-		ref, found, err := ReuseRecordedWitness(ctx, repository, r, w, raw)
-		if err != nil || found {
-			return ref, err
-		}
+		// A page miss goes directly through the existing guarded INSERT. Its
+		// BEFORE trigger rechecks source authority even on ON CONFLICT, and the
+		// repository compares the committed document/raw/hash before returning.
+		// A second speculative lookup adds no authority or replay protection.
 		return repository.PersistArchiveWitness(ctx, r, w, raw)
 	}
 	reader, err := NewOwnershipArchiveAWSReader(p.Bindings, repository, persist)
