@@ -114,7 +114,7 @@ export function SourceTrust({
 }) {
   const [creating, setCreating] = useState(false);
   const [inspect, setInspect] = useState<Document | null>(null);
-  const sources = data.source_connections || [];
+  const sources = (data.source_connections || []).filter(source => source.kind === "AWS_CUR2");
   return (
     <>
       <Panel

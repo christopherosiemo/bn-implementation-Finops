@@ -110,8 +110,10 @@ func TestFinancialSourceAuthoritySerializesRevocationAndPreservesOwnedStart(t *t
 	tenant := "financial-lock-" + model.ID()
 	now := time.Now().UTC()
 	binding := model.Document{"payer_account_id": "111122223333", "account_id": "111122223333"}
-	allowed := map[string]bool{"finops_api": true, "finops_worker": true, "finops_signer": true, "finops_executor": true}
-	groups := []string{"finops_api", "finops_worker", "finops_signer", "finops_executor", "finops_ingester", "finops_activity", "finops_telemetry_reader", "finops_telemetry_ingress", "finops_deployment_observer", "finops_hardware_reader", "finops_configuration_attestor", "finops_multicloud_ingester"}
+	// Migration017 already makes hardware_reader a member of ingester. Its
+	// inherited read lock is likewise not a financial-write or action grant.
+	allowed := map[string]bool{"finops_api": true, "finops_worker": true, "finops_signer": true, "finops_executor": true, "finops_ingester": true, "finops_hardware_reader": true, "finops_object_storage_analyst": true}
+	groups := []string{"finops_api", "finops_worker", "finops_signer", "finops_executor", "finops_ingester", "finops_object_storage_analyst", "finops_activity", "finops_telemetry_reader", "finops_telemetry_ingress", "finops_deployment_observer", "finops_hardware_reader", "finops_configuration_attestor", "finops_multicloud_ingester"}
 	rows, err := admin.Pool.Query(ctx, "SELECT rolname,has_function_privilege(rolname,'public.financial_source_current_lock(text,text)','EXECUTE') FROM pg_roles WHERE rolname=ANY($1::text[])", groups)
 	if err != nil {
 		t.Fatal(err)
@@ -138,15 +140,33 @@ func TestFinancialSourceAuthoritySerializesRevocationAndPreservesOwnedStart(t *t
 	if err = admin.Pool.QueryRow(ctx, "SELECT coalesce(bool_or(a.grantee=0 AND a.privilege_type='EXECUTE'),false) FROM pg_proc p CROSS JOIN LATERAL aclexplode(p.proacl) a WHERE p.oid='public.financial_source_current_lock(text,text)'::regprocedure").Scan(&publicExecute); err != nil || publicExecute {
 		t.Fatal("financial source helper executable by PUBLIC", err)
 	}
+	// S3's native SKU reader needs only a tenant-bound source-head read lock.
+	// It receives no source mutation, approval or execution authority.
 	if err = roles["ingester"].Do(ctx, tenant, func(tx *store.Tx) error {
-		_, err := tx.Exec(ctx, "SELECT financial_source_current_lock($1,$2)", tenant, "absent-source")
+		var found bool
+		if err := tx.QueryRow(ctx, "SELECT financial_source_current_lock($1,$2)", tenant, "absent-source").Scan(&found); err != nil {
+			return err
+		}
+		if found {
+			return errors.New("missing source reported present")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal("ingester source read lock unavailable", err)
+	}
+	if err = roles["ingester"].Do(ctx, tenant, func(tx *store.Tx) error {
+		_, err := tx.Exec(ctx, "SELECT financial_source_current_lock($1,$2)", "foreign-tenant", "absent-source")
 		return err
 	}); err == nil {
-		t.Fatal("non-financial ingestion identity can invoke financial lock helper")
-	} else {
-		var denied *pgconn.PgError
-		if !errors.As(err, &denied) || denied.Code != "42501" {
-			t.Fatal("ingester helper call was not rejected by function ACL", err)
+		t.Fatal("ingester lock accepted foreign tenant")
+	}
+	var ingesterCanUpdate bool
+	if err = roles["ingester"].Pool.QueryRow(ctx, "SELECT has_table_privilege(current_user,'source_registrations','UPDATE')").Scan(&ingesterCanUpdate); err != nil || ingesterCanUpdate {
+		t.Fatal("read lock granted source mutation", err)
+	}
+	for _, group := range []string{"finops_hardware_reader", "finops_object_storage_analyst"} {
+		if err = admin.Pool.QueryRow(ctx, "SELECT has_table_privilege($1,'source_registrations','UPDATE')", group).Scan(&ingesterCanUpdate); err != nil || ingesterCanUpdate {
+			t.Fatal("analytical read lock granted source mutation", group, err)
 		}
 	}
 	t.Run("missing-source-is-a-typed-blocker-with-a-usable-transaction", func(t *testing.T) {

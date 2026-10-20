@@ -130,6 +130,26 @@ if (process.env.FINOPS_BOOTSTRAP_STORAGE_ASSESSOR === 'true') {
     if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
   }
 }
+// Separate explicit opt-in. Ordinary bootstrap leaves the S3 analyst and
+// version-only evidence reader uncommissioned and does not start its profile.
+if (process.env.FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR === 'true') {
+  for (const [key, value] of Object.entries({ DB_OBJECT_STORAGE_ANALYST_PASSWORD: random(), OBJECT_STORAGE_ASSESSOR_ACCESS_KEY: 'object-storage-assessor', OBJECT_STORAGE_ASSESSOR_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+}
+// Object identities are private keyed HMACs, never public hashes of object
+// names. Commission this independent ingester-only key explicitly; replay
+// preserves the key/version and ordinary bootstrap creates neither value.
+if (process.env.FINOPS_BOOTSTRAP_S3_READONLY === 'true') {
+  const hasKey = Boolean(env.S3_OBJECT_IDENTITY_KEY_HEX), hasVersion = Boolean(env.S3_OBJECT_IDENTITY_KEY_VERSION);
+  if (hasKey !== hasVersion) throw new Error('S3_OBJECT_IDENTITY_CONFIGURATION_INCOMPLETE');
+  if (hasKey && !/^(?:[a-fA-F0-9]{2}){32,}$/.test(env.S3_OBJECT_IDENTITY_KEY_HEX)) throw new Error('S3_OBJECT_IDENTITY_KEY_INVALID');
+  if (!hasKey) {
+    for (const [key, value] of Object.entries({ S3_OBJECT_IDENTITY_KEY_HEX: randomBytes(32).toString('hex'), S3_OBJECT_IDENTITY_KEY_VERSION: '1' })) {
+      env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 });
+    }
+  }
+}
 const roles = ['ORGANISATION_OWNER','FINOPS_ADMIN','PLATFORM_ADMIN','FINANCE','APPLICATION_OWNER','APPROVER','VIEWER','AUDITOR'];
 if (['other', 'viewer', 'approver'].includes(env.DEMO_USERNAME)) throw new Error('DEMO_USERNAME collides with a reserved fixture identity');
 const userProfile = {

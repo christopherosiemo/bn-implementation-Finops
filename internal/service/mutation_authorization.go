@@ -36,11 +36,11 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	}
 	if len(p) == 1 {
 		switch p[0] {
-		case "cloud-accounts", "workloads", "executions", "activity-sources", "resource-graph", "slo-sources", "telemetry-connections", "fleet-history-registrations", "fleet-demand-definitions", "fleet-history-scopes", "fleet-fixture-proposals":
+		case "cloud-accounts", "workloads", "executions", "activity-sources", "object-storage-access-sources", "resource-graph", "slo-sources", "telemetry-connections", "fleet-history-registrations", "fleet-demand-definitions", "fleet-history-scopes", "fleet-fixture-proposals":
 			return rule(platform)
 		case "recommendations", "change-plans", "source-connections":
 			return rule(finops)
-		case "database-assessments", "storage-assessments":
+		case "database-assessments", "storage-assessments", "object-storage-assessments", "object-storage-datasets":
 			return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "resources", scopeID: model.String(in, "resource_id")}, true
 		case "allocation-policies", "allocation-reports":
 			return rule(finance)
@@ -68,6 +68,12 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	}
 	if len(p) == 3 {
 		switch p[0] {
+		case "object-storage-access-sources":
+			if p[2]=="revoke" {return rule(platform)}
+		case "object-storage-datasets":
+			if p[2] == "revisions" {
+				return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "object-storage-datasets", scopeID: p[1]}, true
+			}
 		case "fleet-group-authorizations":
 			if p[2] == "approvals" {
 				return rule([]string{"APPROVER"})
@@ -207,7 +213,17 @@ func authorizeMutationReplay(ctx context.Context, t *store.Tx, i auth.Identity, 
 	}
 	wid := rule.scopeID
 	if rule.scopeKind != "workloads" {
-		current, err := t.Get(ctx, rule.scopeKind, rule.scopeID)
+		var current model.Document
+		var err error
+		if rule.scopeKind == "object-storage-datasets" {
+			var dataset model.Document
+			dataset, err = t.ObjectStorageDatasetGet(ctx, rule.scopeID)
+			if err == nil {
+				current, err = t.Get(ctx, "resources", model.String(dataset, "resource_id"))
+			}
+		} else {
+			current, err = t.Get(ctx, rule.scopeKind, rule.scopeID)
+		}
 		if err != nil {
 			return err
 		}

@@ -281,6 +281,11 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result,handled,err:=a.objectStorageAccessGet(r.Context(),t,i,r);handled{out=result;return err}
+		if result, handled, err := a.objectStorageGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.storageGet(r.Context(), t, i, r); handled {
 			out = result
 			return err

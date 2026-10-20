@@ -7,6 +7,7 @@ import (
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/objectstorage"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
 )
@@ -23,6 +24,10 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 	if len(parts) == 1 {
 		d := model.Clone(in)
 		allowed := map[string]bool{"kind": true, "payer_account_id": true, "usage_account_ids": true, "region": true, "export_arn": true, "read_role_binding_id": true, "bucket": true, "bucket_owner": true, "prefix": true}
+		isObjectSource := strings.HasPrefix(model.String(d, "kind"), "AWS_S3_")
+		if isObjectSource {
+			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "bucket": true, "report_bucket": true, "report_owner": true, "report_region": true, "prefix": true, "inventory_id": true, "read_role_binding_id": true, "dataset_ids": true, "report_type": true}
+		}
 		for k := range d {
 			if !allowed[k] {
 				return nil, 0, true, problem(422, "SOURCE_REGISTRATION_FIELDS_INVALID", "only source location and approved binding fields are accepted")
@@ -34,8 +39,47 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 			}
 		}
 		d["id"], d["tenant_id"], d["version"], d["enabled"], d["sync_requested"], d["status"] = model.ID(), t.Tenant, 1, true, false, "REGISTERED"
-		if e := source.ValidateRegistration(d); e != nil {
-			return nil, 0, true, problem(422, e.Error(), "unsupported or incorrectly bound AWS export")
+		if isObjectSource {
+			datasets := []model.Document{}
+			ids := model.Strings(d, "dataset_ids")
+			if len(ids) > 256 {
+				return nil, 0, true, problem(422, "OBJECT_STORAGE_DATASET_LIMIT", "select at most 256 registered datasets")
+			}
+			seen := map[string]bool{}
+			for _, id := range ids {
+				if seen[id] {
+					return nil, 0, true, problem(422, "OBJECT_STORAGE_DATASET_DUPLICATE", "dataset IDs must be unique")
+				}
+				seen[id] = true
+				dataset, e := t.ObjectStorageDatasetGet(ctx, id)
+				if e != nil {
+					return nil, 0, true, e
+				}
+				resource, e := t.Get(ctx, "resources", model.String(dataset, "resource_id"))
+				if e != nil {
+					return nil, 0, true, e
+				}
+				name := strings.TrimPrefix(model.String(resource, "provider_resource_id"), "arn:aws:s3:::")
+				if !objectStorageResource(resource) || name != model.String(d, "bucket") || model.String(resource, "account_id") != model.String(d, "account_id") || model.String(resource, "region") != model.String(d, "region") {
+					return nil, 0, true, problem(422, "OBJECT_STORAGE_DATASET_SOURCE_SCOPE_MISMATCH", "dataset must belong to the registered bucket/account/region")
+				}
+				selector := storageObject(dataset["selector"])
+				selector["id"] = id
+				selector["dataset_version"] = dataset["version"]
+				selector["dataset_hash"] = objectStorageDatasetHash(dataset)
+				datasets = append(datasets, selector)
+			}
+			d["datasets"] = datasets
+			delete(d, "dataset_ids")
+		}
+		var validation error
+		if isObjectSource {
+			validation = objectstorage.ValidateRegistration(d)
+		} else {
+			validation = source.ValidateRegistration(d)
+		}
+		if validation != nil {
+			return nil, 0, true, problem(422, validation.Error(), "unsupported or incorrectly bound AWS export")
 		}
 		out, e := t.SourceCreate(ctx, d)
 		if e == nil {
@@ -82,7 +126,7 @@ func sourceGet(ctx context.Context, t *store.Tx, path string) (any, bool, error)
 		if e != nil {
 			return nil, true, e
 		}
-		receipts, e := t.SourceReceiptList(ctx, "AWS_CUR2", parts[1])
+		receipts, e := t.SourceReceiptList(ctx, model.String(d, "kind"), parts[1])
 		if e != nil {
 			return nil, true, e
 		}

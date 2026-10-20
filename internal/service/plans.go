@@ -20,6 +20,9 @@ import (
 )
 
 func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixture bool) (model.Document, error) {
+	if strings.HasPrefix(recID, "object-storage-") {
+		return nil, problem(422, "OBJECT_STORAGE_ADVICE_NOT_EXECUTABLE", "S3 advice cannot authorize provider actions")
+	}
 	if strings.HasPrefix(recID, "storage-") {
 		return nil, problem(422, "STORAGE_ADVICE_NOT_EXECUTABLE", "storage advice cannot authorize provider actions")
 	}
@@ -29,6 +32,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	}
 	if IsCommitmentAdvice(rec) {
 		return nil, problem(422, "COMMITMENT_ADVICE_NOT_EXECUTABLE", "commitment advice cannot become a scheduling or provider plan")
+	}
+	if model.String(rec, "model_kind") == "OBJECT_STORAGE_ASSESSMENT_V1" {
+		return nil, problem(422, "OBJECT_STORAGE_ADVICE_NOT_EXECUTABLE", "S3 advice cannot authorize provider actions")
 	}
 	if model.String(rec, "model_kind") == "DATABASE_ASSESSMENT_V1" {
 		return nil, problem(422, "DATABASE_ADVICE_NOT_EXECUTABLE", "database advice cannot authorize provider actions")
@@ -74,6 +80,7 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	if storageResource(res) {
 		return nil, problem(422, "STORAGE_ADVICE_NOT_EXECUTABLE", "persistent storage resources are read-only")
 	}
+	if objectStorageResource(res){return nil,problem(422,"OBJECT_STORAGE_ADVICE_NOT_EXECUTABLE","S3 resources are read-only")}
 	ready, e := t.EvidenceGet(ctx, "readiness", model.String(rec, "readiness_id"))
 	if e != nil {
 		return nil, problem(422, "READINESS_REQUIRED", "refresh execution readiness before planning")

@@ -2,7 +2,7 @@
 // The repository is read-only; every generated artifact lives in an owned temp tree.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap(capacity = false, storage = false) {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage)}, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -61,6 +61,8 @@ try {
   bootstrap();
   assert.ok(!readFileSync(generatedEnv, 'utf8').includes('DB_GROUP_CAPACITY_PASSWORD='), 'ordinary bootstrap must not enable a capacity LOGIN');
   for (const key of ['DB_STORAGE_ANALYST_PASSWORD', 'STORAGE_ASSESSOR_ACCESS_KEY', 'STORAGE_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission storage advice');
+  for (const key of ['DB_OBJECT_STORAGE_ANALYST_PASSWORD', 'OBJECT_STORAGE_ASSESSOR_ACCESS_KEY', 'OBJECT_STORAGE_ASSESSOR_SECRET_KEY']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission S3 advice');
+  for (const key of ['S3_OBJECT_IDENTITY_KEY_HEX', 'S3_OBJECT_IDENTITY_KEY_VERSION']) assert.ok(!readFileSync(generatedEnv, 'utf8').includes(key+'='), 'ordinary bootstrap must not commission object HMAC identity');
   assert.equal(existsSync(path.join(temporaryRoot, 'work', 'private', 'fleet-capacity-secrets')), false);
   assert.equal(statSync(generatedRealm).uid, 0);
   assert.equal(statSync(generatedEnv).uid, 0);
@@ -132,7 +134,39 @@ try {
   assert.equal(readFileSync(generatedEnv, 'utf8'), withStorage, 'storage credentials must remain stable on explicit replay');
   probeAsKeycloak(true);
   console.log('PASS optional storage credentials are independent, owner-only and stable; ordinary bootstrap leaves them absent');
-  console.log('\n6 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  bootstrap(true, true, false, true);
+  const withS3Readonly = readFileSync(generatedEnv, 'utf8');
+  assert.ok(withS3Readonly.startsWith(withStorage));
+  const identityValues = Object.fromEntries(withS3Readonly.trim().split('\n').map(line => { const at=line.indexOf('='); return [line.slice(0,at),line.slice(at+1)]; }));
+  assert.match(identityValues.S3_OBJECT_IDENTITY_KEY_HEX, /^[a-f0-9]{64}$/);
+  assert.equal(identityValues.S3_OBJECT_IDENTITY_KEY_VERSION, '1');
+  assert.ok(!withS3Readonly.includes('DB_OBJECT_STORAGE_ANALYST_PASSWORD='), 'S3 source identity commissioning cannot enable the analytical LOGIN');
+  assert.equal(mode(generatedEnv), 0o600);
+  bootstrap(true, true, false, true);
+  assert.equal(readFileSync(generatedEnv, 'utf8'), withS3Readonly, 'explicit S3 source replay preserves object identity key/version');
+  const incompleteIdentity = withS3Readonly.replace(/^S3_OBJECT_IDENTITY_KEY_HEX=.*\n/m, '');
+  writeFileSync(generatedEnv, incompleteIdentity, { mode: 0o600 });
+  const refusedIdentity = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: 'false', FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: 'false', FINOPS_BOOTSTRAP_S3_READONLY: 'true'}, encoding: 'utf8', timeout: 15_000 });
+  assert.equal(refusedIdentity.status, 1); assert.match(refusedIdentity.stderr, /S3_OBJECT_IDENTITY_CONFIGURATION_INCOMPLETE/);
+  assert.equal(readFileSync(generatedEnv, 'utf8'), incompleteIdentity, 'partial identity must not silently rotate a key under an existing version');
+  writeFileSync(generatedEnv, withS3Readonly, { mode: 0o600 });
+  probeAsKeycloak(true);
+  console.log('PASS optional S3 object identity is privately generated, replay stable and independent of analytical commissioning');
+  bootstrap(true, true, true, true);
+  const withObjectStorage = readFileSync(generatedEnv, 'utf8');
+  assert.ok(withObjectStorage.startsWith(withStorage), 'S3 commissioning preserves all existing credentials');
+  const objectValues = Object.fromEntries(withObjectStorage.trim().split('\n').map(line => { const at=line.indexOf('='); return [line.slice(0,at),line.slice(at+1)]; }));
+  assert.ok(objectValues.DB_OBJECT_STORAGE_ANALYST_PASSWORD && objectValues.OBJECT_STORAGE_ASSESSOR_SECRET_KEY);
+  assert.equal(objectValues.OBJECT_STORAGE_ASSESSOR_ACCESS_KEY, 'object-storage-assessor');
+  for (const earlier of ['DB_API_PASSWORD', 'DB_STORAGE_ANALYST_PASSWORD', 'DB_DATABASE_ANALYST_PASSWORD']) assert.notEqual(objectValues.DB_OBJECT_STORAGE_ANALYST_PASSWORD, objectValues[earlier]);
+  for (const earlier of ['OBJECT_ACCESS_KEY', 'AUDIT_ACCESS_KEY', 'STORAGE_ASSESSOR_ACCESS_KEY', 'DATABASE_ASSESSOR_ACCESS_KEY']) assert.notEqual(objectValues.OBJECT_STORAGE_ASSESSOR_ACCESS_KEY, objectValues[earlier]);
+  for (const earlier of ['OBJECT_SECRET_KEY', 'AUDIT_SECRET_KEY', 'STORAGE_ASSESSOR_SECRET_KEY', 'DATABASE_ASSESSOR_SECRET_KEY']) assert.notEqual(objectValues.OBJECT_STORAGE_ASSESSOR_SECRET_KEY, objectValues[earlier]);
+  assert.equal(mode(generatedEnv), 0o600);
+  bootstrap(true, true, true, true);
+  assert.equal(readFileSync(generatedEnv, 'utf8'), withObjectStorage, 'S3 credentials remain stable on explicit replay');
+  probeAsKeycloak(true);
+  console.log('PASS optional S3 credentials are distinct, owner-only and replay stable; no ordinary installation enables them');
+  console.log('\n8 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

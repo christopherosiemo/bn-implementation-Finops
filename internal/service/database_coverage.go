@@ -198,6 +198,13 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		// Only exact immutable aliases from authenticated native discovery qualify.
 		// Names, suffixes and inferred identifiers never establish attribution.
 		aliases := map[string]bool{model.String(resource, "provider_resource_id"): true}
+		if objectStorageResource(resource) {
+			configuration := evidence.Object(resource["object_storage_configuration"])
+			name := model.String(configuration, "name")
+			if name != "" && model.String(configuration, "arn") == "arn:aws:s3:::"+name && model.String(resource, "provider_resource_id") == model.String(configuration, "arn") {
+				aliases[name] = true
+			}
+		}
 		if databaseResource(resource) {
 			configuration := evidence.Object(resource["database_configuration"])
 			aliases[model.String(configuration, "arn")] = true
@@ -290,6 +297,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	for id, publication := range storagePublications {
 		publications[id] = publication
 	}
+	objectPublications, objectErr := a.objectStorageCoveragePublications(ctx, tx)
+	if objectErr != nil {
+		return nil, objectErr
+	}
 	rows, err = tx.Query(ctx, `SELECT id FROM source_registrations WHERE tenant_id=$1 AND kind='AWS_CUR2' ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1)
 	if err != nil {
 		return nil, err
@@ -343,6 +354,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		months = append(months, month{ref, records, payer})
 	}
 	groups := map[string]*databaseCoverageTotals{}
+	objectGroups := map[string]*databaseCoverageTotals{}
 	groupFor := func(currency string) *databaseCoverageTotals {
 		if groups[currency] == nil {
 			groups[currency] = newDatabaseCoverageTotals()
@@ -374,8 +386,19 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				mark("DATABASE_COVERAGE_CURRENCY_UNAVAILABLE")
 			}
 			group := groupFor(currency)
+			isObjectCharge := model.String(record, "ServiceName") == "AmazonS3" || model.String(evidence.Object(record["x_ProviderFields"]), "product_servicecode") == "AmazonS3"
+			var objectGroup *databaseCoverageTotals
+			if isObjectCharge {
+				if objectGroups[currency] == nil {
+					objectGroups[currency] = newDatabaseCoverageTotals()
+				}
+				objectGroup = objectGroups[currency]
+			}
 			if e1 != nil || e2 != nil || !at.Before(until) {
 				group.known = false
+				if objectGroup != nil {
+					objectGroup.known = false
+				}
 				mark("DATABASE_COVERAGE_CHARGE_WINDOW_INVALID")
 				continue
 			}
@@ -384,24 +407,39 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			}
 			if !complete || until.After(end) {
 				group.complete = false
+				if objectGroup != nil {
+					objectGroup.complete = false
+				}
 				mark("DATABASE_COVERAGE_BILLING_WINDOW_INCOMPLETE")
 			}
 			costText, ok := record["BilledCost"].(string)
 			cost, valid := new(big.Rat).SetString(costText)
 			if !ok || !valid || !databaseCoverageDecimal.MatchString(costText) || currency == "" {
 				group.known = false
+				if objectGroup != nil {
+					objectGroup.known = false
+				}
 				mark("DATABASE_COVERAGE_BILLED_COST_UNAVAILABLE")
 				continue
 			}
 			group.values["net_spend"].Add(group.values["net_spend"], cost)
+			if objectGroup != nil {
+				objectGroup.values["net_spend"].Add(objectGroup.values["net_spend"], cost)
+			}
 			if cost.Sign() < 0 {
 				group.values["credits"].Add(group.values["credits"], cost)
+				if objectGroup != nil {
+					objectGroup.values["credits"].Add(objectGroup.values["credits"], cost)
+				}
 				continue
 			}
 			if cost.Sign() == 0 {
 				continue
 			}
 			group.values["detected_spend"].Add(group.values["detected_spend"], cost)
+			if objectGroup != nil {
+				objectGroup.values["detected_spend"].Add(objectGroup.values["detected_spend"], cost)
+			}
 			key := model.String(record, "SubAccountId") + "\x00" + model.String(record, "RegionId") + "\x00" + model.String(record, "ResourceId")
 			resource := resources[key]
 			category := "unsupported_spend"
@@ -423,6 +461,14 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 					default:
 						category = "unsupported_spend"
 					}
+				}
+			} else if resource != nil && objectStorageResource(resource) {
+				category = "observation_only_spend"
+				publication := objectPublications[model.String(resource, "id")]
+				if publication.lines[databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId"))] {
+					category = "analysed_spend"
+				} else if publication.blocked {
+					category = "blocked_spend"
 				}
 			} else if resource != nil && model.String(resource, "resource_type") == "EC2" {
 				id := model.String(resource, "id")
@@ -448,6 +494,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				category = "observation_only_spend"
 			}
 			group.values[category].Add(group.values[category], cost)
+			if objectGroup != nil {
+				objectGroup.values[category].Add(objectGroup.values[category], cost)
+			}
 		}
 	}
 	if len(groups) == 0 {
@@ -483,7 +532,24 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		codes = append(codes, code)
 	}
 	sort.Strings(codes)
-	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "blockers": codes}, nil
+	objectOut := []model.Document{}
+	for _, currency := range currencies {
+		if g := objectGroups[currency]; g != nil {
+			row := model.Document{"currency": nullableDatabaseString(currency), "basis": "POSITIVE_BILLED_CHARGES", "complete": g.complete && g.known && !incomplete, "analysed_percent": nil}
+			for key, value := range g.values {
+				if g.known {
+					row[key] = databaseCoverageAmount(value)
+				} else {
+					row[key] = nil
+				}
+			}
+			if model.Bool(row, "complete") && g.values["detected_spend"].Sign() > 0 {
+				row["analysed_percent"] = databaseCoverageAmount(new(big.Rat).Mul(new(big.Rat).Quo(g.values["analysed_spend"], g.values["detected_spend"]), big.NewRat(100, 1)))
+			}
+			objectOut = append(objectOut, row)
+		}
+	}
+	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "blockers": codes}, nil
 }
 
 // Only an actually issued, unexpired v3 readiness with accepted financial

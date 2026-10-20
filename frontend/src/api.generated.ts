@@ -86,6 +86,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/object-storage-datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant- and workload-scoped dataset declarations. These select populations and declare customer requirements; they cannot supply native observations or authoritative financial evidence. */
+        get: operations["listObjectStorageDatasets"];
+        put?: never;
+        /** @description Declare a dataset and customer requirements for an existing discovered S3 bucket. If-Match must be quoted zero. Declared requirements are not observations, access evidence or execution authority. */
+        post: operations["createObjectStorageDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-datasets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getObjectStorageDataset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-datasets/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Append a dataset declaration revision. If-Match binds the current dataset version; historical declarations and assessments remain immutable. */
+        post: operations["reviseObjectStorageDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listObjectStorageAssessments"];
+        put?: never;
+        /** @description IDs-only queued read-only S3 assessment. Server selects immutable inventory, population, access, lifecycle, policy and billing evidence. If-Match must be quoted zero. Caller amounts or observations are rejected. */
+        post: operations["requestObjectStorageAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getObjectStorageAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-access-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listObjectStorageAccessSources"];
+        put?: never;
+        /** @description PLATFORM_ADMIN registers an independent machine OIDC subject and versioned metric definition for an issued dataset. If-Match must be quoted zero. This is an explicit customer scope declaration, not native proof of all bucket reads. Console identities cannot publish access observations. */
+        post: operations["registerObjectStorageAccessSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-access-sources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getObjectStorageAccessSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-access-sources/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Append revocation without rewriting registration or accepted observations. If-Match binds the current source version. */
+        post: operations["revokeObjectStorageAccessSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-storage-access/intervals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Dedicated activity-ingress service only. Requires its configured machine OIDC audience and exact registered issuer/subject. Complete one-minute intervals must arrive within five minutes; historical backfill, console tokens, conflicting replays and changed dataset versions are rejected. An explicit zero is distinct from a missing interval. */
+        post: operations["ingestObjectStorageAccessInterval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coverage": {
         parameters: {
             query?: never;
@@ -1779,8 +1930,329 @@ export interface components {
             require_multi_attach: boolean | null;
             filesystem_review_required: boolean | null;
         };
+        ObjectStorageMetricDefinition: {
+            id: string;
+            version: string;
+            /** @enum {string} */
+            unit: "s3-get-requests-and-bytes";
+        };
+        ObjectStorageAccessSourceRequest: {
+            resource_id: string;
+            dataset_id: string;
+            subject: string;
+            metric_definition: components["schemas"]["ObjectStorageMetricDefinition"];
+            /** @description Customer declaration that this independent collector covers dataset reads. This does not prove complete native bucket access or manufacture past observations. */
+            authoritative_access_scope: boolean;
+        };
+        ObjectStorageAccessSource: components["schemas"]["ObjectStorageAccessSourceRequest"] & {
+            id: string;
+            version: number;
+            dataset_version: number;
+            provider_resource_id: string;
+            account_id: string;
+            region: string;
+            issuer: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            revoked_at?: string;
+        };
+        ObjectStorageAccessSourcePage: {
+            items: components["schemas"]["ObjectStorageAccessSource"][];
+            next_cursor: string | null;
+        };
+        ObjectStorageAccessInterval: {
+            /** @enum {string} */
+            schema_version: "1";
+            source_id: string;
+            resource_id: string;
+            dataset_id: string;
+            dataset_version: number;
+            sequence: number;
+            /** Format: date-time */
+            interval_start: string;
+            /** Format: date-time */
+            interval_end: string;
+            metric_definition: components["schemas"]["ObjectStorageMetricDefinition"];
+            get_requests: string;
+            /** @description Must be zero when get_requests is zero. */
+            retrieved_bytes: string;
+            heartbeat: boolean;
+        };
+        ObjectStorageAccessReceipt: components["schemas"]["ObjectStorageAccessInterval"] & {
+            id: string;
+            tenant_id: string;
+            issuer: string;
+            subject: string;
+            /** Format: date-time */
+            received_at: string;
+            body_sha256: string;
+            idempotency_key: string;
+            binding: components["schemas"]["StorageAssessmentObject"];
+        };
+        ObjectStorageAccessIntervalResult: {
+            receipt: components["schemas"]["ObjectStorageAccessReceipt"];
+            replayed: boolean;
+        };
+        ObjectStorageNativeObservation: {
+            /** @enum {string} */
+            status: "OBSERVED" | "ABSENT" | "UNAVAILABLE" | "UNSUPPORTED";
+            reason_code?: string;
+            /** @description Preserved native response. ABSENT requires an authoritative AWS absence response; denied reads remain UNAVAILABLE. */
+            value: {
+                [key: string]: unknown;
+            } | null;
+        };
+        ObjectStorageConfiguration: {
+            name: string;
+            arn: string;
+            account_id: string;
+            region: string;
+            created_at?: string | null;
+            /** Format: date-time */
+            observed_at: string;
+            tags?: {
+                [key: string]: string;
+            };
+            /** @description Named native observations including versioning, encryption, object_lock, lifecycle, replication, intelligent_tiering, inventory, analytics, metrics, public_access_block, logging, ownership_controls, storage_lens and multipart_uploads. */
+            configurations: {
+                [key: string]: components["schemas"]["ObjectStorageNativeObservation"];
+            };
+        };
+        ObjectStorageDatasetSelector: {
+            /** @enum {string} */
+            kind: "BUCKET" | "PREFIX" | "TAG_GROUP" | "WORKLOAD_DATASET" | "STORAGE_POLICY";
+            prefix?: string;
+            tags?: {
+                [key: string]: string;
+            };
+            workload_id?: string;
+            storage_classes?: string[];
+        };
+        /** @description Explicit customer-declared assessment requirements. These are not native observations, access activity, retention attestations or execution authority. */
+        ObjectStorageDatasetPolicy: {
+            /** @enum {string} */
+            criticality: "NON_PRODUCTION" | "TIER_0" | "TIER_1" | "TIER_2" | "TIER_3";
+            high_seasonality: boolean;
+            remaining_lifetime_days: components["schemas"]["NullableDecimal"];
+            rto_seconds: components["schemas"]["NullableDecimal"];
+            retention_known: boolean;
+            compliance_clear: boolean;
+            recovery_known: boolean;
+            allow_onezone: boolean | null;
+            /** @description Explicit customer review of backup and external dataset dependencies. Unknown or false blocks validated policy advice and confers no mutation authority. */
+            dependencies_reviewed: boolean | null;
+        };
+        ObjectStorageDatasetRequest: {
+            resource_id: string;
+            name: string;
+            selector: components["schemas"]["ObjectStorageDatasetSelector"];
+            policy: components["schemas"]["ObjectStorageDatasetPolicy"];
+        };
+        ObjectStorageDataset: components["schemas"]["ObjectStorageDatasetRequest"] & {
+            id: string;
+            version: number;
+            /** Format: date-time */
+            created_at: string;
+            content_hash?: string;
+            created_by?: string;
+        };
+        ObjectStorageDatasetPage: {
+            items: components["schemas"]["ObjectStorageDataset"][];
+            next_cursor: string | null;
+        };
+        ObjectStorageAssessmentRequest: {
+            resource_id: string;
+            dataset_id?: string;
+        };
+        /** @description Exact native nonnegative integral quantity. Decimal strings preserve counts beyond the JavaScript safe-integer range. */
+        ObjectStorageExactCount: string | number;
+        ObjectStorageSizeBand: {
+            count: components["schemas"]["ObjectStorageExactCount"];
+            total_bytes: components["schemas"]["ObjectStorageExactCount"];
+            min_bytes: components["schemas"]["ObjectStorageExactCount"];
+            max_bytes: components["schemas"]["ObjectStorageExactCount"];
+        };
+        ObjectStorageCohort: {
+            id: string;
+            label: string;
+            source_class: string;
+            access_tier: string | null;
+            /** @enum {string} */
+            state: "CURRENT" | "NONCURRENT" | "MULTIPART";
+            object_count: components["schemas"]["ObjectStorageExactCount"];
+            total_bytes: components["schemas"]["ObjectStorageExactCount"];
+            size_bands: components["schemas"]["ObjectStorageSizeBand"][];
+            age_days_min: components["schemas"]["NullableDecimal"];
+            age_days_max: components["schemas"]["NullableDecimal"];
+            population_hash: string;
+            /** @enum {string} */
+            access_state: "AGE_OBSERVED" | "ACCESS_PATTERN_OBSERVED" | "ACCESS_UNKNOWN";
+            evidence_window: {
+                /** Format: date-time */
+                start: string | null;
+                /** Format: date-time */
+                end: string | null;
+            };
+            lifecycle_state: string;
+            candidate_ids: string[];
+            blockers: string[];
+            inventory_complete: boolean;
+        };
+        ObjectStorageEconomicComponent: {
+            component: string;
+            current_monthly_cost: components["schemas"]["NullableDecimal"];
+            candidate_monthly_cost: components["schemas"]["NullableDecimal"];
+        };
+        ObjectStorageEconomics: {
+            /** @enum {string} */
+            status: "AVAILABLE" | "UNAVAILABLE" | "BURDEN_ONLY";
+            basis: string;
+            currency: string | null;
+            current_monthly_cost: components["schemas"]["NullableDecimal"];
+            candidate_monthly_cost: components["schemas"]["NullableDecimal"];
+            estimated_monthly_saving: components["schemas"]["NullableDecimal"];
+            estimated_annual_saving: components["schemas"]["NullableDecimal"];
+            recurring_monthly_saving?: components["schemas"]["NullableDecimal"];
+            transition_cost?: components["schemas"]["NullableDecimal"];
+            current_minimum_duration_penalty?: components["schemas"]["NullableDecimal"];
+            baseline_minimum_duration_penalty?: components["schemas"]["NullableDecimal"];
+            candidate_minimum_duration_penalty?: components["schemas"]["NullableDecimal"];
+            tier_initialization_cost?: components["schemas"]["NullableDecimal"];
+            horizon_days?: components["schemas"]["NullableDecimal"];
+            current_horizon_cost?: components["schemas"]["NullableDecimal"];
+            candidate_horizon_cost?: components["schemas"]["NullableDecimal"];
+            net_horizon_saving?: components["schemas"]["NullableDecimal"];
+            component_costs: components["schemas"]["ObjectStorageEconomicComponent"][];
+            /** @description Explicitly labelled reference scenario; never native contracted economics or a saving claim. */
+            reference_scenario?: {
+                currency: string | null;
+                current_horizon_cost: components["schemas"]["NullableDecimal"];
+                candidate_horizon_cost: components["schemas"]["NullableDecimal"];
+                meaning: string;
+            } | null;
+            groups?: {
+                currency: string;
+                /** @enum {string} */
+                status: "CANDIDATE_COMPARISONS_ONLY";
+                /** @enum {string|null} */
+                estimated_monthly_saving: null;
+                /** @enum {string|null} */
+                estimated_annual_saving: null;
+            }[];
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        ObjectStorageCandidate: {
+            id: string;
+            cohort_id: string;
+            /** @enum {string} */
+            recommendation_kind: "S3_STANDARD_TO_INTELLIGENT_TIERING" | "S3_STANDARD_TO_STANDARD_IA" | "S3_ARCHIVE_CLASS_REVIEW" | "S3_INTELLIGENT_TIERING_POLICY" | "S3_NONCURRENT_VERSION_REVIEW" | "S3_MULTIPART_UPLOAD_REVIEW" | "S3_SMALL_OBJECT_ECONOMICS" | "S3_UNSUPPORTED_CONFIGURATION";
+            candidate_storage_class: string | null;
+            /** @enum {string} */
+            status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED" | "OBSERVATION_ONLY";
+            reason_code: string;
+            blockers: string[];
+            economics: components["schemas"]["ObjectStorageEconomics"];
+            policy_observations?: {
+                archive_access_enabled: boolean | null;
+                deep_archive_access_enabled: boolean | null;
+                monitored_object_count: components["schemas"]["NullableDecimal"];
+                unmonitored_small_object_count: components["schemas"]["NullableDecimal"];
+                current_tier_fractions: {
+                    [key: string]: string;
+                } | null;
+                rto_seconds: components["schemas"]["NullableDecimal"];
+                decision: string;
+            };
+            recovery_requirement?: {
+                rto_seconds: components["schemas"]["NullableDecimal"];
+                restore_latency_seconds: components["schemas"]["NullableDecimal"];
+                requires_restore: boolean | null;
+                /** @enum {string} */
+                basis: "STANDARD_RESTORE_SCENARIO_NO_EXPEDITED_GUARANTEE" | "NO_ASYNCHRONOUS_RESTORE_REQUIRED" | "REVIEW_ONLY_NO_CANDIDATE_RESTORE_ASSUMPTION";
+            };
+            /** @enum {string} */
+            risk_class: "R3";
+            /** @enum {boolean} */
+            executable: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+        };
+        ObjectStorageAssessment: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            model_version: "object-storage-v1";
+            /** @enum {string} */
+            model_kind: "OBJECT_STORAGE_ASSESSMENT_V1";
+            /** @description Versioned storage-class semantics independent of customer-native pricing provenance. */
+            class_semantics_version?: string;
+            class_semantics_sha256?: string;
+            binding: components["schemas"]["StorageAssessmentObject"];
+            /** @enum {string} */
+            status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED" | "OBSERVATION_ONLY";
+            reason_code: string;
+            blockers: string[];
+            cohorts: components["schemas"]["ObjectStorageCohort"][];
+            candidates: components["schemas"]["ObjectStorageCandidate"][];
+            economics: components["schemas"]["ObjectStorageEconomics"];
+            confidence: {
+                /** @enum {string} */
+                status: "EVIDENCED" | "LIMITED" | "UNAVAILABLE";
+                /** @enum {string} */
+                meaning: "EVIDENCE_COVERAGE_NOT_A_CALIBRATED_PROBABILITY" | "INSUFFICIENT_SERVER_SELECTED_EVIDENCE";
+                reasons: string[];
+            };
+            configuration_authority: string;
+            implementation_method: string;
+            proposal: components["schemas"]["DatabaseAssessmentProposal"];
+            /** @enum {boolean} */
+            pre_execution_ready: false;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            source_refs: components["schemas"]["StorageSourceReference"][];
+            model_assumptions: string[];
+            assessment_hash: string;
+            model_assessment_hash?: string;
+            financial_references?: components["schemas"]["StorageAssessmentObject"][] | null;
+            source_bindings?: {
+                source_id: string;
+                registration_version: number;
+                config_hash: string;
+                source_version: string;
+            }[] | null;
+            server_evidence_blockers?: string[];
+            declared_policy?: components["schemas"]["ObjectStorageDatasetPolicy"];
+            declared_policy_ref?: components["schemas"]["StorageSourceReference"];
+            configuration_authority_ref?: components["schemas"]["StorageSourceReference"] | null;
+        };
+        ObjectStorageAssessmentRecord: {
+            id: string;
+            version: number;
+            resource_id: string;
+            dataset_id?: string | null;
+            dataset_version?: number | null;
+            workload_id?: string | null;
+            /** @enum {string} */
+            status: "QUEUED" | "ASSESSED" | "BLOCKED" | "FAILED";
+            /** Format: date-time */
+            created_at: string;
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: components["schemas"]["ObjectStorageAssessment"] | null;
+        };
+        ObjectStorageAssessmentPage: {
+            items: components["schemas"]["ObjectStorageAssessmentRecord"][];
+            next_cursor: string | null;
+        };
         /** @enum {string} */
-        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT";
+        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET";
         StorageAssessmentRequest: {
             resource_id: string;
         };
@@ -2136,6 +2608,8 @@ export interface components {
         AssessmentCoverage: {
             period: components["schemas"]["DatabaseEvidenceWindow"];
             groups: components["schemas"]["AssessmentCoverageGroup"][];
+            /** @description S3-only partitions for the same period and source currencies. These supplement, and never replace or reduce, the all-AWS denominator above. */
+            object_storage_groups?: components["schemas"]["AssessmentCoverageGroup"][];
             blockers: string[];
         };
         CommitmentDecisionPreparationSelection: {
@@ -5352,7 +5826,8 @@ export interface components {
             snapshot_id?: string;
             snapshot_hash?: string;
         };
-        SourceConnectionRequest: {
+        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"];
+        AWSBillingSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
             payer_account_id: string;
@@ -5366,7 +5841,69 @@ export interface components {
             bucket_owner: string;
             prefix: string;
         };
-        SourceConnection: components["schemas"]["Document"] & components["schemas"]["SourceConnectionRequest"] & {
+        /** @description Commission an existing native S3 Inventory or Storage Class Analysis report. No logging, Inventory, lifecycle or storage configuration is created. Dataset selectors are resolved server-side from issued declarations. */
+        ObjectStorageSourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_S3_INVENTORY" | "AWS_S3_ANALYTICS";
+            account_id: string;
+            /** @enum {string} */
+            region: "eu-west-1";
+            bucket: string;
+            report_bucket: string;
+            report_owner: string;
+            prefix: string;
+            inventory_id?: string;
+            /**
+             * @description Required for AWS_S3_ANALYTICS; selects the commissioned native report or independently authenticated application archive format.
+             * @enum {string}
+             */
+            report_type?: "S3_STORAGE_CLASS_ANALYSIS" | "S3_STORAGE_LENS" | "APP_ACCESS";
+            /** @description Registered report delivery region; defaults to the source bucket region. Storage Lens reports retain their actual home region. */
+            report_region?: string;
+            read_role_binding_id: string;
+            dataset_ids: string[];
+        };
+        ObjectStorageSourceConnectionConfiguration: {
+            /** @enum {string} */
+            kind: "AWS_S3_INVENTORY" | "AWS_S3_ANALYTICS";
+            account_id: string;
+            region: string;
+            bucket: string;
+            report_bucket: string;
+            report_owner: string;
+            prefix: string;
+            read_role_binding_id: string;
+            inventory_id?: string;
+            /** @enum {string} */
+            report_type?: "S3_STORAGE_CLASS_ANALYSIS" | "S3_STORAGE_LENS" | "APP_ACCESS";
+            report_region?: string;
+            dataset_ids?: string[];
+            /** @description Expanded selectors and immutable declaration bindings selected by the server; never accepted as authoritative caller observations. */
+            datasets?: {
+                id: string;
+                kind: string;
+                prefix?: string;
+                tags?: {
+                    [key: string]: string;
+                };
+                workload_id?: string;
+                storage_classes?: string[];
+                version?: number;
+                sha256?: string;
+                dataset_version?: number;
+                dataset_hash?: string;
+            }[];
+        };
+        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"]) & {
+            payer_account_id?: string;
+            usage_account_ids?: string[];
+            export_arn?: string;
+            bucket_owner?: string;
+            account_id?: string;
+            report_bucket?: string;
+            report_owner?: string;
+            inventory_id?: string;
+            dataset_ids?: string[];
             enabled?: boolean;
             status?: string;
             reason_code?: string;
@@ -5377,7 +5914,7 @@ export interface components {
         };
         TrustedReceipt: components["schemas"]["Document"] & {
             /** @enum {string} */
-            kind: "AWS_CUR2" | "AWS_INVOICE" | "AWS_COMMITMENT";
+            kind: "AWS_CUR2" | "AWS_INVOICE" | "AWS_COMMITMENT" | "AWS_S3_INVENTORY" | "AWS_S3_ANALYTICS";
             source_id: string;
             registration_id?: string;
             revision_id?: string;
@@ -5569,9 +6106,10 @@ export interface components {
         };
         Resource: components["schemas"]["Document"] & {
             name?: string;
-            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT discriminator. */
+            /** @description Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET discriminator. */
             resource_type?: string;
             storage_configuration?: components["schemas"]["StorageAssessmentObject"];
+            object_storage_configuration?: components["schemas"]["ObjectStorageConfiguration"];
             engine?: string;
             engine_version?: string;
             provider_resource_id?: string;
@@ -5585,13 +6123,14 @@ export interface components {
         };
         Recommendation: components["schemas"]["Document"] & {
             /**
-             * @description Absent on legacy EC2 recommendations. Database and storage advice never enable EC2 change plans.
+             * @description Absent on legacy EC2 recommendations. Database
              * @enum {string}
              */
-            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1";
+            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1";
             database_assessment_id?: string;
             storage_assessment_id?: string;
-            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"];
+            object_storage_assessment_id?: string;
+            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"];
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
@@ -5908,7 +6447,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Existing resource array or paginated native database and block-storage resources when resource_type is selected. */
+            /** @description Existing resource array or paginated native database, block-storage and S3 bucket resources when resource_type is selected. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6169,6 +6708,526 @@ export interface operations {
             };
             /** @description Scoped assessment absent. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listObjectStorageDatasets: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cursor-paginated current dataset declarations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageDatasetPage"];
+                };
+            };
+            /** @description Dataset scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createObjectStorageDataset: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectStorageDatasetRequest"];
+            };
+        };
+        responses: {
+            /** @description Immutable first dataset revision. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageDataset"];
+                };
+            };
+            /** @description Dataset declaration scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection or customer requirements. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getObjectStorageDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current immutable dataset declaration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageDataset"];
+                };
+            };
+            /** @description Dataset scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped dataset absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reviseObjectStorageDataset: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectStorageDatasetRequest"];
+            };
+        };
+        responses: {
+            /** @description Appended immutable dataset revision. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageDataset"];
+                };
+            };
+            /** @description Dataset declaration scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dataset version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid selection or customer requirements. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listObjectStorageAssessments: {
+        parameters: {
+            query?: {
+                /** @description Exact bucket resource filter; required for a scoped application owner. */
+                resource_id?: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant-scoped immutable S3 assessment history with currentness checks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAssessmentPage"];
+                };
+            };
+            /** @description Bucket or workload read scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestObjectStorageAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectStorageAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued assessment; no object or lifecycle mutation authority. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAssessmentRecord"];
+                };
+            };
+            /** @description Bucket or workload assessment scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Idempotency conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Initial version precondition failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid resource */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getObjectStorageAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable object-storage assessment annotated with current source and declaration validity. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAssessmentRecord"];
+                };
+            };
+            /** @description Bucket or workload read scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped assessment absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listObjectStorageAccessSources: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped registered machine collectors; registration does not establish observed access coverage. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessSourcePage"];
+                };
+            };
+            /** @description Collector scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    registerObjectStorageAccessSource: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectStorageAccessSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Registered independent collector; historical access remains unknown. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessSource"];
+                };
+            };
+            /** @description Platform administration required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid dataset */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getObjectStorageAccessSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable collector registration plus server-selected revocation state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessSource"];
+                };
+            };
+            /** @description Collector scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scoped collector absent. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeObjectStorageAccessSource: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Collector revoked; retained historical evidence is unchanged. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessSource"];
+                };
+            };
+            /** @description Platform administration required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ingestObjectStorageAccessInterval: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectStorageAccessInterval"];
+            };
+        };
+        responses: {
+            /** @description Exact replay of a previously accepted interval. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessIntervalResult"];
+                };
+            };
+            /** @description Append-only receipt of independently authenticated current activity. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageAccessIntervalResult"];
+                };
+            };
+            /** @description Registered machine authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Machine identity */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sequence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Incomplete */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

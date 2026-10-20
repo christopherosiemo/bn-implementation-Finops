@@ -43,7 +43,7 @@ func (s *Server) Handler() http.Handler {
 			response(w, 200, map[string]string{"status": "ok", "role": "activity-ingress"})
 			return
 		}
-		if r.URL.Path != "/v1/activity/intervals" && r.URL.Path != "/v1/slo/intervals" {
+		if r.URL.Path != "/v1/activity/intervals" && r.URL.Path != "/v1/slo/intervals" && r.URL.Path != "/v1/object-storage-access/intervals" {
 			http.NotFound(w, r)
 			return
 		}
@@ -73,6 +73,10 @@ func (s *Server) Handler() http.Handler {
 		}
 		if r.URL.Path == "/v1/slo/intervals" {
 			s.sloInterval(w, r, identity, raw, key)
+			return
+		}
+		if r.URL.Path == "/v1/object-storage-access/intervals" {
+			s.objectStorageInterval(w, r, identity, raw, key)
 			return
 		}
 		interval, err := Decode(raw)

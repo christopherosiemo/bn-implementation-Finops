@@ -40,7 +40,7 @@ export CASE_DIR INIT_SCRIPT
 export PATH="$CASE_DIR:/usr/bin:/bin"
 exec /bin/sh "$INIT_SCRIPT"
 `);
-  const env = {...process.env, CASE_DIR: directory, INIT_SCRIPT: path.join(root, 'config/minio/init-buckets.sh'), ALIAS_SUCCEED_AT: '1', MINIO_ROOT_USER: 'fixture-root', MINIO_ROOT_PASSWORD: 'fixture-root-secret', OBJECT_ACCESS_KEY: 'fixture-raw', OBJECT_SECRET_KEY: 'fixture-raw-secret', AUDIT_ACCESS_KEY: 'fixture-audit', AUDIT_SECRET_KEY: 'fixture-audit-secret', ASSESSMENT_ACCESS_KEY: 'fixture-assessor', ASSESSMENT_SECRET_KEY: 'fixture-assessor-secret', CAPACITY_ACCESS_KEY: 'fixture-capacity', CAPACITY_SECRET_KEY: 'fixture-capacity-secret', DATABASE_ASSESSOR_ACCESS_KEY: '', DATABASE_ASSESSOR_SECRET_KEY: '', STORAGE_ASSESSOR_ACCESS_KEY: '', STORAGE_ASSESSOR_SECRET_KEY: '', ...overrides};
+  const env = {...process.env, CASE_DIR: directory, INIT_SCRIPT: path.join(root, 'config/minio/init-buckets.sh'), ALIAS_SUCCEED_AT: '1', MINIO_ROOT_USER: 'fixture-root', MINIO_ROOT_PASSWORD: 'fixture-root-secret', OBJECT_ACCESS_KEY: 'fixture-raw', OBJECT_SECRET_KEY: 'fixture-raw-secret', AUDIT_ACCESS_KEY: 'fixture-audit', AUDIT_SECRET_KEY: 'fixture-audit-secret', ASSESSMENT_ACCESS_KEY: 'fixture-assessor', ASSESSMENT_SECRET_KEY: 'fixture-assessor-secret', CAPACITY_ACCESS_KEY: 'fixture-capacity', CAPACITY_SECRET_KEY: 'fixture-capacity-secret', DATABASE_ASSESSOR_ACCESS_KEY: '', DATABASE_ASSESSOR_SECRET_KEY: '', STORAGE_ASSESSOR_ACCESS_KEY: '', STORAGE_ASSESSOR_SECRET_KEY: '', OBJECT_STORAGE_ASSESSOR_ACCESS_KEY: '', OBJECT_STORAGE_ASSESSOR_SECRET_KEY: '', ...overrides};
   const result = spawnSync(shell, [path.join(directory, 'launch')], {env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 15_000, maxBuffer: 128 << 10});
   const read = name => fs.existsSync(path.join(directory, name)) ? fs.readFileSync(path.join(directory, name), 'utf8').trim().split(/\r?\n/) : [];
   const evidence = {...result, calls: read('calls'), policies: read('policies'), sleeps: read('sleeps'), timeouts: read('timeouts')};
@@ -110,6 +110,32 @@ test('storage evidence identity is opt-in, distinct and attaches only the existi
   }
   const partial=run({STORAGE_ASSESSOR_ACCESS_KEY:'fixture-storage'});
   assert.equal(partial.status, 1); assert.equal(partial.stderr, 'MINIO_STORAGE_ASSESSOR_CONFIGURATION_INVALID\n');
+});
+test('S3 evidence reader is separately optional, version-only and cannot reuse any existing principal', () => {
+  const off=run();assert.equal(off.status,0);assert.ok(!off.policies.some(value=>value.startsWith('object-storage-assessor ')));
+  const enabled=run({OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:'fixture-s3',OBJECT_STORAGE_ASSESSOR_SECRET_KEY:'fixture-s3-secret'});
+  assert.equal(enabled.status,0);assert.equal(enabled.calls.length,20);assert.deepEqual(enabled.policies.filter(value=>value.startsWith('object-storage-assessor ')),['object-storage-assessor /config/group-assessor-policy.json']);
+  for(const key of ['fixture-root','fixture-raw','fixture-audit','fixture-assessor','fixture-capacity','fixture-db','fixture-storage']){
+    const rejected=run({DATABASE_ASSESSOR_ACCESS_KEY:'fixture-db',DATABASE_ASSESSOR_SECRET_KEY:'fixture-db-secret',STORAGE_ASSESSOR_ACCESS_KEY:'fixture-storage',STORAGE_ASSESSOR_SECRET_KEY:'fixture-storage-secret',OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:key,OBJECT_STORAGE_ASSESSOR_SECRET_KEY:'fixture-s3-secret'});
+    assert.equal(rejected.status,1);assert.equal(rejected.stderr,'MINIO_OBJECT_STORAGE_ASSESSOR_CONFIGURATION_INVALID\n');assert.ok(!rejected.policies.some(value=>value.startsWith('object-storage-assessor ')));
+  }
+  const partial=run({OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:'fixture-s3'});assert.equal(partial.status,1);assert.equal(partial.stderr,'MINIO_OBJECT_STORAGE_ASSESSOR_CONFIGURATION_INVALID\n');
+});
+test('optional S3 Compose analyst receives only its database/model/version-reader credentials', () => {
+  const compose=fs.readFileSync(path.join(root,'compose.yaml'),'utf8');
+  const block=compose.match(/^  object-storage-assessor:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(block);
+  assert.match(block,/profiles: \[object-storage-assessment\]/);assert.doesNotMatch(block,/<<: \*common|env_file|envFrom|AWS_|SIGNER_|SIGNING_|EXECUTOR_|CLICKHOUSE_|TEMPORAL_/);
+  const names=[...block.matchAll(/^      ([A-Z][A-Z_]+):/gm)].map(match=>match[1]).sort();
+  assert.deepEqual(names,['APP_ROLE','PORT','FIXTURE_MODE','DATABASE_URL','ECONOMICS_URL','ECONOMICS_TOKEN','OBJECT_ENDPOINT','OBJECT_REGION','OBJECT_BUCKET_RAW','OBJECT_ACCESS_KEY','OBJECT_SECRET_KEY'].sort());
+  assert.match(block,/finops_object_storage_analyst_login:\$\{DB_OBJECT_STORAGE_ANALYST_PASSWORD:-\}/);assert.match(block,/OBJECT_ACCESS_KEY: \$\{OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-\}/);assert.match(block,/OBJECT_SECRET_KEY: \$\{OBJECT_STORAGE_ASSESSOR_SECRET_KEY:-\}/);
+  assert.match(block,/read_only: true/);assert.match(block,/cap_drop: \[ALL\]/);
+  const example=fs.readFileSync(path.join(root,'.env.example'),'utf8');for(const key of ['DB_OBJECT_STORAGE_ANALYST_PASSWORD','OBJECT_STORAGE_ASSESSOR_ACCESS_KEY','OBJECT_STORAGE_ASSESSOR_SECRET_KEY'])assert.match(example,new RegExp('^'+key+'=$','m'));
+  const ingester=compose.match(/^  ingester:\n([\s\S]*?)(?=\n  [a-z][a-z-]*:)/m)?.[1];assert.ok(ingester);
+  for(const key of ['S3_OBJECT_IDENTITY_KEY_HEX','S3_OBJECT_IDENTITY_KEY_VERSION']){
+    assert.match(ingester,new RegExp('^      '+key+': \\$\\{'+key+':-\\}$','m'));
+    assert.doesNotMatch(block,new RegExp(key));assert.match(example,new RegExp('^'+key+'=$','m'));
+    assert.equal([...compose.matchAll(new RegExp('^      '+key+':','gm'))].length,1,'S3 identity key must be ingester-only');
+  }
 });
 test('optional storage Compose process receives only analytical credentials and no action or cloud identity', () => {
   const compose=fs.readFileSync(path.join(root,'compose.yaml'),'utf8');

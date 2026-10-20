@@ -69,6 +69,11 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 				slog.Error("trusted source ingestion unavailable", "tenant", tenant)
 			}
 		}
+		// S3 report ingestion is independently bounded and never holds the
+		// ordinary EC2 discovery/ingestion transaction across object-scale reads.
+		if objectError := objectStorageTick(ctx, a, tenant); objectError != nil && e == nil {
+			e = objectError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

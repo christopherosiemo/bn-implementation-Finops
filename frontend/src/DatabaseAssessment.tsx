@@ -185,6 +185,9 @@ function CoverageContent() {
           <td>{group.analysed_percent === null ? "Unavailable" : `${group.analysed_percent}%`}</td>
         </tr>)}
       </Table> : <p>Spend coverage unavailable. No currency groups were returned.</p>}
+      {state.value.object_storage_groups && <section aria-label="S3 object-storage spend coverage"><h4>S3 object-storage coverage</h4><p className="form-note">These S3 amounts are included in the all-AWS totals above. Unowned buckets, missing identifiers, unpriced access and unsupported storage remain in detected spend; a prefix assessment cannot establish complete bucket economics.</p>
+        {state.value.object_storage_groups.length ? <Table scrollLabel="S3 assessment spend coverage" headings={["Currency / completeness", "Detected", "Analysed", "Observation only", "Blocked", "Unsupported", "Credits", "Net", "Analysed %"]}>{state.value.object_storage_groups.map((group, index) => <tr key={`${group.currency}:${index}`}><th scope="row">{group.currency ?? "Currency unavailable"}<small>{group.complete ? "Complete billing window" : "Incomplete billing window"}</small></th>{[group.detected_spend, group.analysed_spend, group.observation_only_spend, group.blocked_spend, group.unsupported_spend, group.credits, group.net_spend].map((value, column) => <td key={column}>{amount(value, group.currency)}</td>)}<td>{group.analysed_percent === null ? "Unavailable" : `${group.analysed_percent}%`}</td></tr>)}</Table> : <p>S3 spend coverage unavailable. No currency groups were returned.</p>}
+      </section>}
     </>}
     <Button secondary small disabled={state.loading} onClick={() => setRevision(value => value + 1)}>Refresh assessment coverage</Button>
   </div>;

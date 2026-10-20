@@ -46,6 +46,7 @@ database:
     fleet-assessment: finops-db-group-assessor
     database-assessor: finops-db-database-analyst
     storage-assessor: finops-db-storage-analyst
+    object-storage-assessor: finops-db-object-storage-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -68,6 +69,10 @@ sources:
   # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
   # ingester receives it; leave empty for discovery-only installations.
   readBindingsSecret: ""
+  # Optional existing ingester-only Secret with S3_OBJECT_IDENTITY_KEY_HEX
+  # (32 random bytes or more, hex encoded) and S3_OBJECT_IDENTITY_KEY_VERSION.
+  # Required when commissioning S3 object evidence; never supplied to analysts.
+  objectIdentitySecret: ""
   # Optional ingester-only selectors, commissioned after read-only onboarding.
   # No credentials, source facts or approval authority are supplied by a target.
   commitmentQuoteTargetsSecret: ""
@@ -100,6 +105,15 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+objectStorageAssessor:
+  # Dedicated restricted LOGIN and version-only evidence reader. Never receives
+  # AWS, signing, execution or customer object/lifecycle mutation credentials.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+
 storageAssessor:
   # Existing restricted LOGIN and version-only evidence reader. No AWS role,
   # signing or storage mutation credentials. Optional in every deployment mode.

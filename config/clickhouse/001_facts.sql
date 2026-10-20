@@ -48,3 +48,21 @@ CREATE TABLE IF NOT EXISTS finops.native_metric_batches (
 ) ENGINE=MergeTree ORDER BY(tenant_id,connection_id,config_hash,batch_id);
 ALTER TABLE finops.native_metric_samples MODIFY SETTING non_replicated_deduplication_window=1000;
 ALTER TABLE finops.native_metric_batches MODIFY SETTING non_replicated_deduplication_window=1000;
+
+-- Object populations are published by immutable generation receipts. Readers
+-- select one published generation and deduplicate row_id; retry-token retention
+-- alone never establishes permanent population uniqueness.
+CREATE TABLE IF NOT EXISTS finops.object_storage_objects (
+ tenant_id String,account_id String,region LowCardinality(String),
+ generation_id String,batch_id String,canonical_hash String,row_id String,
+ object_identity String,bucket String,cohort_id String,payload String,
+ ingested_at DateTime64(3,'UTC') DEFAULT now64(3)
+) ENGINE=MergeTree
+ORDER BY(tenant_id,generation_id,batch_id,row_id);
+ALTER TABLE finops.object_storage_objects MODIFY SETTING non_replicated_deduplication_window=1000;
+CREATE TABLE IF NOT EXISTS finops.object_storage_access_observations (
+ tenant_id String,account_id String,region LowCardinality(String),
+ source_version String,row_id String,payload String,
+ ingested_at DateTime64(3,'UTC') DEFAULT now64(3)
+) ENGINE=MergeTree ORDER BY(tenant_id,source_version,row_id);
+ALTER TABLE finops.object_storage_access_observations MODIFY SETTING non_replicated_deduplication_window=1000;

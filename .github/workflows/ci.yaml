@@ -198,6 +198,20 @@ jobs:
                 grep -Fq 'finops/templates/storage-assessor.yaml' /tmp/finops-storage-refused.log
               fi
             done
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml > /tmp/finops-object-storage-assessor.yaml
+            docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-object-storage-assessor.yaml:/object-storage.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /object-storage.yaml && python deploy/tests/test_object_storage_assessor_chart.py /default.yaml /object-storage.yaml'
+            for unsafe in 'objectStorageAssessor.evidenceReaderSecret=finops-db-api' 'objectStorageAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'objectStorageAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'objectStorageAssessor.evidenceReaderSecret=finops-db-object-storage-analyst' 'objectStorageAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+              if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml --set "$unsafe" > /tmp/finops-storage-refused.log 2>&1; then
+                echo "Unsafe storage assessor configuration unexpectedly rendered"
+                exit 1
+              else
+                rejected=$?
+                test "$rejected" -eq 1
+                grep -Fq 'Error: execution error at' /tmp/finops-storage-refused.log
+                grep -Fq 'finops/templates/object-storage-assessor.yaml' /tmp/finops-storage-refused.log
+              fi
+            done
       - name: Check rendered credential and network isolation
         run: |
           docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'

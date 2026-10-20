@@ -14,6 +14,9 @@ CREATE ROLE finops_deployment_observer NOLOGIN;
 CREATE ROLE finops_group_assessor NOLOGIN;
 CREATE ROLE finops_database_analyst NOLOGIN;
 CREATE ROLE finops_storage_analyst NOLOGIN;
+-- S3 advice is optional. Keep the group NOLOGIN and commission its separate
+-- process LOGIN only when enabling objectStorageAssessor after migrations.
+CREATE ROLE finops_object_storage_analyst NOLOGIN;
 CREATE ROLE finops_migrator LOGIN CREATEROLE;
 CREATE ROLE finops_api_login LOGIN IN ROLE finops_api;
 CREATE ROLE finops_worker_login LOGIN IN ROLE finops_worker;

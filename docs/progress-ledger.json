@@ -4,9 +4,9 @@
   "scope": "Full preserved 233-section specification, including commercial GA obligations",
   "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
   "baseline_weighted_percent": 17.5,
-  "current_weighted_percent": 26.3,
-  "rounded_description": "26.3 weighted percent of the full product; approximately 26 percent",
-  "credit_review": "A one-point subset of the existing 9.5-point unaccepted optimisation pool advances from 0 to deterministic E2E maturity 40 for bounded read-only EBS performance assessment, adding 0.4 points. Actual native-provider collector persistence and the separate authenticated API/analyst/Python/normal OIDC console journey demonstrate gp2-to-gp3 and gp3 IOPS/throughput advice with native customer-rate estimates and explicit refusals. These complementary boundaries are recorded separately; provider transports are synthetic. Review-only snapshot/unattached components and blocked io equivalence add no independent credit. Shared foundations, test counts, live/customer/production acceptance, execution and verified savings earn no additional credit. Previous RDS partial credit and deferred commitment acceptance remain unchanged; the required commitment job remains enabled.",
+  "current_weighted_percent": 26.5,
+  "rounded_description": "26.5 weighted percent of the full product; approximately 27 percent",
+  "credit_review": "Bounded read-only S3 component acceptance advances a reserved one-point scope from 0 to 20, adding 0.2 points. Native/provider/source parsers, exact native-rate financial projections, independent activity ingress, IDs-only dataset/API/blocked publication and Python policy components have focused evidence. The connected native/Python/OIDC journey remains unaccepted: both retained runs stopped at the unchanged 120-second full-Python stage before native ingestion/browser execution. Maturity 40 and the additional 0.2 points are not awarded. Shared foundations, test counts, live/customer/production operation and verified savings receive no credit. Previous EBS/RDS/commitment reviews and the deferred required commitment failure remain unchanged.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -125,7 +125,7 @@
     {
       "id": "optimisation_forecast_commitments",
       "weight_percent": 18,
-      "contribution_points": 2.6,
+      "contribution_points": 2.8,
       "packages": [
         {
           "id": "idle_schedule_model",
@@ -272,8 +272,29 @@
           ]
         },
         {
+          "id": "bounded_readonly_s3_dataset_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/s3-readonly-assessment.md",
+            "internal/objectstorage",
+            "internal/provider/object_storage.go",
+            "internal/service/object_storage_integration_test.go",
+            "internal/service/object_storage_financial_test.go",
+            "economics/autopilot/object_storage.py",
+            "migrations/043_object_storage_assessments.sql"
+          ],
+          "remaining": [
+            "Connected persisted positive native Inventory/archive/ClickHouse → IDs-only API → restricted analyst/Python → normal OIDC console and independent readback is NOT accepted; bounded runner stopped at Python120s before native/browser stages",
+            "Final release CI and installed migration/restoration are separate release gates, reported on the pilot PR",
+            "Genuine AWS/source commissioning, customer NET prices, ownership/retention/RTO/dependency declarations and operational acceptance",
+            "Source scale, evidenced object-tag membership, wider formats, production operation and contractual completion; no object/lifecycle mutation or verified savings accepted"
+          ]
+        },
+        {
           "id": "forecast_commitment_portfolio",
-          "scope_weight_percent": 8.5,
+          "scope_weight_percent": 7.5,
           "accepted_maturity": 0,
           "evidence": [
             "docs/traceability.md",
@@ -293,7 +314,7 @@
         }
       ],
       "baseline_area_maturity": 5,
-      "current_area_maturity": 14.444444444444446
+      "current_area_maturity": 15.555555555555555
     },
     {
       "id": "execution_iac_gitops",
@@ -1514,6 +1535,78 @@
       },
       "live_credit_awarded": false,
       "acceptance": "A one-point subset of the existing 9.5-point unaccepted optimisation pool advances from 0 to deterministic E2E maturity 40 for bounded read-only EBS performance assessment, adding 0.4 points. Actual native-provider collector persistence and the separate authenticated API/analyst/Python/normal OIDC console journey demonstrate gp2-to-gp3 and gp3 IOPS/throughput advice with native customer-rate estimates and explicit refusals. These complementary boundaries are recorded separately; provider transports are synthetic. Review-only snapshot/unattached components and blocked io equivalence add no independent credit. Shared foundations, test counts, live/customer/production acceptance, execution and verified savings earn no additional credit. Previous RDS partial credit and deferred commitment acceptance remain unchanged; the required commitment job remains enabled."
+    },
+    {
+      "id": "bounded-readonly-s3-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "previous_weighted_percent": 26.3,
+      "weighted_percent": 26.5,
+      "prior_history_sha256": "4bd6b4401be6d6e8d61132b86552d042050888a0d7962a6a4a15d8e8c3bf26b0",
+      "base_commit": "962d75775bb7f9fdffaa3425d2d17bbb3429ca49",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 8.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_s3_dataset_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 7.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_s3_dataset_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Focused component acceptance only; connected deterministic customer path is not accepted."
+        }
+      ],
+      "evidence": [
+        "docs/s3-readonly-assessment.md",
+        "docs/commitment-acceptance-deferred.md"
+      ],
+      "bounded_evidence": {
+        "components": {
+          "run_id": "c29ec5cb-126d-4041-bb61-17c183726c9b",
+          "receipt_sha256": "07adc077d1a49a6810f92a5b7f199b4d89516ded29593710cb102474ffe7b026",
+          "source_manifest_sha256": "1777fe2856c425934493f8abcb8f5ea20743b8a34bb7267e67d9175c9847c7b4",
+          "status": "PASS"
+        },
+        "connected_native_console": {
+          "run_id": "f9c32989-00f2-47d0-b09d-533d8c45ef34",
+          "receipt_sha256": "fcfd4069c8157ab21ed9f2bced74ba2a282598bfa27b1b342a6b2d8aa0992de8",
+          "source_manifest_sha256": "94651e1d6814bf4e8f0134e80365a5f1dfb259fd3daf90bcf7c63a5ec284b5fc",
+          "status": "FAIL",
+          "stage": "FULL_PYTHON_120_SECOND_DEADLINE",
+          "native_and_browser_executed": false
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only S3 component acceptance advances a reserved one-point scope from 0 to 20, adding 0.2 points. Native/provider/source parsers, exact native-rate financial projections, independent activity ingress, IDs-only dataset/API/blocked publication and Python policy components have focused evidence. The connected native/Python/OIDC journey remains unaccepted: both retained runs stopped at the unchanged 120-second full-Python stage before native ingestion/browser execution. Maturity 40 and the additional 0.2 points are not awarded. Shared foundations, test counts, live/customer/production operation and verified savings receive no credit. Previous EBS/RDS/commitment reviews and the deferred required commitment failure remain unchanged."
     }
-  ]
+  ],
+  "reserved_package": {
+    "id": "bounded_readonly_s3_dataset_assessment",
+    "base_commit": "962d75775bb7f9fdffaa3425d2d17bbb3429ca49",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 8.5,
+    "remaining_scope_weight_percent": 7.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "deterministic_maturity_40_awarded": false
+  }
 }
