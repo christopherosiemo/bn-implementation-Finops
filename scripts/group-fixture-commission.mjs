@@ -18,7 +18,7 @@ const digest=/^[a-f0-9]{64}$/;
 const imageDigest=/^sha256:[a-f0-9]{64}$/;
 export const commissionTitle='real OIDC two registered groups produce a persisted isolated fixture selection while unknown-program approval and runtime remain refused';
 export const commissionRegistration=Object.freeze({kind:'AWS_CUR2',payer_account_id:'111122223333',usage_account_ids:['111122223333'],region:'eu-west-1',export_arn:'arn:aws:bcm-data-exports:us-east-1:111122223333:export/fixture-export',bucket:'finops-fixture-cur2',bucket_owner:'111122223333',prefix:'DETERMINISTIC_FIXTURE_GROUP/cur/',read_role_binding_id:'DETERMINISTIC_FIXTURE_GROUP_COMMISSION'});
-export const commissionBases={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61'};
+export const commissionBases={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f'};
 const environment=o=>Object.fromEntries((o.Config?.Env||[]).map(v=>{const at=v.indexOf('=');return [v.slice(0,at),v.slice(at+1)];}));
 
 export function validateCommissionTooling(raw){

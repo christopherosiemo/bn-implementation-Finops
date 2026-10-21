@@ -11,7 +11,7 @@ import { createFixtureGoCache, prepareFixtureGoModules, removeFixtureGoCache } f
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const label = 'finops.local-fleet-history.run';
-const goImage = 'golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61';
+const goImage = 'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f';
 const testName = 'TestFleetHistoryActualPostgresVersionedMinIOReplayAndRevocation';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));

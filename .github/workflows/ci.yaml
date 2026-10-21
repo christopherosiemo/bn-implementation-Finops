@@ -43,7 +43,7 @@ jobs:
             *) exit 2 ;;
           esac
           mkdir -p work
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
       - name: Preserve bounded private protocol evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,7 +75,7 @@ jobs:
           curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
       - name: Go tests and vet in container
         run: |
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm sh -ec 'go test ./... -timeout=25m && go test -race -count=1 ./internal/commitmentarchive -timeout=3m && go vet ./...'
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f sh -ec 'go test ./... -timeout=25m && go test -race -count=1 ./internal/commitmentarchive -timeout=3m && go vet ./...'
       - name: Stop isolated economics worker
         if: always()
         run: docker rm -f economics-tests || true
@@ -94,7 +94,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check reachable Go dependency vulnerabilities
         run: |
-          docker run --rm --memory=2g -e GOMAXPROCS=2 -e GOMEMLIMIT=1500MiB -v "$PWD:/workspace:ro" -w /workspace golang:1.27.2-bookworm sh -ec 'go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...'
+          docker run --rm --memory=2g -e GOMAXPROCS=2 -e GOMEMLIMIT=1500MiB -v "$PWD:/workspace:ro" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f sh -ec 'go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...'
   frontend-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -376,7 +376,7 @@ jobs:
         run: node --test scripts/tests/fleet-group-connected-lab.test.mjs scripts/tests/group-connected-failure.test.mjs
       - name: Prepare approved native toolchain images on the fresh runner
         run: |
-          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
           docker pull hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e
       - name: Generate local-only source fixture keys and service secrets
         run: node scripts/bootstrap.mjs
@@ -433,7 +433,7 @@ jobs:
       - name: Validate native assessment source, identity and cleanup boundaries
         run: node --test scripts/tests/fleet-native-assessment-lab.test.mjs scripts/tests/fleet-assessment-compose.test.mjs
       - name: Prepare the pinned offline Go toolchain
-        run: docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+        run: docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
       - name: Generate local-only fixture keys and distinct service credentials
         run: node scripts/bootstrap.mjs
       - name: Build and start the inspected local source fixture
@@ -484,7 +484,7 @@ jobs:
         run: node --test scripts/tests/fleet-native-capacity-lab.test.mjs scripts/tests/fleet-capacity-daemon.test.mjs scripts/tests/fleet-capacity-browser.test.mjs scripts/tests/fleet-capacity-compose.test.mjs
       - name: Prepare pinned native, browser and identity toolchains
         run: |
-          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
           docker pull prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
           docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
           docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
@@ -541,7 +541,7 @@ jobs:
         run: node --test scripts/tests/fleet-joint-decision-lab.test.mjs scripts/tests/fleet-joint-browser.test.mjs scripts/tests/fleet-capacity-daemon.test.mjs scripts/tests/fleet-capacity-browser.test.mjs
       - name: Prepare pinned native, browser and identity toolchains
         run: |
-          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
           docker pull prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
           docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
           docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
@@ -598,7 +598,7 @@ jobs:
         run: node --test scripts/tests/group-workspace-health-runner.test.mjs scripts/tests/group-workspace-health.test.mjs scripts/tests/group-workspace-retirement.test.mjs
       - name: Prepare approved native toolchain images on the fresh runner
         run: |
-          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
           docker pull hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e
       - name: Generate local-only source fixture keys and service secrets
         run: node scripts/bootstrap.mjs
@@ -845,7 +845,7 @@ jobs:
           done
       - name: Prepare pinned analysis, browser and identity toolchains
         run: |
-          docker pull golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
           docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
           docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
           docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27

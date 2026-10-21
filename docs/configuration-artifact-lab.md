@@ -9,7 +9,7 @@ node scripts/configuration-artifact-lab.mjs
 
 The runner requires the current workspace's running fixture API, PostgreSQL and
 MinIO containers and a verified local Docker daemon. It builds a uniquely labelled
-tooling image from the reviewed digest-pinned Go 1.27.2 / Terraform 1.16 Dockerfile.
+tooling image from the reviewed digest-pinned Go 1.27.3 / Terraform 1.16 Dockerfile.
 It creates a new internal network, new PostgreSQL and MinIO services with random
 local credentials, and a read-only public source snapshot. The test receives no
 application storage, application credentials, cloud credentials or Docker socket.

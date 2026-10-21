@@ -13,7 +13,7 @@ import {createFixtureGoCache,prepareFixtureGoModules,removeFixtureGoCache} from 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const label='finops.local-artifact.run';
 const testName='TestArtifactActualGitTerraformEncryptedPostgresS3';
-const dockerfileHash='f06b0847b8b62ee225161255335192335f8c4e75530a883269ae847b56880cee';
+const dockerfileHash='441aa9d7fc9255099e2cec0accd6c2af0f0fad1d96e35654032adb78b4b17a51';
 const environment=o=>Object.fromEntries((o.Config?.Env||[]).map(line=>{const i=line.indexOf('=');return[line.slice(0,i),line.slice(i+1)];}));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export function validateArtifactSources(sources,workspace){validateRecoverySources(sources.api,sources.postgres,workspace);const m=sources.minio;assert.equal(m.State?.Running,true);assert.equal(m.Config?.Labels?.['com.docker.compose.service'],'minio');assert.equal(path.resolve(m.Config?.Labels?.['com.docker.compose.project.working_dir']||''),path.resolve(workspace));assert.equal(m.Config?.Labels?.['com.docker.compose.project'],sources.api.Config.Labels['com.docker.compose.project']);assert.match(m.Image,/^sha256:[a-f0-9]{64}$/);assert.ok(!Object.keys(environment(m)).some(k=>/^(AWS_|AZURE_|GOOGLE_|GCP_|ARM_)/.test(k)));}

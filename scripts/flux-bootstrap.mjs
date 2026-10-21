@@ -13,7 +13,7 @@ export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const pins = Object.freeze({
   kind: 'v0.33.0',
   node: 'kindest/node:v1.34.11@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d',
-  go: 'golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61',
+  go: 'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f',
   // Exact linux/amd64 child manifests of the approved upstream release indexes.
   application: 'docker.io/library/python@sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024',
   source: 'ghcr.io/fluxcd/source-controller@sha256:d10ea2ebeb475de80a6d3caf792578b1eaaa0366c55442d20d7e5f6f78fad3ec',

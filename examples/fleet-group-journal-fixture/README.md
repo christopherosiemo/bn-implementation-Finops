@@ -1,7 +1,7 @@
 # Isolated file-journal Git/Terraform component
 
 This new fixture is independent of the two accepted artifact labs. It uses the
-same pinned official Terraform 1.16.0 and Go 1.27.2 images, a fresh local Git
+same pinned official Terraform 1.16.0 and Go 1.27.3 images, a fresh local Git
 repository, and only the built-in `terraform_data` model. It contacts no AWS,
 application API, PostgreSQL, Temporal, OIDC issuer or external network.
 

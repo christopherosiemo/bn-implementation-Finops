@@ -36,7 +36,7 @@ export function workloadPlanCommand(options, root, platform = process.platform) 
     }
     args.push(`--${name}`, value);
   }
-  return { command: 'docker', args: ['run', '--rm', '--network', 'none', '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,nodev,size=512m', '--env', 'GOTOOLCHAIN=local', '--env', 'GOCACHE=/tmp/go-build', ...mounts, '--workdir', '/src', 'golang:1.27.2-bookworm', 'go', 'run', './internal/fleet/cmd/check-workload-plan', ...args] };
+  return { command: 'docker', args: ['run', '--rm', '--network', 'none', '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,nodev,size=512m', '--env', 'GOTOOLCHAIN=local', '--env', 'GOCACHE=/tmp/go-build', ...mounts, '--workdir', '/src', 'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f', 'go', 'run', './internal/fleet/cmd/check-workload-plan', ...args] };
 }
 export function verifyWorkloadPlanArtifacts(options, root) {
   const repository = realpathSync(root);

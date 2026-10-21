@@ -10,7 +10,7 @@ import { localDockerEndpoint } from './kubernetes-bootstrap.mjs';
 import { validateRecoverySources } from './postgres-recovery-lab.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const goImage='golang:1.27.2-bookworm';
+const goImage='golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f';
 const roleTests=['TestPublicationPostgresIsolationRestartAndAuthorityBoundary','TestPublicationPostgresNativeOrderingOutOfOrderCompletionAndRevival','TestPublicationRealPostgresVersionedMinIOAndClickHouse'];
 const environment=o=>Object.fromEntries((o.Config?.Env||[]).map(line=>{const at=line.indexOf('=');return[line.slice(0,at),line.slice(at+1)];}));
 export function validatePublicationSources(sources,workspace){

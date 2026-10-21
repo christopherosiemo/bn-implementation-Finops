@@ -17,7 +17,7 @@ import {capacityBrowserImages,validateCapacityBrowserNamespace,validateCapacityB
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const runnerPath='scripts/fleet-joint-decision-lab.mjs',policyPath='config/minio/group-assessor-policy.json';
 const label='finops.native-capacity.run',sharedLabel='finops.fleet-group-connected.run';
-const goImage='golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61';
+const goImage='golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f';
 const promImage='prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996';
 const chImage='clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f';
 const testName='TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker';

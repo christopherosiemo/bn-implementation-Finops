@@ -14,7 +14,7 @@ Migration 026 creates forced tenant RLS and append-only `hardware_identity_deriv
 
 Every result remains `OBSERVED_ONLY`, `incarnation_status: UNKNOWN`, `interval_ownership: UNPROVEN`, `execution_authorized: false` and `verified_saving: null`. Equal point observations, stable ENI attachment times and body hashes cannot establish complete ASG membership intervals, independent completed-work preservation, native invoice finality or optimization savings.
 
-Acceptance commands use Docker Go 1.27.2 and disposable test infrastructure:
+Acceptance commands use Docker Go 1.27.3 and disposable test infrastructure:
 
 ```text
 go test -count=1 ./internal/provider ./internal/source -run '^TestHardwareIdentity'

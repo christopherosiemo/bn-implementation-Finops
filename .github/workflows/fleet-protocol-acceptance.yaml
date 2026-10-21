@@ -34,7 +34,7 @@ jobs:
             *) exit 2 ;;
           esac
           mkdir -p work
-          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.2-bookworm go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
       - name: Preserve real-clock private protocol evidence
         if: always()
         uses: actions/upload-artifact@v4

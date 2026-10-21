@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Official community registry artifacts for these releases are no longer public.
 # Build the unchanged, commit-pinned upstream sources instead of a third-party image.
-ARG GO_IMAGE=golang:1.27.2-bookworm
+ARG GO_IMAGE=golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
 FROM ${GO_IMAGE} AS source-build
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOMAXPROCS=2
 WORKDIR /src

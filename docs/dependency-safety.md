@@ -46,7 +46,7 @@ Run `node scripts/dependency-smoke.mjs` after local startup for the graph/review
 The Go contract checks for this increment are:
 
 ```powershell
-docker run --rm -v "${PWD}:/src" -w /src golang:1.27.2-bookworm go test ./internal/dependency ./internal/store ./internal/service ./internal/workflow
+docker run --rm -v "${PWD}:/src" -w /src golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f go test ./internal/dependency ./internal/store ./internal/service ./internal/workflow
 ```
 
 Without `TEST_DATABASE_URL`, PostgreSQL integration cases are skipped. A full acceptance run must use a disposable database, the actual restricted roles and a reachable real economics worker through `ECONOMICS_TEST_URL`; do not use an application or customer database as a test database. The CI workflow supplies these dependencies. A unit-only pass does not establish database isolation, signed-plan binding or the complete fixture operating loop.

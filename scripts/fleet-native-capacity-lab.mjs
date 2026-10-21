@@ -19,7 +19,7 @@ const runnerPath='scripts/fleet-native-capacity-lab.mjs',policyPath='config/mini
 const extraPaths=Object.freeze([runnerPath,'scripts/lib/fleet-capacity-daemon.mjs','scripts/lib/fleet-capacity-browser.mjs','migrations/036_fleet_native_capacity.sql','config/clickhouse/001_facts.sql','config/clickhouse-server/listen.xml','cmd/fleet-capacity-worker/main.go','cmd/fleet-capacity-worker/main_test.go','examples/fleet-capacity-browser/package.json','examples/fleet-capacity-browser/package-lock.json','examples/fleet-capacity-browser/main.mjs','contracts/openapi.yaml',...['Dockerfile','package.json','package-lock.json','index.html','tsconfig.json','vite.config.ts','playwright.config.ts','nginx.conf','nginx-root.conf'].map(p=>'frontend/'+p)]);
 const newHostPaths=Object.freeze([runnerPath,'scripts/lib/fleet-capacity-daemon.mjs','scripts/lib/fleet-capacity-browser.mjs']);
 const label='finops.native-capacity.run',sharedLabel='finops.fleet-group-connected.run';
-const goImage='golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61';
+const goImage='golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f';
 const promImage='prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996';
 const chImage='clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f';
 const testName='TestFleetCapacityActualPrometheusAnalyticsPythonAPIAndWorker';

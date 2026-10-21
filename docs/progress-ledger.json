@@ -1837,6 +1837,23 @@
       },
       "live_credit_awarded": false,
       "acceptance": "Native LambdaV2 authority and18literal RDS physical classes extend existing scopes. RDS catalogue subset passed9focused/17Python checks after one product-boundary repair. Lambda positive fixture identity is missing; S3/Network connected attempts fail at the unchanged shared preflight deadline. Their native connected maturity is not accepted. Current retained commitment failure has no proved new defect; EBS stays banked. No weights, old credits, family maturity or package subdivisions change. Final release and genuine AWS/customer/operational gates remain separate."
+    },
+    {
+      "id": "aws_readiness_closure_a",
+      "recorded_at": "2026-10-21",
+      "base_commit": "20dd765d7414764056c7e0aeae8935e389dc1be2",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "3fd73e1d92925a15da4ddf72432c93079d287ae44f05ac99ee54bb947f14ecca",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "Dockerfile.backend",
+        ".github/workflows/ci.yaml"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Active Go1.27.3 pins and103existing focused Node/static checks accepted. Local fixed-image download failed DockerHub EOF (EXTERNAL_INFRASTRUCTURE_FAILURE), with no retry or fallback. Reachable-vulnerability and complete release acceptance are pending required CI on the pushed source; no secure-baseline completion or maturity transition is claimed until the scan itself passes. Historical evidence/credits/weights remain unchanged."
     }
   ],
   "reserved_package": {

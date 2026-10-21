@@ -19,7 +19,7 @@ const runnerPath='scripts/fleet-group-connected-lab.mjs';
 const harnessDependencies=Object.freeze(['scripts/kubernetes-bootstrap.mjs','scripts/fleet-history-lab.mjs','scripts/postgres-recovery-lab.mjs','scripts/lib/encrypted-backup.mjs','scripts/lib/fixture-go-modules.mjs','scripts/lib/group-connected-failure.mjs']);
 const indexedHostFiles=Object.freeze([runnerPath,...harnessDependencies]);
 const hash=x=>createHash('sha256').update(x).digest('hex');
-const images={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61'};
+const images={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f'};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export function validateConnectedTooling(raw){

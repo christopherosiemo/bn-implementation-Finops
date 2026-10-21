@@ -15,7 +15,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const runnerPath='scripts/fleet-native-assessment-lab.mjs',policyPath='config/minio/group-assessor-policy.json';
 const extraPaths=Object.freeze([runnerPath,policyPath,'migrations/033_group_native_reconstruction.sql','migrations/034_group_recovery_health.sql','migrations/035_group_native_assessments.sql']);
 const label='finops.native-assessment.run',sharedLabel='finops.fleet-group-connected.run';
-const goImage='golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61';
+const goImage='golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f';
 const testName='TestFleetNativeAssessmentActualVersionedRawIngestionAPIAndWorker';
 const hash=raw=>createHash('sha256').update(raw).digest('hex');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));

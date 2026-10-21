@@ -23,7 +23,7 @@ const fixture='examples/fleet-group-connected-fixture';
 const testName='TestFleetGroupWorkspaceReconstructionPhases';
 const sha=raw=>createHash('sha256').update(raw).digest('hex');
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-const images={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61'};
+const images={terraform:'hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e',go:'golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f'};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const phaseNames=new Set(['PREFLIGHT','INDEX_SNAPSHOT','BUILD_IMAGE','PREPARE_MODULES','OFFLINE_COMPILE','START_SERVICES','PREPARE','VALIDATE_READY','REMOVE_OLD','CREATE_REPLACEMENT','RECONSTRUCT','VALIDATE_RESULT','DATABASE_CLEANUP','OWNED_CLEANUP','FINAL_OWNERSHIP_CHECK']);
 
