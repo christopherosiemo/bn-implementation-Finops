@@ -14,6 +14,13 @@ billing_prefix      = "cur/"
 # Existing bucket must already have versioning and the reviewed writer-boundary
 # output policy; this module creates/changes neither bucket nor export.
 enable_execution    = false
+# Optional native service metadata, each disabled by default. No payload reads.
+# enable_ecs_readonly           = true # ECS / Fargate
+# enable_eks_readonly           = true # Infrastructure metadata, not Kubernetes access
+# enable_elasticache_readonly   = true
+# enable_dynamodb_readonly      = true # Table/index metadata, never items
+# enable_load_balancer_readonly = true # ALB / NLB / Classic ELB
+# aws_service_read_regions     = ["eu-west-1"] # Exact commissioned customer scope
 # Add only after read-only acceptance, or retain for an existing live deployment:
 # enable_execution        = true
 # execution_principal_arn = "arn:aws:iam::123456789012:role/finops-pilot-executor"

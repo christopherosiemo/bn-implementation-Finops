@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/awsservice"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/lambdacost"
 	"net/http"
 	"os"
@@ -31,6 +32,10 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 		isObjectSource := strings.HasPrefix(model.String(d, "kind"), "AWS_S3_")
 		isLambdaSource := strings.HasPrefix(model.String(d, "kind"), "AWS_LAMBDA_")
 		isNetworkSource := model.String(d, "kind") == network.FlowKind
+		isAWSServiceSource := model.String(d, "kind") == "AWS_SERVICE_NATIVE_V1"
+		if isAWSServiceSource {
+			allowed = map[string]bool{"kind": true, "name": true, "account_id": true, "region": true, "read_role_binding_id": true, "service_families": true, "scope_mode": true, "root_resource_arns": true}
+		}
 		if isLambdaSource {
 			allowed = map[string]bool{"kind": true, "account_id": true, "region": true, "function_arn": true, "qualifier": true, "read_role_binding_id": true, "log_group_arn": true, "log_group_name": true, "format": true, "issuer": true, "audience": true, "subject": true, "name": true}
 		}
@@ -85,7 +90,9 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 			delete(d, "dataset_ids")
 		}
 		var validation error
-		if isLambdaSource {
+		if isAWSServiceSource {
+			_, validation = awsservice.ParseRegistration(d)
+		} else if isLambdaSource {
 			validation = lambdacost.ValidateRegistration(d)
 			if model.String(d, "kind") == "AWS_LAMBDA_PERFORMANCE_CURVE_V1" {
 				issuer := os.Getenv("LAMBDA_PERFORMANCE_OIDC_ISSUER")

@@ -362,6 +362,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		months = append(months, month{ref, records, payer})
 	}
 	groups := map[string]*databaseCoverageTotals{}
+	serviceGroups := map[string]map[string]*databaseCoverageTotals{}
 	objectGroups := map[string]*databaseCoverageTotals{}
 	networkGroups := map[string]*databaseCoverageTotals{}
 	lambdaGroups := map[string]*databaseCoverageTotals{}
@@ -421,6 +422,22 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				networkComponent = "UNSUPPORTED_NETWORK_COMPONENT"
 			}
 			networkPartitions := []*databaseCoverageTotals{}
+			// Each canonical line belongs to exactly one service partition. These
+			// rows supplement the all-AWS total; graph allocations never add cost.
+			serviceName := model.String(evidence.Object(record["x_ProviderFields"]), "product_servicecode")
+			if serviceName == "" {
+				serviceName = model.String(record, "ServiceName")
+			}
+			if serviceName == "" {
+				serviceName = "UNKNOWN_SERVICE"
+			}
+			if serviceGroups[serviceName] == nil {
+				serviceGroups[serviceName] = map[string]*databaseCoverageTotals{}
+			}
+			if serviceGroups[serviceName][currency] == nil {
+				serviceGroups[serviceName][currency] = newDatabaseCoverageTotals()
+			}
+			networkPartitions = append(networkPartitions, serviceGroups[serviceName][currency])
 			if networkComponent != "" {
 				if networkGroups[currency] == nil {
 					networkGroups[currency] = newDatabaseCoverageTotals()
@@ -582,6 +599,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			} else if component, _, _ := storageChargeKind(evidence.Object(record["x_ProviderFields"])); component != "" {
 				category = "observation_only_spend"
 			}
+			if category == "unsupported_spend" && resource != nil && model.String(resource, "service_family") != "" {
+				// Native discovery adds visibility, not financial-analysis credit.
+				category = "observation_only_spend"
+			}
 			group.values[category].Add(group.values[category], cost)
 			for _, networkGroup := range networkPartitions {
 				networkGroup.values[category].Add(networkGroup.values[category], cost)
@@ -650,7 +671,16 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	for _, component := range componentNames {
 		components = append(components, model.Document{"component": component, "groups": networkCoverageRows(networkComponents[component], incomplete)})
 	}
-	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "lambda_groups": networkCoverageRows(lambdaGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
+	services := []model.Document{}
+	serviceNames := make([]string, 0, len(serviceGroups))
+	for name := range serviceGroups {
+		serviceNames = append(serviceNames, name)
+	}
+	sort.Strings(serviceNames)
+	for _, name := range serviceNames {
+		services = append(services, model.Document{"service": name, "groups": networkCoverageRows(serviceGroups[name], incomplete)})
+	}
+	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "service_groups": services, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "lambda_groups": networkCoverageRows(lambdaGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
 }
 
 // Only an actually issued, unexpired v3 readiness with accepted financial

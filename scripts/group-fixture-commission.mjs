@@ -86,9 +86,9 @@ function privateDirectory(id){
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
  const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)).sort();
- assert.equal(names.length,45);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:45},(_,n)=>n+1));
- assert.equal(names.at(-1),'045_lambda_assessments.sql');
+ assert.equal(names.length,46);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:46},(_,n)=>n+1));
+ assert.equal(names.at(-1),'046_aws_service_inventory.sql');
  const manifest=Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
  assert.equal(manifest['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051','Migration037 must equal the independently reviewed release bytes');
  assert.equal(manifest['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984','Migration038 must equal the independently reviewed credential scope bytes');
@@ -99,6 +99,7 @@ export function commissionMigrationManifest(directory){
  assert.equal(manifest['043_object_storage_assessments.sql'],'75fc1e107f55eb7db66233304abe4bf21056376e54a9fb729fcac71571bbc7e7','Migration043 must equal the reviewed read-only object-storage assessment bytes');
  assert.equal(manifest['044_network_assessments.sql'],'2f98fb315df0944f6a75ec6bb1b8978c2991039257fd60d959c6d70c26b67732','Migration044 must equal the reviewed read-only network assessment bytes');
  assert.equal(manifest['045_lambda_assessments.sql'],'e5d17c23c2a39f6192052c7d441f25d2f5533fe2903775aa49a510db0a858e7d','Migration045 must equal the reviewed read-only Lambda assessment bytes');
+ assert.equal(manifest['046_aws_service_inventory.sql'],'7ed178f40336cb7d04a8643f998d8a6f5511a41114fe248bce7655e8229df65c','Migration046 must equal the reviewed read-only AWS service inventory bytes');
  return manifest;
 }
 

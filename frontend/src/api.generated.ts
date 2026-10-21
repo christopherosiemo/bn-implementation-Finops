@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/resources/{id}/aws-service-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Scoped immutable native evidence for a discovered AWS service resource. Discovery establishes observation coverage, never execution authority or verified savings. */
+        get: operations["getAWSServiceEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resources": {
         parameters: {
             query?: never;
@@ -3001,7 +3018,7 @@ export interface components {
             next_cursor: string | null;
         };
         /** @enum {string} */
-        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET" | "LAMBDA_FUNCTION" | "VPC" | "SUBNET" | "AVAILABILITY_ZONE" | "ROUTE_TABLE" | "NAT_GATEWAY" | "ELASTIC_IP" | "PUBLIC_IPV4" | "INTERNET_GATEWAY" | "EGRESS_ONLY_INTERNET_GATEWAY" | "NETWORK_INTERFACE" | "SECURITY_GROUP" | "VPC_ENDPOINT" | "VPC_ENDPOINT_SERVICE" | "VPC_PEERING" | "FLOW_LOG" | "AWS_SERVICE_PREFIX_LIST" | "TRANSIT_GATEWAY" | "TRANSIT_GATEWAY_ATTACHMENT" | "LOAD_BALANCER";
+        AssessmentResourceKind: "RDS_INSTANCE" | "RDS_CLUSTER" | "EBS_VOLUME" | "EBS_SNAPSHOT" | "S3_BUCKET" | "LAMBDA_FUNCTION" | "VPC" | "SUBNET" | "AVAILABILITY_ZONE" | "ROUTE_TABLE" | "NAT_GATEWAY" | "ELASTIC_IP" | "PUBLIC_IPV4" | "INTERNET_GATEWAY" | "EGRESS_ONLY_INTERNET_GATEWAY" | "NETWORK_INTERFACE" | "SECURITY_GROUP" | "VPC_ENDPOINT" | "VPC_ENDPOINT_SERVICE" | "VPC_PEERING" | "FLOW_LOG" | "AWS_SERVICE_PREFIX_LIST" | "TRANSIT_GATEWAY" | "TRANSIT_GATEWAY_ATTACHMENT" | "LOAD_BALANCER" | "ECS_CLUSTER" | "ECS_SERVICE" | "ECS_TASK_DEFINITION" | "ECS_TASK" | "ECS_CAPACITY_PROVIDER" | "ECS_CONTAINER_INSTANCE" | "EKS_CLUSTER" | "EKS_NODE_GROUP" | "EKS_FARGATE_PROFILE" | "EKS_ADDON" | "ELASTICACHE_REPLICATION_GROUP" | "ELASTICACHE_CLUSTER" | "ELASTICACHE_SERVERLESS_CACHE" | "DYNAMODB_TABLE" | "DYNAMODB_GSI" | "ELB_LISTENER" | "ELB_TARGET_GROUP";
         StorageAssessmentRequest: {
             resource_id: string;
         };
@@ -3357,6 +3374,11 @@ export interface components {
         AssessmentCoverage: {
             period: components["schemas"]["DatabaseEvidenceWindow"];
             groups: components["schemas"]["AssessmentCoverageGroup"][];
+            /** @description Exclusive native service partitions of the same canonical billing records. Includes unsupported, unowned and resource-less charges; never add these again to all-AWS totals. */
+            service_groups?: {
+                service: string;
+                groups: components["schemas"]["AssessmentCoverageGroup"][];
+            }[];
             lambda_groups?: components["schemas"]["AssessmentCoverageGroup"][];
             /** @description Network component coverage included in, and never replacing, the all-AWS denominator. Unallocated transfer and public-IP costs remain detected spend. */
             network_groups?: components["schemas"]["AssessmentCoverageGroup"][];
@@ -6583,6 +6605,52 @@ export interface components {
             snapshot_id?: string;
             snapshot_hash?: string;
         };
+        /** @enum {string} */
+        AWSServiceFamily: "ECS" | "EKS" | "ELASTICACHE" | "DYNAMODB" | "ELB";
+        AWSServiceSourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_SERVICE_NATIVE_V1";
+            name?: string;
+            account_id: string;
+            region: string;
+            /** @description Existing private approved read binding; credentials and role ARNs are not accepted. */
+            read_role_binding_id: string;
+            service_families: components["schemas"]["AWSServiceFamily"][];
+            /** @enum {string} */
+            scope_mode: "ACCOUNT" | "RESOURCE";
+            /** @description Exact native root ARNs required in RESOURCE scope. Foreign references remain unresolved. */
+            root_resource_arns?: string[];
+        };
+        /** @description Sanitized native configuration with explicit absent, denied, unsupported, incomplete and unknown field states. No payload, environment values or credentials are retained. */
+        AWSServiceConfiguration: {
+            [key: string]: unknown;
+        };
+        /** @description Evidenced analytical topology. It does not automatically become an EC2 execution dependency or establish billing allocation. */
+        AWSServiceRelationship: {
+            [key: string]: unknown;
+        };
+        /** @description Tenant-bound immutable native snapshot and source currentness. Partial collection never establishes complete inventory. */
+        AWSServiceEvidence: {
+            resource_id: string;
+            family: components["schemas"]["AWSServiceFamily"];
+            current: boolean;
+            reason_codes: string[];
+            snapshot: ({
+                /** @enum {string} */
+                kind?: "AWS_SERVICE_NATIVE_SNAPSHOT_V1";
+                source_id?: string;
+                generation_id?: string;
+                account_id?: string;
+                region?: string;
+                registration_version?: number;
+                config_hash?: string;
+                content_hash?: string;
+                configuration?: components["schemas"]["AWSServiceConfiguration"];
+                relationships?: components["schemas"]["AWSServiceRelationship"][];
+            } & {
+                [key: string]: unknown;
+            }) | null;
+        };
         LambdaSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_LAMBDA_NATIVE_V1" | "AWS_LAMBDA_REPORTS_V1" | "AWS_LAMBDA_PERFORMANCE_CURVE_V1";
@@ -6603,7 +6671,7 @@ export interface components {
             audience?: string;
             subject?: string;
         };
-        SourceConnectionRequest: components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
+        SourceConnectionRequest: components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
         AWSBillingSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
@@ -6671,7 +6739,7 @@ export interface components {
                 dataset_hash?: string;
             }[];
         };
-        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
+        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
             bucket?: string;
             flow_log_id?: string;
             payer_account_id?: string;
@@ -6889,6 +6957,9 @@ export interface components {
             resource_type?: string;
             storage_configuration?: components["schemas"]["StorageAssessmentObject"];
             lambda_configuration?: components["schemas"]["LambdaConfiguration"];
+            service_family?: components["schemas"]["AWSServiceFamily"];
+            aws_service_configuration?: components["schemas"]["AWSServiceConfiguration"];
+            provider_relationships?: components["schemas"]["AWSServiceRelationship"][];
             network_configuration?: components["schemas"]["NetworkConfiguration"];
             object_storage_configuration?: components["schemas"]["ObjectStorageConfiguration"];
             engine?: string;
@@ -7216,10 +7287,48 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getAWSServiceEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest native snapshot and current source-binding metadata. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSServiceEvidence"];
+                };
+            };
+            /** @description Workload scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource or evidence unavailable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listResources: {
         parameters: {
             query?: {
                 resource_type?: components["schemas"]["AssessmentResourceKind"];
+                service_family?: components["schemas"]["AWSServiceFamily"];
+                workload_id?: string;
                 limit?: components["parameters"]["PageLimit"];
                 /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
                 cursor?: components["parameters"]["PageCursor"];

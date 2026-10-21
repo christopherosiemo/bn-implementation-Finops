@@ -1,5 +1,7 @@
 # Product scope progress ledger
 
+Forward-only AWS checkpoint 1: **26.9% → 26.9%**. Read-only native inventory breadth is banked PARTIAL within the existing inventory-adapter scope; see [sprint evidence](forward-aws-sprint.md). No weights or historical credits change.
+
 The [Lambda read-only components](lambda-readonly-assessment.md) advance official completion **26.7% → 26.9%**. The reserved one-point scope earns component maturity 20, adding 0.2 points; the remaining unaccepted optimisation pool is 5.5 points. The same native synthetic evidence reaches immutable storage, ClickHouse, the restricted assessor, actual Python and ordinary OIDC console with independent readback, but its result is blocked. Financial and benchmark acceptance are separate component checks. The complete positive native billing/performance-to-console path is unaccepted, so deterministic maturity 40 is not awarded.
 
 The requested Lambda vertical is **PARTIAL**. Historical provisioned-concurrency epochs/priced schedules, priced architecture decisions, separate Web/MicroVM inventory and scale gaps remain software obligations. Genuine AWS/customer history, rates, requirements and sustained operational use remain **EXTERNAL_ACCEPTANCE_REQUIRED**. Fixed weights, every historical review and closed-family acceptance debts are preserved. Shared foundations and test counts earn no independent credit. Final-source CI and installed migration/restoration are separate release gates; no overall green CI, mutation or verified saving is claimed.

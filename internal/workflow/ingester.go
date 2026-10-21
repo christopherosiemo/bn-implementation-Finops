@@ -85,6 +85,11 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if lambdaError := lambdaTick(ctx, a, tenant); lambdaError != nil && e == nil {
 			e = lambdaError
 		}
+		// Optional AWS GA service inventory has independent bounded reads and
+		// short publication transactions; EC2 failures do not suppress it.
+		if serviceError := awsServiceTick(ctx, a, tenant); serviceError != nil && e == nil {
+			e = serviceError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

@@ -8,6 +8,23 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /resources/{id}/aws-service-evidence:
+    get:
+      operationId: getAWSServiceEvidence
+      description: Scoped immutable native evidence for a discovered AWS service resource. Discovery establishes observation coverage, never execution authority or verified savings.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Latest native snapshot and current source-binding metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSServiceEvidence' }
+        '403': { description: Workload scope denied. }
+        '404': { description: Resource or evidence unavailable. }
   /resources:
     get:
       operationId: listResources
@@ -15,6 +32,12 @@ paths:
         - name: resource_type
           in: query
           schema: { $ref: '#/components/schemas/AssessmentResourceKind' }
+        - name: service_family
+          in: query
+          schema: { $ref: '#/components/schemas/AWSServiceFamily' }
+        - name: workload_id
+          in: query
+          schema: { type: string }
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageCursor'
       responses:
@@ -3807,7 +3830,7 @@ components:
         next_cursor: { type: string, nullable: true }
     AssessmentResourceKind:
       type: string
-      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET, LAMBDA_FUNCTION, VPC, SUBNET, AVAILABILITY_ZONE, ROUTE_TABLE, NAT_GATEWAY, ELASTIC_IP, PUBLIC_IPV4, INTERNET_GATEWAY, EGRESS_ONLY_INTERNET_GATEWAY, NETWORK_INTERFACE, SECURITY_GROUP, VPC_ENDPOINT, VPC_ENDPOINT_SERVICE, VPC_PEERING, FLOW_LOG, AWS_SERVICE_PREFIX_LIST, TRANSIT_GATEWAY, TRANSIT_GATEWAY_ATTACHMENT, LOAD_BALANCER]
+      enum: [RDS_INSTANCE, RDS_CLUSTER, EBS_VOLUME, EBS_SNAPSHOT, S3_BUCKET, LAMBDA_FUNCTION, VPC, SUBNET, AVAILABILITY_ZONE, ROUTE_TABLE, NAT_GATEWAY, ELASTIC_IP, PUBLIC_IPV4, INTERNET_GATEWAY, EGRESS_ONLY_INTERNET_GATEWAY, NETWORK_INTERFACE, SECURITY_GROUP, VPC_ENDPOINT, VPC_ENDPOINT_SERVICE, VPC_PEERING, FLOW_LOG, AWS_SERVICE_PREFIX_LIST, TRANSIT_GATEWAY, TRANSIT_GATEWAY_ATTACHMENT, LOAD_BALANCER, ECS_CLUSTER, ECS_SERVICE, ECS_TASK_DEFINITION, ECS_TASK, ECS_CAPACITY_PROVIDER, ECS_CONTAINER_INSTANCE, EKS_CLUSTER, EKS_NODE_GROUP, EKS_FARGATE_PROFILE, EKS_ADDON, ELASTICACHE_REPLICATION_GROUP, ELASTICACHE_CLUSTER, ELASTICACHE_SERVERLESS_CACHE, DYNAMODB_TABLE, DYNAMODB_GSI, ELB_LISTENER, ELB_TARGET_GROUP]
     StorageAssessmentRequest:
       type: object
       additionalProperties: false
@@ -4218,6 +4241,15 @@ components:
       properties:
         period: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
         groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
+        service_groups:
+          type: array
+          description: Exclusive native service partitions of the same canonical billing records. Includes unsupported, unowned and resource-less charges; never add these again to all-AWS totals.
+          items:
+            type: object
+            required: [service, groups]
+            properties:
+              service: { type: string }
+              groups: { type: array, items: { $ref: '#/components/schemas/AssessmentCoverageGroup' } }
         lambda_groups:
           type: array
           items: { $ref: '#/components/schemas/AssessmentCoverageGroup' }
@@ -10665,6 +10697,55 @@ components:
         evaluation: { $ref: '#/components/schemas/SloEvaluation' }
         snapshot_id: { type: string }
         snapshot_hash: { type: string }
+    AWSServiceFamily:
+      type: string
+      enum: [ECS, EKS, ELASTICACHE, DYNAMODB, ELB]
+    AWSServiceSourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, account_id, region, read_role_binding_id, service_families, scope_mode]
+      properties:
+        kind: { type: string, enum: [AWS_SERVICE_NATIVE_V1] }
+        name: { type: string, maxLength: 200 }
+        account_id: { type: string, pattern: '^[0-9]{12}$' }
+        region: { type: string }
+        read_role_binding_id: { type: string, description: Existing private approved read binding; credentials and role ARNs are not accepted. }
+        service_families: { type: array, minItems: 1, maxItems: 5, uniqueItems: true, items: { $ref: '#/components/schemas/AWSServiceFamily' } }
+        scope_mode: { type: string, enum: [ACCOUNT, RESOURCE] }
+        root_resource_arns: { type: array, maxItems: 256, uniqueItems: true, items: { type: string }, description: Exact native root ARNs required in RESOURCE scope. Foreign references remain unresolved. }
+    AWSServiceConfiguration:
+      type: object
+      additionalProperties: true
+      description: Sanitized native configuration with explicit absent, denied, unsupported, incomplete and unknown field states. No payload, environment values or credentials are retained.
+    AWSServiceRelationship:
+      type: object
+      additionalProperties: true
+      description: Evidenced analytical topology. It does not automatically become an EC2 execution dependency or establish billing allocation.
+    AWSServiceEvidence:
+      type: object
+      additionalProperties: false
+      required: [resource_id, family, current, reason_codes, snapshot]
+      description: Tenant-bound immutable native snapshot and source currentness. Partial collection never establishes complete inventory.
+      properties:
+        resource_id: { type: string }
+        family: { $ref: '#/components/schemas/AWSServiceFamily' }
+        current: { type: boolean }
+        reason_codes: { type: array, items: { type: string } }
+        snapshot:
+          type: object
+          nullable: true
+          additionalProperties: true
+          properties:
+            kind: { type: string, enum: [AWS_SERVICE_NATIVE_SNAPSHOT_V1] }
+            source_id: { type: string }
+            generation_id: { type: string }
+            account_id: { type: string }
+            region: { type: string }
+            registration_version: { type: integer }
+            config_hash: { type: string }
+            content_hash: { type: string }
+            configuration: { $ref: '#/components/schemas/AWSServiceConfiguration' }
+            relationships: { type: array, items: { $ref: '#/components/schemas/AWSServiceRelationship' } }
     LambdaSourceConnectionRequest:
       type: object
       additionalProperties: false
@@ -10685,6 +10766,7 @@ components:
         subject: { type: string }
     SourceConnectionRequest:
       oneOf:
+        - { $ref: '#/components/schemas/AWSServiceSourceConnectionRequest' }
         - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
         - { $ref: '#/components/schemas/ObjectStorageSourceConnectionRequest' }
         - { $ref: '#/components/schemas/LambdaSourceConnectionRequest' }
@@ -10758,6 +10840,7 @@ components:
       allOf:
         - { $ref: '#/components/schemas/Document' }
         - oneOf:
+            - { $ref: '#/components/schemas/AWSServiceSourceConnectionRequest' }
             - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
             - { $ref: '#/components/schemas/ObjectStorageSourceConnectionConfiguration' }
             - { $ref: '#/components/schemas/LambdaSourceConnectionRequest' }
@@ -10989,6 +11072,9 @@ components:
             resource_type: { type: string, description: Existing EC2 or server-issued RDS_INSTANCE/RDS_CLUSTER/EBS_VOLUME/EBS_SNAPSHOT/S3_BUCKET and read-only AWS network discriminator. }
             storage_configuration: { $ref: '#/components/schemas/StorageAssessmentObject' }
             lambda_configuration: { $ref: '#/components/schemas/LambdaConfiguration' }
+            service_family: { $ref: '#/components/schemas/AWSServiceFamily' }
+            aws_service_configuration: { $ref: '#/components/schemas/AWSServiceConfiguration' }
+            provider_relationships: { type: array, items: { $ref: '#/components/schemas/AWSServiceRelationship' } }
             network_configuration: { $ref: '#/components/schemas/NetworkConfiguration' }
             object_storage_configuration: { $ref: '#/components/schemas/ObjectStorageConfiguration' }
             engine: { type: string }

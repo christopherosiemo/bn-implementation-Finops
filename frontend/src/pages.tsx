@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { ObjectStorageSources } from "./ObjectStorageSources";
+import { AwsServiceInventory, AwsServiceResourceDetails, isAwsServiceResource } from "./AwsServiceInventory";
+import { AwsServiceSources } from "./AwsServiceSources";
 import { LambdaAssessmentHistory, LambdaInventory, LambdaRecommendation, LambdaRecommendationHistory, LambdaResourceAssessment, isLambdaResource } from "./LambdaAssessment";
 import { LambdaSources } from "./LambdaSources";
 import { NetworkSources } from "./NetworkSources";
@@ -332,7 +334,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
               <tr key={item.id}>
                 <td>
                   <div className="resource-name">
-                    <span className="aws-icon">{isDatabaseResource(item) ? "rds" : isNetworkResource(item) ? "vpc" : item.resource_type?.toLowerCase() || "ec2"}</span>
+                    <span className="aws-icon">{isAwsServiceResource(item) ? String(item.service_family || "aws").toLowerCase() : isDatabaseResource(item) ? "rds" : isNetworkResource(item) ? "vpc" : item.resource_type?.toLowerCase() || "ec2"}</span>
                     <div>
                       <strong>{item.name || item.provider_resource_id}</strong>
                       <small className="mono">
@@ -366,7 +368,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  {isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : isLambdaResource(item) ? <LambdaResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
+                  {isAwsServiceResource(item) ? <AwsServiceResourceDetails resource={item} /> : isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : isLambdaResource(item) ? <LambdaResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
@@ -374,12 +376,12 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   />}
                 </td>
                 <td className="numeric">
-                  {money(item.monthly_effective_cost, item.currency)}
+                  {isAwsServiceResource(item) && item.cost_status === "UNAVAILABLE" ? "Unavailable" : money(item.monthly_effective_cost, item.currency)}
                   <small>
-                    {!isMoneyKnown(item.monthly_effective_cost) ||
+                    {(isAwsServiceResource(item) && item.cost_status === "UNAVAILABLE") || !isMoneyKnown(item.monthly_effective_cost) ||
                     !item.currency
                       ? "No evidenced source price"
-                      : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : isNetworkResource(item) ? "Source currency · network" : isLambdaResource(item) ? "Source currency · Lambda" : "Source currency · compute"}
+                      : isAwsServiceResource(item) ? "Source currency · AWS service" : isDatabaseResource(item) ? "Source currency · database" : isStorageResource(item) ? "Source currency · storage" : isObjectStorageResource(item) ? "Source currency · object storage" : isNetworkResource(item) ? "Source currency · network" : isLambdaResource(item) ? "Source currency · Lambda" : "Source currency · compute"}
                   </small>
                 </td>
                 <td>
@@ -393,10 +395,11 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
         ) : (
           <Empty
             title="Inventory will appear here"
-            text="Connect an AWS account to discover EC2 resources, read-only RDS instances and clusters, EBS volumes and snapshots, and S3 buckets."
+            text="Connect an AWS account to discover compute, databases, storage, serverless and commissioned ECS/Fargate, EKS, cache, DynamoDB and load-balancer inventory."
           />
         )}
       </Panel>
+      <AwsServiceInventory workloads={data.workloads} />
       <DatabaseAssessmentHistory />
       <StorageAssessmentHistory />
       <ObjectStorageAssessmentHistory />
@@ -2134,6 +2137,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
         )}
       </Panel>
       <DatabaseCoverage />
+      <AwsServiceSources data={data} run={run} busy={busy} />
       <SourceTrust data={data} run={run} busy={busy} />
       <ObjectStorageSources data={data} run={run} busy={busy} />
       <NetworkSources data={data} run={run} busy={busy} />

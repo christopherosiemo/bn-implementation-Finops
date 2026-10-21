@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 26.9,
   "rounded_description": "26.9 weighted percent of the full product; approximately 27 percent",
-  "credit_review": "Bounded read-only Lambda components advance the reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native collection, immutable operational evidence, guarded financial/performance components, restricted persisted blocked assessments and normal authenticated UI have bounded acceptance. The connected native capture has no canonical billing or performance curve and proves a blocked result; positive economics components are separate. Full positive native financial/performance-to-console acceptance, software omissions, genuine AWS/customer commissioning and sustained operation remain outstanding. No deterministic maturity 40, live, execution or verified-savings credit. Fixed weights, all historical reviews and closed-family acceptance debts remain unchanged.",
+  "credit_review": "AWS service inventory breadth adds read-only product components within the existing inventory_adapters scope. Broader native-connected and EKS/Kubernetes association gates remain; no whole-package maturity transition or additional credit is awarded.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -30,7 +30,8 @@
           "accepted_maturity": 20,
           "evidence": [
             "internal/provider",
-            "docs/acceptance.md"
+            "docs/acceptance.md",
+            "docs/forward-aws-sprint.md"
           ],
           "remaining": [
             "Live inventory/IAM and broader resources"
@@ -1756,6 +1757,23 @@
       "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
       "live_credit_awarded": false,
       "acceptance": "Bounded read-only Lambda components advance the reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native collection, immutable operational evidence, guarded financial/performance components, restricted persisted blocked assessments and normal authenticated UI have bounded acceptance. The connected native capture has no canonical billing or performance curve and proves a blocked result; positive economics components are separate. Full positive native financial/performance-to-console acceptance, software omissions, genuine AWS/customer commissioning and sustained operation remain outstanding. No deterministic maturity 40, live, execution or verified-savings credit. Fixed weights, all historical reviews and closed-family acceptance debts remain unchanged."
+    },
+    {
+      "id": "forward_aws_sprint_m1",
+      "recorded_at": "2026-10-21",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "c09f519f41d2c1b7dfdab747d1aa993cf84ef8370c4d335aef86f63e70f6f135",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "internal/provider/aws_service_test.go",
+        "internal/provider/aws_service_elb_test.go",
+        "internal/service/aws_service_integration_test.go",
+        "frontend/tests/aws-service-inventory.spec.ts"
+      ],
+      "acceptance": "AWS service inventory breadth adds read-only product components within the existing inventory_adapters scope. Broader native-connected and EKS/Kubernetes association gates remain; no whole-package maturity transition or additional credit is awarded."
     }
   ],
   "reserved_package": {
