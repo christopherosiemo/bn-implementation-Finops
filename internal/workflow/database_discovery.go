@@ -83,6 +83,42 @@ func databaseRaw(ctx context.Context, storage databaseArchive, tenant string, ev
 	}
 	return databaseArchiveReadback(ctx, storage, tenant, "wire", "rds-"+evidence.RawSHA256, evidence.Raw)
 }
+
+// Each documented row names its exact immutable asset. Retain the original V1
+// reference for historical readers while pinning V2 only where the native
+// orderable catalogue actually contains one of its reviewed classes.
+func databaseCatalogAssetRefs(ctx context.Context, storage databaseArchive, tenant string, capacities []model.Document, archived map[string]model.Document) (model.Document, []model.Document, error) {
+	selected, added := model.Document{}, []model.Document{}
+	for _, capacity := range capacities {
+		baseline, e := databaseDocument(capacity["ebs_baseline"])
+		if e != nil {
+			return nil, nil, e
+		}
+		if len(baseline) == 0 {
+			continue
+		}
+		hash := model.String(baseline, "source_excerpt_sha256")
+		asset, e := provider.RDSDocumentedCapacityAsset(hash)
+		if e != nil || len(asset) == 0 || telemetry.BytesHash(asset) != hash {
+			return nil, nil, errors.New("RDS_DOCUMENTED_CAPACITY_ASSET_UNKNOWN")
+		}
+		expected, e := provider.RDSDocumentedCapacity(model.String(capacity, "class"), hash)
+		if e != nil || expected == nil || telemetry.Hash(expected) != telemetry.Hash(baseline) {
+			return nil, nil, errors.New("RDS_DOCUMENTED_CAPACITY_ROW_DIFFERS")
+		}
+		ref := archived[hash]
+		if ref == nil {
+			ref, e = databaseArchiveReadback(ctx, storage, tenant, "wire", "rds-capacity-baseline-"+hash, asset)
+			if e != nil {
+				return nil, nil, e
+			}
+			archived[hash] = ref
+			added = append(added, ref)
+		}
+		selected[hash] = ref
+	}
+	return selected, added, nil
+}
 func databaseMetricBatches(resource model.Document, metrics provider.RDSMetricEvidence) ([]telemetry.Batch, error) {
 	if len(metrics.Metrics) > telemetry.MaxSamples {
 		return nil, errors.New("RDS_FULL_SAMPLE_BUDGET")
@@ -334,6 +370,7 @@ func collectDatabaseResource(ctx context.Context, t *store.Tx, client databaseAW
 		return e
 	}
 	refs = append(refs, assetRef)
+	archivedAssets := map[string]model.Document{telemetry.BytesHash(asset): assetRef}
 	for _, target := range targets {
 		catalog, e := client.RDSCatalog(ctx, scope, target)
 		if e != nil {
@@ -353,6 +390,12 @@ func collectDatabaseResource(ctx context.Context, t *store.Tx, client databaseAW
 		}
 		d["raw_ref"] = ref
 		d["ebs_baseline_asset_ref"] = assetRef
+		selectedAssets, newAssetRefs, e := databaseCatalogAssetRefs(ctx, storage, t.Tenant, catalog.Capacities, archivedAssets)
+		if e != nil {
+			return e
+		}
+		d["ebs_baseline_asset_refs"] = selectedAssets
+		refs = append(refs, newAssetRefs...)
 		object["catalogs"].(model.Document)[target] = d
 		parameters, e := client.RDSParameters(ctx, scope, target)
 		if e != nil {

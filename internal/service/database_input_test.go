@@ -48,6 +48,97 @@ func TestDatabaseInputProvisionedStorageCannotProveClassIOCapacity(t *testing.T)
 		t.Fatal("unarchived capacity source accepted")
 	}
 }
+
+func TestDatabaseInputVersionedPhysicalCapacityRequiresArchiveAndNativeOrderability(t *testing.T) {
+	asset := provider.RDSDocumentedPhysicalCapacityAssetV2()
+	hash := source.BytesHash(asset)
+	ref := databaseInputTestArchive("physical-capacity-v2")
+	ref["body_sha256"] = hash
+	legacy := databaseInputTestArchive("historical-v1")
+	legacy["body_sha256"] = source.BytesHash(provider.RDSDocumentedIOBaselineAsset())
+	native := databaseInputTestNative("db.m8g.16xlarge", "current-v2")
+	catalog := model.Document{"raw_ref": databaseInputTestArchive("native-orderability"), "ebs_baseline_asset_ref": legacy, "ebs_baseline_asset_refs": model.Document{hash: ref}, "modification_constraints_status": "OBSERVED_NATIVE_CURRENT_INSTANCE_CONSTRAINTS", "modification_constraints": databaseInputTestModificationConstraints(native)}
+	capacities, options := []model.Document{}, []model.Document{}
+	for _, family := range []string{"m8g", "r8g", "m8i", "r8i", "m7i", "r7i"} {
+		for _, size := range []string{"8xlarge", "12xlarge", "16xlarge"} {
+			class := "db." + family + "." + size
+			baseline, e := provider.RDSDocumentedCapacity(class, hash)
+			if e != nil || baseline == nil {
+				t.Fatal("reviewed literal class absent", class, e)
+			}
+			capacity := model.Document{"class": class, "status": "OBSERVED_CATALOG_CAPACITY", "ebs_baseline": baseline, "physical_capacity_asset_sha256": hash}
+			for _, field := range []string{"vcpu", "memory_bytes", "network_bytes_per_second", "architecture", "cpu_model"} {
+				capacity[field] = baseline[field]
+			}
+			capacities = append(capacities, capacity)
+			options = append(options, model.Document{"class": class, "engine": "postgres", "engine_version": "16.4", "license_model": "postgresql-license", "storage_type": "gp3", "availability_zones": []string{"eu-west-1a"}, "multi_az_capable": true, "min_iops": 3000, "max_iops": 64000, "min_throughput_mibps": 125, "max_throughput_mibps": 1000, "min_storage_gib": 20, "max_storage_gib": 1000})
+		}
+	}
+	catalog["capacities"], catalog["options"] = capacities, options
+	parameters := model.Document{"raw_ref": databaseInputTestArchive("parameters"), "connection_capacity_status": "EXPLICIT_NATIVE_PARAMETER_LITERAL_ALL_GROUPS_IN_SYNC", "connection_capacity": 400}
+	canonical := model.Document{"catalogs": model.Document{model.String(native, "arn"): catalog}, "parameters": model.Document{model.String(native, "arn"): parameters}}
+	configuration := model.Document{"zones": []string{"eu-west-1a"}, "multi_az": false}
+	entries, candidates, reasons := databaseCatalogInput(canonical, []model.Document{native}, configuration, "eu-west-1")
+	if len(entries) != 18 || len(candidates) != 18 || len(reasons) > 0 {
+		t.Fatal("native orderable V2 breadth refused", len(entries), len(candidates), reasons)
+	}
+	for _, entry := range entries {
+		capacity := databaseInputObject(entry["capacity"])
+		if capacity["vcpu"] == nil || capacity["memory_bytes"] == nil || capacity["network_bytes_per_second"] == nil || capacity["iops"] != "3000.000000000000" || capacity["throughput_bytes_per_second"] != "131072000.000000000000" {
+			t.Fatal("native capacity or smaller provisioned cap lost", entry)
+		}
+		if !databaseSameStrings(model.Strings(entry, "zones"), []string{"eu-west-1a"}) {
+			t.Fatal("zone orderability manufactured")
+		}
+	}
+	// A documentation row alone does not make a class regionally orderable.
+	catalog["options"] = options[1:]
+	entries, _, _ = databaseCatalogInput(canonical, []model.Document{native}, configuration, "eu-west-1")
+	if len(entries) != 17 {
+		t.Fatal("unorderable documentation class became candidate")
+	}
+	catalog["options"] = options
+	for _, change := range []string{"wrong-asset", "missing-archive", "altered-row", "native-memory", "native-cpu", "native-network", "native-architecture", "region"} {
+		t.Run(change, func(t *testing.T) {
+			copyCanonical := databaseInputObject(canonical)
+			copyCatalog := databaseInputObject(databaseInputObject(copyCanonical["catalogs"])[model.String(native, "arn")])
+			caps := databaseInputRows(copyCatalog["capacities"])
+			region := "eu-west-1"
+			switch change {
+			case "wrong-asset":
+				copyCatalog["ebs_baseline_asset_refs"] = model.Document{hash: legacy}
+			case "missing-archive":
+				delete(copyCatalog, "ebs_baseline_asset_refs")
+			case "altered-row":
+				row := databaseInputObject(caps[0]["ebs_baseline"])
+				row["iops"] = "999999"
+				caps[0]["ebs_baseline"] = row
+			case "native-memory":
+				caps[0]["memory_bytes"] = "1"
+			case "native-cpu":
+				caps[0]["vcpu"] = "1"
+			case "native-network":
+				caps[0]["network_bytes_per_second"] = "1"
+			case "native-architecture":
+				caps[0]["architecture"] = "x86_64"
+			case "region":
+				region = "eu-central-1"
+			}
+			copyCatalog["capacities"] = caps
+			copyCanonical["catalogs"] = model.Document{model.String(native, "arn"): copyCatalog}
+			entries, _, _ := databaseCatalogInput(copyCanonical, []model.Document{native}, configuration, region)
+			for _, entry := range entries {
+				if entry["class_id"] == "db.m8g.8xlarge" {
+					for _, field := range []string{"vcpu", "memory_bytes", "network_bytes_per_second", "iops", "throughput_bytes_per_second"} {
+						if databaseInputObject(entry["capacity"])[field] != nil {
+							t.Fatal("unproved physical authority survived", change, field)
+						}
+					}
+				}
+			}
+		})
+	}
+}
 func databaseInputTestNative(class, id string) model.Document {
 	return model.Document{"arn": "arn:aws:rds:eu-west-1:111122223333:db:" + id, "identifier": id, "resource_id": "db-" + id, "class": class, "engine": "postgres", "engine_version": "16.4", "license_model": "postgresql-license", "storage_type": "gp3", "availability_zone": "eu-west-1a", "multi_az": false, "status": "available", "account_id": "111122223333", "region": "eu-west-1", "allocated_storage_gib": 100, "iops": 3000, "storage_throughput_mibps": 125}
 }

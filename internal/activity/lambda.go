@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/lambdacost"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/native"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -50,7 +51,7 @@ func decodeLambdaPerformance(raw []byte) (model.Document, error) {
 			return nil, errors.New("LAMBDA_PERFORMANCE_INVALID")
 		}
 	}
-	if model.String(d, "schema_version") != "1" || model.String(d, "source_id") == "" {
+	if (model.String(d, "schema_version") != "1" && model.String(d, "schema_version") != "2") || model.String(d, "source_id") == "" {
 		return nil, errors.New("LAMBDA_PERFORMANCE_INVALID")
 	}
 	n, e := strconv.ParseInt(model.String(d, "sequence"), 10, 64)
@@ -67,6 +68,17 @@ func decodeLambdaPerformance(raw []byte) (model.Document, error) {
 	}
 	for k, v := range p {
 		switch k {
+		case "native_configuration_ref", "non_memory_compatibility":
+			if model.String(d, "schema_version") != "2" {
+				return nil, errors.New("LAMBDA_PERFORMANCE_INVALID")
+			}
+		case "executed_target_arn", "configuration_epoch_hash":
+			if model.String(d, "schema_version") != "2" {
+				return nil, errors.New("LAMBDA_PERFORMANCE_INVALID")
+			}
+			if str, ok := v.(string); !ok || len(str) == 0 || len(str) > 2048 {
+				return nil, errors.New("LAMBDA_PERFORMANCE_INVALID")
+			}
 		case "binding":
 			m, ok := v.(map[string]any)
 			if !ok {
@@ -135,6 +147,11 @@ func decodeLambdaPerformance(raw []byte) (model.Document, error) {
 	memory, _ := strconv.Atoi(model.String(p, "memory_size_mb"))
 	if memory < 128 || memory > 10240 || inv.Sign() <= 0 || success.Sign() <= 0 || p95.Cmp(p99) > 0 || used.Cmp(big.NewRat(int64(memory), 1)) > 0 || errs.Cmp(inv) > 0 || billed.Cmp(duration) < 0 {
 		return nil, errors.New("LAMBDA_PERFORMANCE_QUANTITIES_INVALID")
+	}
+	if d["schema_version"] == "2" {
+		if e := lambdacost.ValidatePerformanceV2Point(p); e != nil {
+			return nil, e
+		}
 	}
 	d["point"] = p
 	return d, nil
@@ -239,7 +256,11 @@ func (s *Server) lambdaPerformance(w http.ResponseWriter, r *http.Request) {
 		failure(w, 503, "LAMBDA_PERFORMANCE_ANALYTICS_UNAVAILABLE")
 		return
 	}
-	receipt := model.Document{"schema_version": "1", "id": model.ID(), "resource_id": resource, "qualifier": point["qualifier"], "source_id": source, "source_version": d["source_version"], "sequence": d["sequence"], "body_hash": digest, "idempotency_key": key, "issuer": cfg.Issuer, "audience": cfg.Audience, "subject": identity.Subject, "point": point, "archive": archive, "analytics": analytics}
+	authorityStatus := "LEGACY_NON_AUTHORITATIVE"
+	if d["schema_version"] == "2" {
+		authorityStatus = "NATIVE_CONFIGURATION_PROOF_PENDING"
+	}
+	receipt := model.Document{"schema_version": d["schema_version"], "authority_status": authorityStatus, "id": model.ID(), "resource_id": resource, "qualifier": point["qualifier"], "source_id": source, "source_version": d["source_version"], "sequence": d["sequence"], "body_hash": digest, "idempotency_key": key, "issuer": cfg.Issuer, "audience": cfg.Audience, "subject": identity.Subject, "point": point, "archive": archive, "analytics": analytics}
 	e = s.Store.Do(r.Context(), identity.Tenant, func(t *store.Tx) error {
 		if e := validate(r.Context(), t); e != nil {
 			return e

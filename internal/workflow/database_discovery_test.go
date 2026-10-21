@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
@@ -93,5 +94,51 @@ func TestDatabaseNativeArchiveRequiresExactVersionReadback(t *testing.T) {
 	store.corrupt = true
 	if _, e := databaseArchiveReadback(context.Background(), store, "tenant", "wire", "id", []byte("exact-native-response")); e == nil {
 		t.Fatal("corrupt native readback accepted")
+	}
+}
+
+func TestDatabaseNativeVersionedCapacityAssetsArchiveExactSelectedRows(t *testing.T) {
+	ctx := context.Background()
+	storage := &databaseMemoryArchive{}
+	v1 := provider.RDSDocumentedIOBaselineAsset()
+	v2 := provider.RDSDocumentedPhysicalCapacityAssetV2()
+	v1Hash, v2Hash := telemetry.BytesHash(v1), telemetry.BytesHash(v2)
+	legacy, e := databaseArchiveReadback(ctx, storage, "tenant", "wire", "rds-ebs-baseline-"+v1Hash, v1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	archived := map[string]model.Document{v1Hash: legacy}
+	old, e := provider.RDSDocumentedIOBaseline("db.r6i.8xlarge")
+	if e != nil {
+		t.Fatal(e)
+	}
+	current, e := provider.RDSDocumentedCapacity("db.m8g.8xlarge", v2Hash)
+	if e != nil || current == nil {
+		t.Fatal("V2 physical row unavailable", e)
+	}
+	rows := []model.Document{{"class": "db.r6i.8xlarge", "ebs_baseline": old}, {"class": "db.m8g.8xlarge", "ebs_baseline": current}}
+	refs, added, e := databaseCatalogAssetRefs(ctx, storage, "tenant", rows, archived)
+	if e != nil || len(refs) != 2 || len(added) != 1 || telemetry.Hash(refs[v1Hash]) != telemetry.Hash(legacy) || !bytes.Equal(storage.raw, v2) {
+		t.Fatal("mixed catalogue failed exact additive asset selection", e)
+	}
+	if model.String(added[0], "body_sha256") != v2Hash || len(archived) != 2 {
+		t.Fatal("V2 archive hash/ref differs")
+	}
+	if _, added, e = databaseCatalogAssetRefs(ctx, storage, "tenant", rows, archived); e != nil || len(added) != 0 {
+		t.Fatal("asset replay duplicated archival", e)
+	}
+	changed := model.Clone(current)
+	changed["iops"] = "999999"
+	if _, _, e = databaseCatalogAssetRefs(ctx, storage, "tenant", []model.Document{{"class": "db.m8g.8xlarge", "ebs_baseline": changed}}, archived); e == nil {
+		t.Fatal("altered row gained archived authority")
+	}
+	changed = model.Clone(current)
+	changed["source_excerpt_sha256"] = v1Hash
+	if _, _, e = databaseCatalogAssetRefs(ctx, storage, "tenant", []model.Document{{"class": "db.m8g.8xlarge", "ebs_baseline": changed}}, archived); e == nil {
+		t.Fatal("new class borrowed legacy asset")
+	}
+	storage.corrupt = true
+	if _, _, e = databaseCatalogAssetRefs(ctx, storage, "tenant", []model.Document{{"class": "db.m8g.8xlarge", "ebs_baseline": current}}, map[string]model.Document{}); e == nil {
+		t.Fatal("V2 corrupt readback published")
 	}
 }

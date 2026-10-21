@@ -2163,7 +2163,9 @@ export interface components {
             require_multi_attach: boolean | null;
             filesystem_review_required: boolean | null;
         };
-        LambdaPerformanceBatch: {
+        /** @description Machine-only benchmark ingress. Version 1 remains legacy evidence; only version 2 with independently resolved native proof may establish a new numerical curve. */
+        LambdaPerformanceBatch: components["schemas"]["LambdaPerformanceLegacyBatch"] | components["schemas"]["LambdaPerformanceNativeBatch"];
+        LambdaPerformanceLegacyBatch: {
             /** @enum {string} */
             schema_version: "1";
             source_id: string;
@@ -2171,6 +2173,58 @@ export interface components {
             sequence: string;
             /** @description Customer-attested historical performance. This cannot manufacture historical activity or SLO receipt time. Native function/qualifier, code, workload definition, mix, load and configuration fingerprints must match. */
             point: {
+                binding: components["schemas"]["StorageAssessmentObject"];
+                qualifier: string;
+                executed_version: string;
+                code_sha256: string;
+                comparison_fingerprint: string;
+                workload_definition_id: string;
+                workload_definition_version: string;
+                workload_mix_hash: string;
+                load_profile_hash: string;
+                /** @enum {string} */
+                architecture: "x86_64" | "arm64";
+                /** Format: date-time */
+                measurement_start: string;
+                /** Format: date-time */
+                measurement_end: string;
+                memory_size_mb: components["schemas"]["Decimal"];
+                invocations: components["schemas"]["Decimal"];
+                successful_work: components["schemas"]["Decimal"];
+                errors: components["schemas"]["Decimal"];
+                throttles: components["schemas"]["Decimal"];
+                total_duration_ms: components["schemas"]["Decimal"];
+                total_billed_duration_ms: components["schemas"]["Decimal"];
+                p95_duration_ms?: components["schemas"]["NullableDecimal"];
+                p99_duration_ms?: components["schemas"]["NullableDecimal"];
+                max_memory_used_mb?: components["schemas"]["NullableDecimal"];
+                peak_concurrent_executions?: components["schemas"]["NullableDecimal"];
+                p95_application_latency_ms?: components["schemas"]["NullableDecimal"];
+                cold_start_p95_ms?: components["schemas"]["NullableDecimal"];
+            };
+        };
+        LambdaPerformanceNativeBatch: {
+            /** @enum {string} */
+            schema_version: "2";
+            source_id: string;
+            source_version: number;
+            sequence: string;
+            /** @description Customer-attested historical performance. This cannot manufacture historical activity or SLO receipt time. Native function/qualifier, code, workload definition, mix, load and configuration fingerprints must match. */
+            point: {
+                native_configuration_ref: {
+                    snapshot_id: string;
+                    content_hash: string;
+                    config_hash: string;
+                };
+                /** @description Exact published numeric executed-version ARN; registration qualifier remains comparison scope. */
+                executed_target_arn: string;
+                configuration_epoch_hash: string;
+                non_memory_compatibility: {
+                    /** @enum {string} */
+                    definition_version: "LAMBDA_NON_MEMORY_CONFIG_V1";
+                    sha256: string;
+                    dependency_manifest_sha256: string;
+                };
                 binding: components["schemas"]["StorageAssessmentObject"];
                 qualifier: string;
                 executed_version: string;

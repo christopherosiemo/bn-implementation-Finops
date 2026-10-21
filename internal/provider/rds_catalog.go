@@ -104,7 +104,18 @@ func (r *rdsRead) capacity(ctx context.Context, class string) (model.Document, e
 	if e != nil {
 		return nil, e
 	}
-	out["ebs_baseline"] = baseline
+	var documented model.Document
+	if baseline == nil && r.scope.Region == "eu-west-1" {
+		documented, e = RDSDocumentedCapacity(class, rdsDocumentedPhysicalAssetSHA256)
+		if e != nil {
+			return nil, e
+		}
+		baseline = documented
+	}
+	out["ebs_baseline"] = nil
+	if baseline != nil {
+		out["ebs_baseline"] = baseline
+	}
 	if class == "db.serverless" {
 		out["reason_codes"] = []string{"SERVERLESS_ACU_IS_NOT_FIXED_INSTANCE_CAPACITY"}
 		return out, nil
@@ -154,6 +165,22 @@ func (r *rdsRead) capacity(ctx context.Context, class string) (model.Document, e
 			if x.Family != "Database Instance" {
 				continue
 			}
+			if documented != nil {
+				current, valid := rdsDocumentedNativeFields(a, documented)
+				if !valid {
+					out["reason_codes"] = []string{"NATIVE_DOCUMENTED_CAPACITY_CONFLICT"}
+					out["pricing_skus"] = sortedRDSKeys(skus)
+					return out, nil
+				}
+				b, _ := json.Marshal(current)
+				if signature != "" && signature != string(b) {
+					out["reason_codes"] = []string{"NATIVE_CATALOG_CAPACITY_CONFLICT"}
+					out["pricing_skus"] = sortedRDSKeys(skus)
+					return out, nil
+				}
+				signature, fields = string(b), current
+				continue
+			}
 			vcpu, e := strconv.ParseInt(a["vcpu"], 10, 64)
 			m := rdsMemory.FindStringSubmatch(a["memory"])
 			if e != nil || vcpu <= 0 || len(m) != 3 {
@@ -199,12 +226,23 @@ func (r *rdsRead) capacity(ctx context.Context, class string) (model.Document, e
 		}
 		if response.Next == "" {
 			out["pricing_skus"] = sortedRDSKeys(skus)
+			if fields == nil && documented != nil {
+				var valid bool
+				fields, valid = rdsMergeDocumentedPhysical(model.Document{}, documented)
+				if !valid {
+					return nil, ErrRDSRead
+				}
+			}
 			if fields != nil {
 				for key, value := range fields {
 					out[key] = value
 				}
 				out["status"] = "OBSERVED_CATALOG_CAPACITY"
 				out["reason_codes"] = []string{}
+				if documented != nil {
+					out["basis"] = "NATIVE_REGIONAL_ORDERABILITY_AND_REVIEWED_PHYSICAL_CAPACITY_V2"
+					out["physical_capacity_asset_sha256"] = documented["source_excerpt_sha256"]
+				}
 			}
 			return out, nil
 		}
@@ -314,6 +352,14 @@ func (a *AWS) RDSCatalog(ctx context.Context, s RDSScope, instanceARN string) (R
 			return RDSCatalogEvidence{}, e
 		}
 		out.Capacities = append(out.Capacities, capacity)
+	}
+	for _, capacity := range out.Capacities {
+		if model.String(capacity, "physical_capacity_asset_sha256") == rdsDocumentedPhysicalAssetSHA256 {
+			if e := r.retain("aws_documentation", "global", "ReviewedRDSPhysicalCapacityV2", rdsDocumentedPhysicalAssetSHA256, RDSDocumentedPhysicalCapacityAssetV2()); e != nil {
+				return RDSCatalogEvidence{}, e
+			}
+			break
+		}
 	}
 	out.RDSReadEvidence = r.evidence()
 	return out, nil

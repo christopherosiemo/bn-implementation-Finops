@@ -33,6 +33,12 @@ func lambdaConfig(s lambdacost.Scope, d model.Document) (model.Document, error) 
 		architecture = arch[0]
 	}
 	out := model.Document{"base_function_arn": base, "qualified_arn": qualified, "version": v, "qualifier": v, "model": lambdacost.Model(d), "name": d["FunctionName"], "runtime": d["Runtime"], "handler": d["Handler"], "package_type": d["PackageType"], "code_sha256": d["CodeSha256"], "code_size_bytes": d["CodeSize"], "architecture": architecture, "memory_size_mb": d["MemorySize"], "timeout_seconds": d["Timeout"], "ephemeral_storage_mb": lambdacost.Document(d["EphemeralStorage"])["Size"], "state": d["State"], "state_reason_code": d["StateReasonCode"], "last_update_status": d["LastUpdateStatus"], "last_update_status_reason_code": d["LastUpdateStatusReasonCode"], "last_modified": d["LastModified"], "config_revision_id": d["RevisionId"], "native_config_sha256": d["ConfigSha256"], "vpc": d["VpcConfig"], "execution_role_metadata": d["Role"], "environment_metadata": d["Environment"], "layers": d["Layers"], "tracing": d["TracingConfig"], "dead_letter": d["DeadLetterConfig"], "logging": d["LoggingConfig"], "snap_start": d["SnapStart"], "runtime_version": d["RuntimeVersionConfig"], "file_systems": d["FileSystemConfigs"], "capacity_provider": d["CapacityProviderConfig"], "durable_configuration": d["DurableConfig"], "tenancy_configuration": d["TenancyConfig"], "image_configuration": nil, "native_response_sanitized": true, "unknown_is_zero": false}
+	presence := model.Document{}
+	for _, key := range []string{"FunctionArn", "Version", "CodeSha256", "Runtime", "Handler", "PackageType", "Architectures", "Timeout", "EphemeralStorage", "VpcConfig", "Layers", "FileSystemConfigs", "Environment", "RuntimeVersionConfig", "Role", "TracingConfig", "DeadLetterConfig", "LoggingConfig", "SnapStart"} {
+		_, observed := d[key]
+		presence[key] = observed
+	}
+	out["native_field_presence"] = presence
 	out["configuration_epoch_hash"] = lambdacost.Hash(out)
 	return out, nil
 }
@@ -88,6 +94,7 @@ func (a *AWS) LambdaDiscover(ctx context.Context, s lambdacost.Scope, sel lambda
 		name := strings.TrimPrefix(base, "arn:aws:lambda:"+s.Region+":"+s.AccountID+":function:")
 		path := "/2015-03-31/functions/" + url.PathEscape(base)
 		latest, e := r.get(ctx, "GetFunctionConfiguration", path+"/configuration", url.Values{})
+		latestFullConfigurationObserved := e == nil
 		coverage := []model.Document{}
 		if e != nil {
 			latest = f
@@ -97,6 +104,7 @@ func (a *AWS) LambdaDiscover(ctx context.Context, s lambdacost.Scope, sel lambda
 		if e != nil {
 			return out, e
 		}
+		configuration["native_configuration_response_observed"] = latestFullConfigurationObserved
 		versions := []model.Document{lambdacost.Document(configuration)}
 		nativeVersions, e := r.list(ctx, "ListVersionsByFunction", path+"/versions", "Versions", url.Values{"MaxItems": {"50"}})
 		if e != nil {
@@ -105,6 +113,7 @@ func (a *AWS) LambdaDiscover(ctx context.Context, s lambdacost.Scope, sel lambda
 			versions = []model.Document{}
 			versionSeen := map[string]bool{}
 			for _, v := range nativeVersions {
+				fullConfigurationObserved := latestFullConfigurationObserved
 				vbase, vq, e := lambdacost.FunctionARN(s, model.String(v, "FunctionArn"))
 				version := model.String(v, "Version")
 				if e != nil || vbase != base || vq != "" && vq != version || versionSeen[version] {
@@ -113,6 +122,7 @@ func (a *AWS) LambdaDiscover(ctx context.Context, s lambdacost.Scope, sel lambda
 				versionSeen[version] = true
 				if version != "$LATEST" {
 					full, err := r.get(ctx, "GetFunctionConfiguration", path+"/configuration", url.Values{"Qualifier": {version}})
+					fullConfigurationObserved = err == nil
 					if err == nil {
 						v = full
 					} else {
@@ -125,6 +135,7 @@ func (a *AWS) LambdaDiscover(ctx context.Context, s lambdacost.Scope, sel lambda
 				if err != nil {
 					return out, err
 				}
+				c["native_configuration_response_observed"] = fullConfigurationObserved
 				versions = append(versions, c)
 			}
 			if !versionSeen["$LATEST"] {

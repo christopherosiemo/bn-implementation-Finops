@@ -53,7 +53,17 @@ test("commissioned network evidence persists through ordinary OIDC, IDs-only ass
     const dialog = page.getByRole("dialog", { name: "Network assessment", exact: true }); await dialog.getByRole("button", { name: "Refresh selected network assessment", exact: true }).click();
     await expect(dialog.getByRole("button", { name: /Execute|Approve|Release|Delete|Create.*endpoint|Change.*route|Create.*plan/ })).toHaveCount(0); await dialog.getByRole("button", { name: "Close dialog", exact: true }).click(); issued.push(result);
   }
-  const accepted = issued.find(row => row.assessment && "denominators" in row.assessment && row.assessment.candidates.some(candidate => candidate.status === "RECOMMENDED")); expect(accepted, "Provider-shaped native evidence must produce at least one justified persisted alternative").toBeTruthy();
+  const accepted = issued.find(row => row.assessment && "denominators" in row.assessment && row.assessment.candidates.some(candidate => candidate.family === "A" && candidate.kind === "GATEWAY_ENDPOINT_REVIEW" && candidate.status === "RECOMMENDED" && candidate.economics.nat_hourly_retained === true && candidate.economics.estimated_window_saving !== null && Number(candidate.economics.estimated_window_saving) > 0)); expect(accepted, "The collected same-region S3 traffic must justify a gateway review while preserving NAT hourly obligations").toBeTruthy();
+  if (ready.resource_ids.length === 1) {
+    const assessment = accepted!.assessment!; expect("denominators" in assessment).toBe(true);
+    if (!("denominators" in assessment)) throw new Error("Native network economics were not persisted");
+    expect(accepted!.status).toBe("ASSESSED"); expect(assessment.economics.currency).toBe("GBP"); expect(assessment.economics.detected_native_cost).toBe("97.200000000000"); expect(assessment.economics.estimated_monthly_saving).toBeNull(); expect(assessment.candidates).toHaveLength(2);
+    for (const candidate of assessment.candidates) {
+      expect(candidate.family).toBe("A"); expect(candidate.kind).toBe("GATEWAY_ENDPOINT_REVIEW"); expect(candidate.status).toBe("RECOMMENDED"); expect(candidate.blockers).toEqual([]);
+      expect(candidate.economics.current_window_cost).toBe("48.600000000000"); expect(candidate.economics.candidate_window_cost).toBe("16.200000000000"); expect(candidate.economics.estimated_window_saving).toBe("32.400000000000"); expect(candidate.economics.estimated_monthly_saving).toBe("32.850000000000"); expect(candidate.economics.nat_hourly_retained).toBe(true);
+      expect(candidate.economics.component_costs).toContainEqual(expect.objectContaining({ component: "NAT_HOURLY", current_window_cost: "16.200000000000", candidate_window_cost: "16.200000000000", avoided_window_cost: "0.000000000000" }));
+    }
+  }
   await page.reload(); authorization = await signIn(page); const retained = await read<Record>(`/v1/network-assessments/${encodeURIComponent(accepted!.id)}`); expect(retained.assessment).toEqual(accepted!.assessment); expect(retained.current).toBe(true);
   await navigation(page, "recommendations"); await page.getByText("Inspect all network recommendations", { exact: true }).click();
   const publications = await read<S["DatabaseRecommendationPage"]>(`/v1/recommendations?model_kind=NETWORK_ASSESSMENT_V1&resource_id=${encodeURIComponent(accepted!.resource_id)}&limit=100`); const publication = publications.items.find(item => item.network_assessment_id === accepted!.id); expect(publication?.id).toBeTruthy(); expect(publication!.pre_execution_ready).toBe(false);

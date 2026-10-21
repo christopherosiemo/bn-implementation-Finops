@@ -124,6 +124,11 @@ func (a *API) lambdaCurrent(ctx context.Context, t *store.Tx, d model.Document) 
 		}
 	}
 	result := storageObject(d["assessment"])
+	proofReasons, proofError := lambdaNativeComparabilityCurrent(ctx, t, result)
+	if proofError != nil {
+		return nil, proofError
+	}
+	reasons = append(reasons, proofReasons...)
 	if model.String(result, "resource_authority_hash") != lambdaResourceAuthorityHash(r) {
 		reasons = append(reasons, "LAMBDA_RESOURCE_AUTHORITY_CHANGED")
 	}
@@ -208,7 +213,16 @@ func lambdaAssessmentOne(ctx context.Context, a *API, t *store.Tx, read database
 	if e != nil {
 		return e
 	}
-	input, financial, inputReasons, e := a.lambdaInput(ctx, t, r, canonical, policy, performance)
+	trustedPerformance := model.Document{"receipts": []model.Document{}}
+	nativePerformanceRefs := []model.Document{}
+	performanceWarnings := []string{}
+	if sid != "" {
+		trustedPerformance, nativePerformanceRefs, performanceWarnings, e = a.lambdaTrustedPerformance(ctx, t, r, canonical, performance, read)
+		if e != nil {
+			return e
+		}
+	}
+	input, financial, inputReasons, e := a.lambdaInput(ctx, t, r, canonical, policy, trustedPerformance)
 	if e != nil {
 		return e
 	}
@@ -231,6 +245,7 @@ func lambdaAssessmentOne(ctx context.Context, a *API, t *store.Tx, read database
 	result["resource_authority_hash"] = lambdaResourceAuthorityHash(r)
 	result["financial_references"], result["source_bindings"] = financial, canonical["source_bindings"]
 	result["performance_set_hash"] = evidence.Hash(performance["receipts"])
+	lambdaApplyPerformanceAuthority(result, performance, trustedPerformance, nativePerformanceRefs, performanceWarnings)
 	if policy != nil {
 		result["declared_policy"], result["declared_policy_ref"] = policy["policy"], storageRef("LAMBDA_POLICY", pid, strconv.FormatInt(*pv, 10), lambdaPolicyHash(policy))
 	}

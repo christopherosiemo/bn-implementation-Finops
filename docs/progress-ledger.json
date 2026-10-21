@@ -1791,6 +1791,52 @@
         "frontend/tests/aws-service-assessment.spec.ts"
       ],
       "acceptance": "Shared four-family AWS service recommendation components, restricted persisted refusals, native metric semantics and authenticated presentation extend product capability. Native positive financial/demand/physical-candidate closure and complete connected acceptance remain software gates. Existing optimisation scopes/weights are unchanged; no arbitrary package subdivision or maturity uplift."
+    },
+    {
+      "id": "forward_aws_sprint_m3",
+      "recorded_at": "2026-10-21",
+      "base_commit": "3924ed8c2d05e9e3c801434a481d49f050fdc002",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "adbe683cc53dcdca3627fd5e8fc4eed9ab7337b8a9dee3d767869b7518df5a5f",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "internal/service/lambda_comparability_test.go",
+        "internal/activity/lambda_integration_test.go",
+        "internal/provider/rds_physical_capacity_v2_test.go",
+        "internal/service/database_input_test.go",
+        "internal/workflow/network_native_integration_test.go"
+      ],
+      "bounded_evidence": {
+        "lambda_focused": {
+          "log_sha256": "652fe236b6bd71c573a8fb80a0d062a41a6b14dac5bc5de8b97c8578a50cdbfd"
+        },
+        "lambda_connected": {
+          "log_sha256": "a96183a2458c4d77f0487260bcfb5e0525d1dc0ce1075f15b98af17e0f7b99c7"
+        },
+        "rds_first": {
+          "log_sha256": "b6ec79ad71c8c468f20b0f4a23742c3f56806343bb82d302470989951e933cf3"
+        },
+        "rds_rerun": {
+          "log_sha256": "e8e5ec855ce23fc490c3421fc73216395bebe48021570e8532153c829593def0"
+        },
+        "rds_python": {
+          "log_sha256": "85f0beb4998ff4862cb6e687f003e7eb9a10ee24c6542631219e541cd5dc18b4"
+        },
+        "network_focused": {
+          "log_sha256": "2e475f37116b624e7ce537c437dc20e53b3832fa09e4ce41376e587f0a1d8c60"
+        },
+        "s3_connected": {
+          "log_sha256": "b815b33d872ed9626291cf4082b6f3a756caf2db46592be3d7d730ae5a5bae41"
+        },
+        "network_connected": {
+          "log_sha256": "e8569ea5dba69737d12fdd6875f044057e1f47158757f08612b0353a7a1ca266"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Native LambdaV2 authority and18literal RDS physical classes extend existing scopes. RDS catalogue subset passed9focused/17Python checks after one product-boundary repair. Lambda positive fixture identity is missing; S3/Network connected attempts fail at the unchanged shared preflight deadline. Their native connected maturity is not accepted. Current retained commitment failure has no proved new defect; EBS stays banked. No weights, old credits, family maturity or package subdivisions change. Final release and genuine AWS/customer/operational gates remain separate."
     }
   ],
   "reserved_package": {

@@ -2920,6 +2920,11 @@ components:
         require_multi_attach: { type: boolean, nullable: true }
         filesystem_review_required: { type: boolean, nullable: true }
     LambdaPerformanceBatch:
+      description: Machine-only benchmark ingress. Version 1 remains legacy evidence; only version 2 with independently resolved native proof may establish a new numerical curve.
+      oneOf:
+        - { $ref: '#/components/schemas/LambdaPerformanceLegacyBatch' }
+        - { $ref: '#/components/schemas/LambdaPerformanceNativeBatch' }
+    LambdaPerformanceLegacyBatch:
       type: object
       additionalProperties: false
       required: [schema_version, source_id, source_version, sequence, point]
@@ -2934,6 +2939,64 @@ components:
           additionalProperties: false
           required: [binding, qualifier, executed_version, code_sha256, comparison_fingerprint, workload_definition_id, workload_definition_version, workload_mix_hash, load_profile_hash, architecture, measurement_start, measurement_end, memory_size_mb, invocations, successful_work, errors, throttles, total_duration_ms, total_billed_duration_ms]
           properties:
+            binding: { $ref: '#/components/schemas/StorageAssessmentObject' }
+            qualifier: { type: string }
+            executed_version: { type: string }
+            code_sha256: { type: string }
+            comparison_fingerprint: { type: string }
+            workload_definition_id: { type: string }
+            workload_definition_version: { type: string }
+            workload_mix_hash: { type: string }
+            load_profile_hash: { type: string }
+            architecture: { type: string, enum: [x86_64, arm64] }
+            measurement_start: { type: string, format: date-time }
+            measurement_end: { type: string, format: date-time }
+            memory_size_mb: { $ref: '#/components/schemas/Decimal' }
+            invocations: { $ref: '#/components/schemas/Decimal' }
+            successful_work: { $ref: '#/components/schemas/Decimal' }
+            errors: { $ref: '#/components/schemas/Decimal' }
+            throttles: { $ref: '#/components/schemas/Decimal' }
+            total_duration_ms: { $ref: '#/components/schemas/Decimal' }
+            total_billed_duration_ms: { $ref: '#/components/schemas/Decimal' }
+            p95_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            p99_duration_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            max_memory_used_mb: { $ref: '#/components/schemas/NullableDecimal' }
+            peak_concurrent_executions: { $ref: '#/components/schemas/NullableDecimal' }
+            p95_application_latency_ms: { $ref: '#/components/schemas/NullableDecimal' }
+            cold_start_p95_ms: { $ref: '#/components/schemas/NullableDecimal' }
+    LambdaPerformanceNativeBatch:
+      type: object
+      additionalProperties: false
+      required: [schema_version, source_id, source_version, sequence, point]
+      properties:
+        schema_version: { type: string, enum: ['2'] }
+        source_id: { type: string }
+        source_version: { type: integer, minimum: 1 }
+        sequence: { type: string, pattern: '^[1-9][0-9]*$' }
+        point:
+          type: object
+          description: Customer-attested historical performance. This cannot manufacture historical activity or SLO receipt time. Native function/qualifier, code, workload definition, mix, load and configuration fingerprints must match.
+          additionalProperties: false
+          required: [native_configuration_ref, executed_target_arn, configuration_epoch_hash, non_memory_compatibility, binding, qualifier, executed_version, code_sha256, comparison_fingerprint, workload_definition_id, workload_definition_version, workload_mix_hash, load_profile_hash, architecture, measurement_start, measurement_end, memory_size_mb, invocations, successful_work, errors, throttles, total_duration_ms, total_billed_duration_ms]
+          properties:
+            native_configuration_ref:
+              type: object
+              additionalProperties: false
+              required: [snapshot_id, content_hash, config_hash]
+              properties:
+                snapshot_id: { type: string }
+                content_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+                config_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+            executed_target_arn: { type: string, description: Exact published numeric executed-version ARN; registration qualifier remains comparison scope. }
+            configuration_epoch_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+            non_memory_compatibility:
+              type: object
+              additionalProperties: false
+              required: [definition_version, sha256, dependency_manifest_sha256]
+              properties:
+                definition_version: { type: string, enum: [LAMBDA_NON_MEMORY_CONFIG_V1] }
+                sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                dependency_manifest_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
             binding: { $ref: '#/components/schemas/StorageAssessmentObject' }
             qualifier: { type: string }
             executed_version: { type: string }

@@ -4,23 +4,33 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/auth"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/native"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/network"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/provider"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/service"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -30,6 +40,18 @@ import (
 // COMPONENT evidence, not live AWS acceptance or a trusted complete traffic
 // census. No customer AWS endpoint may be contacted.
 func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
+	networkNativeCollectorJourney(t, false)
+}
+
+// One coherent provider-shaped population reaches native collection, trusted
+// billing, the restricted evaluator and ordinary OIDC. It is deterministic
+// synthetic acceptance, never customer AWS or a verified savings claim.
+func TestNetworkNativeCollectorPositiveGatewayThroughActualPython(t *testing.T) {
+	networkNativeCollectorJourney(t, true)
+}
+
+func networkNativeCollectorJourney(t *testing.T, positive bool) {
+	t.Helper()
 	if os.Getenv("NETWORK_TEST_STORAGE_ENABLED") != "true" {
 		t.Skip("existing owned PostgreSQL/versioned object/ClickHouse lab required")
 	}
@@ -37,6 +59,12 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 85*time.Second)
 	defer cancel()
 	tenant := "network-" + model.ID()
+	if positive && os.Getenv("FINOPS_NETWORK_BROWSER") == "true" {
+		tenant = "tenant-demo"
+	}
+	if positive && (os.Getenv("ECONOMICS_TEST_URL") == "" || os.Getenv("ECONOMICS_TEST_TOKEN") == "") {
+		t.Fatal("actual private Python required")
+	}
 	login := "network_ingester_" + strings.ReplaceAll(model.ID(), "-", "")
 	password := model.ID() + model.ID()
 	marker := "owned-network-collector:" + login
@@ -81,6 +109,12 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	resourceID := "component-network-resource"
 	workloadID := "component-network-workload"
 	r := network.Registration{ID: "source-" + model.ID(), TenantID: tenant, Kind: network.FlowKind, AccountID: "111122223333", Region: "eu-west-1", ReadRoleBindingID: "component-network-reader", FlowLogID: "fl-0a100000000000001", ResourceIDs: []string{vpcID}, ReportBucket: "component-network-reports", ReportOwner: "111122223333", ReportRegion: "eu-west-1", Prefix: "AWSLogs/111122223333/vpcflowlogs/eu-west-1/", Fields: strings.Fields("version account-id interface-id srcaddr dstaddr srcport dstport protocol packets bytes start end action log-status region az-id vpc-id subnet-id pkt-srcaddr pkt-dstaddr pkt-src-aws-service pkt-dst-aws-service flow-direction traffic-path resource-id"), TrafficType: "ALL", MaxAggregationSeconds: 60, Version: 1, Enabled: true}
+	if positive {
+		// Native VPC Flow Logs are best-effort. Workload attribution is derived
+		// from the independently collected ENI/subnet topology, not a synthetic
+		// resource-id column or an assertion that absent records mean zero.
+		r.Fields = r.Fields[:len(r.Fields)-1]
+	}
 	if e = roles["api"].Do(ctx, tenant, func(tx *store.Tx) error {
 		if e := tx.Seed(ctx, true); e != nil {
 			return e
@@ -126,6 +160,14 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	}
 	end := time.Now().UTC().Truncate(24 * time.Hour)
 	start := end.Add(-30 * 24 * time.Hour)
+	if positive {
+		networkPositiveBilling(t, ctx, roles["api"], ingester, storage, tenant, natID, start, end)
+		u, e := url.Parse(os.Getenv("ECONOMICS_TEST_URL"))
+		if e != nil || u.Host == "" {
+			t.Fatal("actual economics endpoint missing")
+		}
+		allowed[u.Host] = true
+	}
 	format := []string{}
 	for _, f := range r.Fields {
 		format = append(format, "${"+f+"}")
@@ -134,6 +176,19 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	plain.WriteString(strings.Join(r.Fields, " ") + "\n")
 	fmt.Fprintf(&plain, "7 %s %s 10.0.1.5 10.0.0.1 1234 443 6 10 100 %d %d ACCEPT OK eu-west-1 euw1-az1 %s %s 10.0.1.5 52.95.128.1 - S3 ingress - -\n", r.AccountID, natENI, start.Unix(), start.Add(time.Minute).Unix(), vpcID, subnetID)
 	fmt.Fprintf(&plain, "7 %s %s 52.95.128.1 10.0.0.1 443 1234 6 5 50 %d %d ACCEPT OK eu-west-1 euw1-az1 %s %s 52.95.128.1 10.0.1.5 S3 - ingress - -\n", r.AccountID, natENI, start.Unix(), start.Add(time.Minute).Unix(), vpcID, subnetID)
+	if positive {
+		plain.Reset()
+		plain.WriteString(strings.Join(r.Fields, " ") + "\n")
+		for hour := start; hour.Before(end); hour = hour.Add(time.Hour) {
+			from := hour.Add(59 * time.Minute)
+			if hour.Equal(start) {
+				from = start
+			}
+			until := from.Add(time.Minute)
+			fmt.Fprintf(&plain, "7 %s %s 10.0.1.5 10.0.0.1 1234 443 6 1048576 1073741824 %d %d ACCEPT OK eu-west-1 euw1-az1 %s %s 10.0.1.5 52.95.128.1 - S3 ingress -\n", r.AccountID, natENI, from.Unix(), until.Unix(), vpcID, subnetID)
+			fmt.Fprintf(&plain, "7 %s %s 52.95.128.1 10.0.0.1 443 1234 6 1048576 1073741824 %d %d ACCEPT OK eu-west-1 euw1-az1 %s %s 52.95.128.1 10.0.1.5 S3 - ingress -\n", r.AccountID, natENI, from.Unix(), until.Unix(), vpcID, subnetID)
+		}
+	}
 	var compressed bytes.Buffer
 	gz := gzip.NewWriter(&compressed)
 	_, _ = gz.Write([]byte(plain.String()))
@@ -205,9 +260,30 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 				if at.Equal(start) && v.Get("MetricName") == "BytesInFromDestination" {
 					value = "50"
 				}
+				if positive {
+					switch v.Get("MetricName") {
+					case "BytesInFromSource", "BytesInFromDestination", "BytesOutToSource", "BytesOutToDestination":
+						value = "1073741824"
+					case "ActiveConnectionCount":
+						value = "1"
+					}
+				}
 				fmt.Fprintf(&points, "<member><Timestamp>%s</Timestamp><%s>%s</%s><SampleCount>60</SampleCount><Unit>%s</Unit></member>", at.Format(time.RFC3339), stat, value, stat, v.Get("Unit"))
 			}
 			raw = []byte("<GetMetricStatisticsResponse><GetMetricStatisticsResult><Datapoints>" + points.String() + "</Datapoints></GetMetricStatisticsResult></GetMetricStatisticsResponse>")
+		} else if host == "api.pricing.us-east-1.amazonaws.com" && positive {
+			body, e := io.ReadAll(req.Body)
+			if e != nil {
+				return nil, e
+			}
+			reply, e := networkPositivePriceReply(body, start)
+			if e != nil {
+				return nil, e
+			}
+			raw, e = json.Marshal(reply)
+			if e != nil {
+				return nil, e
+			}
 		} else if host == r.ReportBucket+".s3.eu-west-1.amazonaws.com" {
 			if req.Header.Get("x-amz-expected-bucket-owner") != r.ReportOwner {
 				return nil, errors.New("component destination owner omitted")
@@ -221,6 +297,15 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 			case q.Has("policy"):
 				p := model.Document{"Version": "2012-10-17", "Statement": []model.Document{{"Effect": "Allow", "Principal": model.Document{"Service": "delivery.logs.amazonaws.com"}, "Action": "s3:PutObject", "Resource": "arn:aws:s3:::" + r.ReportBucket + "/AWSLogs/" + r.AccountID + "/*", "Condition": model.Document{"StringEquals": model.Document{"aws:SourceAccount": r.AccountID}, "ArnLike": model.Document{"aws:SourceArn": "arn:aws:logs:" + r.Region + ":" + r.AccountID + ":*"}}}}}
 				raw, _ = json.Marshal(p)
+			case positive && q.Get("list-type") == "2":
+				raw = []byte("<ListBucketResult><Name>" + r.ReportBucket + "</Name><Prefix>" + r.Prefix + "</Prefix><IsTruncated>false</IsTruncated><Contents><Key>" + objectKey + "</Key><Size>" + strconv.Itoa(len(payload)) + "</Size></Contents></ListBucketResult>")
+			case positive && req.Method == http.MethodHead:
+				if strings.TrimPrefix(req.URL.Path, "/") != objectKey {
+					return nil, errors.New("unregistered flow metadata")
+				}
+				header.Set("x-amz-version-id", "component-v1")
+				header.Set("Content-Length", strconv.Itoa(len(payload)))
+				raw = []byte{}
 			default:
 				if strings.TrimPrefix(req.URL.Path, "/") != objectKey || q.Get("versionId") != "component-v1" {
 					return nil, errors.New("component unregistered flow payload request")
@@ -232,7 +317,11 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 		if raw == nil {
 			return nil, errors.New("component collector refused unregistered network endpoint")
 		}
-		return &http.Response{StatusCode: 200, Header: header, ContentLength: int64(len(raw)), Body: io.NopCloser(bytes.NewReader(raw))}, nil
+		length := int64(len(raw))
+		if positive && req.Method == http.MethodHead {
+			length = int64(len(payload))
+		}
+		return &http.Response{StatusCode: 200, Header: header, ContentLength: length, Body: io.NopCloser(bytes.NewReader(raw))}, nil
 	})
 	defer func() { http.DefaultTransport = original }()
 	reader, e := provider.NewAWS(ctx, r.Region, "arn:aws:iam::111122223333:role/component-network-read", "component-network-external-id")
@@ -249,17 +338,29 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 			nat = d
 		}
 	}
-	metrics, e := networkMetricSummary(ctx, storage, reader, discovery.Scope, nat)
-	if e != nil {
-		t.Fatal("native metrics/CH/archive", e)
-	}
-	if e = PublishNetworkDiscovery(ctx, ingester, storage, discovery, "", map[string]model.Document{natID: metrics}, model.Document{"status": "UNAVAILABLE", "dimensions": []model.Document{}}); e != nil {
-		t.Fatal("native discovery publication", e)
-	}
 	refs := []network.ObjectRef{{Key: objectKey, VersionID: "component-v1", SHA256: network.BytesHash(payload), Size: int64(len(payload))}}
 	a := &Activities{Store: ingester}
+	expectedRows := int64(2)
+	if positive {
+		expectedRows = int64(end.Sub(start)/time.Hour) * 2
+		if e = SyncNetworkSource(ctx, a, r, func(context.Context, network.Registration) (*provider.AWS, error) { return reader, nil }, storage); e != nil {
+			t.Fatal("registered native network sync", e)
+		}
+		refs, e = reader.FlowObjects(ctx, r)
+		if e != nil || len(refs) != 1 {
+			t.Fatal("native version-pinned flow selection", e)
+		}
+	} else {
+		metrics, err := networkMetricSummary(ctx, storage, reader, discovery.Scope, nat)
+		if err != nil {
+			t.Fatal("native metrics/CH/archive", err)
+		}
+		if e = PublishNetworkDiscovery(ctx, ingester, storage, discovery, "", map[string]model.Document{natID: metrics}, model.Document{"status": "UNAVAILABLE", "dimensions": []model.Document{}}); e != nil {
+			t.Fatal("native discovery publication", e)
+		}
+	}
 	g, e := network.IngestFlow(ctx, r, refs, reader, networkArchiveAdapter{storage}, storage, networkCheckpoint{a, r})
-	if e != nil || !g.Complete || g.Rows != 2 || g.Coverage["complete_traffic_census"] != false {
+	if e != nil || !g.Complete || g.Rows != expectedRows || g.Coverage["complete_traffic_census"] != false {
 		t.Fatal("native flow storage", g, e)
 	}
 	if e = PublishNetworkGeneration(ctx, a, r, g, storage); e != nil {
@@ -279,6 +380,12 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 		receipt, e := tx.SourceReceiptGet(ctx, "network-receipt-"+g.ID)
 		if e != nil || receipt["complete_traffic_census"] != false {
 			return errors.New("trusted delivery receipt overstated completeness")
+		}
+		if positive {
+			source, e := tx.SourceGet(ctx, r.ID)
+			if e != nil || source["status"] != "HEALTHY" || source["latest_receipt_id"] != receipt["id"] {
+				return errors.New("registered native sync did not publish current authority")
+			}
 		}
 		return nil
 	}); e != nil {
@@ -302,7 +409,7 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	if e = PublishNetworkGeneration(ctx, a, r, replay, storage); e != nil {
 		t.Fatal(e)
 	}
-	if e = storage.ValidateNetworkGeneration(ctx, g.Scope, g.ID, 2); e != nil {
+	if e = storage.ValidateNetworkGeneration(ctx, g.Scope, g.ID, expectedRows); e != nil {
 		t.Fatal("replay inflated analytics", e)
 	}
 	if e = roles["api"].Do(ctx, "other-"+model.ID(), func(tx *store.Tx) error {
@@ -327,6 +434,15 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 			t.Fatal("wrong evidence write rejection", e)
 		}
 	}
+	if positive {
+		networkPositiveAPI(t, ctx, admin, roles["api"], tenant, resource, snapshot, g, func(endpoint string) {
+			u, e := url.Parse(endpoint)
+			if e != nil || u.Host == "" {
+				t.Fatal("owned API endpoint missing")
+			}
+			allowed[u.Host] = true
+		})
+	}
 	if e = roles["api"].Do(ctx, tenant, func(tx *store.Tx) error {
 		d, e := tx.SourceGet(ctx, r.ID)
 		if e != nil {
@@ -340,5 +456,334 @@ func TestNetworkNativeCollectorRestrictedPersistenceAndStorage(t *testing.T) {
 	}
 	if e = PublishNetworkGeneration(ctx, a, r, g, storage); e == nil {
 		t.Fatal("revoked source could publish")
+	}
+}
+
+// This handoff consumes only the native generation selected above. Neither the
+// API nor the assessor receives caller-authored topology, traffic or prices.
+func networkPositiveAPI(t *testing.T, ctx context.Context, admin, apiDB *store.Store, tenant string, resource, snapshot model.Document, generation network.Generation, allow func(string)) {
+	t.Helper()
+	analyst := lambdaComponentRuntime(t, ctx, admin, "network-assessor", "finops_network_analyst")
+	key, e := rsa.GenerateKey(rand.Reader, 2048)
+	if e != nil {
+		t.Fatal(e)
+	}
+	signer, e := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "network-native-component"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &key.PublicKey, KeyID: "network-native-component", Algorithm: "RS256", Use: "sig"}}})
+	}))
+	defer jwks.Close()
+	allow(jwks.URL)
+	const issuer = "https://component-network.invalid/realms/finops"
+	validator, e := auth.New(ctx, issuer, "finops", jwks.URL)
+	if e != nil {
+		t.Fatal(e)
+	}
+	token := func(scope string) string {
+		s, e := jwt.Signed(signer).Claims(map[string]any{"iss": issuer, "aud": "finops", "sub": "network-native-component-verifier", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Add(-time.Minute).Unix(), "tenant_id": scope, "realm_access": model.Document{"roles": []string{"FINOPS_ADMIN"}}}).Serialize()
+		if e != nil {
+			t.Fatal(e)
+		}
+		return s
+	}
+	server := httptest.NewServer((&service.API{Store: apiDB, Auth: validator, Config: service.Config{Fixture: true}}).Handler())
+	defer server.Close()
+	allow(server.URL)
+	request := func(method, path, access, key string, body model.Document) (int, model.Document) {
+		var raw []byte
+		if body != nil {
+			raw, _ = json.Marshal(body)
+		}
+		r, e := http.NewRequestWithContext(ctx, method, server.URL+"/v1/"+path, bytes.NewReader(raw))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if access != "" {
+			r.Header.Set("Authorization", "Bearer "+access)
+		}
+		if method == http.MethodPost {
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("If-Match", `"0"`)
+			r.Header.Set("Idempotency-Key", key)
+		}
+		response, e := server.Client().Do(r)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer response.Body.Close()
+		out := model.Document{}
+		if json.NewDecoder(io.LimitReader(response.Body, 8<<20)).Decode(&out) != nil {
+			t.Fatal("bounded network API response invalid")
+		}
+		return response.StatusCode, out
+	}
+	access := token(tenant)
+	if code, _ := request(http.MethodGet, "network-assessments", "", "", nil); code != 401 {
+		t.Fatal("network unauthenticated API admitted", code)
+	}
+	if code, _ := request(http.MethodPost, "network-assessments", token("foreign-"+tenant), "network-native-foreign", model.Document{"resource_id": resource["id"]}); code != 404 {
+		t.Fatal("network cross-tenant request admitted", code)
+	}
+	declared := model.Document{"owner": "declared-owner", "configuration_authority": "TERRAFORM", "criticality": "NON_PRODUCTION", "seasonal": false, "security_reviewed": true, "endpoint_policy_reviewed": true, "network_policy_known": true, "dependencies_known": true, "recovery_known": true, "resilience_known": true, "allow_topology_change": true, "required_azs": 1, "ha_required": true, "on_premises_required": false, "cross_vpc_required": false, "dns_change_approved": true, "traffic_purpose": "ACTIVE"}
+	code, policy := request(http.MethodPost, "network-policies", access, "network-native-policy", model.Document{"resource_id": resource["id"], "name": "Synthetic native gateway requirements", "policy": declared})
+	if code != 201 {
+		t.Fatal("normal network policy API", code, policy)
+	}
+	body := model.Document{"resource_id": resource["id"], "policy_id": policy["id"]}
+	code, queued := request(http.MethodPost, "network-assessments", access, "network-native-assessment", body)
+	if code != 202 {
+		t.Fatal("IDs-only network queue", code, queued)
+	}
+	if code, replay := request(http.MethodPost, "network-assessments", access, "network-native-assessment", body); code != 202 || replay["id"] != queued["id"] {
+		t.Fatal("network queue replay changed")
+	}
+	if e = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
+		var selected string
+		if e := tx.QueryRow(ctx, "SELECT snapshot_id FROM network_assessments WHERE tenant_id=$1 AND id=$2", tenant, queued["id"]).Scan(&selected); e != nil {
+			return e
+		}
+		if selected != snapshot["id"] {
+			return errors.New("network API selected a replacement population")
+		}
+		return nil
+	}); e != nil {
+		t.Fatal(e)
+	}
+	workerCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() {
+		done <- service.RunNetworkAssessor(workerCtx, service.Config{Fixture: true, EconomicsURL: os.Getenv("ECONOMICS_TEST_URL"), EconomicsToken: os.Getenv("ECONOMICS_TEST_TOKEN")}, analyst)
+	}()
+	stopped := false
+	stop := func() {
+		if stopped {
+			return
+		}
+		stopped = true
+		cancel()
+		select {
+		case e := <-done:
+			if e != nil {
+				t.Error(e)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("network analyst shutdown deadline")
+		}
+	}
+	defer stop()
+	var record model.Document
+	for {
+		code, record = request(http.MethodGet, "network-assessments/"+model.String(queued, "id"), access, "", nil)
+		if code != 200 {
+			t.Fatal("native network persisted read", code)
+		}
+		if record["status"] == "ASSESSED" || record["status"] == "BLOCKED" || record["status"] == "FAILED" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("network native actual-Python original deadline")
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	if record["status"] != "ASSESSED" || record["current"] != true {
+		t.Fatal("native network assessment not current", record["status"], record["currentness_blockers"])
+	}
+	result := networkDoc(record["assessment"])
+	networkPositiveGatewayResult(t, result)
+	bound := false
+	for _, b := range networkRows(result["source_bindings"]) {
+		if b["receipt_id"] == "network-receipt-"+generation.ID {
+			bound = true
+		}
+	}
+	if !bound {
+		t.Fatal("positive assessment detached from collected generation")
+	}
+	if e = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
+		stored, e := tx.NetworkAssessmentGet(ctx, model.String(queued, "id"))
+		if e != nil {
+			return e
+		}
+		if network.Hash(stored["assessment"]) != network.Hash(result) {
+			return errors.New("independent persisted network readback differs")
+		}
+		var count int
+		if e := tx.QueryRow(ctx, "SELECT count(*) FROM network_recommendation_publications WHERE tenant_id=$1 AND assessment_id=$2", tenant, queued["id"]).Scan(&count); e != nil {
+			return e
+		}
+		if count != 1 {
+			return errors.New("network replay duplicated publication")
+		}
+		return nil
+	}); e != nil {
+		t.Fatal(e)
+	}
+	if code, _ := request(http.MethodPost, "network-assessments", access, "network-native-price-injection", model.Document{"resource_id": resource["id"], "current_pricing": model.Document{"rate": "0"}}); code != 422 {
+		t.Fatal("console price injection accepted")
+	}
+	stop()
+	if os.Getenv("FINOPS_NETWORK_BROWSER") == "true" {
+		networkPositiveBrowser(t, ctx, apiDB, analyst, tenant, resource, policy, model.String(queued, "id"), allow)
+	}
+}
+
+func networkPositiveGatewayResult(t *testing.T, result model.Document) {
+	t.Helper()
+	if result["status"] != "RECOMMENDED" || result["read_only"] != true || result["execution_authorized"] != false || result["pre_execution_ready"] != false || result["verified_saving"] != nil || model.String(result, "model_assessment_hash") == "" || len(networkRows(result["source_refs"])) == 0 || len(networkRows(result["financial_references"])) == 0 {
+		t.Fatal("native gateway result lost provenance or gained authority", result["status"], result["blockers"])
+	}
+	econ := networkDoc(result["economics"])
+	if econ["currency"] != "GBP" || econ["detected_native_cost"] != "97.200000000000" || econ["estimated_monthly_saving"] != nil || econ["estimated_annual_saving"] != nil || econ["status"] != "INDEPENDENT_CANDIDATES_NEVER_SUMMED" {
+		t.Fatal("network population economics differs or alternatives were summed", econ)
+	}
+	denominator := networkDoc(result["denominators"])
+	if denominator["unattributed_bytes"] != "0.000000000000" || denominator["flow_complete"] != true || denominator["observation_complete"] != true || denominator["billing_complete"] != true || denominator["billing_scope_complete"] != true {
+		t.Fatal("network byte/billing reconciliation is incomplete", denominator)
+	}
+	candidates := networkRows(result["candidates"])
+	if len(candidates) != 2 {
+		t.Fatal("native exclusive forward/reply cohorts changed", len(candidates))
+	}
+	for _, candidate := range candidates {
+		if candidate["family"] != "A" || candidate["kind"] != "GATEWAY_ENDPOINT_REVIEW" || candidate["status"] != "RECOMMENDED" || len(model.Strings(candidate, "blockers")) != 0 {
+			t.Fatal("same-region native gateway path not justified", candidate["blockers"])
+		}
+		c := networkDoc(candidate["economics"])
+		if c["current_window_cost"] != "48.600000000000" || c["candidate_window_cost"] != "16.200000000000" || c["estimated_window_saving"] != "32.400000000000" || c["estimated_monthly_saving"] != "32.850000000000" || c["estimated_annual_saving"] != nil || c["nat_hourly_retained"] != true {
+			t.Fatal("native gateway net economics differ", c)
+		}
+		retained := false
+		for _, part := range networkRows(c["component_costs"]) {
+			if part["component"] == "NAT_HOURLY" && part["current_window_cost"] == "16.200000000000" && part["candidate_window_cost"] == "16.200000000000" && part["avoided_window_cost"] == "0.000000000000" {
+				retained = true
+			}
+		}
+		if !retained {
+			t.Fatal("continuing NAT hourly obligation lost")
+		}
+	}
+}
+
+// Existing normal-console handoff, now reading back the same native population.
+func networkPositiveBrowser(t *testing.T, ctx context.Context, apiDB, analyst *store.Store, tenant string, resource, policy model.Document, componentID string, allow func(string)) {
+	t.Helper()
+	const binary = "/tmp/network-finops"
+	info, e := os.Lstat(binary)
+	if os.Getenv("FINOPS_NETWORK_ASSESSOR_BINARY") != binary || e != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode()&0111 == 0 {
+		t.Fatal("actual compiled network analyst required")
+	}
+	log, e := os.OpenFile("/results/network-analyst.log", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer log.Close()
+	cmd := exec.CommandContext(ctx, binary, "--mode", "network-assessor")
+	cmd.Env = []string{"FIXTURE_MODE=true", "PORT=8098", "DATABASE_URL=" + analyst.Pool.Config().ConnConfig.ConnString(), "ECONOMICS_URL=" + os.Getenv("ECONOMICS_TEST_URL"), "ECONOMICS_TOKEN=" + os.Getenv("ECONOMICS_TEST_TOKEN")}
+	for _, name := range []string{"OBJECT_REGION", "OBJECT_ENDPOINT", "OBJECT_BUCKET_RAW"} {
+		if os.Getenv(name) == "" {
+			t.Fatal("network archive binding incomplete")
+		}
+		cmd.Env = append(cmd.Env, name+"="+os.Getenv(name))
+	}
+	for _, pair := range [][2]string{{"OBJECT_ACCESS_KEY", "FINOPS_NETWORK_READER_ACCESS_KEY"}, {"OBJECT_SECRET_KEY", "FINOPS_NETWORK_READER_SECRET_KEY"}} {
+		if os.Getenv(pair[1]) == "" {
+			t.Fatal("version-only network evidence reader required")
+		}
+		cmd.Env = append(cmd.Env, pair[0]+"="+os.Getenv(pair[1]))
+	}
+	cmd.Stdout, cmd.Stderr = log, log
+	if e = cmd.Start(); e != nil {
+		t.Fatal(e)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	defer func() {
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		select {
+		case e := <-done:
+			if e != nil {
+				t.Error("separate network analyst failed", e)
+			}
+		case <-time.After(5 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+			t.Error("network analyst shutdown deadline")
+		}
+	}()
+	const jwks = "http://keycloak:8080/realms/finops/protocol/openid-connect/certs"
+	allow(jwks)
+	validator, e := auth.New(ctx, "http://localhost:8081/realms/finops", "finops", jwks)
+	if e != nil {
+		t.Fatal(e)
+	}
+	listener, e := net.Listen("tcp", ":8097")
+	if e != nil {
+		t.Fatal(e)
+	}
+	server := &http.Server{Handler: (&service.API{Store: apiDB, Auth: validator, Config: service.Config{Fixture: true}}).Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 40 * time.Second, WriteTimeout: 40 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	apiDone := make(chan error, 1)
+	go func() { apiDone <- server.Serve(listener) }()
+	defer func() {
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdown)
+		if e := <-apiDone; e != nil && !errors.Is(e, http.ErrServerClosed) {
+			t.Error(e)
+		}
+	}()
+	raw, _ := json.Marshal(model.Document{"schema_version": "1", "tenant_id": tenant, "resource_ids": []string{model.String(resource, "id")}, "policy_ids": []string{model.String(policy, "id")}})
+	file, e := os.OpenFile("/results/network-native-ready.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = file.Write(raw); e != nil {
+		t.Fatal(e)
+	}
+	_ = file.Close()
+	for {
+		body, e := os.ReadFile("/results/network-native-browser-done.json")
+		if e == nil {
+			proof := model.Document{}
+			if json.Unmarshal(body, &proof) != nil {
+				t.Fatal("network browser proof invalid")
+			}
+			ids := model.Strings(proof, "assessment_ids")
+			if proof["schema_version"] != "1" || proof["tenant_id"] != tenant || proof["ready_sha256"] != network.BytesHash(raw) || len(ids) != 1 || ids[0] == componentID {
+				t.Fatal("network browser proof target or issued ID differs")
+			}
+			if e = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
+				record, e := tx.NetworkAssessmentGet(ctx, ids[0])
+				if e != nil {
+					return e
+				}
+				if record["resource_id"] != resource["id"] {
+					return errors.New("browser selected another network resource")
+				}
+				networkPositiveGatewayResult(t, networkDoc(record["assessment"]))
+				var actor string
+				if e := tx.QueryRow(ctx, "SELECT created_by FROM network_assessments WHERE tenant_id=$1 AND id=$2", tenant, ids[0]).Scan(&actor); e != nil {
+					return e
+				}
+				if actor == "" || actor == "network-native-component-verifier" {
+					return errors.New("independent normal OIDC actor missing")
+				}
+				return nil
+			}); e != nil {
+				t.Fatal(e)
+			}
+			break
+		}
+		if !errors.Is(e, os.ErrNotExist) {
+			t.Fatal(e)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("normal network browser original deadline")
+		case <-time.After(100 * time.Millisecond):
+		}
 	}
 }

@@ -1,5 +1,7 @@
 # Product scope progress ledger
 
+Forward-only AWS checkpoint3: **26.9% →26.9%**. Native LambdaV2 proof,18reviewed RDS classes and a coherent Network journey extend existing software scopes; positive connected acceptance remains partial. [Sprint outcomes](forward-aws-sprint.md) record every bounded attempt and failure without changing weights/history. No fourth milestone is started.
+
 Forward-only AWS checkpoint 2: **26.9% → 26.9%**. Four shared read-only service assessment families add product capability; full native economic/demand closure remains PARTIAL. [Sprint evidence](forward-aws-sprint.md) separates software gaps, accepted components and external gates.
 
 Forward-only AWS checkpoint 1: **26.9% → 26.9%**. Read-only native inventory breadth is banked PARTIAL within the existing inventory-adapter scope; see [sprint evidence](forward-aws-sprint.md). No weights or historical credits change.

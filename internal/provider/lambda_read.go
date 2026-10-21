@@ -39,7 +39,7 @@ func (r *lambdaRead) retain(action, selector, requestID string, status int, raw 
 		return lambdacost.ErrEvidence
 	}
 	r.bytes += len(raw) + len(selector)
-	r.frames = append(r.frames, lambdacost.Frame{Action: action, Selector: selector, RequestID: requestID, StatusCode: status, Body: json.RawMessage(append([]byte{}, raw...)), SanitizerVersion: "LAMBDA_SECRET_MINIMIZATION_V1"})
+	r.frames = append(r.frames, lambdacost.Frame{Action: action, Selector: selector, RequestID: requestID, StatusCode: status, Body: json.RawMessage(append([]byte{}, raw...)), SanitizerVersion: "LAMBDA_SECRET_MINIMIZATION_V2"})
 	return nil
 }
 
@@ -53,9 +53,9 @@ func lambdaSanitize(v any) any {
 			switch k {
 			case "Environment":
 				env, _ := x.(map[string]any)
-				vars, _ := env["Variables"].(map[string]any)
+				vars, variablesObserved := env["Variables"].(map[string]any)
 				err, _ := env["Error"].(map[string]any)
-				out[k] = model.Document{"present": x != nil, "variable_count": len(vars), "values_redacted": true, "error_code": err["ErrorCode"]}
+				out[k] = model.Document{"present": x != nil, "variable_count": len(vars), "variables_observed": variablesObserved, "error_present": env["Error"] != nil, "values_redacted": true, "error_code": err["ErrorCode"], "sanitizer_version": "LAMBDA_SECRET_MINIMIZATION_V2"}
 			case "Location", "RepositoryType", "ResolvedImageUri", "CodeSigningConfigArn":
 				if k == "CodeSigningConfigArn" {
 					out[k] = x

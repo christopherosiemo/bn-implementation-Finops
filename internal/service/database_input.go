@@ -443,6 +443,23 @@ func databaseCatalogInput(canonical model.Document, members []model.Document, co
 		// Storage settings and orderability maxima do not establish the lower
 		// class's sustained EBS capacity. Unknown/burst limits stay unavailable.
 		capacity["iops"], capacity["throughput_bytes_per_second"] = databaseClassIOCapacity(class, c, catalog, capacity["iops"], capacity["throughput_bytes_per_second"])
+		if model.String(databaseInputObject(c["ebs_baseline"]), "basis") == "AWS_DOCUMENTED_PHYSICAL_CAPACITY_V2" {
+			// V2 supplies independently reviewed sustained hardware limits, not
+			// an alternative to the native catalogue's CPU/memory identity.
+			documented, _ := databaseDocumentedCapacity(class, c, catalog)
+			known := documented != nil && region == "eu-west-1" && c["status"] == "OBSERVED_CATALOG_CAPACITY" && c["physical_capacity_asset_sha256"] == documented["source_excerpt_sha256"] && c["architecture"] == documented["architecture"] && model.String(c, "cpu_model") != ""
+			for _, field := range []string{"vcpu", "memory_bytes", "network_bytes_per_second"} {
+				observed, ok := databaseDecimal(c[field])
+				limit, lok := databaseDecimal(documented[field])
+				if !ok || !lok || observed.Sign() <= 0 || observed.Cmp(limit) != 0 {
+					known = false
+				}
+			}
+			if !known {
+				capacity["vcpu"], capacity["memory_bytes"], capacity["network_bytes_per_second"] = nil, nil, nil
+				capacity["iops"], capacity["throughput_bytes_per_second"] = nil, nil
+			}
+		}
 		if strings.HasPrefix(class, "db.t") {
 			continue
 		}
@@ -465,10 +482,32 @@ func databaseCatalogInput(canonical model.Document, members []model.Document, co
 	return entries, candidates, databaseSortedReasons(rs)
 }
 
+func databaseDocumentedCapacity(class string, native, catalog model.Document) (model.Document, model.Document) {
+	baseline := databaseInputObject(native["ebs_baseline"])
+	hash := model.String(baseline, "source_excerpt_sha256")
+	expected, err := provider.RDSDocumentedCapacity(class, hash)
+	if err != nil || expected == nil || evidence.Hash(expected) != evidence.Hash(baseline) {
+		return nil, nil
+	}
+	ref := databaseInputObject(databaseInputObject(catalog["ebs_baseline_asset_refs"])[hash])
+	// Historical V1 snapshots used one singular source reference. Its exact
+	// asset hash still has to match the selected row; V2 cannot borrow it.
+	if len(ref) == 0 {
+		ref = databaseInputObject(catalog["ebs_baseline_asset_ref"])
+	}
+	if databaseArchiveRef("AWS_RDS_DOCUMENTED_IO_BASELINE", ref) == nil || model.String(ref, "body_sha256") != hash {
+		return nil, nil
+	}
+	asset, err := provider.RDSDocumentedCapacityAsset(hash)
+	if err != nil || source.BytesHash(asset) != hash {
+		return nil, nil
+	}
+	return expected, ref
+}
+
 func databaseClassIOCapacity(class string, native, catalog model.Document, provisionedIOPS, provisionedThroughput any) (any, any) {
-	expected, err := provider.RDSDocumentedIOBaseline(class)
-	ref := databaseInputObject(catalog["ebs_baseline_asset_ref"])
-	if err != nil || expected == nil || evidence.Hash(expected) != evidence.Hash(native["ebs_baseline"]) || databaseArchiveRef("AWS_RDS_DOCUMENTED_IO_BASELINE", ref) == nil || model.String(ref, "body_sha256") != source.BytesHash(provider.RDSDocumentedIOBaselineAsset()) {
+	expected, _ := databaseDocumentedCapacity(class, native, catalog)
+	if expected == nil {
 		return nil, nil
 	}
 	capAtBaseline := func(provisioned any, field string) any {
@@ -727,11 +766,33 @@ func (a *API) databaseAssessmentInput(ctx context.Context, t *store.Tx, resource
 	binding["tenant_id"] = t.Tenant
 	input["binding"] = binding
 	refs := []model.Document{model.Document{"kind": "AWS_RDS_NATIVE_SNAPSHOT", "id": snapshot["id"], "version": "1", "sha256": snapshot["content_hash"], "archive": snapshot["archive"], "observed_at": snapshot["observed_at"]}}
-	for _, value := range databaseInputObject(canonical["catalogs"]) {
-		catalog := databaseInputObject(value)
-		if ref := databaseArchiveRef("AWS_RDS_DOCUMENTED_IO_BASELINE", catalog["ebs_baseline_asset_ref"]); ref != nil {
-			ref["basis"] = "AWS_DOCUMENTED_NON_BURST_BASELINE_V1"
-			refs = append(refs, ref)
+	catalogs := databaseInputObject(canonical["catalogs"])
+	catalogIDs := []string{}
+	for id := range catalogs {
+		catalogIDs = append(catalogIDs, id)
+	}
+	sort.Strings(catalogIDs)
+	for _, id := range catalogIDs {
+		catalog := databaseInputObject(catalogs[id])
+		assetRefs := databaseInputObject(catalog["ebs_baseline_asset_refs"])
+		if legacy := databaseInputObject(catalog["ebs_baseline_asset_ref"]); len(legacy) > 0 {
+			assetRefs[model.String(legacy, "body_sha256")] = legacy
+		}
+		hashes := []string{}
+		for hash := range assetRefs {
+			hashes = append(hashes, hash)
+		}
+		sort.Strings(hashes)
+		for _, hash := range hashes {
+			value := assetRefs[hash]
+			asset, e := provider.RDSDocumentedCapacityAsset(hash)
+			if e != nil || source.BytesHash(asset) != hash || model.String(databaseInputObject(value), "body_sha256") != hash {
+				continue
+			}
+			if ref := databaseArchiveRef("AWS_RDS_DOCUMENTED_IO_BASELINE", value); ref != nil {
+				ref["basis"] = databaseInputObject(json.RawMessage(asset))["basis"]
+				refs = append(refs, ref)
+			}
 		}
 	}
 	sloRefs, sloReasons, err := databaseApplicationSLO(ctx, t, resource, now)

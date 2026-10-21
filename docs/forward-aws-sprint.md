@@ -104,9 +104,20 @@ is banked merely because the component models pass.
 
 ## Checkpoint 3 — Ordered completion sweep
 
-Pending; Lambda positive memory economics, supported RDS class breadth, one S3
-Standard-to-IA journey, one S3-through-NAT endpoint journey, retained current
-commitment evidence inspection, then leave EBS banked. Stop after this checkpoint.
+**PARTIAL.** The ordered queue is finished. Checkpoint 2 was pushed as `3924ed8c2d05e9e3c801434a481d49f050fdc002`; its completed required CI is 12 PASS / 4 FAIL, with the three historical jobs plus the pre-existing Go advisory failing. Checkpoint 1 CI was superseded/cancelled rather than treated as accepted.
+
+| Queue | Demonstrated result | Disposition |
+|---|---|---|
+| Lambda | Native V2 benchmark authority, published versions, empty environments, immutable proof/currentness ; 11 focused Go checks and TypeScript pass | PARTIAL; positive connected attempt blocked by missing local machine identity |
+| RDS/Aurora |18literal reviewed classes connected through native catalogue/archive/evaluator ; 9 focused Go and 17 Python checks pass after one normalization repair | COMPLETE catalogue subset; broader RDS/Aurora PARTIAL |
+| S3 | One unchanged connected Standard-to-IA attempt; shared Python preflight deadline prevents native/browser acceptance | PARTIAL; prior bank unchanged |
+| Network | One same-population collector/CUR/Python/API/OIDC journey implemented ; 9 projection checks and TypeScript pass | PARTIAL; connected attempt stops at same shared preflight deadline |
+| Commitments | Retained current-source failure reviewed without inventing a cause or starting diagnostics | COMMITMENT_ACCEPTANCE_DEFERRED |
+| EBS | Accepted bounded package left untouched | Prior bank preserved |
+
+Official completion is **26.9% →26.9%**. No existing package satisfies a broader next maturity gate, and no package is subdivided to manufacture credit. Verified partial software has expanded; planned work, repeated foundations and test totals earn no independent points. The previous rough engineering range remains 27–31%, without a fresh whole-product audit; incomplete connected acceptance makes that range uncertain.
+
+Final-source required CI, generated contracts, dependency/security/secret checks, installed045→046→047 restoration and ordinary browser acceptance are release gates run after this source is committed. Their actual final status is reported with the pushed SHA; this document does not predeclare their outcome.
 
 ## Acceptance and historical debt
 
@@ -132,3 +143,37 @@ Software partial delivery and genuine external acceptance are reported separatel
 Fixed weights, historical reviews and the complete contractual denominator remain
 unchanged. Product functionality and verified partial work are reported even when
 they do not satisfy a broader package's next official maturity transition.
+
+### Lambda completion pass
+
+Benchmark envelope version 2 selects immutable native configuration snapshots and published executed versions. The restricted assessor reopens archived native evidence, validates source authority, epochs, code/runtime/package/layers/dependencies/architecture and a non-memory fingerprint, and requires positively observed empty environments. Legacy receipts remain visible separately and cannot establish new numerical curves or shadow valid V2 receipts. No machine database grants or migration bytes changed.
+
+The positive memory journey now carries the same provider-shaped native configurations, REPORTs, metrics, native CUR/Python normalization and benchmark pair to the restricted evaluator, persisted ordinary OIDC presentation and independent readback. This is implemented acceptance code, not a claimed accepted journey. Its one connected attempt stopped at the existing fixture credential guard: the dedicated Lambda performance object/analytics identity is not commissioned locally. Classification: `EXTERNAL_INFRASTRUCTURE_FAILURE`. It is a local fixture configuration debt, not genuine AWS or customer acceptance. No credentials/permissions were broadened and no journey pass is claimed. TypeScript passed. Combined focused Go validation passed 11 selected tests (including real PostgreSQL isolation/storage checks); the positive native workflow compiled but skipped because commissioned storage is disabled in that focused environment. The separate connected attempt failed the missing-identity guard. Neither skip nor infrastructure failure is positive acceptance.
+
+### RDS/Aurora catalogue completion pass
+
+An additive immutable physical-capability asset covers the literal 8xlarge, 12xlarge and 16xlarge rows of m8g, r8g, m8i, r8i, m7i and r7i. Its SHA-256 is `9b2efcc641706823f35c592b95046332f5f6f9f5423482cb0fd88f25cea7f8de`. CPU, RAM, architecture, fixed network and sustained I/O limits are independent capacity evidence; native eu-west-1 engine/version/licence/zone orderability and actual storage provisioning remain mandatory. Conflicting native hardware or missing archived proof suppresses capacity. No burst maximum becomes sustained capacity.
+
+The existing provider/archive/evaluation path selects the exact per-row asset revision. V1 bytes and historic references remain unchanged. [RDS hardware documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Summary.html) and [EC2 sustained EBS specifications](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-optimized.html) were reviewed for this bounded table. Class-default vCPU does not prove a customer Optimize CPU runtime configuration. Aurora retains `DATABASE_SHARED_STORAGE_CAPACITY_UNAVAILABLE`, and shared storage remains counted once. The broader database vertical remains PARTIAL. Database Python acceptance passed 17/17. The first focused native/archive/input run passed 8 selected checks and failed the new Ireland-only absence assertion: a missing baseline was a typed nil document rather than explicit unavailable. Classification: `NEW_PRODUCT_DEFECT`. The one permitted repair normalizes that native boundary without relaxing assertions, region checks or V1 bytes; the identical bounded rerun passed all 9 selected checks without skips. The requested catalogue subset is COMPLETE at component acceptance; the database/Aurora vertical remains PARTIAL and native customer acceptance is external.
+
+### S3 Standard-to-IA attempt
+
+The existing commissioned Inventory/access/CUR/assessor/normal-OIDC journey was attempted once against the frozen source. Run `0a4dc6a4-44c6-4407-8d96-c3ffbbfd1419` failed at the unchanged 120-second full Python preflight attachment deadline (`status=null`); the container later reported exit0, but no complete accepted test summary was captured. No native ingestion or browser acceptance was reached. Cleanup and protected-service/source preservation passed. This is `PRE_EXISTING_ACCEPTANCE_DEBT`: the existing shared preflight had retained the same deadline failure before this sprint; the current underlying cause remains unproved. No new deterministic product defect was established, no budgets/assertions changed, no rerun or new ingestion design. S3 stays banked at its prior component maturity; a positive connected Standard-to-IA result remains unaccepted.
+
+### Network connected attempt
+
+The new single path consumes the collector's actual topology, versioned flow generation, immutable archive and ClickHouse rows. The same 30-day window feeds provider-shaped native CUR through the existing trusted pipeline and actual Python normalization. Native pricing supplies dimensions, while customer GBP net rates remain authoritative. Native GB is resolved against independent CloudWatch byte counters; public reference prices are deliberately different. Workload attribution uses native ENI/subnet/route evidence. An invented resource-id flow field is not used in the new positive case. NAT hourly charges remain; only matched processing expenditure can be proposed as avoidable. Old separate synthetic projection tests remain supplementary.
+
+The unchanged 85-second collector context,180-second Go test budget,420-second command budget, normal OIDC protocol and existing storage identities are preserved. Nine focused projection checks and TypeScript passed; the new connected selector compiled but skipped without commissioned storage in the focused environment. The separate single connected attempt, run `8912892d-7e10-4699-b5b9-14e33a40ee83`, failed at the unchanged 120-second full Python preflight attachment deadline (null attachment status, later container exit0). No native/OIDC readback was reached. Cleanup/source/protected-service preservation passed. Classification: `PRE_EXISTING_ACCEPTANCE_DEBT`, shared with the retained preflight failure; its underlying cause remains unproved. No new deterministic product defect was established, so no repair, changed limits or rerun was attempted.
+
+### Retained commitment review and EBS
+
+The retained report for source `20dacc218b18fc3840b297f50050fe3983e67d17`, run 39518356509/job118956116691, records failure at “Exercise issued native commitments, restricted daemon and real Finance journey”. The current report contains no diagnostic proving a new deterministic product defect. Checkpoint 2 also records that required job failing. The older 9810d77 archive diagnosis is not transferred to either source. Status remains `COMMITMENT_ACCEPTANCE_DEFERRED` / `PRE_EXISTING_ACCEPTANCE_DEBT`; no code repair, rerun, new diagnostic infrastructure or purchase authority is introduced. Existing commitment-observation credit does not establish purchase recommendations. EBS remains accepted at its existing bounded bank with no new work.
+
+### Remaining gates and handover
+
+**Software/release gaps:** complete native financial/demand/physical-candidate closure for the new service recommendations; EKS/Kubernetes identity association; bounded nested-page continuation beyond the visible limits; historical task/host allocation; missing local Lambda machine identity; S3/Network shared-preflight acceptance; positive full native financial/performance-to-console acceptance; Aurora shared-storage safety; deferred commitment/fleet acceptance and the Go toolchain security advisory. These are not relabelled customer gates.
+
+**EXTERNAL_ACCEPTANCE_REQUIRED:** authorised AWS accounts/read roles and genuine native sources, customer-owned workloads and customer rates, business requirements/retention/RTO/SLOs, genuine observation periods and invoices, supervised commissioning and sustained operational/customer use. No live or production credit, provisioning, customer mutation, purchasing or new verified-savings claim is awarded. Optional analytical deployment remains off.
+
+The final handover retrieves authenticated installed coverage by service and currency, retaining signed credits and the full denominator; unavailable customer coverage stays unavailable. Synthetic fixture periods and completeness are labelled separately from real customer coverage. Core installed recovery/browser acceptance does not establish optional native service commissioning. Recommended next phase: close the existing connected acceptance and security release debts, then commission supervised AWS read-only use when authorised. That phase is not started. Stop after checkpoint 3; no Azure/GCP work or merge.
