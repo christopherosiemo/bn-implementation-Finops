@@ -359,3 +359,74 @@ func TestFleetCurrentnessSQLRefusalPreservesReadTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRecommendationCurrentnessFixtureResetPreservesOriginalContext(t *testing.T) {
+	f := newMutationReplayFixture(t)
+	ctx := context.Background()
+	operator := f.token(f.tenant, "currentness-reset-operator", "PLATFORM_ADMIN")
+	var original model.Document
+	var previousGeneration string
+	if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		var err error
+		original, err = tx.RecommendationCurrentnessContext(ctx, "EC2", "recommendation-dev")
+		if err != nil {
+			return err
+		}
+		org, err := tx.Get(ctx, "org", f.tenant)
+		previousGeneration = model.String(org, "fixture_generation")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if original == nil || previousGeneration == "" {
+		t.Fatal("fixture seed did not capture its original generation")
+	}
+	originalHash := evidence.Hash(original["baseline"])
+	for reset := 0; reset < 2; reset++ {
+		code, response, _ := f.request("demo/reset", "", fmt.Sprintf("currentness-reset-%d", reset), operator, model.Document{})
+		if code != 200 || response["reset"] != true || response["audit_preserved"] != true || response["ledger_preserved"] != true {
+			t.Fatal("fixture reset collided with immutable recommendation context", code, response)
+		}
+		if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+			org, err := tx.Get(ctx, "org", f.tenant)
+			if err != nil {
+				return err
+			}
+			generation := model.String(org, "fixture_generation")
+			if generation == "" || generation == previousGeneration {
+				t.Fatal("reset reused the earlier fixture evidence generation")
+			}
+			previousGeneration = generation
+			retained, err := tx.RecommendationCurrentnessContext(ctx, "EC2", "recommendation-dev")
+			if err != nil {
+				return err
+			}
+			if evidence.Hash(retained["baseline"]) != originalHash || retained["captured_at"] != original["captured_at"] {
+				t.Fatal("reset rewrote or renewed the original immutable context")
+			}
+			seed, err := tx.Get(ctx, "recommendations", "recommendation-dev")
+			if err != nil {
+				return err
+			}
+			stale, err := f.api.recommendationCurrentness(ctx, tx, "EC2", seed)
+			if err != nil {
+				return err
+			}
+			state := storageObject(stale["currentness"])
+			if state["status"] != "STALE" || stale["pre_execution_ready"] != false || !slices.Contains(model.Strings(state, "reason_codes"), "FIXTURE_GENERATION_CHANGED") || state["economics_recompute"] != true || state["telemetry_recollect"] != true {
+				t.Fatal("reset seed inherited evidence from the old generation", state)
+			}
+			fresh, err := tx.Create(ctx, "recommendations", model.Document{"resource_id": "resource-dev-api", "workload_id": "workload-dev", "status": "VALIDATED", "pre_execution_ready": false, "fixture": true, "title": "Fixture context regression component", "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)})
+			if err != nil {
+				return err
+			}
+			current, err := f.api.recommendationCurrentness(ctx, tx, "EC2", fresh)
+			if err == nil && (storageObject(current["currentness"])["status"] != "CURRENT" || fresh["id"] == "recommendation-dev") {
+				t.Fatal("new recommendation did not capture the current fixture generation", current["currentness"])
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

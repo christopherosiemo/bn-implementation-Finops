@@ -21,6 +21,7 @@ func TestRecommendationCurrentnessProjectionQualifiesImmutableHistory(t *testing
 		{"unchanged", "", "CURRENT", model.Document{"baseline": model.Document{"financial_sources": "same-native-head"}, "current": model.Document{"financial_sources": "same-native-head"}}, ""},
 		{"corrected_money", "BILLING_SOURCE_CHANGED_OR_REVOKED", "STALE", model.Document{"baseline": model.Document{"financial_sources": "original-native-head"}, "current": model.Document{"financial_sources": "corrected-native-head"}}, ""},
 		{"telemetry_revoked", "TELEMETRY_REVISION_CHANGED_OR_REVOKED", "STALE", model.Document{"baseline": model.Document{"telemetry": "active"}, "current": model.Document{"telemetry": "revoked"}}, ""},
+		{"fixture_reset", "FIXTURE_GENERATION_CHANGED", "STALE", model.Document{"baseline": model.Document{"fixture_generation": "generation-one"}, "current": model.Document{"fixture_generation": "generation-two"}}, ""},
 		{"git_changed", "IAC_REVISION_CHANGED", "STALE", model.Document{"baseline": model.Document{}, "current": model.Document{}}, "IAC_REVISION_CHANGED"},
 		{"git_unavailable", "IAC_REVISION_UNAVAILABLE", "BLOCKED", model.Document{"baseline": model.Document{}, "current": model.Document{}}, "IAC_REVISION_UNAVAILABLE"},
 	} {
@@ -41,6 +42,9 @@ func TestRecommendationCurrentnessProjectionQualifiesImmutableHistory(t *testing
 			}
 			if scenario.name == "telemetry_revoked" && state["telemetry_recollect"] != true {
 				t.Fatal("revoked telemetry did not require fresh evidence")
+			}
+			if scenario.name == "fixture_reset" && (state["economics_recompute"] != true || state["telemetry_recollect"] != true) {
+				t.Fatal("old fixture generation retained financial or telemetry authority")
 			}
 			if scenario.git != "" && state["iac_changed"] != true {
 				t.Fatal("IaC uncertainty or change hidden")

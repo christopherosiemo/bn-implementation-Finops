@@ -19,12 +19,13 @@ REVOKE ALL ON FUNCTION public.recommendation_context_fingerprint(jsonb) FROM PUB
 -- not return configuration declarations, state, telemetry or provider payloads.
 CREATE FUNCTION public.recommendation_context_inputs(p_resource text,p_sources text[]) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $$
-DECLARE tenant_scope text:=current_setting('app.tenant_id',true); r jsonb;w jsonb;a jsonb;art jsonb;profile jsonb;slo jsonb;policies jsonb;telemetry jsonb;financial jsonb;
+DECLARE tenant_scope text:=current_setting('app.tenant_id',true); r jsonb;w jsonb;a jsonb;art jsonb;profile jsonb;slo jsonb;policies jsonb;telemetry jsonb;financial jsonb;generation text;
 BEGIN
  IF coalesce(tenant_scope,'')='' OR p_resource IS NULL OR length(p_resource) NOT BETWEEN 1 AND 256 THEN RETURN NULL; END IF;
  IF p_sources IS NULL OR cardinality(p_sources)>64 OR coalesce(array_ndims(p_sources),1)<>1 THEN RAISE EXCEPTION 'recommendation source scope invalid'; END IF;
  SELECT document INTO r FROM public.entities WHERE tenant_id=tenant_scope AND kind='resources' AND id=p_resource;
  IF r IS NULL THEN RETURN NULL; END IF;
+ SELECT public.recommendation_context_fingerprint(CASE WHEN document->'fixture'='true'::jsonb THEN document->'fixture_generation' ELSE NULL END) INTO generation FROM public.entities WHERE tenant_id=tenant_scope AND kind='org' AND id=tenant_scope;
  SELECT document INTO w FROM public.entities WHERE tenant_id=tenant_scope AND kind='workloads' AND id=r->>'workload_id';
  SELECT jsonb_build_object('id',id,'version',version,'hash',content_hash) INTO profile FROM public.workload_safety_profiles WHERE tenant_id=tenant_scope AND workload_id=r->>'workload_id' ORDER BY version DESC LIMIT 1;
  SELECT jsonb_build_object('id',id,'version',version,'hash',content_hash) INTO slo FROM public.slo_objectives WHERE tenant_id=tenant_scope AND workload_id=r->>'workload_id' ORDER BY version DESC LIMIT 1;
@@ -47,7 +48,7 @@ BEGIN
  SELECT coalesce(jsonb_agg(jsonb_build_object('id',s.id,'version',s.version,'kind',s.kind,'enabled',s.document->'enabled','revoked',s.document->'revoked','status',c.document->'status','latest_receipt_id',c.document->'latest_receipt_id','latest_revision_id',c.document->'latest_revision_id','ingestion_job_id',c.document->'ingestion_job_id','commitment_receipt_id',c.document->'commitment_receipt_id') ORDER BY s.id),'[]'::jsonb) INTO financial
  FROM public.source_registrations s LEFT JOIN public.source_checkpoints c ON c.tenant_id=s.tenant_id AND c.source_id=s.id AND c.checkpoint_key='status'
  WHERE s.tenant_id=tenant_scope AND s.id=ANY(p_sources) AND s.kind IN('AWS_CUR2','AWS_COMMITMENTS');
- RETURN jsonb_build_object('context_complete',jsonb_array_length(policies)<=128 AND jsonb_array_length(telemetry)<=128,'resource_configuration',public.recommendation_context_fingerprint(r-ARRAY['id','tenant_id','version','last_seen_at','last_seen','observed_at','created_at','updated_at','monthly_effective_cost','hourly_effective_cost','eligibility','blockers','owner','owner_subject','workload_id','environment','aws_service_assessment_evidence','activity_evidence','aws_service_generation_id']),
+ RETURN jsonb_build_object('context_complete',jsonb_array_length(policies)<=128 AND jsonb_array_length(telemetry)<=128,'fixture_generation',generation,'resource_configuration',public.recommendation_context_fingerprint(r-ARRAY['id','tenant_id','version','last_seen_at','last_seen','observed_at','created_at','updated_at','monthly_effective_cost','hourly_effective_cost','eligibility','blockers','owner','owner_subject','workload_id','environment','aws_service_assessment_evidence','activity_evidence','aws_service_generation_id']),
   'workload_mapping',public.recommendation_context_fingerprint(jsonb_build_object('workload_id',r->'workload_id','provider',r->'provider','provider_resource_id',r->'provider_resource_id','account_id',r->'account_id','region',r->'region')),
   'ownership',public.recommendation_context_fingerprint(jsonb_build_object('resource_owner',r->'owner','resource_owner_subject',r->'owner_subject','environment',r->'environment','workload_owner',w->'owner','owner_subject',w->'owner_subject','criticality',w->'criticality','workload_environment',w->'environment')),
   'safety_profile',public.recommendation_context_fingerprint(profile),'slo',public.recommendation_context_fingerprint(slo),'policy',public.recommendation_context_fingerprint(policies),
@@ -80,7 +81,15 @@ BEGIN
   ||CASE WHEN jsonb_typeof(NEW.document->'source_refs')='array' THEN NEW.document->'source_refs' ELSE '[]'::jsonb END;
  SELECT coalesce(array_agg(DISTINCT s.id ORDER BY s.id),'{}'::text[]) INTO sources FROM jsonb_array_elements(refs) ref JOIN public.source_registrations s ON s.tenant_id=NEW.tenant_id AND s.id=coalesce(ref->>'source_connection_id',ref->>'source_id') AND s.kind IN('AWS_CUR2','AWS_COMMITMENTS');
  inputs:=public.recommendation_context_inputs(rid,sources);
- IF inputs IS NOT NULL THEN INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs); END IF;
+ IF inputs IS NOT NULL THEN
+  IF family='EC2' AND NEW.document->'fixture'='true'::jsonb AND EXISTS(SELECT FROM public.entities WHERE tenant_id=NEW.tenant_id AND kind='org' AND id=NEW.tenant_id AND document->'fixture'='true'::jsonb) THEN
+   -- Reset reseeds the fixed fixture ID. Retain its first immutable context;
+   -- its prior generation must read STALE, never acquire new analysis credit.
+   INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs) ON CONFLICT(tenant_id,family,recommendation_id) DO NOTHING;
+  ELSE
+   INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs);
+  END IF;
+ END IF;
  RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION public.capture_recommendation_currentness() FROM PUBLIC;

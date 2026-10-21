@@ -22,6 +22,7 @@ var recommendationDimensions = []struct{ name, reason string }{
 	{"configuration_authority", "CONFIGURATION_AUTHORITY_CHANGED"},
 	{"telemetry", "TELEMETRY_REVISION_CHANGED_OR_REVOKED"},
 	{"financial_sources", "BILLING_SOURCE_CHANGED_OR_REVOKED"},
+	{"fixture_generation", "FIXTURE_GENERATION_CHANGED"},
 }
 
 // Only private assessor code can mark its in-transaction prospective result.
@@ -132,6 +133,7 @@ func recommendationCurrentnessProjection(d, selected model.Document, familyReaso
 	}
 	economics, telemetryChanged, iac := false, false, false
 	for _, reason := range reasons {
+		if reason == "FIXTURE_GENERATION_CHANGED" { economics,telemetryChanged=true,true }
 		if strings.Contains(reason,"BILLING") || strings.Contains(reason,"FINANCIAL") || strings.Contains(reason,"CONFIGURATION") || strings.Contains(reason,"WORKLOAD") || strings.Contains(reason,"OWNERSHIP") { economics = true }
 		if strings.Contains(reason,"TELEMETRY") || strings.Contains(reason,"SOURCE") || strings.Contains(reason,"INVENTORY_STALE") || strings.Contains(reason,"TOPOLOGY_STALE") { telemetryChanged = true }
 		if strings.Contains(reason,"IAC_") || strings.Contains(reason,"AUTHORITY") { iac = true }

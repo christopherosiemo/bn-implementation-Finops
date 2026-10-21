@@ -104,7 +104,7 @@ export function commissionMigrationManifest(directory){
  assert.equal(manifest['048_eks_kubernetes_associations.sql'],'73acc6ce78d3d0b4506baf0bbce36945e6cfba46d9d9ae60512deafe2eda4152','Migration048 must equal the reviewed read-only EKS identity association bytes');
  assert.equal(manifest['049_aws_account_commissioning.sql'],'8377080417d6561b0aa076bb4a3a6af5391b6628804df07501abddea8aad1e71','Migration049 must equal the reviewed read-only account commissioning bytes');
  assert.equal(manifest['050_aws_service_historical_demand.sql'],'bb5c70d8eddf50d5550730aca8ed8b9b9e13d703e67e38283ec4532356967d72','Migration050 must equal the reviewed historical demand read-scope bytes');
- assert.equal(manifest['051_recommendation_currentness.sql'],'3ca6d4eeb16eace73785fae8f669831f072048be3e0309bffee7fd32a2739585','Migration051 must equal the reviewed immutable currentness context bytes');
+ assert.equal(manifest['051_recommendation_currentness.sql'],'def89579c71316cd9a85475dc009796fb0152e681e08a7f4afea5b32986e6b6c','Migration051 must equal the reviewed immutable currentness context bytes');
  return manifest;
 }
 
