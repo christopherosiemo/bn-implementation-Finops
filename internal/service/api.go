@@ -281,6 +281,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			out = result
 			return err
 		}
+		if result, handled, err := a.awsServiceAssessmentGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.awsServiceGet(r.Context(), t, i, r); handled {
 			out = result
 			return err

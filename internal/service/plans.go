@@ -20,6 +20,9 @@ import (
 )
 
 func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixture bool) (model.Document, error) {
+	if strings.HasPrefix(recID, "aws-service-") {
+		return nil, problem(422, "AWS_SERVICE_ADVICE_NOT_EXECUTABLE", "AWS service assessments cannot authorize customer mutations")
+	}
 	if strings.HasPrefix(recID, "lambda-") {
 		return nil, problem(422, "LAMBDA_ADVICE_NOT_EXECUTABLE", "Lambda advice cannot authorize function, concurrency, architecture or alias mutations")
 	}
@@ -35,6 +38,9 @@ func BuildPlan(ctx context.Context, t *store.Tx, recID, scheduleID string, fixtu
 	rec, e := t.Get(ctx, "recommendations", recID)
 	if e != nil {
 		return nil, e
+	}
+	if model.String(rec, "model_kind") == "AWS_SERVICE_ASSESSMENT_V1" {
+		return nil, problem(422, "AWS_SERVICE_ADVICE_NOT_EXECUTABLE", "AWS service advice cannot authorize provider actions")
 	}
 	if model.String(rec, "model_kind") == "LAMBDA_ASSESSMENT_V1" {
 		return nil, problem(422, "LAMBDA_ADVICE_NOT_EXECUTABLE", "Lambda advice cannot authorize provider actions")

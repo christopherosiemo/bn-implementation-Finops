@@ -67,6 +67,22 @@ type Collection struct {
 	Raw           []byte           `json:"-"`
 }
 
+// Metrics preserves actual CloudWatch period statistics. Empty or sparse series
+// are unknown, never fabricated zero activity or raw-event distributions.
+type Metrics struct {
+	Scope              Scope            `json:"scope"`
+	Family             string           `json:"family"`
+	ProviderResourceID string           `json:"provider_resource_id"`
+	Start              time.Time        `json:"start"`
+	End                time.Time        `json:"end"`
+	PeriodSeconds      int              `json:"period_seconds"`
+	Rows               []model.Document `json:"metrics"`
+	ExpectedSeries     []model.Document `json:"expected_series"`
+	ReasonCodes        []string         `json:"reason_codes"`
+	RawSHA256          string           `json:"raw_sha256"`
+	Raw                []byte           `json:"-"`
+}
+
 func ValidateScope(s Scope) error {
 	if !part.MatchString(s.TenantID) || !account.MatchString(s.AccountID) || !region.MatchString(s.Region) || strings.HasPrefix(s.Region, "cn-") || strings.HasPrefix(s.Region, "us-gov-") {
 		return ErrEvidence

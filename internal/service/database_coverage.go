@@ -302,6 +302,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		return nil, objectErr
 	}
 	lambdaPublications, lambdaErr := a.lambdaCoveragePublications(ctx, tx)
+	servicePublications, serviceErr := a.awsServiceCoveragePublications(ctx, tx)
+	if serviceErr != nil {
+		return nil, serviceErr
+	}
 	if lambdaErr != nil {
 		return nil, lambdaErr
 	}
@@ -602,6 +606,14 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			if category == "unsupported_spend" && resource != nil && model.String(resource, "service_family") != "" {
 				// Native discovery adds visibility, not financial-analysis credit.
 				category = "observation_only_spend"
+			}
+			if resource != nil && model.String(resource, "service_family") != "" && category != "analysed_spend" {
+				publication := servicePublications[model.String(resource, "id")]
+				if publication.currency == currency && publication.lines[databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId"))] {
+					category = "analysed_spend"
+				} else if publication.blocked {
+					category = "blocked_spend"
+				}
 			}
 			group.values[category].Add(group.values[category], cost)
 			for _, networkGroup := range networkPartitions {

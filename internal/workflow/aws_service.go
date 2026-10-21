@@ -109,7 +109,7 @@ func PublishAWSServiceCollection(ctx context.Context, db *store.Store, s *native
 			} else if err != pgx.ErrNoRows {
 				return err
 			}
-			for _, key := range []string{"provider", "resource_type", "provider_resource_id", "account_id", "region", "name", "state", "service_family", "aws_service_configuration"} {
+			for _, key := range []string{"provider", "resource_type", "provider_resource_id", "account_id", "region", "name", "state", "service_family", "aws_service_configuration", "aws_service_assessment_evidence"} {
 				if value, ok := row[key]; ok {
 					d[key] = value
 				}
@@ -144,6 +144,9 @@ func PublishAWSServiceCollection(ctx context.Context, db *store.Store, s *native
 			return err
 		})
 		if e != nil {
+			return nil, e
+		}
+		if e = PersistAWSServiceAssessmentMetrics(ctx, s, resource); e != nil {
 			return nil, e
 		}
 		configHash := awsservice.ConfigurationHash(resource)
@@ -261,6 +264,10 @@ func SyncAWSServiceSource(ctx context.Context, a *Activities, s *native.Storage,
 			generation = model.ID()
 		}
 		collection, e := reader.ServiceInventory(ctx, r, family, model.String(checkpoint, "next_cursor"))
+		if e != nil {
+			return e
+		}
+		collection, e = EnrichAWSServiceCollection(ctx, reader, r, collection, s)
 		if e != nil {
 			return e
 		}

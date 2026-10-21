@@ -22,6 +22,18 @@ import {
 
 type Window = components["schemas"]["SafetyWeeklyWindow"];
 type StorageLimits = components["schemas"]["StorageLimits"];
+type AWSServiceLimits = components["schemas"]["AWSServiceLimits"];
+const serviceDecimals = [
+  ["cpu_headroom_fraction", "AWS service CPU headroom fraction"], ["memory_headroom_fraction", "AWS service memory headroom fraction"],
+  ["cpu_max_fraction", "AWS service maximum CPU utilization fraction"], ["memory_max_fraction", "AWS service maximum memory utilization fraction"],
+  ["read_target_utilization_fraction", "DynamoDB read target utilization fraction"], ["write_target_utilization_fraction", "DynamoDB write target utilization fraction"],
+  ["min_read_capacity_units", "DynamoDB minimum read capacity units"], ["min_write_capacity_units", "DynamoDB minimum write capacity units"],
+  ["max_replication_lag_seconds", "Cache maximum replication lag (seconds)"], ["max_swap_bytes", "Cache maximum swap (bytes)"], ["max_evictions", "Cache maximum evictions"],
+  ["min_replicas_per_shard", "Cache minimum replicas per shard"], ["low_requests_per_second", "Low-traffic review threshold (requests / second)"], ["low_bytes_per_second", "Low-traffic review threshold (bytes / second)"],
+  ["max_error_rate", "AWS service maximum error fraction"], ["max_latency_ms", "AWS service maximum latency (milliseconds)"], ["max_queue_age_ms", "AWS service maximum queue age (milliseconds)"],
+] as const;
+const serviceFlags = [["burst_requirements_known", "Service burst requirements reviewed"], ["autoscaling_reviewed", "Service autoscaling requirements reviewed"], ["failover_required", "Service failover required"], ["disaster_recovery_required", "Service disaster recovery required"], ["recovery_requirements_known", "Service recovery requirements reviewed"]] as const;
+const servicePurposes = ["UNKNOWN", "ACTIVE", "FAILOVER", "DR", "MAINTENANCE", "PRIVATE_INTEGRATION"] as const;
 const storageDecimals = [
   ["iops_max_fraction", "Maximum IOPS capacity fraction"],
   ["throughput_max_fraction", "Maximum throughput capacity fraction"],
@@ -227,6 +239,10 @@ function SafetyForm({
   const [rpoKnown, setRpoKnown] = useState(profile?.rpo_seconds != null);
   const [rpo, setRpo] = useState(profile?.rpo_seconds?.toString() ?? "");
   const [storageEnabled, setStorageEnabled] = useState(!!profile?.storage);
+  const [serviceEnabled, setServiceEnabled] = useState(!!profile?.aws_service);
+  const [servicePurpose, setServicePurpose] = useState<AWSServiceLimits["purpose"]>(profile?.aws_service?.purpose ?? "UNKNOWN");
+  const [serviceValues, setServiceValues] = useState<Record<string, string>>(() => Object.fromEntries(serviceDecimals.map(([key]) => [key, profile?.aws_service?.[key]?.toString() ?? ""])));
+  const [serviceBooleans, setServiceBooleans] = useState<Record<string, string>>(() => Object.fromEntries(serviceFlags.map(([key]) => [key, profile?.aws_service?.[key] == null ? "" : String(profile.aws_service[key])])));
   const [storageValues, setStorageValues] = useState<Record<string, string>>(() => Object.fromEntries(
     [...storageDecimals, ...storageDays].map(([key]) => [key, profile?.storage?.[key]?.toString() ?? ""]),
   ));
@@ -327,6 +343,10 @@ function SafetyForm({
             setError("Provide storage fractions above zero and at most one, non-negative decimal limits (up to 12 decimal places), burst balance at most 100%, and retention/quarantine days from 1 to 36500. Unknown booleans remain unknown.");
             return;
           }
+          if (serviceEnabled && serviceDecimals.some(([key]) => serviceValues[key] !== "" && !/^(?:0|[1-9]\d*)(?:\.\d{1,12})?$/.test(serviceValues[key]))) {
+            setError("AWS service requirements must be non-negative decimal strings with at most 12 decimal places. Leave unknown values blank; the server validates applicable fractions and bounds.");
+            return;
+          }
           try {
             new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
           } catch {
@@ -366,6 +386,7 @@ function SafetyForm({
             }));
           const body: WorkloadSafetyRequest = {
             ...(profile?.database ? { database: profile.database } : {}),
+            ...(serviceEnabled ? { aws_service: { ...profile?.aws_service, purpose: servicePurpose, ...Object.fromEntries(serviceDecimals.map(([key]) => [key, serviceValues[key] || null])), ...Object.fromEntries(serviceFlags.map(([key]) => [key, serviceBooleans[key] === "" ? null : serviceBooleans[key] === "true"])) } satisfies AWSServiceLimits } : {}),
             ...(storageEnabled ? { storage: {
               iops_max_fraction: storageValues.iops_max_fraction,
               throughput_max_fraction: storageValues.throughput_max_fraction,
@@ -567,6 +588,12 @@ function SafetyForm({
             {storageDays.map(([key, label]) => <label className="field" key={key}><span>{label}</span><input required type="number" min={1} max={36500} step={1} value={storageValues[key]} onChange={event => setStorageValues(current => ({ ...current, [key]: event.target.value }))} /></label>)}
             {storageBooleans.map(([key, label]) => <label className="field" key={key}><span>{label}</span><select value={storageFlags[key]} onChange={event => setStorageFlags(current => ({ ...current, [key]: event.target.value }))}><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></label>)}
           </div>}
+        </fieldset>
+        <fieldset className="days-fieldset">
+          <legend>Optional AWS service requirements</legend>
+          <label className="checkbox-field"><input type="checkbox" checked={serviceEnabled} onChange={event => setServiceEnabled(event.target.checked)} /><span>Declare ECS, DynamoDB, cache or load-balancer requirements</span></label>
+          <p className="form-note">Customer constraints do not establish measured utilization, complete demand or execution approval. Blank limits and unknown choices remain unknown. Disabling this section omits these requirements from the new revision.</p>
+          {serviceEnabled && <div className="form-grid"><label className="field"><span>AWS service purpose</span><select aria-label="AWS service purpose" value={servicePurpose ?? "UNKNOWN"} onChange={event => setServicePurpose(event.target.value as AWSServiceLimits["purpose"])}>{servicePurposes.map(value => <option key={value} value={value}>{readable(value)}</option>)}</select></label>{serviceDecimals.map(([key, label]) => <label className="field" key={key}><span>{label}</span><input inputMode="decimal" pattern="(?:0|[1-9][0-9]*)(?:\.[0-9]{1,12})?" value={serviceValues[key]} placeholder="Unknown" onChange={event => setServiceValues(previous => ({ ...previous, [key]: event.target.value }))} /></label>)}{serviceFlags.map(([key, label]) => <label className="field" key={key}><span>{label}</span><select aria-label={label} value={serviceBooleans[key]} onChange={event => setServiceBooleans(previous => ({ ...previous, [key]: event.target.value }))}><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></label>)}</div>}
         </fieldset>
         <WeeklyWindows
           label="Maintenance windows"

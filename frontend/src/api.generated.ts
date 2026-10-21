@@ -4,6 +4,39 @@
  */
 
 export interface paths {
+    "/aws-service-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAWSServiceAssessments"];
+        put?: never;
+        /** @description IDs-only asynchronous assessment. Evidence, safety profile, customer rates and source versions are selected by the server. EKS uses the existing Kubernetes optimiser. */
+        post: operations["requestAWSServiceAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/aws-service-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAWSServiceAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resources/{id}/aws-service-evidence": {
         parameters: {
             query?: never;
@@ -6332,7 +6365,35 @@ export interface components {
             end: string;
             demand_multiplier_ppm: number;
         };
+        /** @description Optional customer requirements only; these declarations establish no observation, successful recovery or execution authority. */
+        AWSServiceLimits: {
+            cpu_headroom_fraction?: components["schemas"]["NullableDecimal"];
+            memory_headroom_fraction?: components["schemas"]["NullableDecimal"];
+            cpu_max_fraction?: components["schemas"]["NullableDecimal"];
+            memory_max_fraction?: components["schemas"]["NullableDecimal"];
+            read_target_utilization_fraction?: components["schemas"]["NullableDecimal"];
+            write_target_utilization_fraction?: components["schemas"]["NullableDecimal"];
+            min_read_capacity_units?: components["schemas"]["NullableDecimal"];
+            min_write_capacity_units?: components["schemas"]["NullableDecimal"];
+            max_replication_lag_seconds?: components["schemas"]["NullableDecimal"];
+            max_swap_bytes?: components["schemas"]["NullableDecimal"];
+            max_evictions?: components["schemas"]["NullableDecimal"];
+            min_replicas_per_shard?: components["schemas"]["NullableDecimal"];
+            low_requests_per_second?: components["schemas"]["NullableDecimal"];
+            low_bytes_per_second?: components["schemas"]["NullableDecimal"];
+            max_error_rate?: components["schemas"]["NullableDecimal"];
+            max_latency_ms?: components["schemas"]["NullableDecimal"];
+            max_queue_age_ms?: components["schemas"]["NullableDecimal"];
+            burst_requirements_known?: boolean | null;
+            autoscaling_reviewed?: boolean | null;
+            failover_required?: boolean | null;
+            disaster_recovery_required?: boolean | null;
+            recovery_requirements_known?: boolean | null;
+            /** @enum {string} */
+            purpose?: "UNKNOWN" | "ACTIVE" | "FAILOVER" | "DR" | "MAINTENANCE" | "PRIVATE_INTEGRATION";
+        };
         WorkloadSafetyRequest: {
+            aws_service?: components["schemas"]["AWSServiceLimits"];
             database?: components["schemas"]["DatabaseLimits"];
             storage?: components["schemas"]["StorageLimits"];
             /** @enum {string} */
@@ -6369,6 +6430,7 @@ export interface components {
             vm_cooldown_seconds: number;
         };
         WorkloadSafetyProfile: {
+            aws_service?: components["schemas"]["AWSServiceLimits"];
             database?: components["schemas"]["DatabaseLimits"];
             storage?: components["schemas"]["StorageLimits"];
             id: string;
@@ -6604,6 +6666,103 @@ export interface components {
             evaluation: components["schemas"]["SloEvaluation"];
             snapshot_id?: string;
             snapshot_hash?: string;
+        };
+        AWSServiceAssessmentRequest: {
+            resource_id: string;
+        };
+        AWSServiceAssessmentEconomics: {
+            /** @enum {string} */
+            status: "NATIVE_CUSTOMER_ECONOMICS" | "ECONOMICS_UNAVAILABLE";
+            currency: string | null;
+            current_window_cost: components["schemas"]["NullableDecimal"];
+            candidate_window_cost: components["schemas"]["NullableDecimal"];
+            estimated_window_saving: components["schemas"]["NullableDecimal"];
+            conditional_monthly_run_rate: components["schemas"]["NullableDecimal"];
+            basis: string;
+        } & {
+            [key: string]: unknown;
+        };
+        AWSServiceAssessmentCandidate: {
+            id?: string;
+            recommendation_kind?: string;
+            /** @enum {string} */
+            status?: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED";
+            decision_code?: string;
+            reason_codes?: string[];
+            current_configuration?: components["schemas"]["AWSServiceConfiguration"] | null;
+            proposed_configuration?: components["schemas"]["AWSServiceConfiguration"] | null;
+            economics?: components["schemas"]["AWSServiceAssessmentEconomics"];
+            confidence?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        AWSServiceAssessment: {
+            /** @enum {string} */
+            schema_version?: "1";
+            model_version?: string;
+            /** @enum {string} */
+            model_kind?: "AWS_SERVICE_ASSESSMENT_V1";
+            family?: components["schemas"]["AWSServiceFamily"];
+            resource_id?: string;
+            /** @enum {string} */
+            status?: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED";
+            recommendation_kind?: string;
+            decision_code?: string;
+            current_configuration?: components["schemas"]["AWSServiceConfiguration"] | null;
+            proposed_configuration?: components["schemas"]["AWSServiceConfiguration"] | null;
+            evidence_window?: components["schemas"]["DatabaseEvidenceWindow"];
+            metric_distributions?: {
+                [key: string]: unknown;
+            }[];
+            candidates?: components["schemas"]["AWSServiceAssessmentCandidate"][];
+            economics?: components["schemas"]["AWSServiceAssessmentEconomics"];
+            reason_codes?: string[];
+            blockers?: string[];
+            confidence?: {
+                [key: string]: unknown;
+            };
+            source_refs?: {
+                [key: string]: unknown;
+            }[];
+            economically_analysed_source_record_ids?: string[];
+            /** @enum {string} */
+            risk_class?: "R3";
+            /** @enum {boolean} */
+            read_only?: true;
+            /** @enum {boolean} */
+            pre_execution_ready?: false;
+            /** @enum {boolean} */
+            execution_authorized?: false;
+            /** @enum {string|null} */
+            verified_saving?: null;
+        } & {
+            [key: string]: unknown;
+        };
+        AWSServiceAssessmentRecord: {
+            id: string;
+            /** @enum {integer} */
+            version: 1;
+            resource_id: string;
+            workload_id?: string | null;
+            family: components["schemas"]["AWSServiceFamily"];
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "ASSESSED" | "BLOCKED" | "FAILED";
+            snapshot_id?: string | null;
+            safety_profile_id?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            created_by?: string;
+            current?: boolean;
+            currentness_blockers?: string[];
+            assessment: components["schemas"]["AWSServiceAssessment"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        AWSServiceAssessmentPage: {
+            items: components["schemas"]["AWSServiceAssessmentRecord"][];
+            next_cursor: string | null;
         };
         /** @enum {string} */
         AWSServiceFamily: "ECS" | "EKS" | "ELASTICACHE" | "DYNAMODB" | "ELB";
@@ -6978,13 +7137,14 @@ export interface components {
              * @description Absent on legacy EC2 recommendations. Database
              * @enum {string}
              */
-            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1";
+            model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1" | "AWS_SERVICE_ASSESSMENT_V1";
             database_assessment_id?: string;
             storage_assessment_id?: string;
             object_storage_assessment_id?: string;
             lambda_assessment_id?: string;
+            aws_service_assessment_id?: string;
             network_assessment_id?: string;
-            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["LambdaAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
+            assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["LambdaAssessment"] | components["schemas"]["AWSServiceAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
@@ -7287,6 +7447,103 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAWSServiceAssessments: {
+        parameters: {
+            query?: {
+                resource_id?: string;
+                family?: "ECS" | "DYNAMODB" | "ELASTICACHE" | "ELB";
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant and workload-scoped immutable read-only assessment history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSServiceAssessmentPage"];
+                };
+            };
+            /** @description Workload scope denied. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requestAWSServiceAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AWSServiceAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued read-only analysis. No execution permission or savings claim. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSServiceAssessmentRecord"];
+                };
+            };
+            /** @description IDs-only request or supported stable resource required. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAWSServiceAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted assessment with currentness blockers; history is retained after corrections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSServiceAssessmentRecord"];
+                };
+            };
+            /** @description Assessment unavailable in this tenant/workload scope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getAWSServiceEvidence: {
         parameters: {
             query?: never;
@@ -13380,7 +13637,7 @@ export interface operations {
     listRecommendations: {
         parameters: {
             query?: {
-                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1";
+                model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1" | "AWS_SERVICE_ASSESSMENT_V1";
                 /** @description Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response. */
                 resource_id?: string;
                 limit?: number;

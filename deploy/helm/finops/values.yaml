@@ -49,6 +49,7 @@ database:
     object-storage-assessor: finops-db-object-storage-analyst
     network-assessor: finops-db-network-analyst
     lambda-assessor: finops-db-lambda-analyst
+    aws-service-assessor: finops-db-service-analyst
     fleet-capacity: finops-db-group-capacity
     fleet-decision: finops-db-group-decision
     commitment-portfolio: finops-db-commitment-portfolio
@@ -122,6 +123,13 @@ lambdaPerformance:
   evidenceWriterSecret: ""
   analyticsSecret: ""
   httpsEgressCidrs: []
+serviceAssessor:
+  # Separate restricted LOGIN and immutable version-only product evidence reader.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
 lambdaAssessor:
   # Optional analytical LOGIN and version-only evidence reader; no AWS or execution credentials.
   enabled: false

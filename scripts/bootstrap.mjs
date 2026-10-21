@@ -150,6 +150,12 @@ if (process.env.FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR === 'true') {
     if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
   }
 }
+// AWS service analysis is optional and never inherits provider/action credentials.
+if (process.env.FINOPS_BOOTSTRAP_SERVICE_ASSESSOR === 'true') {
+  for (const [key, value] of Object.entries({ SERVICE_DATABASE_PASSWORD: random(), SERVICE_ASSESSOR_ACCESS_KEY: 'aws-service-assessor', SERVICE_ASSESSOR_SECRET_KEY: random() })) {
+    if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
+  }
+}
 // Object identities are private keyed HMACs, never public hashes of object
 // names. Commission this independent ingester-only key explicitly; replay
 // preserves the key/version and ordinary bootstrap creates neither value.

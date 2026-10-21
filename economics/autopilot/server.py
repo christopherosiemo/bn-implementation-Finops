@@ -16,6 +16,7 @@ from .storage import evaluate_storage
 from .object_storage import evaluate_object_storage
 from .network import evaluate_network
 from .lambda_model import evaluate_lambda
+from .aws_service_model import evaluate_aws_service
 
 MAX_BODY = 64 * 1024 * 1024
 
@@ -51,7 +52,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(404, {"error": "not_found"})
 
     def do_POST(self):
-        if self.path not in ("/v11/lambda-assessment", "/v10/network-assessment", "/v9/object-storage-assessment", "/v8/storage-assessment", "/v7/database-assessment", "/v4/capacity", "/v3/evaluate", "/v3/normalize", "/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
+        if self.path not in ("/v12/aws-service-assessment", "/v11/lambda-assessment", "/v10/network-assessment", "/v9/object-storage-assessment", "/v8/storage-assessment", "/v7/database-assessment", "/v4/capacity", "/v3/evaluate", "/v3/normalize", "/v2/evaluate", "/evaluate", "/verify", "/normalize", "/normalize/parquet", "/normalize/csv"):
             return self.reply(404, {"error": "not_found"})
         try:
             expected = runtime_token()
@@ -74,8 +75,10 @@ class Handler(BaseHTTPRequestHandler):
                 data = {"records": list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))), "source_id": self.headers.get("X-Source-Id"), "source_version": self.headers.get("X-Source-Version")}
             else:
                 data = json.loads(raw, parse_float=Decimal, parse_constant=lambda _: (_ for _ in ()).throw(EvidenceError("non-finite number")),
-                                  object_pairs_hook=database_unique_object if self.path in ("/v11/lambda-assessment", "/v10/network-assessment", "/v9/object-storage-assessment", "/v8/storage-assessment", "/v7/database-assessment") else dict)
-            if self.path == "/v11/lambda-assessment":
+                                  object_pairs_hook=database_unique_object if self.path in ("/v12/aws-service-assessment", "/v11/lambda-assessment", "/v10/network-assessment", "/v9/object-storage-assessment", "/v8/storage-assessment", "/v7/database-assessment") else dict)
+            if self.path == "/v12/aws-service-assessment":
+                result = evaluate_aws_service(data)
+            elif self.path == "/v11/lambda-assessment":
                 result = evaluate_lambda(data)
             elif self.path == "/v10/network-assessment":
                 result = evaluate_network(data)

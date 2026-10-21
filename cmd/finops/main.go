@@ -217,7 +217,7 @@ func run() error {
 			return &service.Problem{Status: 500, Message: "EXECUTOR_TOKEN is required"}
 		}
 		handler = (&service.SecureService{Store: db, Config: cfg, Public: key}).Handler()
-	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "network-assessor", "lambda-assessor", "hardware-reader", "fleet-history-reader":
+	case "worker", "ingester", "database-assessor", "storage-assessor", "object-storage-assessor", "network-assessor", "lambda-assessor", "aws-service-assessor", "hardware-reader", "fleet-history-reader":
 		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/healthz" {
 				http.NotFound(w, r)
@@ -278,6 +278,13 @@ func run() error {
 	if cfg.Role == "lambda-assessor" {
 		go func() {
 			if err := service.RunLambdaAssessor(ctx, cfg, db); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	if cfg.Role == "aws-service-assessor" {
+		go func() {
+			if err := service.RunAWSServiceAssessor(ctx, cfg, db); err != nil {
 				errs <- err
 			}
 		}()

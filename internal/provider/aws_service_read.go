@@ -51,7 +51,7 @@ func (r *serviceRead) retain(service, action, selector string, status int, body 
 	return nil
 }
 func (r *serviceRead) send(ctx context.Context, c aws.Credentials, service, method, path, body, target string) ([]byte, error) {
-	if !awsservice.Contains([]string{"sts", "ecs", "eks", "elasticache", "dynamodb", "elasticloadbalancing", "application-autoscaling"}, service) || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "\r\n") {
+	if !awsservice.Contains([]string{"sts", "ecs", "eks", "elasticache", "dynamodb", "elasticloadbalancing", "application-autoscaling", "monitoring"}, service) || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "\r\n") {
 		return nil, awsservice.ErrEvidence
 	}
 	client := r.a.client
@@ -339,7 +339,7 @@ func serviceXMLValue(n *rdsNode) any {
 	return d
 }
 func (r *serviceRead) query(ctx context.Context, service, action, version string, p url.Values) (model.Document, error) {
-	allowed := map[string][]string{"elasticache": {"DescribeReplicationGroups", "DescribeCacheClusters", "DescribeServerlessCaches", "DescribeCacheSubnetGroups", "DescribeCacheParameterGroups", "DescribeCacheParameters", "DescribeSnapshots", "DescribeServerlessCacheSnapshots", "ListTagsForResource"}, "elasticloadbalancing": {"DescribeLoadBalancers", "DescribeListeners", "DescribeRules", "DescribeTargetGroups", "DescribeTargetHealth", "DescribeLoadBalancerAttributes", "DescribeTargetGroupAttributes", "DescribeTags", "DescribeInstanceHealth", "DescribeLoadBalancerPolicies"}}
+	allowed := map[string][]string{"monitoring": {"GetMetricStatistics"}, "elasticache": {"DescribeReplicationGroups", "DescribeCacheClusters", "DescribeServerlessCaches", "DescribeCacheSubnetGroups", "DescribeCacheParameterGroups", "DescribeCacheParameters", "DescribeSnapshots", "DescribeServerlessCacheSnapshots", "ListTagsForResource"}, "elasticloadbalancing": {"DescribeLoadBalancers", "DescribeListeners", "DescribeRules", "DescribeTargetGroups", "DescribeTargetHealth", "DescribeLoadBalancerAttributes", "DescribeTargetGroupAttributes", "DescribeTags", "DescribeInstanceHealth", "DescribeLoadBalancerPolicies"}}
 	if !awsservice.Contains(allowed[service], action) {
 		return nil, awsservice.ErrEvidence
 	}

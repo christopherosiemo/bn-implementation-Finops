@@ -244,6 +244,22 @@ jobs:
               grep -Fq 'finops/templates/lambda-assessor.yaml' /tmp/finops-lambda-refused.log
             fi
           done
+      - name: Check optional read-only AWS service analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml > /tmp/finops-service-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-service-assessor.yaml:/service.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /service.yaml && python deploy/tests/test_aws_service_assessor_chart.py /default.yaml /service.yaml'
+          for unsafe in 'serviceAssessor.evidenceReaderSecret=finops-db-api' 'serviceAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'serviceAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'serviceAssessor.evidenceReaderSecret=finops-db-service-analyst' 'serviceAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml --set "$unsafe" > /tmp/finops-service-refused.log 2>&1; then
+              echo "Unsafe AWS service assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-service-refused.log
+              grep -Fq 'finops/templates/aws-service-assessor.yaml' /tmp/finops-service-refused.log
+            fi
+          done
       - name: Check optional Lambda machine performance ingress
         run: |
           docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-performance-values.yaml > /tmp/finops-lambda-performance.yaml

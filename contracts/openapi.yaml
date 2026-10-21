@@ -8,6 +8,51 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /aws-service-assessments:
+    get:
+      operationId: listAWSServiceAssessments
+      parameters:
+        - { name: resource_id, in: query, schema: { type: string } }
+        - { name: family, in: query, schema: { type: string, enum: [ECS, DYNAMODB, ELASTICACHE, ELB] } }
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Tenant and workload-scoped immutable read-only assessment history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSServiceAssessmentPage' }
+        '403': { description: Workload scope denied. }
+    post:
+      operationId: requestAWSServiceAssessment
+      description: IDs-only asynchronous assessment. Evidence, safety profile, customer rates and source versions are selected by the server. EKS uses the existing Kubernetes optimiser.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AWSServiceAssessmentRequest' }
+      responses:
+        '202':
+          description: Queued read-only analysis. No execution permission or savings claim.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSServiceAssessmentRecord' }
+        '422': { description: IDs-only request or supported stable resource required. }
+  /aws-service-assessments/{id}:
+    get:
+      operationId: getAWSServiceAssessment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Persisted assessment with currentness blockers; history is retained after corrections.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSServiceAssessmentRecord' }
+        '404': { description: Assessment unavailable in this tenant/workload scope. }
   /resources/{id}/aws-service-evidence:
     get:
       operationId: getAWSServiceEvidence
@@ -2585,7 +2630,7 @@ paths:
       parameters:
         - name: model_kind
           in: query
-          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1] }
+          schema: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1, AWS_SERVICE_ASSESSMENT_V1] }
         - name: resource_id
           in: query
           description: Exact resource filter for database or storage publication pages; required for a scoped application owner. Legacy unfiltered recommendations retain their existing array response.
@@ -10418,11 +10463,40 @@ components:
         start: { type: string, format: date-time }
         end: { type: string, format: date-time }
         demand_multiplier_ppm: { type: integer, minimum: 1000000, maximum: 1000000000 }
+    AWSServiceLimits:
+      type: object
+      additionalProperties: false
+      description: Optional customer requirements only; these declarations establish no observation, successful recovery or execution authority.
+      properties:
+        cpu_headroom_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        memory_headroom_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        cpu_max_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        memory_max_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        read_target_utilization_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        write_target_utilization_fraction: { $ref: '#/components/schemas/NullableDecimal' }
+        min_read_capacity_units: { $ref: '#/components/schemas/NullableDecimal' }
+        min_write_capacity_units: { $ref: '#/components/schemas/NullableDecimal' }
+        max_replication_lag_seconds: { $ref: '#/components/schemas/NullableDecimal' }
+        max_swap_bytes: { $ref: '#/components/schemas/NullableDecimal' }
+        max_evictions: { $ref: '#/components/schemas/NullableDecimal' }
+        min_replicas_per_shard: { $ref: '#/components/schemas/NullableDecimal' }
+        low_requests_per_second: { $ref: '#/components/schemas/NullableDecimal' }
+        low_bytes_per_second: { $ref: '#/components/schemas/NullableDecimal' }
+        max_error_rate: { $ref: '#/components/schemas/NullableDecimal' }
+        max_latency_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        max_queue_age_ms: { $ref: '#/components/schemas/NullableDecimal' }
+        burst_requirements_known: { type: boolean, nullable: true }
+        autoscaling_reviewed: { type: boolean, nullable: true }
+        failover_required: { type: boolean, nullable: true }
+        disaster_recovery_required: { type: boolean, nullable: true }
+        recovery_requirements_known: { type: boolean, nullable: true }
+        purpose: { type: string, enum: [UNKNOWN, ACTIVE, FAILOVER, DR, MAINTENANCE, PRIVATE_INTEGRATION] }
     WorkloadSafetyRequest:
       type: object
       additionalProperties: false
       required: [schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
+        aws_service: { $ref: '#/components/schemas/AWSServiceLimits' }
         database: { $ref: '#/components/schemas/DatabaseLimits' }
         storage: { $ref: '#/components/schemas/StorageLimits' }
         schema_version: { type: string, enum: ['1'] }
@@ -10459,6 +10533,7 @@ components:
       type: object
       required: [id, workload_id, version, hash, schema_version, criticality, statefulness, high_seasonality, timezone, min_replicas, min_zones, headroom, saturation, rto_seconds, rpo_seconds, maintenance, recurring_blackouts, blackouts, demand_events, max_simultaneous_change_ppm, vm_cooldown_seconds]
       properties:
+        aws_service: { $ref: '#/components/schemas/AWSServiceLimits' }
         database: { $ref: '#/components/schemas/DatabaseLimits' }
         storage: { $ref: '#/components/schemas/StorageLimits' }
         id: { type: string }
@@ -10697,6 +10772,100 @@ components:
         evaluation: { $ref: '#/components/schemas/SloEvaluation' }
         snapshot_id: { type: string }
         snapshot_hash: { type: string }
+    AWSServiceAssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, minLength: 1, maxLength: 200 }
+    AWSServiceAssessmentEconomics:
+      type: object
+      additionalProperties: true
+      required: [status, currency, current_window_cost, candidate_window_cost, estimated_window_saving, conditional_monthly_run_rate, basis]
+      properties:
+        status: { type: string, enum: [NATIVE_CUSTOMER_ECONOMICS, ECONOMICS_UNAVAILABLE] }
+        currency: { type: string, nullable: true }
+        current_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        candidate_window_cost: { $ref: '#/components/schemas/NullableDecimal' }
+        estimated_window_saving: { $ref: '#/components/schemas/NullableDecimal' }
+        conditional_monthly_run_rate: { $ref: '#/components/schemas/NullableDecimal' }
+        basis: { type: string }
+    AWSServiceAssessmentCandidate:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        recommendation_kind: { type: string }
+        status: { type: string, enum: [RECOMMENDED, NO_CHANGE, BLOCKED] }
+        decision_code: { type: string }
+        reason_codes: { type: array, items: { type: string } }
+        current_configuration:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/AWSServiceConfiguration' }]
+        proposed_configuration:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/AWSServiceConfiguration' }]
+        economics: { $ref: '#/components/schemas/AWSServiceAssessmentEconomics' }
+        confidence: { type: object, additionalProperties: true }
+    AWSServiceAssessment:
+      type: object
+      additionalProperties: true
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        model_version: { type: string }
+        model_kind: { type: string, enum: [AWS_SERVICE_ASSESSMENT_V1] }
+        family: { $ref: '#/components/schemas/AWSServiceFamily' }
+        resource_id: { type: string }
+        status: { type: string, enum: [RECOMMENDED, NO_CHANGE, BLOCKED] }
+        recommendation_kind: { type: string }
+        decision_code: { type: string }
+        current_configuration:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/AWSServiceConfiguration' }]
+        proposed_configuration:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/AWSServiceConfiguration' }]
+        evidence_window: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
+        metric_distributions: { type: array, items: { type: object, additionalProperties: true } }
+        candidates: { type: array, items: { $ref: '#/components/schemas/AWSServiceAssessmentCandidate' } }
+        economics: { $ref: '#/components/schemas/AWSServiceAssessmentEconomics' }
+        reason_codes: { type: array, items: { type: string } }
+        blockers: { type: array, items: { type: string } }
+        confidence: { type: object, additionalProperties: true }
+        source_refs: { type: array, items: { type: object, additionalProperties: true } }
+        economically_analysed_source_record_ids: { type: array, items: { type: string } }
+        risk_class: { type: string, enum: [R3] }
+        read_only: { type: boolean, enum: [true] }
+        pre_execution_ready: { type: boolean, enum: [false] }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+    AWSServiceAssessmentRecord:
+      type: object
+      additionalProperties: true
+      required: [id, version, resource_id, family, status, assessment]
+      properties:
+        id: { type: string }
+        version: { type: integer, enum: [1] }
+        resource_id: { type: string }
+        workload_id: { type: string, nullable: true }
+        family: { $ref: '#/components/schemas/AWSServiceFamily' }
+        status: { type: string, enum: [QUEUED, RUNNING, ASSESSED, BLOCKED, FAILED] }
+        snapshot_id: { type: string, nullable: true }
+        safety_profile_id: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        created_by: { type: string }
+        current: { type: boolean }
+        currentness_blockers: { type: array, items: { type: string } }
+        assessment:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/AWSServiceAssessment' }]
+    AWSServiceAssessmentPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AWSServiceAssessmentRecord' } }
+        next_cursor: { type: string, nullable: true }
     AWSServiceFamily:
       type: string
       enum: [ECS, EKS, ELASTICACHE, DYNAMODB, ELB]
@@ -11092,11 +11261,12 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
-            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
+            model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1, AWS_SERVICE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
             database_assessment_id: { type: string }
             storage_assessment_id: { type: string }
             object_storage_assessment_id: { type: string }
             lambda_assessment_id: { type: string }
+            aws_service_assessment_id: { type: string }
             network_assessment_id: { type: string }
             assessment:
               oneOf:
@@ -11104,6 +11274,7 @@ components:
                 - { $ref: '#/components/schemas/StorageAssessment' }
                 - { $ref: '#/components/schemas/ObjectStorageAssessment' }
                 - { $ref: '#/components/schemas/LambdaAssessment' }
+                - { $ref: '#/components/schemas/AWSServiceAssessment' }
                 - { $ref: '#/components/schemas/NetworkAssessment' }
                 - { $ref: '#/components/schemas/NetworkBlockedAssessment' }
             title: { type: string }

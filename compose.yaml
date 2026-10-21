@@ -58,6 +58,7 @@ services:
       DB_STORAGE_ANALYST_PASSWORD: ${DB_STORAGE_ANALYST_PASSWORD:-}
       DB_NETWORK_ANALYST_PASSWORD: ${NETWORK_DATABASE_PASSWORD:-}
       DB_LAMBDA_ANALYST_PASSWORD: ${LAMBDA_DATABASE_PASSWORD:-}
+      DB_SERVICE_ANALYST_PASSWORD: ${SERVICE_DATABASE_PASSWORD:-}
       DB_OBJECT_STORAGE_ANALYST_PASSWORD: ${DB_OBJECT_STORAGE_ANALYST_PASSWORD:-}
       DB_GROUP_CAPACITY_PASSWORD: ${DB_GROUP_CAPACITY_PASSWORD:-}
     depends_on:
@@ -147,6 +148,8 @@ services:
       NETWORK_ASSESSOR_SECRET_KEY: ${NETWORK_ASSESSOR_SECRET_KEY:-}
       LAMBDA_ASSESSOR_ACCESS_KEY: ${LAMBDA_ASSESSOR_ACCESS_KEY:-}
       LAMBDA_ASSESSOR_SECRET_KEY: ${LAMBDA_ASSESSOR_SECRET_KEY:-}
+      SERVICE_ASSESSOR_ACCESS_KEY: ${SERVICE_ASSESSOR_ACCESS_KEY:-}
+      SERVICE_ASSESSOR_SECRET_KEY: ${SERVICE_ASSESSOR_SECRET_KEY:-}
       LAMBDA_PERFORMANCE_ACCESS_KEY: ${LAMBDA_PERFORMANCE_ACCESS_KEY:-}
       LAMBDA_PERFORMANCE_SECRET_KEY: ${LAMBDA_PERFORMANCE_SECRET_KEY:-}
       OBJECT_STORAGE_ASSESSOR_ACCESS_KEY: ${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}
@@ -395,8 +398,32 @@ services:
       buckets: {condition: service_completed_successfully}
       economics: {condition: service_healthy}
 
-  # Optional read-only portfolio analysis. Explicit profile; operator commissions
-  # only its unique LOGIN and model token. No cloud or execution credentials.
+  # Optional AWS service analysis has an independent analytical login and evidence reader.
+  aws-service-assessor:
+    <<: *go
+    profiles: [aws-service-assessment]
+    environment:
+      APP_ROLE: aws-service-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_service_analyst_login:${SERVICE_DATABASE_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${SERVICE_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_SECRET_KEY: ${SERVICE_ASSESSOR_SECRET_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
 
   commitment-portfolio-secrets-init:
     image: cloud-cost-autopilot-go:local

@@ -3,6 +3,7 @@ import { SourceTrust } from "./SourceTrust";
 import { ObjectStorageSources } from "./ObjectStorageSources";
 import { AwsServiceInventory, AwsServiceResourceDetails, isAwsServiceResource } from "./AwsServiceInventory";
 import { AwsServiceSources } from "./AwsServiceSources";
+import { AwsServiceAssessmentHistory, AwsServiceRecommendation, AwsServiceRecommendationHistory } from "./AwsServiceAssessment";
 import { LambdaAssessmentHistory, LambdaInventory, LambdaRecommendation, LambdaRecommendationHistory, LambdaResourceAssessment, isLambdaResource } from "./LambdaAssessment";
 import { LambdaSources } from "./LambdaSources";
 import { NetworkSources } from "./NetworkSources";
@@ -368,7 +369,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
                   </small>
                 </td>
                 <td className="numeric">
-                  {isAwsServiceResource(item) ? <AwsServiceResourceDetails resource={item} /> : isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : isLambdaResource(item) ? <LambdaResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
+                  {isAwsServiceResource(item) ? <AwsServiceResourceDetails resource={item} run={run} busy={busy} /> : isDatabaseResource(item) ? <DatabaseResourceAssessment resource={item} run={run} busy={busy} /> : isStorageResource(item) ? <StorageResourceAssessment resource={item} run={run} busy={busy} /> : isObjectStorageResource(item) ? <ObjectStorageResourceAssessment resource={item} run={run} busy={busy} /> : isNetworkResource(item) ? <NetworkResourceAssessment resource={item} run={run} busy={busy} /> : isLambdaResource(item) ? <LambdaResourceAssessment resource={item} run={run} busy={busy} /> : <ReadinessCell
                     data={data}
                     resourceId={item.id}
                     run={run}
@@ -399,8 +400,8 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
-      <AwsServiceInventory workloads={data.workloads} />
-      <DatabaseAssessmentHistory />
+      <AwsServiceInventory workloads={data.workloads} run={run} busy={busy} />
+      <AwsServiceAssessmentHistory />\n      <DatabaseAssessmentHistory />
       <StorageAssessmentHistory />
       <ObjectStorageAssessmentHistory />
       <NetworkInventory run={run} busy={busy} />
@@ -603,7 +604,7 @@ export function RecommendationsPage({
       </div>
       {items.length ? (
         <div className="recommendation-list">
-          {items.map((item) => item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : item.model_kind === "NETWORK_ASSESSMENT_V1" ? <NetworkRecommendation key={item.id} item={item} /> : item.model_kind === "LAMBDA_ASSESSMENT_V1" ? <LambdaRecommendation key={item.id} item={item} /> : (
+          {items.map((item) => item.model_kind === "AWS_SERVICE_ASSESSMENT_V1" ? <AwsServiceRecommendation key={item.id} item={item} /> : item.model_kind === "DATABASE_ASSESSMENT_V1" ? <DatabaseRecommendation key={item.id} item={item} /> : item.model_kind === "STORAGE_ASSESSMENT_V1" ? <StorageRecommendation key={item.id} item={item} /> : item.model_kind === "OBJECT_STORAGE_ASSESSMENT_V1" ? <ObjectStorageRecommendation key={item.id} item={item} /> : item.model_kind === "NETWORK_ASSESSMENT_V1" ? <NetworkRecommendation key={item.id} item={item} /> : item.model_kind === "LAMBDA_ASSESSMENT_V1" ? <LambdaRecommendation key={item.id} item={item} /> : (
             <Panel key={item.id} className="recommendation-card">
               <div className="recommendation-body">
                 <span className="recommendation-symbol">
@@ -705,7 +706,7 @@ export function RecommendationsPage({
         <Evidence record={inspect} onClose={() => setInspect(null)} />
       )}
       <NetworkRecommendationHistory />
-      <LambdaRecommendationHistory />
+      <LambdaRecommendationHistory />\n      <AwsServiceRecommendationHistory />
       {planFor && (
         <PlanForm
           recommendation={planFor}

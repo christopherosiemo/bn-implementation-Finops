@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false, network = false, lambda = false) {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly), FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: String(network), FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR: String(lambda)}, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false, network = false, lambda = false, service = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly), FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: String(network), FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR: String(lambda), FINOPS_BOOTSTRAP_SERVICE_ASSESSOR: String(service)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -186,7 +186,16 @@ try {
   assert.notEqual(lambdaValues.LAMBDA_ASSESSOR_SECRET_KEY,lambdaValues.NETWORK_ASSESSOR_SECRET_KEY);
   assert.equal(mode(generatedEnv),0o600);bootstrap(true,true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),withLambda);probeAsKeycloak(true);
   console.log('PASS Lambda credentials default absent, separately commissioned, private and replay stable');
-  console.log('\n10 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  for(const key of ['SERVICE_DATABASE_PASSWORD','SERVICE_ASSESSOR_ACCESS_KEY','SERVICE_ASSESSOR_SECRET_KEY'])assert.ok(!withLambda.includes(key+'='));
+  bootstrap(true,true,true,true,true,true,true);
+  const withService=readFileSync(generatedEnv,'utf8');assert.ok(withService.startsWith(withLambda));
+  const serviceValues=Object.fromEntries(withService.trim().split('\n').map(line=>{const at=line.indexOf('=');return[line.slice(0,at),line.slice(at+1)];}));
+  assert.equal(serviceValues.SERVICE_ASSESSOR_ACCESS_KEY,'aws-service-assessor');
+  for(const earlier of ['DB_API_PASSWORD','DB_OBJECT_STORAGE_ANALYST_PASSWORD','DB_STORAGE_ANALYST_PASSWORD','DB_DATABASE_ANALYST_PASSWORD','NETWORK_DATABASE_PASSWORD','LAMBDA_DATABASE_PASSWORD'])assert.notEqual(serviceValues.SERVICE_DATABASE_PASSWORD,serviceValues[earlier]);
+  for(const earlier of ['OBJECT_SECRET_KEY','AUDIT_SECRET_KEY','LAMBDA_ASSESSOR_SECRET_KEY','NETWORK_ASSESSOR_SECRET_KEY'])assert.notEqual(serviceValues.SERVICE_ASSESSOR_SECRET_KEY,serviceValues[earlier]);
+  assert.equal(mode(generatedEnv),0o600);bootstrap(true,true,true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),withService);probeAsKeycloak(true);
+  console.log('PASS AWS service credentials default absent, independently commissioned, private and replay stable');
+  console.log('\n11 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

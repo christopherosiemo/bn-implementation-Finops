@@ -45,28 +45,29 @@ type Saturation struct {
 	MemoryP99PPM int64 `json:"memory_p99_ppm"`
 }
 type Profile struct {
-	SchemaVersion            string          `json:"schema_version"`
-	ID                       string          `json:"id,omitempty"`
-	WorkloadID               string          `json:"workload_id,omitempty"`
-	Version                  int64           `json:"version,omitempty"`
-	Criticality              string          `json:"criticality"`
-	Statefulness             string          `json:"statefulness"`
-	HighSeasonality          bool            `json:"high_seasonality"`
-	Timezone                 string          `json:"timezone"`
-	MinReplicas              int             `json:"min_replicas"`
-	MinZones                 int             `json:"min_zones"`
-	Headroom                 Headroom        `json:"headroom"`
-	Saturation               Saturation      `json:"saturation"`
-	RTOSeconds               int64           `json:"rto_seconds"`
-	RPOSeconds               *int64          `json:"rpo_seconds"`
-	Maintenance              []WeeklyWindow  `json:"maintenance"`
-	RecurringBlackouts       []WeeklyWindow  `json:"recurring_blackouts"`
-	Blackouts                []Blackout      `json:"blackouts"`
-	DemandEvents             []DemandEvent   `json:"demand_events"`
-	MaxSimultaneousChangePPM int64           `json:"max_simultaneous_change_ppm"`
-	VMCooldownSeconds        int64           `json:"vm_cooldown_seconds"`
-	Database                 *DatabaseLimits `json:"database,omitempty"`
-	Storage                  *StorageLimits  `json:"storage,omitempty"`
+	SchemaVersion            string            `json:"schema_version"`
+	ID                       string            `json:"id,omitempty"`
+	WorkloadID               string            `json:"workload_id,omitempty"`
+	Version                  int64             `json:"version,omitempty"`
+	Criticality              string            `json:"criticality"`
+	Statefulness             string            `json:"statefulness"`
+	HighSeasonality          bool              `json:"high_seasonality"`
+	Timezone                 string            `json:"timezone"`
+	MinReplicas              int               `json:"min_replicas"`
+	MinZones                 int               `json:"min_zones"`
+	Headroom                 Headroom          `json:"headroom"`
+	Saturation               Saturation        `json:"saturation"`
+	RTOSeconds               int64             `json:"rto_seconds"`
+	RPOSeconds               *int64            `json:"rpo_seconds"`
+	Maintenance              []WeeklyWindow    `json:"maintenance"`
+	RecurringBlackouts       []WeeklyWindow    `json:"recurring_blackouts"`
+	Blackouts                []Blackout        `json:"blackouts"`
+	DemandEvents             []DemandEvent     `json:"demand_events"`
+	MaxSimultaneousChangePPM int64             `json:"max_simultaneous_change_ppm"`
+	VMCooldownSeconds        int64             `json:"vm_cooldown_seconds"`
+	Database                 *DatabaseLimits   `json:"database,omitempty"`
+	Storage                  *StorageLimits    `json:"storage,omitempty"`
+	AWSService               *AWSServiceLimits `json:"aws_service,omitempty"`
 }
 
 // Requirements only. Nullable flags preserve an undeclared requirement; none
@@ -145,6 +146,9 @@ func validWeekly(w WeeklyWindow) bool {
 }
 func Validate(p Profile) error {
 	invalid := errors.New("SAFETY_PROFILE_INVALID")
+	if p.AWSService != nil && validateAWSServiceLimits(*p.AWSService) != nil {
+		return invalid
+	}
 	if p.Storage != nil {
 		decimal := regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]{1,12})?$`)
 		for _, text := range []string{p.Storage.IOPSMaxFraction, p.Storage.ThroughputMaxFraction} {

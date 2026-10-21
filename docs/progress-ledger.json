@@ -6,7 +6,7 @@
   "baseline_weighted_percent": 17.5,
   "current_weighted_percent": 26.9,
   "rounded_description": "26.9 weighted percent of the full product; approximately 27 percent",
-  "credit_review": "AWS service inventory breadth adds read-only product components within the existing inventory_adapters scope. Broader native-connected and EKS/Kubernetes association gates remain; no whole-package maturity transition or additional credit is awarded.",
+  "credit_review": "Shared four-family AWS service recommendation components, restricted persisted refusals, native metric semantics and normal console presentation extend product capability. Native positive financial/demand/physical-candidate closure and complete connected acceptance remain software gates. Existing optimisation scopes/weights are unchanged; no arbitrary package subdivision or maturity uplift.",
   "live_aws_validated": false,
   "customer_verified_savings": false,
   "commercial_ga_accepted": false,
@@ -1774,6 +1774,23 @@
         "frontend/tests/aws-service-inventory.spec.ts"
       ],
       "acceptance": "AWS service inventory breadth adds read-only product components within the existing inventory_adapters scope. Broader native-connected and EKS/Kubernetes association gates remain; no whole-package maturity transition or additional credit is awarded."
+    },
+    {
+      "id": "forward_aws_sprint_m2",
+      "recorded_at": "2026-10-21",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "81d58ecc9d892cb64132c1cb9e067ea34d322c4ef586e75827a7312bef8d56d0",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "economics/tests/test_aws_service.py",
+        "internal/service/aws_service_assessment_integration_test.go",
+        "internal/provider/aws_service_metrics_test.go",
+        "frontend/tests/aws-service-assessment.spec.ts"
+      ],
+      "acceptance": "Shared four-family AWS service recommendation components, restricted persisted refusals, native metric semantics and authenticated presentation extend product capability. Native positive financial/demand/physical-candidate closure and complete connected acceptance remain software gates. Existing optimisation scopes/weights are unchanged; no arbitrary package subdivision or maturity uplift."
     }
   ],
   "reserved_package": {

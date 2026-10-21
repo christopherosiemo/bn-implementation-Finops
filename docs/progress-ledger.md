@@ -1,5 +1,7 @@
 # Product scope progress ledger
 
+Forward-only AWS checkpoint 2: **26.9% → 26.9%**. Four shared read-only service assessment families add product capability; full native economic/demand closure remains PARTIAL. [Sprint evidence](forward-aws-sprint.md) separates software gaps, accepted components and external gates.
+
 Forward-only AWS checkpoint 1: **26.9% → 26.9%**. Read-only native inventory breadth is banked PARTIAL within the existing inventory-adapter scope; see [sprint evidence](forward-aws-sprint.md). No weights or historical credits change.
 
 The [Lambda read-only components](lambda-readonly-assessment.md) advance official completion **26.7% → 26.9%**. The reserved one-point scope earns component maturity 20, adding 0.2 points; the remaining unaccepted optimisation pool is 5.5 points. The same native synthetic evidence reaches immutable storage, ClickHouse, the restricted assessor, actual Python and ordinary OIDC console with independent readback, but its result is blocked. Financial and benchmark acceptance are separate component checks. The complete positive native billing/performance-to-console path is unaccepted, so deterministic maturity 40 is not awarded.

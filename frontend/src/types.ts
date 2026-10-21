@@ -106,13 +106,14 @@ export interface Resource extends Document {
   network_configuration?: components["schemas"]["NetworkConfiguration"];
 }
 export interface Recommendation extends Document, EvidenceFields {
-  model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1";
+  model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1" | "AWS_SERVICE_ASSESSMENT_V1";
+  aws_service_assessment_id?: string;
   database_assessment_id?: string;
   storage_assessment_id?: string;
   object_storage_assessment_id?: string;
   lambda_assessment_id?: string;
   network_assessment_id?: string;
-  assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["LambdaAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"];
+  assessment?: components["schemas"]["DatabaseAssessment"] | components["schemas"]["StorageAssessment"] | components["schemas"]["ObjectStorageAssessment"] | components["schemas"]["LambdaAssessment"] | components["schemas"]["NetworkAssessment"] | components["schemas"]["NetworkBlockedAssessment"] | components["schemas"]["AWSServiceAssessment"];
   resource_id?: string;
   workload_id: string | null;
   title: string;

@@ -40,7 +40,7 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 			return rule(platform)
 		case "recommendations", "change-plans", "source-connections":
 			return rule(finops)
-		case "database-assessments", "storage-assessments", "object-storage-assessments", "object-storage-datasets", "network-assessments", "network-policies", "lambda-assessments", "lambda-policies":
+		case "database-assessments", "storage-assessments", "object-storage-assessments", "object-storage-datasets", "network-assessments", "network-policies", "lambda-assessments", "lambda-policies", "aws-service-assessments":
 			return mutationAuthorization{roles: []string{"FINOPS_ADMIN", "PLATFORM_ADMIN", "APPLICATION_OWNER"}, scopeKind: "resources", scopeID: model.String(in, "resource_id")}, true
 		case "allocation-policies", "allocation-reports":
 			return rule(finance)
