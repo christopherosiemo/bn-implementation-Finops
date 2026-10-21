@@ -290,7 +290,7 @@ func (a *API) databaseAssessmentCurrent(ctx context.Context, t *store.Tx, d mode
 	if !current {
 		d["currentness_blockers"] = []string{"DATABASE_SOURCE_OR_CONFIGURATION_CHANGED"}
 	}
-	return d, nil
+	return a.recommendationCurrentness(ctx, t, "DATABASE", d)
 }
 func (a *API) databaseRecommendationGet(ctx context.Context, t *store.Tx, id string) (model.Document, error) {
 	var raw []byte
@@ -355,9 +355,5 @@ func (a *API) databaseRecommendationCurrent(ctx context.Context, t *store.Tx, d 
 	if e != nil {
 		return nil, e
 	}
-	d["current"] = model.Bool(row, "current")
-	if row["currentness_blockers"] != nil {
-		d["currentness_blockers"] = row["currentness_blockers"]
-	}
-	return d, nil
+	return recommendationCurrentnessCopy(d, row), nil
 }

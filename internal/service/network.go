@@ -319,6 +319,5 @@ func (a *API) networkRecommendation(ctx context.Context, t *store.Tx, id string)
 	if e != nil {
 		return nil, e
 	}
-	d["current"], d["currentness_blockers"] = row["current"], row["currentness_blockers"]
-	return d, nil
+	return recommendationCurrentnessCopy(d, row), nil
 }

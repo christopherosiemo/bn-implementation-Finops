@@ -128,7 +128,7 @@ func (a *API) networkCurrent(ctx context.Context, t *store.Tx, d model.Document)
 	}
 	out := model.Clone(d)
 	out["current"], out["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
-	return out, nil
+	return a.recommendationCurrentness(ctx, t, "NETWORK", out)
 }
 func networkAssessmentOne(ctx context.Context, a *API, t *store.Tx, read databaseArchiveRead) error {
 	var id, rid, sid, pid string
@@ -202,7 +202,7 @@ func networkAssessmentOne(ctx context.Context, a *API, t *store.Tx, read databas
 		return e
 	}
 	prospective["status"], prospective["assessment"] = "ASSESSED", result
-	current, e := a.networkCurrent(ctx, t, prospective)
+	current, e := a.networkCurrent(recommendationPendingContext(ctx), t, prospective)
 	if e != nil {
 		return e
 	}

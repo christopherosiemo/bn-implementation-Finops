@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState } from "react";
 import type { components } from "./api.generated";
 import type { Recommendation, Resource } from "./types";
@@ -106,7 +107,7 @@ function DatabaseAssessmentDetail({ id }: { id: string }) {
     {state.error && <p role="alert">Database assessment unavailable. {state.error}</p>}
     {state.value && <>
       <p>Requested {dateTime(state.value.created_at)} · resource {state.value.resource_id}</p>
-      <Badge value={state.value.status} />
+      <Badge value={state.value.currentness?.status ?? state.value.status} /><RecommendationCurrentness value={state.value.currentness} historicalStatus={state.value.historical_status ?? state.value.status} />
       {state.value.current === false && <div role="alert" className="blocker-text"><p>The stored assessment no longer matches current source or configuration evidence. Request a new assessment before relying on its advice.</p><Reasons values={state.value.currentness_blockers ?? []} /></div>}
       {state.value.assessment ? <DatabaseAssessmentEvidence assessment={state.value.assessment} />
         : state.value.status === "QUEUED" || state.value.status === "RUNNING" ? <p role="status">Read-only assessment in progress. No result is available yet.</p>
@@ -158,8 +159,8 @@ export function DatabaseAssessmentHistory() {
 export function DatabaseRecommendation({ item }: { item: Recommendation }) {
   const [open, setOpen] = useState(false);
   return <Panel className="recommendation-card">
-    <div className="card-badges"><Badge value={item.status} /><Badge value="R3">R3 · Database proposal</Badge></div>
-    <h2>{item.title}</h2>
+    <div className="card-badges"><Badge value={item.currentness?.status ?? item.status} /><Badge value="R3">R3 · Database proposal</Badge></div>
+    <h2>{item.title}</h2><RecommendationCurrentness value={item.currentness} historicalStatus={item.historical_status ?? item.status} />
     <p>Read-only database assessment. Execution and verified savings are unavailable.</p>
     {item.reason_code && <p className="blocker-text">{readable(item.reason_code)}</p>}
     <p>Estimated monthly opportunity: {amount(item.monthly_saving, item.currency ?? null)}</p>

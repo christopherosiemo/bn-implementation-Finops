@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
 import { AccountCommissioning } from "./AccountCommissioning";
@@ -617,7 +618,7 @@ export function RecommendationsPage({
                 </span>
                 <div className="recommendation-main">
                   <div className="card-badges">
-                    <Badge value={item.status} />
+                    <Badge value={item.currentness?.status ?? item.status} />
                     <span className="risk-label">
                       {item.risk_class} · SCHEDULING
                     </span>
@@ -632,6 +633,7 @@ export function RecommendationsPage({
                     </span>
                   </div>
                   <h2>{item.title}</h2>
+                  <RecommendationCurrentness value={item.currentness} historicalStatus={item.historical_status ?? item.status} />
                   <p>
                     {titleFor(data, item.workload_id)}{" "}
                     <span className="middot">·</span> {readable(item.category)}

@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState } from "react";
 import type { components } from "./api.generated";
 import { GroupChoice } from "./FleetProposalChoice";
@@ -289,7 +290,7 @@ function BatchDetail({ id }: { id: string }) {
       {state.error && <p role="alert">Evaluation unavailable. {state.error}</p>}
       {record && (
         <>
-          <Badge value={record.status} />
+          <Badge value={record.currentness?.status ?? record.status} /><RecommendationCurrentness value={record.currentness} historicalStatus={record.historical_status ?? record.status} />
           <p className="form-note">
             Requested {dateTime(record.created_at)} · safety profile revision{" "}
             {record.selection.safety_profile.version}. Historical results retain

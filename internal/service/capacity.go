@@ -40,6 +40,12 @@ func (a *API) capacityGet(ctx context.Context, tx *store.Tx, identity auth.Ident
 	} else {
 		rows, err = tx.CapacityAssessmentPage(ctx, parts[1], after, limit+1)
 	}
+	if err == nil {
+		for n := range rows {
+			rows[n], err = a.capacityResultCurrentness(ctx, tx, rows[n])
+			if err != nil { return nil, true, err }
+		}
+	}
 	return nativePage(rows, limit, identity.Tenant, parts[2], parts[1]), true, err
 }
 

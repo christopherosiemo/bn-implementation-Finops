@@ -372,7 +372,7 @@ func (a *API) storageAssessmentCurrent(ctx context.Context, t *store.Tx, d model
 	if !current {
 		d["currentness_blockers"] = []string{"STORAGE_SOURCE_OR_CONFIGURATION_CHANGED"}
 	}
-	return d, nil
+	return a.recommendationCurrentness(ctx, t, "STORAGE", d)
 }
 func (a *API) storageRecommendationGet(ctx context.Context, t *store.Tx, id string) (model.Document, error) {
 	var raw []byte
@@ -394,11 +394,7 @@ func (a *API) storageRecommendationCurrent(ctx context.Context, t *store.Tx, d m
 	if e != nil {
 		return nil, e
 	}
-	d["current"] = row["current"]
-	if row["currentness_blockers"] != nil {
-		d["currentness_blockers"] = row["currentness_blockers"]
-	}
-	return d, nil
+	return recommendationCurrentnessCopy(d, row), nil
 }
 func (a *API) storageRecommendations(ctx context.Context, t *store.Tx) ([]model.Document, error) {
 	var exists bool

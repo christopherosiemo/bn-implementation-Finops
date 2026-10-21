@@ -1910,6 +1910,25 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Registered historical ECS service-demand and sampled configuration epochs connect to the existing restricted evaluator. Focused Python, generated contracts, frontend build, two supplementary browser presentations and29migration guards pass. One connected attempt fails at unresponsive Docker API before native/browser start (EXTERNAL_INFRASTRUCTURE_FAILURE); positive E2E and installed migration/restoration remain unaccepted. Fixed weights, historical reviews, broader maturity and external obligations unchanged."
+    },
+    {
+      "id": "prepilot_polish_2",
+      "recorded_at": "2026-10-21",
+      "base_commit": "cdd454c607e6da7e4379341a7e992390f300e043",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "99028e227e74922f7ad91f01371189234ecb73019b53748595484e6e9ff1608f",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/prepilot-software-polish.md",
+        "migrations/051_recommendation_currentness.sql",
+        "internal/service/recommendation_currentness.go",
+        "internal/configuration/revision.go",
+        "frontend/tests/operating-loop.spec.ts"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Immutable tenant-scoped publication contexts, trusted evidence currentness, exact approved Git revision resolution, legacy refusals, existing family/fleet validators, qualified UI economics and commissioning counts are implemented. Frontend generated contracts/typecheck/build,71supplementary presentations and29exactmigrationguards pass. Broad localNode423PASS/1WindowsEPERMsymlinkFAIL/3SKIP, classified external infrastructure. NewGo/PG, normalOIDC/current-to-stale and finalreleaseCI/recovery are separate reported gates; localDocker remains unavailable. No new family maturity, fullfleetcontext, live/customer/financial credit or mutation authority. Fixed weights, prior reviews and full denominator preserved."
     }
   ],
   "reserved_package": {

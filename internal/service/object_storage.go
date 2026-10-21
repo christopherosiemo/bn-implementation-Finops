@@ -333,8 +333,7 @@ func (a *API) objectStorageRecommendation(ctx context.Context, t *store.Tx, id s
 	if e != nil {
 		return nil, e
 	}
-	d["current"], d["currentness_blockers"] = row["current"], row["currentness_blockers"]
-	return d, nil
+	return recommendationCurrentnessCopy(d, row), nil
 }
 func jsonRaw(b []byte) any { return json.RawMessage(b) }
 func objectStorageDatasetHash(d model.Document) string {

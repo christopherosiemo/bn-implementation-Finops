@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState } from "react";
 import type { components } from "./api.generated";
 import { RemotePage, useRemote } from "./RemoteData";
@@ -307,7 +308,7 @@ function AssessmentDetail({ id }: { id: string }) {
       {state.error && <p role="alert">Assessment unavailable. {state.error}</p>}
       {state.value && (
         <>
-          <Badge value={state.value.status} />
+          <Badge value={state.value.status} /><RecommendationCurrentness value={state.value.currentness} historicalStatus={state.value.historical_status ?? state.value.status} />
           {state.value.assessment ? (
             <FleetNativeAssessmentEvidence
               assessment={state.value.assessment}

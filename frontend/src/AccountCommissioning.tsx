@@ -10,6 +10,16 @@ type Report = S["AWSCommissioningReport"];
 const exactMoney = (value: string | null | undefined, currency: string | null | undefined) => value != null && currency ? `${value} ${currency}` : "Unavailable";
 const percent = (value: string | null | undefined) => value == null ? "Unavailable" : `${value}%`;
 
+function CurrentnessSummary({ value }: { value: S["RecommendationCurrentnessSummary"] | undefined }) {
+  if (!value) return null;
+  return <section aria-label="Commissioning recommendation currentness">
+    <h4>Recommendation evidence currentness</h4>
+    <p>{value.evaluated_contexts} latest captured contexts evaluated · {value.complete ? "Bounded context selection complete" : "Incomplete selection"}. Family-specific evidence checks still determine usable advice and analysed spend. Older reports retain their original as-of results.</p>
+    <Table scrollLabel="Commissioning recommendation status counts" headings={["Assumptions", "Count"]}>{(["CURRENT", "STALE", "BLOCKED", "EXPIRED"] as const).map(status => <tr key={status}><th scope="row">{readable(status)}</th><td>{value.assumption_context_counts[status]}</td></tr>)}</Table>
+    {Object.keys(value.reason_counts).length > 0 && <ul>{Object.entries(value.reason_counts).map(([reason, count]) => <li key={reason}>{count}: {readable(reason)}</li>)}</ul>}
+  </section>;
+}
+
 function ReportView({ report, path }: { report: Report; path: string }) {
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -31,6 +41,7 @@ function ReportView({ report, path }: { report: Report; path: string }) {
     {report.fixture ? <p className="fixture-notice">Synthetic provider-shaped evidence · no customer AWS account was contacted.</p> : null}
     <dl className="definition-list"><div><dt>Account / region</dt><dd>{report.account_id} · {report.region}</dd></div><div><dt>Approved read binding</dt><dd>{report.read_role_binding_id}</dd></div><div><dt>Execution credentials</dt><dd>{readable(report.execution_credentials.status)} · {readable(report.execution_credentials.reason_code)}</dd></div><div><dt>Report hash</dt><dd className="mono">{report.content_hash}</dd></div></dl>
     {error ? <p role="alert">{error}</p> : null}
+    <CurrentnessSummary value={report.coverage.recommendation_currentness} />
     <h4>Readiness dimensions</h4>
     <Table scrollLabel="AWS commissioning readiness dimensions" headings={["Dimension", "State", "Evidence gaps and next action", "Affected spend"]}>{report.dimensions.map(item => <tr key={item.key}><th scope="row">{readable(item.key)}</th><td><Badge value={item.status} /></td><td>{item.reason_codes.length ? <ul>{item.reason_codes.map(code => <li key={code}>{readable(code)}</li>)}</ul> : <span>No reported blocker</span>}{item.remediation.map((action, index) => <p key={`${index}-${action}`}>{action}</p>)}<details><summary>Inspect dimension evidence</summary><pre className="evidence-json">{JSON.stringify(item.details, null, 2)}</pre></details></td><td>{item.affected_spend?.length ? item.affected_spend.map((entry, index) => <p key={index}>{typeof entry.amount === "string" && typeof entry.currency === "string" ? `${entry.amount} ${entry.currency}` : "Unavailable"}</p>) : "Unavailable"}</td></tr>)}</Table>
     <h4>Inventory access by category</h4>

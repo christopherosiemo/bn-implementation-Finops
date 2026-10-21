@@ -57,9 +57,9 @@ test('one exact new live case follows the other74; source loss never triggers re
 });
 
 
-test('commissioning requires exact001–050 and the reviewed037–050 bytes; future or incomplete prefixes refuse',()=>{
+test('commissioning requires exact001–051 and the reviewed037–051 bytes; future or incomplete prefixes refuse',()=>{
  const migrationRoot=path.join(root,'migrations'),names=readdirSync(migrationRoot).filter(name=>/^\d{3}_[a-z0-9_]+\.sql$/.test(name)).sort();
- const expected=commissionMigrationManifest(migrationRoot);assert.equal(Object.keys(expected).length,50);assert.equal(expected['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051');assert.equal(expected['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984');assert.equal(expected['039_commitment_portfolio.sql'],'89d382c5d6b81af066774e5367aff9cd764fc53e6d79f5f49ff6359a0e8f0aaf');
+ const expected=commissionMigrationManifest(migrationRoot);assert.equal(Object.keys(expected).length,51);assert.equal(expected['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051');assert.equal(expected['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984');assert.equal(expected['039_commitment_portfolio.sql'],'89d382c5d6b81af066774e5367aff9cd764fc53e6d79f5f49ff6359a0e8f0aaf');
  assert.equal(expected['040_commitment_decisions.sql'],'dec0a482c3cd0d0f1cdb11e1de02833817cd7a705b81c01d4f87dd2109a9b76f');
  assert.equal(expected['041_database_assessments.sql'],'305be6e59ed393e4d541334f1296c3f5ac208726bebd9b29b07fa3299b5d9380');
  assert.equal(expected['042_storage_assessments.sql'],'4167cf4ec6df2112e8d8a9233ef005e0105dfb33bd51e413310433356d1aaa30');
@@ -71,11 +71,11 @@ test('commissioning requires exact001–050 and the reviewed037–050 bytes; fut
  for(const name of names.slice(0,42))assert.equal(expected[name],createHash('sha256').update(readFileSync(path.join(migrationRoot,name))).digest('hex'));
  const folder=mkdtempSync(path.join(os.tmpdir(),'commission-reviewed040-'));try{
   for(const name of names)copyFileSync(path.join(migrationRoot,name),path.join(folder,name));assert.deepEqual(commissionMigrationManifest(folder),expected);
-  for(const name of ['037_fleet_joint_decisions.sql','038_fleet_decision_credential_scope.sql','039_commitment_portfolio.sql','040_commitment_decisions.sql','041_database_assessments.sql','042_storage_assessments.sql','043_object_storage_assessments.sql','044_network_assessments.sql','045_lambda_assessments.sql','046_aws_service_inventory.sql','047_aws_service_assessments.sql','048_eks_kubernetes_associations.sql','049_aws_account_commissioning.sql','050_aws_service_historical_demand.sql']){const latest=path.join(folder,name),raw=readFileSync(latest);writeFileSync(latest,Buffer.concat([raw,Buffer.from('\n-- changed release bytes\n')]));assert.throws(()=>commissionMigrationManifest(folder));writeFileSync(latest,raw);}
-  writeFileSync(path.join(folder,'051_unreviewed_future.sql'),'SELECT 1;');assert.throws(()=>commissionMigrationManifest(folder));unlinkSync(path.join(folder,'051_unreviewed_future.sql'));
+  for(const name of ['037_fleet_joint_decisions.sql','038_fleet_decision_credential_scope.sql','039_commitment_portfolio.sql','040_commitment_decisions.sql','041_database_assessments.sql','042_storage_assessments.sql','043_object_storage_assessments.sql','044_network_assessments.sql','045_lambda_assessments.sql','046_aws_service_inventory.sql','047_aws_service_assessments.sql','048_eks_kubernetes_associations.sql','049_aws_account_commissioning.sql','050_aws_service_historical_demand.sql','051_recommendation_currentness.sql']){const latest=path.join(folder,name),raw=readFileSync(latest);writeFileSync(latest,Buffer.concat([raw,Buffer.from('\n-- changed release bytes\n')]));assert.throws(()=>commissionMigrationManifest(folder));writeFileSync(latest,raw);}
+  writeFileSync(path.join(folder,'052_unreviewed_future.sql'),'SELECT 1;');assert.throws(()=>commissionMigrationManifest(folder));unlinkSync(path.join(folder,'052_unreviewed_future.sql'));
   const current=readFileSync(path.join(folder,'043_object_storage_assessments.sql'));unlinkSync(path.join(folder,'043_object_storage_assessments.sql'));assert.throws(()=>commissionMigrationManifest(folder));writeFileSync(path.join(folder,'043_object_storage_assessments.sql'),current);
   unlinkSync(path.join(folder,'040_commitment_decisions.sql'));assert.throws(()=>commissionMigrationManifest(folder));
-  assert.throws(()=>assertMigrationManifest({...expected,'051_unreviewed_future.sql':'a'.repeat(64)},expected));
+  assert.throws(()=>assertMigrationManifest({...expected,'052_unreviewed_future.sql':'a'.repeat(64)},expected));
   const changed={...expected,[names[0]]:'b'.repeat(64)};assert.throws(()=>assertMigrationManifest(changed,expected));
  }finally{assert.equal(path.dirname(path.resolve(folder)),path.resolve(os.tmpdir()));assert.match(path.basename(folder),/^commission-reviewed040-/);rmSync(folder,{recursive:true,force:true});}
 });

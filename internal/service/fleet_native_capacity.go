@@ -40,6 +40,12 @@ func (a *API) fleetCapacityGet(ctx context.Context, t *store.Tx, i auth.Identity
 			return nil, true, e
 		}
 		rows, e := t.FleetCapacityBatchPage(ctx, p[1], after, limit+1)
+		if e == nil {
+			for n := range rows {
+				rows[n], e = a.fleetSelectionCurrentness(ctx, t, rows[n])
+				if e != nil { return nil, true, e }
+			}
+		}
 		return nativePage(rows, limit, i.Tenant, "fleet-native-capacity-batches", p[1]), true, e
 	}
 	if p[0] == "fleet-native-capacity-members" && len(p) == 2 {
@@ -50,6 +56,10 @@ func (a *API) fleetCapacityGet(ctx context.Context, t *store.Tx, i auth.Identity
 		request, e := t.FleetCapacityBatchGet(ctx, model.String(d, "request_id"))
 		if e == nil {
 			e = fleetHistoryWorkload(ctx, t, i, model.String(request, "workload_id"))
+		}
+		if e == nil {
+			request, e = a.fleetSelectionCurrentness(ctx, t, request)
+			if e == nil { d = recommendationCurrentnessCopy(d, request) }
 		}
 		return d, true, e
 	}
@@ -64,13 +74,20 @@ func (a *API) fleetCapacityGet(ctx context.Context, t *store.Tx, i auth.Identity
 		return nil, true, e
 	}
 	if len(p) == 2 {
-		return d, true, nil
+		d, e = a.fleetSelectionCurrentness(ctx, t, d)
+		return d, true, e
 	}
 	after, limit, e := nativeCursor(r, i.Tenant, "fleet-native-capacity-members", p[1])
 	if e != nil {
 		return nil, true, e
 	}
 	rows, e := t.FleetCapacityBatchMemberPage(ctx, p[1], after, limit+1)
+	if e == nil {
+		d, e = a.fleetSelectionCurrentness(ctx, t, d)
+		if e == nil {
+			for n := range rows { rows[n] = recommendationCurrentnessCopy(rows[n], d) }
+		}
+	}
 	return nativePage(rows, limit, i.Tenant, "fleet-native-capacity-members", p[1]), true, e
 }
 func (a *API) fleetCapacityMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document, p []string) (model.Document, int, bool, error) {

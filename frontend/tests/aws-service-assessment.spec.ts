@@ -38,3 +38,31 @@ test("ordinary AWS service assessment sends resource identity only and preserves
 test("AWS service recommendation keeps known current cost visible while candidate savings are unavailable", async ({ page }) => {
   const state = await setup(page, true); await state.go("recommendations"); await page.getByRole("button", { name: "Inspect AWS service recommendation service-advice", exact: true }).click(); const dialog = page.getByRole("dialog", { name: "AWS service assessment", exact: true }); await expect(dialog).toContainText("200.000000000001 GBP"); await expect(dialog).toContainText("Native metric periods incomplete"); await expect(dialog.getByRole("row", { name: "Candidate window cost Unavailable", exact: true })).toHaveCount(2); await expect(dialog.getByRole("row", { name: "Verified savings Unavailable", exact: true })).toHaveCount(2); expect(state.writes).toHaveLength(0);
 });
+
+test("currentness presentation separates historical advice from changed evidence", async ({ page }) => {
+  const state = await setup(page);
+  let changed = false;
+  const historical = record().assessment;
+  await page.route("**/v1/aws-service-assessments/service-assessment", route => route.fulfill({ json: {
+    ...record(), current: !changed, historical_status: "ASSESSED", assessment: historical,
+    currentness: { schema_version: "1", status: changed ? "STALE" : "CURRENT", checked_at: stamp,
+      reason_codes: changed ? ["STALE_RECOMMENDATION", "BILLING_SOURCE_CHANGED", "IAC_REVISION_CHANGED"] : [],
+      changes: changed ? [{ dimension: "BILLING", reason_code: "BILLING_SOURCE_CHANGED", detected_at: stamp }] : [],
+      economics_recompute: changed, telemetry_recollect: false, iac_changed: changed,
+      next_action: changed ? "REANALYSE_CURRENT_EVIDENCE" : "NONE", execution_ready: false },
+  } }));
+  await state.go("recommendations");
+  await page.getByRole("button", { name: "Inspect AWS service recommendation service-advice", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "AWS service assessment", exact: true });
+  const currentness = dialog.getByRole("region", { name: "Recommendation currentness", exact: true });
+  await expect(currentness).toHaveAttribute("data-currentness", "CURRENT");
+  changed = true;
+  await dialog.getByRole("button", { name: "Refresh selected AWS service assessment", exact: true }).click();
+  await expect(currentness).toHaveAttribute("data-currentness", "STALE");
+  await expect(currentness).toContainText("Historical result: Assessed");
+  await expect(currentness).toContainText("Recompute economics");
+  await expect(currentness).toContainText("Billing source changed");
+  await expect(currentness).toContainText("Review the configured repository revision");
+  await expect(dialog).toContainText("-20.000000000000 GBP");
+  expect(state.writes).toHaveLength(0);
+});

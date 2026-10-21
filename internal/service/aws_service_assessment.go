@@ -132,6 +132,5 @@ func (a *API) awsServiceRecommendation(ctx context.Context, t *store.Tx, id stri
 	if e != nil {
 		return nil, e
 	}
-	d["current"], d["currentness_blockers"] = record["current"], record["currentness_blockers"]
-	return d, nil
+	return recommendationCurrentnessCopy(d, record), nil
 }

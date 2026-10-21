@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState, type FormEvent } from "react";
 import type { components } from "./api.generated";
 import type { Recommendation, Resource } from "./types";
@@ -166,7 +167,7 @@ function ObjectStorageAssessmentDetail({ id }: { id: string }) {
   const state = useRemote<AssessmentRecord>(`/object-storage-assessments/${encode(id)}`, revision);
   return <section className="configuration-stack" aria-label="Selected S3 assessment">
     <h4>S3 assessment {shortId(id)}</h4>{state.loading && <p role="status">Loading S3 assessment…</p>}{state.error && <p role="alert">S3 assessment unavailable. {state.error}</p>}
-    {state.value && <><p>Requested {dateTime(state.value.created_at)} · resource {state.value.resource_id} · dataset {state.value.dataset_id ?? "Bucket selection"}</p><Badge value={state.value.status} />
+    {state.value && <><p>Requested {dateTime(state.value.created_at)} · resource {state.value.resource_id} · dataset {state.value.dataset_id ?? "Bucket selection"}</p><Badge value={state.value.currentness?.status ?? state.value.status} /><RecommendationCurrentness value={state.value.currentness} historicalStatus={state.value.historical_status ?? state.value.status} />
       {state.value.current === false && <div role="alert" className="blocker-text"><p>The stored S3 assessment no longer matches current source, configuration or dataset requirements. Request a new assessment before relying on its advice.</p><Reasons values={state.value.currentness_blockers ?? []} /></div>}
       {state.value.assessment ? <ObjectStorageAssessmentEvidence assessment={state.value.assessment} /> : state.value.status === "QUEUED" ? <p role="status">Read-only S3 assessment in progress. No result is available yet.</p> : <p role="alert">No S3 assessment result is available. Inspect its source and dataset evidence.</p>}
     </>}
@@ -206,15 +207,15 @@ export function ObjectStorageAssessmentHistory() {
   return <Panel title="S3 object-storage assessments" eyebrow="BUCKETS & DATASETS · READ-ONLY">
     <p>Inspect persisted storage-policy economics, access evidence, lifecycle state and blockers. Object and lifecycle mutations, deletion and automatic archival remain disabled.</p>
     <details onToggle={event => setOpen(event.currentTarget.open)}><summary>S3 assessment history</summary>{open && <div className="configuration-stack"><Button secondary small onClick={() => setRevision(value => value + 1)}>Refresh S3 assessment history</Button>
-      <RemotePage<AssessmentRecord> key={revision} path="/object-storage-assessments?limit=10" label="S3 assessments" empty="Select a discovered S3 bucket in Cloud resources to request a read-only assessment.">{items => <Table scrollLabel="Persisted S3 assessment history" headings={["Request / dataset", "Status", "Evidence"]}>{items.map(item => <tr key={item.id}><th scope="row">{shortId(item.id)}<small>{item.resource_id}</small><small>{item.dataset_id ?? "Bucket selection"} · {dateTime(item.created_at)}</small></th><td><Badge value={item.status} /></td><td><Button secondary small onClick={() => setSelected(item.id)}>Inspect S3 assessment {shortId(item.id)}</Button></td></tr>)}</Table>}</RemotePage>
+      <RemotePage<AssessmentRecord> key={revision} path="/object-storage-assessments?limit=10" label="S3 assessments" empty="Select a discovered S3 bucket in Cloud resources to request a read-only assessment.">{items => <Table scrollLabel="Persisted S3 assessment history" headings={["Request / dataset", "Status", "Evidence"]}>{items.map(item => <tr key={item.id}><th scope="row">{shortId(item.id)}<small>{item.resource_id}</small><small>{item.dataset_id ?? "Bucket selection"} · {dateTime(item.created_at)}</small></th><td><Badge value={item.currentness?.status ?? item.status} /></td><td><Button secondary small onClick={() => setSelected(item.id)}>Inspect S3 assessment {shortId(item.id)}</Button></td></tr>)}</Table>}</RemotePage>
     </div>}</details>{selected && <ObjectStorageAssessmentDialog id={selected} onClose={() => setSelected("")} />}
   </Panel>;
 }
 
 export function ObjectStorageRecommendation({ item }: { item: Recommendation }) {
   const [open, setOpen] = useState(false);
-  return <Panel className="recommendation-card"><div className="card-badges"><Badge value={item.status} /><Badge value="R3">R3 · S3 proposal</Badge></div>
-    <h2>{item.title}</h2><p>Read-only S3 dataset and storage-policy assessment. Inspect each candidate's complete economics; alternatives are not additive savings.</p>
+  return <Panel className="recommendation-card"><div className="card-badges"><Badge value={item.currentness?.status ?? item.status} /><Badge value="R3">R3 · S3 proposal</Badge></div>
+    <h2>{item.title}</h2><RecommendationCurrentness value={item.currentness} historicalStatus={item.historical_status ?? item.status} /><p>Read-only S3 dataset and storage-policy assessment. Inspect each candidate's complete economics; alternatives are not additive savings.</p>
     {item.reason_code && <p className="blocker-text">{readable(item.reason_code)}</p>}
     <Button secondary small disabled={!item.object_storage_assessment_id} onClick={() => setOpen(true)}>Inspect S3 recommendation {shortId(item.id)}</Button>
     {open && item.object_storage_assessment_id && <ObjectStorageAssessmentDialog id={item.object_storage_assessment_id} onClose={() => setOpen(false)} />}

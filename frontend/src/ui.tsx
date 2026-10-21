@@ -92,7 +92,7 @@ export function sumMoney(values: unknown[]): string | null {
   return `${total < 0n ? "-" : ""}${absolute / 1_000_000_000_000n}.${String(absolute % 1_000_000_000_000n).padStart(12, "0")}`;
 }
 export const preExecutionReady = (record?: EvidenceFields): boolean =>
-  record?.pre_execution_ready === true;
+  record?.pre_execution_ready === true && (!record.currentness || record.currentness.status === "CURRENT");
 export const hasBoundMeasurement = (record: EvidenceFields): boolean =>
   Boolean(record.baseline_id && record.measurement_id);
 export function isTrustedPlan(record: Document & EvidenceFields): boolean {

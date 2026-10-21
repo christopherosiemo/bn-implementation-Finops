@@ -153,7 +153,7 @@ func (a *API) objectStorageCurrent(ctx context.Context, t *store.Tx, d model.Doc
 	}
 	out := model.Clone(d)
 	out["current"], out["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
-	return out, nil
+	return a.recommendationCurrentness(ctx, t, "OBJECT_STORAGE", out)
 }
 func objectStorageAssessmentOne(ctx context.Context, a *API, t *store.Tx, read databaseArchiveRead) error {
 	var id, rid, sid, did string
@@ -265,7 +265,7 @@ func objectStorageAssessmentOne(ctx context.Context, a *API, t *store.Tx, read d
 	}
 	prospective["status"] = "ASSESSED"
 	prospective["assessment"] = result
-	current, e := a.objectStorageCurrent(ctx, t, prospective)
+	current, e := a.objectStorageCurrent(recommendationPendingContext(ctx), t, prospective)
 	if e != nil {
 		return e
 	}
@@ -304,7 +304,7 @@ func objectStorageAssessmentOne(ctx context.Context, a *API, t *store.Tx, read d
 	if e != nil {
 		return e
 	}
-	record, e = a.objectStorageCurrent(ctx, t, record)
+	record, e = a.objectStorageCurrent(recommendationPendingContext(ctx), t, record)
 	if e != nil {
 		return e
 	}

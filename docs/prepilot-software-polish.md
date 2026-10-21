@@ -19,3 +19,32 @@ Acceptance evidence:
 - Local Go/installed recovery validation is unavailable with that runtime. Normal pushed-source CI is reported separately; the three historical required failures remain enabled and outside investigation.
 
 No maturity transition, live acceptance or verified savings is claimed. Genuine AWS/customer evidence and operational use remain **EXTERNAL_ACCEPTANCE_REQUIRED**. Checkpoint 2 follows immediately after the first push.
+
+Checkpoint 1 is pushed as `cdd454c607e6da7e4379341a7e992390f300e043`. Its [normal CI](https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39678634185) is independent of the failed local connected attempt. The three historical required failures remain enabled; pending or superseded checks must not be reported as passing.
+
+## Checkpoint 2: recommendation currentness and IaC — PARTIAL
+
+Additive migration 051 captures immutable, tenant-isolated assumption contexts when new EC2 and the six existing analytical families publish recommendations. A hash-only broker compares material configuration, resource/workload ownership and criticality, workload mapping, safety/SLOs, policy, configuration authority, telemetry revisions/revocation and exactly referenced financial source heads. It returns no provider payload, Terraform state, credential or declaration contents. Context bounds fail closed. Family-specific evidence validators remain independent.
+
+The API adds `currentness` with `CURRENT`, `STALE`, `BLOCKED` or `EXPIRED`, detection time, typed dimensions/reasons, economic/telemetry/IaC follow-up and next action. Historical bodies, amounts and signatures are retained. Retrieval never captures a replacement baseline. Completed legacy records without sufficient original context are blocked rather than silently grandfathered. Native fleet/capacity views also recheck their existing selection, profile and source references; their missing full historical owner/policy context remains a software limitation and is explicitly blocked, not called current.
+
+Ordinary cards and details show the currentness status separately from the historical result. Stale monetary results are labelled historical and require recomputation. Existing exact-component coverage uses current family projections before accepting analysed spend. Commissioning reports include bounded latest-context status/reason counts; those counts do not replace class-specific assessment or establish financial readiness. Reports remain immutable as of their recorded observation.
+
+Known Terraform authority resolves only an exact operator-approved tenant/authority/repository/ref/directory binding. The existing hardened collector reads a clean, bounded, read-only local checkout, then independently resolves the approved HTTPS remote branch using `git ls-remote`. Local HEAD alone cannot establish remote currentness. The reader has a five-second request budget, no fetch/write, redirects, credential helpers, prompts or non-HTTPS protocols. Missing private access or unresolvable revisions return `IAC_REVISION_UNAVAILABLE`. Existing immutable authority/artifact references retain repository identity, file/address mappings and the analysed commit. There is no new Git platform or provider identity.
+
+Deployment remains default-off: an empty API-only registry selects nothing; Helm may mount an explicitly supplied existing repository claim read-only and creates no PVC or synchronizer. Configure private repository access only through a separately reviewed future binding; no ambient credential is inherited to make the current reader pass.
+
+The existing new-plan eligibility boundary rejects stale/blocked recommendations. Execution workers, signed-plan validation, owned START/restoration authority and historical migrations are unchanged. No customer mutation authority is added.
+
+Acceptance and remaining gates:
+
+- Generated contracts, TypeScript, production build and 71 existing/supplementary presentation tests pass in the local source validation. Presentation routes remain explicitly supplementary.
+- The 29 exact migration guards pass through 051 and reject unknown 052. Migrations 001–050 are preserved byte-for-byte.
+- The broader local Node run reports 423 passes, one Windows `EPERM` symlink failure and three skips. That host restriction is `EXTERNAL_INFRASTRUCTURE_FAILURE`; no guard or assertion is removed to turn it green.
+- Added existing-PostgreSQL-role regressions exercise immutable contexts, resource/workload/owner, policy/SLO, telemetry revocation, native canonical billing correction, cross-tenant denial, blocked new-plan creation and exact-component coverage. Git tests use real local repositories and explicitly injected remote observations. Their execution belongs to normal pushed-source Go CI, not an assumed local pass.
+- The existing ordinary OIDC operating-loop test now appends a current-to-stale transition after its owned restoration and financial journey. It changes only authenticated fixture metadata, independently reads the same retained result, checks blocked eligibility and inspects the normal UI explanation. No new acceptance laboratory or timeout is introduced.
+- Local installed-image/migration/recovery acceptance remains unavailable while Docker's engine is unresponsive. A cloud/provider permission is not the cause of that local gate. Normal CI, including the ordinary Compose/browser/recovery checks and all 16 required jobs, must be reported using its actual final-source results. The three historical failing jobs remain outside investigation; the whole release is not called green.
+
+**Official progress stays 26.9% → 26.9%.** These changes strengthen already-counted service and safety foundations. They do not establish complete ECS native acceptance, full fleet historical context, genuine AWS/customer history or production operation. Planned work, additional tests and shared foundations earn no separate credit.
+
+After this second pushed checkpoint and its bounded validation/report, stop. PR #1 remains draft and unmerged. AWS commissioning, customer ownership/SLO/retention/rate evidence and sustained operational acceptance remain **EXTERNAL_ACCEPTANCE_REQUIRED**. No third checkpoint, cloud provisioning, purchasing or verified-savings claim is authorised here.

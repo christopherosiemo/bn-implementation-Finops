@@ -16,13 +16,27 @@ def deployments(filename):
 baseline, configured = map(deployments, sys.argv[1:])
 assert set(baseline) == set(configured), "commissioning creates no process or identity"
 for name, document in configured.items():
-    container = document["spec"]["template"]["spec"]["containers"][0]
+    pod = document["spec"]["template"]["spec"]
+    container = pod["containers"][0]
     env = {entry["name"]: entry for entry in container.get("env", [])}
     default = {
         entry["name"]: entry
         for entry in baseline[name]["spec"]["template"]["spec"]["containers"][0].get("env", [])
     }
     assert "AWS_ACCOUNT_READ_BINDINGS_JSON" not in default
+    revision_mounts = [row for row in container.get("volumeMounts", []) if row["name"] == "configuration-revisions"]
+    revision_volumes = [row for row in pod.get("volumes", []) if row["name"] == "configuration-revisions"]
+    if name == "finops-api":
+        assert json.loads(default["CONFIGURATION_REVISION_BINDINGS_JSON"]["value"]) == {}
+        revisions = json.loads(env["CONFIGURATION_REVISION_BINDINGS_JSON"]["value"])
+        assert set(revisions) == {"tenant-demo:approved-terraform"}
+        assert revisions["tenant-demo:approved-terraform"]["repository_root"].startswith("/var/run/finops/configuration-revisions/")
+        assert revision_mounts == [{"name": "configuration-revisions", "mountPath": "/var/run/finops/configuration-revisions", "readOnly": True}]
+        assert revision_volumes == [{"name": "configuration-revisions", "persistentVolumeClaim": {"claimName": "finops-approved-repository-mirror", "readOnly": True}}]
+    else:
+        assert "CONFIGURATION_REVISION_BINDINGS_JSON" not in env
+        assert "CONFIGURATION_REVISION_BINDINGS_JSON" not in default
+        assert revision_mounts == revision_volumes == []
     if name == "finops-ingester":
         assert env["AWS_ACCOUNT_READ_BINDINGS_JSON"]["valueFrom"]["secretKeyRef"] == {
             "name": "finops-approved-account-read", "key": "AWS_ACCOUNT_READ_BINDINGS_JSON"

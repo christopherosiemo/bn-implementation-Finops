@@ -162,7 +162,7 @@ func (a *API) lambdaCurrent(ctx context.Context, t *store.Tx, d model.Document) 
 	}
 	out := model.Clone(d)
 	out["current"], out["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
-	return out, nil
+	return a.recommendationCurrentness(ctx, t, "LAMBDA", out)
 }
 func lambdaAssessmentOne(ctx context.Context, a *API, t *store.Tx, read databaseArchiveRead) error {
 	var id, rid, sid, pid, qualifier string
@@ -254,7 +254,7 @@ func lambdaAssessmentOne(ctx context.Context, a *API, t *store.Tx, read database
 		return e
 	}
 	prospective["status"], prospective["assessment"] = "ASSESSED", result
-	current, e := a.lambdaCurrent(ctx, t, prospective)
+	current, e := a.lambdaCurrent(recommendationPendingContext(ctx), t, prospective)
 	if e != nil {
 		return e
 	}

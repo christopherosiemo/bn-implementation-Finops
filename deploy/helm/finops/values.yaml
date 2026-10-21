@@ -125,6 +125,14 @@ fleetHistory:
 notifications:
   # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
   webhookUrl: ""
+configurationRevision:
+  # Operator-owned metadata only; never credentials or customer request paths.
+  # Register tenant:authority -> tenant_id,authority_id,repository_root,repository.
+  # Roots must be beneath /var/run/finops/configuration-revisions on the mount.
+  bindingsJSON: "{}"
+  # Optional existing local Git mirror PVC. The chart creates no volume or Git
+  # synchronizer; only the API mounts this existing claim, always read-only.
+  existingClaim: ""
 lambdaPerformance:
   # Existing writer/analytics identities only; no provider credentials.
   enabled: false

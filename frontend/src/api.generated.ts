@@ -2572,6 +2572,8 @@ export interface components {
             [key: string]: unknown;
         };
         LambdaAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             version?: number;
             resource_id: string;
@@ -2829,6 +2831,8 @@ export interface components {
             policy_id?: string;
         };
         NetworkAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             version: number;
             resource_id: string;
@@ -3190,6 +3194,8 @@ export interface components {
             configuration_authority_ref?: components["schemas"]["StorageSourceReference"] | null;
         };
         ObjectStorageAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             version: number;
             resource_id: string;
@@ -3392,6 +3398,8 @@ export interface components {
             model_assessment_hash?: string;
         };
         StorageAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             version: number;
             resource_id: string;
@@ -3523,6 +3531,8 @@ export interface components {
             status: "RECOMMENDED" | "NO_CHANGE" | "BLOCKED";
         };
         DatabaseAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             version: number;
             resource_id: string;
@@ -4210,6 +4220,8 @@ export interface components {
             verified_saving: null;
         };
         FleetJointDecisionRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             /** @enum {string} */
             schema_version: "1";
             id: string;
@@ -4389,6 +4401,8 @@ export interface components {
             verified_saving: null;
         };
         FleetNativeCapacityMemberRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             /** @enum {string} */
             schema_version: "1";
             /** @enum {string} */
@@ -4419,6 +4433,8 @@ export interface components {
             created_at: string;
         };
         FleetNativeCapacityBatchRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             /** @enum {string} */
             schema_version: "1";
             id: string;
@@ -4623,6 +4639,8 @@ export interface components {
             verified_saving: null;
         };
         FleetNativeAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             /** @enum {string} */
             schema_version: "1";
             id: string;
@@ -6899,6 +6917,47 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        RecommendationCurrentnessSummary: {
+            assumption_context_counts: {
+                CURRENT: number;
+                STALE: number;
+                BLOCKED: number;
+                EXPIRED: number;
+            };
+            reason_counts: {
+                [key: string]: number;
+            };
+            evaluated_contexts: number;
+            complete: boolean;
+            scope: string;
+            legacy_family_validation?: string;
+            /** @enum {boolean} */
+            execution_authorized?: false;
+        };
+        /** @description Read-time assessment of immutable recommendation references. Historical result bodies and signatures are retained. CURRENT is evidence currentness, not execution authority or verified savings. */
+        RecommendationCurrentness: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            status: "CURRENT" | "STALE" | "BLOCKED" | "EXPIRED";
+            /** Format: date-time */
+            checked_at: string;
+            context_version?: string;
+            /** @description Canonical currentness reasons plus existing family-specific evidence reasons. STALE_RECOMMENDATION accompanies a stale result; unavailable Git is not an unchanged revision. */
+            reason_codes: string[];
+            changes: {
+                dimension: string;
+                reason_code: string;
+                /** Format: date-time */
+                detected_at?: string;
+            }[];
+            economics_recompute: boolean;
+            telemetry_recollect: boolean;
+            iac_changed: boolean;
+            next_action: string;
+            /** @enum {boolean} */
+            execution_ready?: false;
+        };
         /** @description Historical native receipts remain separate from guarded minute-ingress observations. Sampled configuration establishes observed epochs only; current task rosters do not establish historical membership. */
         ECSServiceHistoricalDemand: {
             /** @enum {string} */
@@ -6938,6 +6997,8 @@ export interface components {
             [key: string]: unknown;
         };
         AWSServiceAssessmentRecord: {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             id: string;
             /** @enum {integer} */
             version: 1;
@@ -7430,6 +7491,8 @@ export interface components {
             currency?: string | null;
         };
         Recommendation: components["schemas"]["Document"] & {
+            currentness?: components["schemas"]["RecommendationCurrentness"];
+            historical_status?: string;
             /**
              * @description Absent on legacy EC2 recommendations. Database
              * @enum {string}
@@ -7445,6 +7508,7 @@ export interface components {
             title?: string;
             resource_id?: string;
             workload_id?: string | null;
+            /** @description Historical lifecycle status. Use currentness.status to determine whether its assumptions are currently valid. */
             status?: string;
             reason_code?: string;
             annual_saving?: components["schemas"]["NullableDecimal"];
@@ -7739,6 +7803,7 @@ export interface components {
             limitations: string[];
         };
         AWSCommissioningCoverage: {
+            recommendation_currentness?: components["schemas"]["RecommendationCurrentnessSummary"];
             scope?: {
                 [key: string]: unknown;
             };

@@ -378,6 +378,42 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
     }),
     contentType: "application/json",
   });
+  // Append the currentness check after owned recovery and financial acceptance.
+  // The normal authenticated API changes fixture metadata only; it never calls AWS.
+  const freshRecommendation = await page.request.post("/v1/recommendations", {
+    headers: { Authorization: authorization, "Idempotency-Key": crypto.randomUUID() }, data: {},
+  });
+  expect(freshRecommendation.ok()).toBeTruthy();
+  const recommendationResponse = await page.request.get("/v1/recommendations", { headers: { Authorization: authorization } });
+  expect(recommendationResponse.ok()).toBeTruthy();
+  const recommendationList = await recommendationResponse.json();
+  const recommendationRows = Array.isArray(recommendationList) ? recommendationList : recommendationList.items;
+  const retained = recommendationRows.find((item: { resource_id?: string; currentness?: { status?: string } }) => item.resource_id === "resource-dev-api" && item.currentness?.status === "CURRENT");
+  expect(retained).toBeTruthy();
+  const resourceResponse = await page.request.get("/v1/resources/resource-dev-api", { headers: { Authorization: authorization } });
+  expect(resourceResponse.ok()).toBeTruthy();
+  const resourceBefore = await resourceResponse.json();
+  const changed = await page.request.post("/v1/resources/resource-dev-api/configure", {
+    headers: { Authorization: authorization, "Idempotency-Key": crypto.randomUUID(), "If-Match": `"${resourceBefore.version}"` },
+    data: { unknown_drift: true },
+  });
+  expect(changed.ok()).toBeTruthy();
+  const changedRead = await page.request.get(`/v1/recommendations/${encodeURIComponent(retained.id)}`, { headers: { Authorization: authorization } });
+  expect(changedRead.ok()).toBeTruthy();
+  const stale = await changedRead.json();
+  expect(stale.currentness.status).toBe("STALE");
+  expect(stale.currentness.reason_codes).toContain("STALE_RECOMMENDATION");
+  expect(stale.pre_execution_ready).toBe(false);
+  expect(stale.evidence).toEqual(retained.evidence);
+  expect(stale.created_at).toBe(retained.created_at);
+  expect(stale.historical_status).toBe(retained.historical_status);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("link", { name: "Recommendations", exact: true }).click();
+  await page.getByRole("button", { name: "Refresh data", exact: true }).click();
+  const staleCard = page.locator("section.recommendation-card").filter({ has: page.getByRole("heading", { name: retained.title, exact: true }) }).filter({ has: page.locator('[data-currentness="STALE"]') }).first();
+  await expect(staleCard.getByRole("region", { name: "Recommendation currentness", exact: true })).toContainText("Stale recommendation");
+  await expect(staleCard).toContainText("Execution readiness is blocked");
+  await testInfo.attach("recommendation-currentness-transition", { contentType: "application/json", body: JSON.stringify({ id: retained.id, previous: "CURRENT", current: stale.currentness.status, reason_codes: stale.currentness.reason_codes, historical_evidence_unchanged: true, pre_execution_ready: stale.pre_execution_ready, fixture: true }) });
   expect(verificationFailures).toEqual([]);
   expect(javascriptErrors).toEqual([]);
 });

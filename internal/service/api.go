@@ -31,6 +31,9 @@ type API struct {
 	// Clock is injected by deterministic acceptance tests, never configured by
 	// requests or environment. Production always uses the process UTC clock.
 	Clock func() time.Time
+	// Revision readers are operator configured; public requests cannot choose a
+	// repository path, credential, executable or network destination.
+	ConfigurationRevision func(context.Context, string, string, string, string, string) (string, error)
 }
 
 const maxMutationBodyBytes int64 = 4 << 20
@@ -224,6 +227,20 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	JSON(w, status, output)
 }
 func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
+	// One request observes each configured repository once, with a shared five
+	// second revision-read budget. This is not a cache across evidence reads.
+	originalAPI, requestAPI := a, *a
+	type revisionResult struct { commit string; err error }
+	revisions := map[string]revisionResult{}
+	revisionDeadline := time.Now().Add(5*time.Second)
+	requestAPI.ConfigurationRevision = func(ctx context.Context,tenant,authority,repository,ref,directory string)(string,error) {
+		key:=evidence.Hash([]string{tenant,authority,repository,ref,directory})
+		if result,ok:=revisions[key];ok {return result.commit,result.err}
+		bounded,cancel:=context.WithDeadline(ctx,revisionDeadline);defer cancel()
+		commit,err:=originalAPI.resolveConfigurationRevision(bounded,tenant,authority,repository,ref,directory)
+		revisions[key]=revisionResult{commit,err};return commit,err
+	}
+	a=&requestAPI
 	var out any
 	e := a.Store.Do(r.Context(), i.Tenant, func(t *store.Tx) error {
 		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
@@ -352,6 +369,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 				if e != nil {
 					return e
 				}
+				if k == "recommendations" {
+					rows, e = a.recommendationCurrentnessRows(r.Context(), t, "EC2", rows)
+					if e != nil { return e }
+				}
 				d[k] = rows
 			}
 			databaseRows, err := a.databaseRecommendations(r.Context(), t)
@@ -472,12 +493,18 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 			if e != nil {
 				return e
 			}
+			if kind == "recommendations" {
+				d, e = a.recommendationCurrentness(r.Context(), t, "EC2", d)
+				if e != nil { return e }
+			}
 			out = d
 			w.Header().Set("ETag", fmt.Sprintf("\"%d\"", model.Number(d, "version")))
 			return nil
 		}
 		rows, e := t.List(r.Context(), kind)
 		if e == nil && kind == "recommendations" {
+			rows, e = a.recommendationCurrentnessRows(r.Context(), t, "EC2", rows)
+			if e != nil { return e }
 			var dbRows []model.Document
 			dbRows, e = a.databaseRecommendations(r.Context(), t)
 			rows = append(rows, dbRows...)
@@ -677,6 +704,15 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		}
 		if !model.Bool(in, "memory_state_acknowledged") || !model.Bool(in, "public_ip_change_acknowledged") {
 			return nil, 0, problem(422, "ACKNOWLEDGEMENT_REQUIRED", "acknowledge memory-state loss and possible public-IP change")
+		}
+		if recID := model.String(in,"recommendation_id"); !strings.HasPrefix(recID,"aws-service-") && !strings.HasPrefix(recID,"lambda-") && !strings.HasPrefix(recID,"network-") && !strings.HasPrefix(recID,"object-storage-") && !strings.HasPrefix(recID,"storage-") {
+			rec,err:=t.Get(ctx,"recommendations",recID)
+			if err!=nil && !errors.Is(err,pgx.ErrNoRows) { return nil,0,err }
+			if err==nil {
+				current,err:=a.recommendationCurrentness(ctx,t,"EC2",rec)
+				if err!=nil { return nil,0,err }
+				if current["current"]!=true { return nil,0,problem(422,"STALE_RECOMMENDATION","refresh changed recommendation evidence before requesting a new plan") }
+			}
 		}
 		d, e := BuildPlan(ctx, t, model.String(in, "recommendation_id"), model.String(in, "schedule_id"), a.Config.Fixture)
 		if e == nil {

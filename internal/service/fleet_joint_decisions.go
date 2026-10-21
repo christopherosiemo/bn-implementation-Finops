@@ -34,6 +34,12 @@ func (a *API) fleetJointDecisionGet(ctx context.Context, t *store.Tx, i auth.Ide
 			return nil, true, e
 		}
 		rows, e := t.FleetJointDecisionPage(ctx, p[1], after, limit+1)
+		if e == nil {
+			for n := range rows {
+				rows[n], e = a.fleetSelectionCurrentness(ctx, t, rows[n])
+				if e != nil { return nil, true, e }
+			}
+		}
 		return nativePage(rows, limit, i.Tenant, "fleet-joint-decisions", p[1]), true, e
 	}
 	if len(p) != 2 {
@@ -43,6 +49,7 @@ func (a *API) fleetJointDecisionGet(ctx context.Context, t *store.Tx, i auth.Ide
 	if e == nil {
 		e = fleetHistoryWorkload(ctx, t, i, model.String(d, "workload_id"))
 	}
+	if e == nil { d, e = a.fleetSelectionCurrentness(ctx, t, d) }
 	return d, true, e
 }
 func (a *API) fleetJointDecisionMutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document, p []string) (model.Document, int, bool, error) {

@@ -179,6 +179,9 @@ func (a *API) CommissioningEvidence(ctx context.Context, tx *store.Tx, accountID
 	}
 	snapshotAPI := *a
 	snapshotAPI.Clock = func() time.Time { return now.UTC() }
+	// Reporting uses hash-only authority brokers even when a component caller
+	// omitted process-role configuration; it never reads raw declarations.
+	snapshotAPI.Config.Role = "commissioning"
 	resources, e := commissioningReadDocuments(ctx, tx, `SELECT r.document||jsonb_build_object('id',r.id,'version',r.version,'workload_exists',EXISTS(SELECT FROM entities w WHERE w.tenant_id=r.tenant_id AND w.kind='workloads' AND w.id=r.document->>'workload_id')) FROM entities r WHERE r.tenant_id=$1 AND r.kind='resources' AND r.document->>'provider'='AWS' AND r.document->>'account_id'=$2 ORDER BY r.id LIMIT $3`, tx.Tenant, accountID, commissioningEvidenceLimit+1)
 	if e != nil {
 		return nil, e
@@ -246,6 +249,15 @@ func (a *API) CommissioningEvidence(ctx context.Context, tx *store.Tx, accountID
 	if allAnalysed && hasAnalysis {
 		recommendationStatus = "READY"
 		recommendationReasons = []string{}
+	}
+	currentness, e := snapshotAPI.commissioningRecommendationCurrentness(ctx,tx,accountID,region)
+	if e != nil { return nil,e }
+	coverage["recommendation_currentness"] = currentness
+	currentnessCounts := storageObject(currentness["assumption_context_counts"])
+	if model.Number(currentnessCounts,"STALE")>0 || model.Number(currentnessCounts,"BLOCKED")>0 || !model.Bool(currentness,"complete") {
+		recommendationStatus="PARTIAL"
+		recommendationReasons=append(recommendationReasons,"COMMISSIONING_RECOMMENDATIONS_REQUIRE_REANALYSIS")
+		for reason := range storageObject(currentness["reason_counts"]) { recommendationReasons=append(recommendationReasons,reason) }
 	}
 	coverageDim := commissioningDimension("RECOMMENDATION_COVERAGE", recommendationStatus, recommendationReasons, []string{"Resolve the listed evidence gaps and run existing read-only assessments; no execution role is required."}, coverage, commissioningAffected(coverage, "blocked_spend"))
 	qualityReasons := append([]string{}, model.Strings(coverage, "reason_codes")...)

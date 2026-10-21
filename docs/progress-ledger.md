@@ -1,5 +1,7 @@
 # Product scope progress ledger
 
+Final pre-pilot checkpoint 2: **26.9% → 26.9%**. Immutable currentness contexts qualify trusted evidence, billing corrections and configured remote Git revisions across existing read-only views. Legacy missing context remains blocked. Focused UI/contracts/guards pass; final-source Go, browser, CI and local recovery retain their actual separate acceptance status. See [scope and evidence](prepilot-software-polish.md).
+
 Final pre-pilot checkpoint 1: **26.9% → 26.9%**. Registered ECS historical demand and immutable sampled serving epochs extend the existing service assessor. Focused components pass; the single connected attempt fails before tests because Docker is unavailable. No maturity transition is awarded. See [bounded evidence](prepilot-software-polish.md).
 
 Forward-only AWS checkpoint3: **26.9% →26.9%**. Native LambdaV2 proof,18reviewed RDS classes and a coherent Network journey extend existing software scopes; positive connected acceptance remains partial. [Sprint outcomes](forward-aws-sprint.md) record every bounded attempt and failure without changing weights/history. No fourth milestone is started.

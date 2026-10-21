@@ -3347,6 +3347,8 @@ components:
       type: object
       required: [id, resource_id, qualifier, status, created_at, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer }
         resource_id: { type: string }
@@ -3599,6 +3601,8 @@ components:
       type: object
       required: [id, version, resource_id, status, created_at, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer, minimum: 1 }
         resource_id: { type: string }
@@ -4006,6 +4010,8 @@ components:
       additionalProperties: false
       required: [id, version, resource_id, status, created_at, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer, minimum: 1 }
         resource_id: { type: string }
@@ -4232,6 +4238,8 @@ components:
       additionalProperties: false
       required: [id, version, resource_id, workload_id, status, created_at, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer, minimum: 1 }
         resource_id: { type: string }
@@ -4384,6 +4392,8 @@ components:
       additionalProperties: false
       required: [id, version, resource_id, workload_id, status, created_at, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer, minimum: 1 }
         resource_id: { type: string }
@@ -6507,6 +6517,8 @@ components:
         - decision_summary
         - refusal
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         schema_version:
           type: string
           enum:
@@ -7067,6 +7079,8 @@ components:
         - created_at
         - writer_role
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         schema_version:
           type: string
           enum:
@@ -7155,6 +7169,8 @@ components:
         - scope
         - batch
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         schema_version:
           type: string
           enum:
@@ -7760,6 +7776,8 @@ components:
         - execution_authorized
         - verified_saving
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         schema_version:
           type: string
           enum:
@@ -10993,6 +11011,53 @@ components:
         pre_execution_ready: { type: boolean, enum: [false] }
         execution_authorized: { type: boolean, enum: [false] }
         verified_saving: { type: string, nullable: true, enum: [null] }
+    RecommendationCurrentnessSummary:
+      type: object
+      required: [assumption_context_counts, reason_counts, evaluated_contexts, complete, scope]
+      properties:
+        assumption_context_counts:
+          type: object
+          required: [CURRENT, STALE, BLOCKED, EXPIRED]
+          properties:
+            CURRENT: { type: integer, minimum: 0 }
+            STALE: { type: integer, minimum: 0 }
+            BLOCKED: { type: integer, minimum: 0 }
+            EXPIRED: { type: integer, minimum: 0 }
+        reason_counts: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        evaluated_contexts: { type: integer, minimum: 0, maximum: 256 }
+        complete: { type: boolean }
+        scope: { type: string }
+        legacy_family_validation: { type: string }
+        execution_authorized: { type: boolean, enum: [false] }
+    RecommendationCurrentness:
+      type: object
+      additionalProperties: false
+      description: Read-time assessment of immutable recommendation references. Historical result bodies and signatures are retained. CURRENT is evidence currentness, not execution authority or verified savings.
+      required: [schema_version, status, checked_at, reason_codes, changes, economics_recompute, telemetry_recollect, iac_changed, next_action]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        status: { type: string, enum: [CURRENT, STALE, BLOCKED, EXPIRED] }
+        checked_at: { type: string, format: date-time }
+        context_version: { type: string }
+        reason_codes:
+          type: array
+          description: Canonical currentness reasons plus existing family-specific evidence reasons. STALE_RECOMMENDATION accompanies a stale result; unavailable Git is not an unchanged revision.
+          items: { type: string }
+        changes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [dimension, reason_code]
+            properties:
+              dimension: { type: string }
+              reason_code: { type: string }
+              detected_at: { type: string, format: date-time }
+        economics_recompute: { type: boolean }
+        telemetry_recollect: { type: boolean }
+        iac_changed: { type: boolean }
+        next_action: { type: string }
+        execution_ready: { type: boolean, enum: [false] }
     ECSServiceHistoricalDemand:
       type: object
       additionalProperties: false
@@ -11033,6 +11098,8 @@ components:
       additionalProperties: true
       required: [id, version, resource_id, family, status, assessment]
       properties:
+        currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+        historical_status: { type: string }
         id: { type: string }
         version: { type: integer, enum: [1] }
         resource_id: { type: string }
@@ -11560,6 +11627,8 @@ components:
         - { $ref: '#/components/schemas/Document' }
         - type: object
           properties:
+            currentness: { $ref: '#/components/schemas/RecommendationCurrentness' }
+            historical_status: { type: string }
             model_kind: { type: string, enum: [DATABASE_ASSESSMENT_V1, STORAGE_ASSESSMENT_V1, OBJECT_STORAGE_ASSESSMENT_V1, NETWORK_ASSESSMENT_V1, LAMBDA_ASSESSMENT_V1, AWS_SERVICE_ASSESSMENT_V1], description: Absent on legacy EC2 recommendations. Database, block-storage and S3 advice never enable EC2 change plans. }
             database_assessment_id: { type: string }
             storage_assessment_id: { type: string }
@@ -11579,7 +11648,7 @@ components:
             title: { type: string }
             resource_id: { type: string }
             workload_id: { type: string, nullable: true }
-            status: { type: string }
+            status: { type: string, description: Historical lifecycle status. Use currentness.status to determine whether its assumptions are currently valid. }
             reason_code: { type: string }
             annual_saving: { $ref: '#/components/schemas/NullableDecimal' }
             monthly_saving: { $ref: '#/components/schemas/NullableDecimal' }
@@ -11885,6 +11954,7 @@ components:
       type: object
       required: [currencies, complete, reason_codes]
       properties:
+        recommendation_currentness: { $ref: '#/components/schemas/RecommendationCurrentnessSummary' }
         scope: { type: object, additionalProperties: true }
         period: { type: object, additionalProperties: true }
         complete: { type: boolean }

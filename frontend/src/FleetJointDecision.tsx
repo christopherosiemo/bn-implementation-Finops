@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState } from "react";
 import type { components } from "./api.generated";
 import { RemotePage, useRemote } from "./RemoteData";
@@ -119,7 +120,7 @@ function DecisionDetail({ id }: { id: string }) {
     {state.loading && <p role="status">Loading joint fleet decision…</p>}
     {state.error && <p role="alert">Joint decision unavailable. {state.error}</p>}
     {state.value && <>
-      <h4>Joint decision {shortId(state.value.id)}</h4>
+      <h4>Joint decision {shortId(state.value.id)}</h4><RecommendationCurrentness value={state.value.currentness} historicalStatus={state.value.historical_status ?? state.value.status} />
       <p className="evidence-id">Assessment request {state.value.assessment_request_id}<small>Capacity batch request {state.value.capacity_batch_request_id}</small></p>
       {state.value.decision ? <FleetJointDecisionEvidence decision={state.value.decision} /> : state.value.status === "REFUSED" ? <div role="alert" className="blocker-text">
         <p>Joint analysis refused. No joint result or execution authority was created.</p>

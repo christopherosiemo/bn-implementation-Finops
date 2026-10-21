@@ -1,6 +1,20 @@
 {{- if not (has .Values.dataMode (list "fixture" "aws")) }}{{ fail "dataMode must be fixture or aws" }}{{ end }}
 {{- if ne .Values.aws.region "eu-west-1" }}{{ fail "This pilot is restricted to AWS eu-west-1" }}{{ end }}
 {{- if and .Values.notifications.webhookUrl (not (hasPrefix "https://" .Values.notifications.webhookUrl)) }}{{ fail "notifications.webhookUrl must use HTTPS" }}{{ end }}
+{{- if not (kindIs "string" .Values.configurationRevision.bindingsJSON) }}{{ fail "configurationRevision.bindingsJSON must be a JSON registry string" }}{{ end }}
+{{- $revisionBindings := mustFromJson .Values.configurationRevision.bindingsJSON }}
+{{- if not (kindIs "map" $revisionBindings) }}{{ fail "configuration revision registry must be an object" }}{{ end }}
+{{- if gt (len $revisionBindings) 256 }}{{ fail "configuration revision registry is too large" }}{{ end }}
+{{- if not (kindIs "string" .Values.configurationRevision.existingClaim) }}{{ fail "configuration revision claim must be a name string" }}{{ end }}
+{{- if .Values.configurationRevision.existingClaim }}
+{{- if or (gt (len .Values.configurationRevision.existingClaim) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" .Values.configurationRevision.existingClaim)) }}{{ fail "configuration revision existing claim name invalid" }}{{ end }}
+{{- if eq (len $revisionBindings) 0 }}{{ fail "configuration revision claim requires explicit approved bindings" }}{{ end }}
+{{- else if gt (len $revisionBindings) 0 }}{{ fail "configuration revision bindings require an existing read-only repository claim" }}{{ end }}
+{{- range $id,$binding := $revisionBindings }}
+{{- if not (kindIs "map" $binding) }}{{ fail "configuration revision binding must be an object" }}{{ end }}
+{{- if or (not (kindIs "string" $binding.repository_root)) (not (hasPrefix "/var/run/finops/configuration-revisions/" $binding.repository_root)) (contains ".." $binding.repository_root) (contains "\\" $binding.repository_root) }}{{ fail "configuration revision root must stay beneath its read-only mount" }}{{ end }}
+{{- if ne $id (printf "%s:%s" $binding.tenant_id $binding.authority_id) }}{{ fail "configuration revision tenant/authority key mismatch" }}{{ end }}
+{{- end }}
 {{- range $field, $secret := dict "accountReadBindingsSecret" .Values.sources.accountReadBindingsSecret "readBindingsSecret" .Values.sources.readBindingsSecret "eksKubernetesReadBindingsSecret" .Values.sources.eksKubernetesReadBindingsSecret "objectIdentitySecret" .Values.sources.objectIdentitySecret "commitmentQuoteTargetsSecret" .Values.sources.commitmentQuoteTargetsSecret "controllerBindingsSecret" .Values.sources.controllerBindingsSecret "ownershipArchiveTargetsSecret" .Values.sources.ownershipArchiveTargetsSecret }}
 {{- if not (kindIs "string" $secret) }}{{ fail (printf "sources.%s must be a Secret name string" $field) }}{{ end }}
 {{- if $secret }}
@@ -114,6 +128,7 @@ spec:
             - { name: AWS_ACCOUNT_APPROVED_BINDINGS_JSON, value: {{ $.Values.sources.accountApprovedBindingsJSON | quote }} }
             {{- end }}
             {{- if eq $role "api" }}
+            - { name: CONFIGURATION_REVISION_BINDINGS_JSON, value: {{ $.Values.configurationRevision.bindingsJSON | quote }} }
             - { name: EKS_KUBERNETES_APPROVED_BINDINGS_JSON, value: {{ $.Values.sources.eksApprovedBindingsJSON | quote }} }
             {{- end }}
             - { name: AWS_REGION, value: {{ $.Values.aws.region | quote }} }
@@ -295,6 +310,9 @@ spec:
             periodSeconds: 20
           resources: {{ toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
+            {{- if and (eq $role "api") $.Values.configurationRevision.existingClaim }}
+            - { name: configuration-revisions, mountPath: /var/run/finops/configuration-revisions, readOnly: true }
+            {{- end }}
             {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
             - { name: eks-kubernetes-read, mountPath: /var/run/finops/eks-kubernetes, readOnly: true }
             {{- end }}
@@ -303,6 +321,10 @@ spec:
             - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
             {{- end }}
       volumes:
+        {{- if and (eq $role "api") $.Values.configurationRevision.existingClaim }}
+        - name: configuration-revisions
+          persistentVolumeClaim: { claimName: {{ $.Values.configurationRevision.existingClaim | quote }}, readOnly: true }
+        {{- end }}
         {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
         - name: eks-kubernetes-read
           secret: { secretName: {{ $.Values.sources.eksKubernetesReadBindingsSecret | quote }}, defaultMode: 0440 }

@@ -1,3 +1,4 @@
+import { RecommendationCurrentness } from "./RecommendationCurrentness";
 import { useState } from "react";
 import type { components } from "./api.generated";
 import type { Recommendation, Resource } from "./types";
@@ -85,7 +86,7 @@ function StorageAssessmentDetail({ id }: { id: string }) {
   const state = useRemote<Record>(`/storage-assessments/${encode(id)}`, revision);
   return <section className="configuration-stack" aria-label="Selected storage assessment"><h4>Storage assessment {shortId(id)}</h4>
     {state.loading && <p role="status">Loading storage assessment…</p>}{state.error && <p role="alert">Storage assessment unavailable. {state.error}</p>}
-    {state.value && <><p>Requested {dateTime(state.value.created_at)} · resource {state.value.resource_id} · workload {state.value.workload_id ?? "Unowned / unknown"}</p><Badge value={state.value.status} />
+    {state.value && <><p>Requested {dateTime(state.value.created_at)} · resource {state.value.resource_id} · workload {state.value.workload_id ?? "Unowned / unknown"}</p><Badge value={state.value.currentness?.status ?? state.value.status} /><RecommendationCurrentness value={state.value.currentness} historicalStatus={state.value.historical_status ?? state.value.status} />
       {state.value.current === false && <div role="alert" className="blocker-text"><p>The stored assessment no longer matches current source or configuration evidence. Request a new assessment before relying on its advice.</p><Reasons values={state.value.currentness_blockers ?? []} /></div>}
       {state.value.assessment ? <StorageAssessmentEvidence assessment={state.value.assessment} /> : state.value.status === "QUEUED" || state.value.status === "RUNNING" ? <p role="status">Read-only storage assessment in progress. No result is available yet.</p> : <p role="alert">No storage assessment result is available. Review the source evidence before requesting a new assessment.</p>}
     </>}
@@ -118,5 +119,5 @@ export function StorageAssessmentHistory() {
 
 export function StorageRecommendation({ item }: { item: Recommendation }) {
   const [open, setOpen] = useState(false);
-  return <Panel className="recommendation-card"><div className="card-badges"><Badge value={item.status} /><Badge value="R3">R3 · Storage proposal</Badge></div><h2>{item.title}</h2><p>Read-only storage assessment. Storage actions and verified savings are unavailable.</p>{item.reason_code && <p className="blocker-text">{readable(item.reason_code)}</p>}<p>Estimated monthly opportunity: {amount(item.monthly_saving, item.currency ?? null)}</p><Button secondary small disabled={!item.storage_assessment_id} onClick={() => setOpen(true)}>Inspect storage recommendation {shortId(item.id)}</Button>{open && item.storage_assessment_id && <StorageAssessmentDialog id={item.storage_assessment_id} onClose={() => setOpen(false)} />}</Panel>;
+  return <Panel className="recommendation-card"><div className="card-badges"><Badge value={item.currentness?.status ?? item.status} /><Badge value="R3">R3 · Storage proposal</Badge></div><h2>{item.title}</h2><RecommendationCurrentness value={item.currentness} historicalStatus={item.historical_status ?? item.status} /><p>Read-only storage assessment. Storage actions and verified savings are unavailable.</p>{item.reason_code && <p className="blocker-text">{readable(item.reason_code)}</p>}<p>Estimated monthly opportunity: {amount(item.monthly_saving, item.currency ?? null)}</p><Button secondary small disabled={!item.storage_assessment_id} onClick={() => setOpen(true)}>Inspect storage recommendation {shortId(item.id)}</Button>{open && item.storage_assessment_id && <StorageAssessmentDialog id={item.storage_assessment_id} onClose={() => setOpen(false)} />}</Panel>;
 }

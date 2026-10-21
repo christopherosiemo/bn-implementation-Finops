@@ -9,6 +9,7 @@ export type ConnectAccountRequest =
 export type CreatePlanRequest = components["schemas"]["CreatePlanRequest"];
 export type WireDashboard = components["schemas"]["Dashboard"];
 export interface EvidenceFields {
+  currentness?: components["schemas"]["RecommendationCurrentness"];
   pre_execution_ready?: boolean;
   verification_status?: string;
   baseline_id?: string | null;
@@ -108,6 +109,8 @@ export interface Resource extends Document {
   network_configuration?: components["schemas"]["NetworkConfiguration"];
 }
 export interface Recommendation extends Document, EvidenceFields {
+  currentness?: components["schemas"]["RecommendationCurrentness"];
+  historical_status?: string;
   model_kind?: "DATABASE_ASSESSMENT_V1" | "STORAGE_ASSESSMENT_V1" | "OBJECT_STORAGE_ASSESSMENT_V1" | "NETWORK_ASSESSMENT_V1" | "LAMBDA_ASSESSMENT_V1" | "AWS_SERVICE_ASSESSMENT_V1";
   aws_service_assessment_id?: string;
   database_assessment_id?: string;

@@ -139,7 +139,7 @@ func (a *API) awsServiceAssessmentCurrent(ctx context.Context, t *store.Tx, d mo
 	}
 	out := model.Clone(d)
 	out["current"], out["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
-	return out, nil
+	return a.recommendationCurrentness(ctx, t, "AWS_SERVICE", out)
 }
 
 func awsServiceAssessmentInput(ctx context.Context, a *API, t *store.Tx, r, s, canonical, profile model.Document, read databaseArchiveRead) (model.Document, []string, error) {
@@ -436,7 +436,7 @@ func awsServiceAssessmentOne(ctx context.Context, a *API, t *store.Tx, read data
 		return e
 	}
 	prospective["status"], prospective["assessment"] = "ASSESSED", result
-	current, e := a.awsServiceAssessmentCurrent(ctx, t, prospective)
+	current, e := a.awsServiceAssessmentCurrent(recommendationPendingContext(ctx), t, prospective)
 	if e != nil {
 		return e
 	}
