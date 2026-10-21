@@ -85,7 +85,7 @@ BEGIN
   IF family='EC2' AND NEW.document->'fixture'='true'::jsonb AND EXISTS(SELECT FROM public.entities WHERE tenant_id=NEW.tenant_id AND kind='org' AND id=NEW.tenant_id AND document->'fixture'='true'::jsonb) THEN
    -- Reset reseeds the fixed fixture ID. Retain its first immutable context;
    -- its prior generation must read STALE, never acquire new analysis credit.
-   INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs) ON CONFLICT(tenant_id,family,recommendation_id) DO NOTHING;
+   INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs) ON CONFLICT ON CONSTRAINT recommendation_currentness_contexts_pkey DO NOTHING;
   ELSE
    INSERT INTO public.recommendation_currentness_contexts(tenant_id,family,recommendation_id,resource_id,document) VALUES(NEW.tenant_id,family,identifier,rid,inputs);
   END IF;
