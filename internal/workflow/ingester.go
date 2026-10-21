@@ -93,6 +93,9 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if associationError := eksAssociationTick(ctx, a, tenant); associationError != nil && e == nil {
 			e = associationError
 		}
+		if commissioningError := awsAccountCommissioningTick(ctx, a, tenant); commissioningError != nil && e == nil {
+			e = commissioningError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

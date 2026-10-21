@@ -83,3 +83,21 @@ resource "aws_iam_role_policy" "aws_service_readonly" {
     }]
   })
 }
+
+# GetProducts supplies exact SKU/unit/bracket metadata only. Customer amounts
+# remain authoritative CUR net costs; these public values never authorize savings.
+resource "aws_iam_role_policy" "aws_service_pricing_dimensions" {
+  count = var.enable_ecs_readonly ? 1 : 0
+  role  = aws_iam_role.customer["read"].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["pricing:GetProducts"]
+      Resource = "*"
+      Condition = { StringEquals = {
+        "aws:RequestedRegion" = "us-east-1"
+      } }
+    }]
+  })
+}

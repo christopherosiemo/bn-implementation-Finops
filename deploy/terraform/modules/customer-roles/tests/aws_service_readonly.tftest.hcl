@@ -14,7 +14,7 @@ variables {
 run "service_metadata_disabled_by_default" {
   command = plan
   assert {
-    condition     = length(aws_iam_role_policy.aws_service_readonly) == 0 && length(aws_iam_role.customer) == 1 && length(aws_iam_role_policy.execution) == 0 && output.execution_role_arn == null
+    condition     = length(aws_iam_role_policy.aws_service_readonly) == 0 && length(aws_iam_role_policy.aws_service_pricing_dimensions) == 0 && length(aws_iam_role.customer) == 1 && length(aws_iam_role_policy.execution) == 0 && output.execution_role_arn == null
     error_message = "Read-only defaults must grant no optional service permissions or execution identity."
   }
 }
@@ -28,8 +28,12 @@ run "service_metadata_reads_only_with_explicit_opt_in" {
     enable_load_balancer_readonly = true
   }
   assert {
-    condition     = length(aws_iam_role_policy.aws_service_readonly) == 5 && length(aws_iam_role_policy.execution) == 0 && alltrue(flatten([for policy in aws_iam_role_policy.aws_service_readonly : [for statement in jsondecode(policy.policy).Statement : alltrue([for action in statement.Action : can(regex("^[a-z-]+:(List|Describe)[A-Za-z]+$", action))])]]))
+    condition     = length(aws_iam_role_policy.aws_service_readonly) == 5 && length(aws_iam_role_policy.execution) == 0 && alltrue(flatten([for policy in aws_iam_role_policy.aws_service_readonly : [for statement in jsondecode(policy.policy).Statement : alltrue([for action in statement.Action : can(regex("^[a-z-]+:(List|Describe)[A-Za-z]+$", action)) || action == "ec2:DescribeInstances"])]]))
     error_message = "Optional service readers must enumerate metadata List/Describe actions without mutations, payload reads, authentication or decryption."
+  }
+  assert {
+    condition     = length(aws_iam_role_policy.aws_service_pricing_dimensions) == 1 && jsondecode(aws_iam_role_policy.aws_service_pricing_dimensions[0].policy).Statement[0].Action == ["pricing:GetProducts"] && jsondecode(aws_iam_role_policy.aws_service_pricing_dimensions[0].policy).Statement[0].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1"
+    error_message = "ECS SKU dimension reads must grant only the exact native global pricing read; customer costs remain CUR evidence."
   }
   assert {
     condition     = alltrue(flatten([for policy in aws_iam_role_policy.aws_service_readonly : [for statement in jsondecode(policy.policy).Statement : statement.Condition.StringEquals["aws:RequestedRegion"] == ["eu-west-1"] && statement.Effect == "Allow"]]))

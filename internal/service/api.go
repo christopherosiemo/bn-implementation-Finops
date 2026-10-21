@@ -229,6 +229,10 @@ func (a *API) get(w http.ResponseWriter, r *http.Request, i auth.Identity) {
 		if e := t.Seed(r.Context(), a.Config.Fixture); e != nil {
 			return e
 		}
+		if result, handled, err := a.accountCommissioningGet(r.Context(), t, i, r); handled {
+			out = result
+			return err
+		}
 		if result, handled, err := a.allocationGet(r.Context(), t, i, r); handled {
 			out = result
 			return err
@@ -515,6 +519,9 @@ func match(r *http.Request, d model.Document) error {
 func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request, in model.Document) (model.Document, int, error) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/")
 	parts := strings.Split(path, "/")
+	if out, status, handled, err := a.accountCommissioningMutate(ctx, t, i, r, in); handled {
+		return out, status, err
+	}
 	if out, status, handled, err := a.allocationMutate(ctx, t, i, r, in, parts); handled {
 		return out, status, err
 	}
@@ -556,48 +563,7 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 	}
 	switch path {
 	case "cloud-accounts":
-		if e := requireRole(i, "PLATFORM_ADMIN"); e != nil {
-			return nil, 0, e
-		}
-		if model.String(in, "provider") != "AWS" {
-			return nil, 0, problem(422, "UNSUPPORTED_PROVIDER", "this pilot supports AWS only")
-		}
-		if !a.Config.Fixture {
-			if e := ValidateAWSTenant(i.Tenant); e != nil {
-				return nil, 0, e
-			}
-		}
-		region := model.String(in, "region")
-		if region == "" {
-			region = a.Config.AWSRegion
-		}
-		account := model.String(in, "account_id")
-		if account == "" && a.Config.Fixture {
-			account = "111122223333"
-		}
-		if len(account) != 12 {
-			return nil, 0, problem(422, "INVALID_ACCOUNT", "AWS account_id must contain 12 digits")
-		}
-		for _, c := range account {
-			if c < '0' || c > '9' {
-				return nil, 0, problem(422, "INVALID_ACCOUNT", "AWS account_id must contain 12 digits")
-			}
-		}
-		status := "CONNECTED"
-		if !a.Config.Fixture {
-			status = "DISCOVERY_PENDING"
-		}
-		d, e := t.Create(ctx, "cloud_accounts", model.Document{"provider": "AWS", "name": model.String(in, "name"), "account_id": account, "region": region, "status": status, "fixture": a.Config.Fixture, "last_synced_at": model.Now()})
-		if e != nil {
-			return nil, 0, e
-		}
-		if !a.Config.Fixture {
-			if _, e = t.Create(ctx, "discovery_jobs", model.Document{"cloud_account_id": d["id"], "status": "PENDING", "created_at": model.Now()}); e != nil {
-				return nil, 0, e
-			}
-		}
-		_ = t.Audit(ctx, i.Subject, "cloud_account.connected", model.String(d, "id"), d)
-		return d, 201, nil
+		return a.createCommissioningAccount(ctx, t, i, in)
 	case "recommendations":
 		if e := requireRole(i, "FINOPS_ADMIN", "PLATFORM_ADMIN"); e != nil {
 			return nil, 0, e

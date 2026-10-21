@@ -1,5 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import { SourceTrust } from "./SourceTrust";
+import { AccountCommissioning } from "./AccountCommissioning";
+import { useRemote } from "./RemoteData";
+import type { components } from "./api.generated";
 import { ObjectStorageSources } from "./ObjectStorageSources";
 import { AwsServiceInventory, AwsServiceResourceDetails, isAwsServiceResource } from "./AwsServiceInventory";
 import { AwsServiceSources } from "./AwsServiceSources";
@@ -1896,7 +1899,12 @@ function AccountForm({
     name: "",
     account_id: "",
     region: "eu-west-1",
+    read_role_binding_id: fixture ? "fixture-aws-readonly" : "",
   });
+  const bindings = useRemote<components["schemas"]["AWSReadBindingPage"]>("/aws-read-bindings");
+  const approved = bindings.value?.items.filter(binding =>
+    (fixture || binding.account_id === values.account_id) && binding.regions.includes(values.region),
+  ) ?? [];
   return (
     <Modal
       title="Connect an AWS account"
@@ -1913,7 +1921,7 @@ function AccountForm({
           const result = await run({
             path: "/cloud-accounts",
             body: values,
-            label: "AWS account connected and inventory discovered",
+            label: "Read-only AWS account registered; run commissioning preflight to inspect readiness",
           });
           if (result) onClose();
         }}
@@ -1976,12 +1984,23 @@ function AccountForm({
               <option value="eu-west-1">eu-west-1 · Ireland</option>
             </select>
           </label>
+          <label className="field full-width">
+            <span>Approved read-role binding</span>
+            <select required value={values.read_role_binding_id} onChange={event => setValues(current => ({ ...current, read_role_binding_id: event.target.value }))}>
+              <option value="">Select an operator-approved binding</option>
+              {approved.map(binding => <option key={binding.id} value={binding.id}>{binding.id} · {fixture ? "Synthetic fixture scope" : binding.role_arn}</option>)}
+            </select>
+            <small>External IDs and renewable credentials are registered privately by the operator. This form accepts only the approved binding identifier.</small>
+          </label>
+          {bindings.loading ? <p role="status">Loading approved read bindings…</p> : null}
+          {bindings.error ? <p role="alert">Approved bindings unavailable. {bindings.error}</p> : null}
+          {!bindings.loading && !approved.length ? <p>No approved binding matches this account and region. Ask the operator to commission read-only access.</p> : null}
         </div>
         <div className="modal-actions">
           <Button secondary type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" pending={busy}>
+          <Button type="submit" pending={busy} disabled={!approved.some(binding => binding.id === values.read_role_binding_id)}>
             <Link2 size={16} />
             Connect & discover
           </Button>
@@ -2084,6 +2103,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
           />
         )}
       </Panel>
+      <AccountCommissioning accounts={accounts} run={run} busy={busy} />
       <Panel
         title="Data quality gates"
         eyebrow="INCOMPLETE EVIDENCE STAYS VISIBLE"

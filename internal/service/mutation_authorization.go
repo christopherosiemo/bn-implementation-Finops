@@ -68,6 +68,10 @@ func mutationAuthorizationFor(path string, in model.Document) (mutationAuthoriza
 	}
 	if len(p) == 3 {
 		switch p[0] {
+		case "cloud-accounts":
+			if p[2] == "preflights" {
+				return rule(finops)
+			}
 		case "object-storage-access-sources":
 			if p[2] == "revoke" {
 				return rule(platform)

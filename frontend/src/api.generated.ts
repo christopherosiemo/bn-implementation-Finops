@@ -4,6 +4,76 @@
  */
 
 export interface paths {
+    "/aws-read-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant-scoped safe operator-approved metadata. External IDs and credentials are never accepted or returned by this API. */
+        get: operations["listApprovedAWSReadBindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cloud-accounts/{account_id}/preflights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Registered cloud-account resource identifier */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["listAWSAccountPreflights"];
+        put?: never;
+        /** @description Asynchronous ingestion-identity read checks. No AWS mutation, execution authority or caller-supplied readiness evidence. */
+        post: operations["requestAWSAccountPreflight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cloud-accounts/{account_id}/preflights/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAWSAccountPreflight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cloud-accounts/{account_id}/preflights/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Authenticated immutable JSON export; never a public share or refreshed historical report. */
+        get: operations["exportAWSCommissioningReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/aws-service-assessments": {
         parameters: {
             query?: never;
@@ -7396,7 +7466,11 @@ export interface components {
             is_current?: boolean;
             supersedes_id?: string;
         };
-        CloudAccount: components["schemas"]["Document"];
+        CloudAccount: components["schemas"]["Document"] & {
+            read_role_binding_id?: string;
+            /** @enum {string} */
+            connection_mode?: "READ_ONLY";
+        };
         Workload: components["schemas"]["Document"];
         AuditEvent: components["schemas"]["Document"];
         Policy: components["schemas"]["Document"];
@@ -7560,12 +7634,167 @@ export interface components {
             /** Format: date-time */
             end: string;
         };
+        AWSReadBindingPage: {
+            items: {
+                id: string;
+                account_id: string;
+                regions: string[];
+                role_arn: string;
+                /** @enum {string} */
+                scope_mode: "ACCOUNT";
+                external_id_configured: boolean;
+                fixture?: boolean;
+            }[];
+        };
+        AWSAccountPreflightPage: {
+            items: components["schemas"]["AWSAccountPreflight"][];
+            next_cursor?: string | null;
+        };
+        AWSAccountPreflight: {
+            id: string;
+            version: number;
+            cloud_account_id: string;
+            cloud_account_version: number;
+            account_id: string;
+            region: string;
+            read_role_binding_id: string;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+            /** Format: date-time */
+            created_at: string;
+            created_by?: string;
+            report_id?: string | null;
+            reason_code?: string;
+            /** @description Current safe account/read-binding metadata only; does not refresh the immutable report or revalidate source evidence. */
+            binding_current?: boolean | null;
+            currentness_reason_codes?: string[];
+            report?: components["schemas"]["AWSCommissioningReport"] | null;
+        };
+        AWSCommissioningDimension: {
+            key: string;
+            /** @enum {string} */
+            status: "READY" | "PARTIAL" | "DENIED" | "NOT_CONFIGURED" | "UNSUPPORTED" | "ERROR" | "BLOCKED";
+            reason_codes: string[];
+            remediation: string[];
+            affected_spend: {
+                [key: string]: unknown;
+            }[];
+            details: {
+                [key: string]: unknown;
+            };
+        };
+        AWSCommissioningInventoryAccess: {
+            /** @enum {string} */
+            category: "EC2_ASG" | "EBS" | "RDS_AURORA" | "ECS_FARGATE" | "EKS" | "LAMBDA" | "S3" | "ELASTICACHE" | "DYNAMODB" | "NETWORK_NAT" | "PUBLIC_IPV4" | "ELB" | "COMMITMENTS";
+            /** @enum {string} */
+            status: "READY" | "PARTIAL" | "DENIED" | "NOT_CONFIGURED" | "UNSUPPORTED" | "ERROR";
+            reason_code: string;
+            operations: {
+                name: string;
+                status: string;
+                reason_code: string;
+                provider_error_code?: string;
+            }[];
+            /** @enum {boolean} */
+            inventory_complete: false;
+            limitations: string[];
+        };
+        AWSCommissioningCoverage: {
+            scope?: {
+                [key: string]: unknown;
+            };
+            period?: {
+                [key: string]: unknown;
+            };
+            complete: boolean;
+            reason_codes: string[];
+            service_groups?: {
+                [key: string]: unknown;
+            }[];
+            currencies: {
+                currency: string | null;
+                detected_spend: string | null;
+                analysed_spend: string | null;
+                observation_only_spend: string | null;
+                blocked_spend: string | null;
+                unsupported_spend: string | null;
+                /** @description Overlapping attribution overlay */
+                unallocated_spend: string | null;
+                credits: string | null;
+                net_spend?: string | null;
+                denominator_complete: boolean;
+                percentages: {
+                    analysed: string | null;
+                    observation_only: string | null;
+                    blocked: string | null;
+                    unsupported: string | null;
+                    unallocated: string | null;
+                };
+            }[];
+        };
+        AWSCommissioningReport: {
+            /** @enum {string} */
+            schema_version: "1";
+            id: string;
+            preflight_id: string;
+            cloud_account_id: string;
+            cloud_account_version: number;
+            read_role_binding_id: string;
+            account_id: string;
+            region: string;
+            /** Format: date-time */
+            observed_at: string;
+            fixture: boolean;
+            /** @enum {string} */
+            provider_mode: "DETERMINISTIC_FIXTURE" | "AWS_NATIVE";
+            /** @enum {string} */
+            summary_state: "NOT_READY" | "READ_ONLY_READY" | "RECOMMENDATION_PARTIAL" | "RECOMMENDATION_READY";
+            identity: {
+                [key: string]: unknown;
+            };
+            inventory: components["schemas"]["AWSCommissioningInventoryAccess"][];
+            dimensions: components["schemas"]["AWSCommissioningDimension"][];
+            billing: {
+                [key: string]: unknown;
+            };
+            telemetry: {
+                [key: string]: unknown;
+            };
+            ownership?: {
+                [key: string]: unknown;
+            };
+            configuration_authority?: {
+                [key: string]: unknown;
+            };
+            commitments?: {
+                [key: string]: unknown;
+            };
+            coverage: components["schemas"]["AWSCommissioningCoverage"];
+            coverage_scope?: {
+                [key: string]: unknown;
+            };
+            evidence_refs?: {
+                [key: string]: unknown;
+            }[];
+            execution_credentials: {
+                /** @enum {string} */
+                status: "UNKNOWN" | "ABSENT" | "CONFIGURED";
+                reason_code: string;
+            };
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            content_hash: string;
+        };
         ConnectAccountRequest: {
             /** @enum {string} */
             provider: "AWS";
             name: string;
             account_id: string;
             region: string;
+            /** @description Opaque operator-approved binding. Required in AWS mode; fixture mode may select the explicitly synthetic default. */
+            read_role_binding_id?: string;
         };
         CreateScheduleRequest: {
             workload_id: string;
@@ -7635,6 +7864,158 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listApprovedAWSReadBindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved opaque bindings; fixture bindings are explicitly labelled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSReadBindingPage"];
+                };
+            };
+        };
+    };
+    listAWSAccountPreflights: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Opaque tenant/query-bound cursor; never derive it from resource contents */
+                cursor?: components["parameters"]["PageCursor"];
+            };
+            header?: never;
+            path: {
+                /** @description Registered cloud-account resource identifier */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant-scoped durable read-only commissioning history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSAccountPreflightPage"];
+                };
+            };
+        };
+    };
+    requestAWSAccountPreflight: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current integer version ETag; stale updates return 409. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                /** @description Registered cloud-account resource identifier */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Durable preflight request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSAccountPreflight"];
+                };
+            };
+            /** @description Account-wide commissioning role required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Account version changed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAWSAccountPreflight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request state and its immutable as-of report when complete. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSAccountPreflight"];
+                };
+            };
+            /** @description Not found in this tenant/account scope. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportAWSCommissioningReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact sealed commissioning report, excluding secrets and session credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AWSCommissioningReport"];
+                };
+            };
+            /** @description Preflight has no published report yet. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listAWSServiceAssessments: {
         parameters: {
             query?: {

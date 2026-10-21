@@ -7,13 +7,14 @@ import (
 )
 
 type objectStorageCoveragePublication struct {
-	blocked bool
-	lines   map[string]bool
+	blocked     bool
+	lines       map[string]bool
+	reasonCodes []string
 }
 
 // Prefix allocations remain modelled. Only a complete bucket population with a
 // native-cost comparison for every observed cohort can classify its exact lines.
-func (a *API) objectStorageCoveragePublications(ctx context.Context, t *store.Tx) (map[string]objectStorageCoveragePublication, error) {
+func (a *API) objectStorageCoveragePublications(ctx context.Context, t *store.Tx, commissioningAccount ...string) (map[string]objectStorageCoveragePublication, error) {
 	rows, e := t.Query(ctx, `SELECT document FROM (SELECT DISTINCT ON(resource_id,coalesce(dataset_id,'')) resource_id,dataset_id,document FROM object_storage_assessments WHERE tenant_id=$1 AND status IN('ASSESSED','BLOCKED') ORDER BY resource_id,coalesce(dataset_id,''),created_at DESC,id DESC) x LIMIT $2`, t.Tenant, databaseCoverageLimit+1)
 	if e != nil {
 		return nil, e
@@ -42,6 +43,25 @@ func (a *API) objectStorageCoveragePublications(ctx context.Context, t *store.Tx
 		p := out[rid]
 		if p.lines == nil {
 			p.lines = map[string]bool{}
+		}
+		scoped := len(commissioningAccount) == 1 && commissioningAccount[0] != ""
+		if scoped {
+			resource, err := t.Get(ctx, "resources", rid)
+			if err != nil {
+				return nil, err
+			}
+			if model.String(resource, "account_id") != commissioningAccount[0] {
+				continue
+			}
+			if objectStorageCommissioningAuthorityUnavailable(d, scoped) {
+				p.blocked = true
+				p.lines = map[string]bool{}
+				p.reasonCodes = []string{"COMMISSIONING_OBJECT_STORAGE_AUTHORITY_CURRENTNESS_UNAVAILABLE"}
+			}
+			if len(p.reasonCodes) > 0 {
+				out[rid] = p
+				continue
+			}
 		}
 		current, e := a.objectStorageCurrent(ctx, t, d)
 		if e != nil {
@@ -97,4 +117,8 @@ func (a *API) objectStorageCoveragePublications(ctx context.Context, t *store.Tx
 		out[rid] = p
 	}
 	return out, nil
+}
+
+func objectStorageCommissioningAuthorityUnavailable(record model.Document, scoped bool) bool {
+	return scoped && objectStorageModelRef(storageObject(record["assessment"])["configuration_authority_ref"]) != nil
 }

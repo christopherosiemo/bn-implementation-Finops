@@ -150,6 +150,95 @@ Software acceptance uses provider-shaped synthetic evidence and the normal
 authenticated product. Genuine AWS roles, sources, histories, customer
 requirements and operational use remain `EXTERNAL_ACCEPTANCE_REQUIRED`.
 
+### Implemented commissioning scope
+
+New accounts select `/v1/aws-read-bindings` safe metadata and register an opaque
+binding through `/v1/cloud-accounts`. The API rejects credentials, external IDs,
+caller readiness and authority fields. Live discovery and preflight resolve the
+same exact tenant/account/region/approved role through ingestion-only private
+bindings. Metadata revocation or role changes cannot fall back to a global role.
+New bound-discovery errors use fixed reason codes, without provider causes.
+
+`POST /v1/cloud-accounts/{id}/preflights` requires idempotency and the current
+account version. Short queue leases survive ingestion process failure; provider
+reads and immutable archival occur outside database transactions. Identity is
+checked before thirteen bounded metadata access probes. Successful first pages
+prove only access, not complete inventory. Denials, partial pages, unsupported
+reads, errors and unconfigured sources remain distinct. Assumption using an
+external ID proves acceptance of that configured value, not the IAM trust
+policy's enforcement of the external-ID condition.
+
+Ten independent dimensions combine access with persisted source/billing,
+telemetry, ownership, workload, authority, commitments, coverage and data quality.
+The financial scope is the selected account across all AWS services/regions,
+including global and resource-less charges. Four exclusive positive partitions
+reconcile; unallocated workload attribution is an overlapping overlay, never
+added again. Decimal amounts and credits remain separate per currency. Unknown,
+incomplete or zero positive denominators have unavailable percentages.
+
+Native invoice issuance/cancellation/scope and hash-pinned export reconciliation
+are shown where persisted. Export-currency reconciliation is not presented as
+invoice-entity reconciliation. Current source/revision/receipt-bound telemetry
+evaluations establish generic metric readiness; native configuration archives do
+not. Current workload and safety classification both govern the 14/30/90-day
+policy. Independent memory and directional/paired metrics cannot be inferred.
+S3/Lambda/Network population/comparability gates remain delegated to their class
+assessors, with explicit PARTIAL reporting; preflight does not revalidate those
+raw archives. ECS historical demand and remote Git HEAD resolution remain
+software gaps, distinguished from customer setup obligations.
+
+Migration 049 adds forced-RLS durable requests and immutable ingestion-only
+reports. No signer/executor grants or database mutations are added. The exact
+schema guards now allow 001–049 and refuse 050; 001–048 bytes are unchanged.
+049 SHA256 is
+`8377080417d6561b0aa076bb4a3a6af5391b6628804df07501abddea8aad1e71`.
+Authenticated detail/list results annotate current binding approval separately;
+exports preserve exact historical content and hash. The report says execution
+credentials are UNKNOWN without an independent deployment attestation.
+
+The ordinary Connections console supports registration, asynchronous preflight,
+dimension/access tables, currency coverage, history and authenticated JSON
+download. The [customer runbook](aws-readonly-commissioning.md) follows these
+actual product routes. The existing OIDC operating-loop journey now exercises
+the real queue/ingester/report/UI/export with synthetic access and independently
+selected persisted evidence; its timeout remains unchanged.
+
+Before checkpoint-C release CI: frontend typecheck/build and generated types,
+29 exact migration guards, Helm lint/actual rendered secret isolation, five
+focused read-role Terraform tests, 233-section traceability and ledger checks
+passed. A new browser variable-name collision was repaired once at its smallest
+boundary; the focused frontend rerun passed. The checkpoint-B IAM assertion
+rejected the exact new EKS EC2 read; the bounded correction preserves metadata
+actions and separately grants ECS SKU dimensions only in the native global
+pricing region. Its focused five-case rerun passed. Current-source Go/native,
+browser, full required CI and installed migration/recovery results are release
+gates, reported with the pushed source rather than assumed from these checks.
+The initial checkpoint-C run exposed three misindented Compose binding entries
+(`NEW_PRODUCT_DEFECT`) before service startup. The single minimal repair corrects
+only that indentation; focused Compose validation and the required final-source
+rerun retain all original limits and assertions. The initial archived Go1.27.3
+backend build and reachable vulnerability scan passed without replacing services.
+The corrected Compose source completed 11 required jobs successfully, including
+the ordinary persisted commissioning/OIDC journey and security, with three
+historical failures and two new Go matrix failures. The Go failures identified
+a raw authority-table grant that violated an existing privilege-denial contract,
+and a new test using an already seeded account. The bounded privilege repair
+restores raw-table denial and exposes only exact tenant/account/resource-bound
+safe metadata through an ingestion-only broker; PUBLIC execution is revoked.
+Commissioning coverage blocks authority-dependent storage claims that this
+restricted identity cannot revalidate. Existing API/analyst currentness checks
+remain intact. The scoped test uses its own account without weakening assertions.
+The reviewed 049 hash above includes this repair; 001–048 remain unchanged.
+Final release rerun results are retained separately, without rewriting earlier
+failed evidence or granting maturity for test counts.
+
+Official completion remains **26.9 → 26.9**, with no invented package split or
+independent credit for repeated foundations/security tests. This is a substantial
+code-addressable commissioning slice; wider package maturity and genuine AWS,
+customer financial history, operational use and production acceptance remain
+unearned. Existing historical failures remain visible. No customer credentials
+are connected and no cloud provisioning, mutation or savings claim occurs.
+
 ## Delivery and failure rules
 
 Every failure is classified once as `NEW_PRODUCT_DEFECT`,

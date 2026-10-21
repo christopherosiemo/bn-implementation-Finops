@@ -69,6 +69,11 @@ health:
   # Comma-delimited exact hostnames; AWS pilot probes use HTTPS (egress 443).
   allowedHosts: ""
 sources:
+  # Safe metadata only. External IDs/credentials are forbidden in this value.
+  accountApprovedBindingsJSON: "{}"
+  # Existing ingester-only Secret containing AWS_ACCOUNT_READ_BINDINGS_JSON.
+  # Entries bind exact tenant/account/role/external ID/region; never mounted in API.
+  accountReadBindingsSecret: ""
   # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
   # ingester receives it; leave empty for discovery-only installations.
   readBindingsSecret: ""

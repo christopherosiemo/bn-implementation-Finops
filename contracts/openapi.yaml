@@ -8,6 +8,76 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /aws-read-bindings:
+    get:
+      operationId: listApprovedAWSReadBindings
+      description: Tenant-scoped safe operator-approved metadata. External IDs and credentials are never accepted or returned by this API.
+      responses:
+        '200':
+          description: Approved opaque bindings; fixture bindings are explicitly labelled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSReadBindingPage' }
+  /cloud-accounts/{account_id}/preflights:
+    parameters:
+      - { name: account_id, in: path, required: true, schema: { type: string }, description: Registered cloud-account resource identifier, not the native twelve-digit account number. }
+    get:
+      operationId: listAWSAccountPreflights
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: Tenant-scoped durable read-only commissioning history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSAccountPreflightPage' }
+    post:
+      operationId: requestAWSAccountPreflight
+      description: Asynchronous ingestion-identity read checks. No AWS mutation, execution authority or caller-supplied readiness evidence.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '202':
+          description: Durable preflight request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSAccountPreflight' }
+        '403': { description: Account-wide commissioning role required. }
+        '412': { description: Account version changed. }
+  /cloud-accounts/{account_id}/preflights/{id}:
+    get:
+      operationId: getAWSAccountPreflight
+      parameters:
+        - { name: account_id, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Request state and its immutable as-of report when complete.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSAccountPreflight' }
+        '404': { description: Not found in this tenant/account scope. }
+  /cloud-accounts/{account_id}/preflights/{id}/report:
+    get:
+      operationId: exportAWSCommissioningReport
+      description: Authenticated immutable JSON export; never a public share or refreshed historical report.
+      parameters:
+        - { name: account_id, in: path, required: true, schema: { type: string } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Exact sealed commissioning report, excluding secrets and session credentials.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AWSCommissioningReport' }
+        '409': { description: Preflight has no published report yet. }
   /aws-service-assessments:
     get:
       operationId: listAWSServiceAssessments
@@ -11534,7 +11604,13 @@ components:
             financial_clock: { $ref: '#/components/schemas/Document' }
             is_current: { type: boolean }
             supersedes_id: { type: string }
-    CloudAccount: { $ref: '#/components/schemas/Document' }
+    CloudAccount:
+      allOf:
+        - { $ref: '#/components/schemas/Document' }
+        - type: object
+          properties:
+            read_role_binding_id: { type: string }
+            connection_mode: { type: string, enum: [READ_ONLY] }
     Workload: { $ref: '#/components/schemas/Document' }
     AuditEvent: { $ref: '#/components/schemas/Document' }
     Policy: { $ref: '#/components/schemas/Document' }
@@ -11696,14 +11772,159 @@ components:
         source_connection_id: { type: string }
         start: { type: string, format: date-time }
         end: { type: string, format: date-time }
+    AWSReadBindingPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, account_id, regions, role_arn, scope_mode, external_id_configured]
+            properties:
+              id: { type: string }
+              account_id: { type: string }
+              regions: { type: array, items: { type: string } }
+              role_arn: { type: string }
+              scope_mode: { type: string, enum: [ACCOUNT] }
+              external_id_configured: { type: boolean }
+              fixture: { type: boolean }
+    AWSAccountPreflightPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AWSAccountPreflight' } }
+        next_cursor: { type: string, nullable: true }
+    AWSAccountPreflight:
+      type: object
+      required: [id, version, cloud_account_id, cloud_account_version, account_id, region, read_role_binding_id, status, created_at]
+      properties:
+        id: { type: string }
+        version: { type: integer }
+        cloud_account_id: { type: string }
+        cloud_account_version: { type: integer }
+        account_id: { type: string }
+        region: { type: string }
+        read_role_binding_id: { type: string }
+        status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED] }
+        created_at: { type: string, format: date-time }
+        created_by: { type: string }
+        report_id: { type: string, nullable: true }
+        reason_code: { type: string }
+        binding_current: { type: boolean, nullable: true, description: Current safe account/read-binding metadata only; does not refresh the immutable report or revalidate source evidence. }
+        currentness_reason_codes: { type: array, items: { type: string } }
+        report:
+          nullable: true
+          allOf: [ { $ref: '#/components/schemas/AWSCommissioningReport' } ]
+    AWSCommissioningDimension:
+      type: object
+      required: [key, status, reason_codes, remediation, affected_spend, details]
+      properties:
+        key: { type: string }
+        status: { type: string, enum: [READY, PARTIAL, DENIED, NOT_CONFIGURED, UNSUPPORTED, ERROR, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        remediation: { type: array, items: { type: string } }
+        affected_spend: { type: array, items: { type: object, additionalProperties: true } }
+        details: { type: object, additionalProperties: true }
+    AWSCommissioningInventoryAccess:
+      type: object
+      required: [category, status, reason_code, operations, inventory_complete, limitations]
+      properties:
+        category: { type: string, enum: [EC2_ASG, EBS, RDS_AURORA, ECS_FARGATE, EKS, LAMBDA, S3, ELASTICACHE, DYNAMODB, NETWORK_NAT, PUBLIC_IPV4, ELB, COMMITMENTS] }
+        status: { type: string, enum: [READY, PARTIAL, DENIED, NOT_CONFIGURED, UNSUPPORTED, ERROR] }
+        reason_code: { type: string }
+        operations:
+          type: array
+          items:
+            type: object
+            required: [name, status, reason_code]
+            properties:
+              name: { type: string }
+              status: { type: string }
+              reason_code: { type: string }
+              provider_error_code: { type: string }
+        inventory_complete: { type: boolean, enum: [false] }
+        limitations: { type: array, items: { type: string } }
+    AWSCommissioningCoverage:
+      type: object
+      required: [currencies, complete, reason_codes]
+      properties:
+        scope: { type: object, additionalProperties: true }
+        period: { type: object, additionalProperties: true }
+        complete: { type: boolean }
+        reason_codes: { type: array, items: { type: string } }
+        service_groups: { type: array, items: { type: object, additionalProperties: true } }
+        currencies:
+          type: array
+          items:
+            type: object
+            required: [currency, detected_spend, analysed_spend, observation_only_spend, blocked_spend, unsupported_spend, unallocated_spend, credits, denominator_complete, percentages]
+            properties:
+              currency: { type: string, nullable: true }
+              detected_spend: { type: string, nullable: true }
+              analysed_spend: { type: string, nullable: true }
+              observation_only_spend: { type: string, nullable: true }
+              blocked_spend: { type: string, nullable: true }
+              unsupported_spend: { type: string, nullable: true }
+              unallocated_spend: { type: string, nullable: true, description: Overlapping attribution overlay, never an additional partition. }
+              credits: { type: string, nullable: true }
+              net_spend: { type: string, nullable: true }
+              denominator_complete: { type: boolean }
+              percentages:
+                type: object
+                required: [analysed, observation_only, blocked, unsupported, unallocated]
+                properties:
+                  analysed: { type: string, nullable: true }
+                  observation_only: { type: string, nullable: true }
+                  blocked: { type: string, nullable: true }
+                  unsupported: { type: string, nullable: true }
+                  unallocated: { type: string, nullable: true }
+    AWSCommissioningReport:
+      type: object
+      required: [schema_version, id, preflight_id, cloud_account_id, cloud_account_version, read_role_binding_id, account_id, region, observed_at, fixture, provider_mode, summary_state, identity, inventory, dimensions, billing, telemetry, coverage, execution_credentials, execution_authorized, verified_saving, content_hash]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        id: { type: string }
+        preflight_id: { type: string }
+        cloud_account_id: { type: string }
+        cloud_account_version: { type: integer }
+        read_role_binding_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        observed_at: { type: string, format: date-time }
+        fixture: { type: boolean }
+        provider_mode: { type: string, enum: [DETERMINISTIC_FIXTURE, AWS_NATIVE] }
+        summary_state: { type: string, enum: [NOT_READY, READ_ONLY_READY, RECOMMENDATION_PARTIAL, RECOMMENDATION_READY] }
+        identity: { type: object, additionalProperties: true }
+        inventory: { type: array, items: { $ref: '#/components/schemas/AWSCommissioningInventoryAccess' } }
+        dimensions: { type: array, items: { $ref: '#/components/schemas/AWSCommissioningDimension' } }
+        billing: { type: object, additionalProperties: true }
+        telemetry: { type: object, additionalProperties: true }
+        ownership: { type: object, additionalProperties: true }
+        configuration_authority: { type: object, additionalProperties: true }
+        commitments: { type: object, additionalProperties: true }
+        coverage: { $ref: '#/components/schemas/AWSCommissioningCoverage' }
+        coverage_scope: { type: object, additionalProperties: true }
+        evidence_refs: { type: array, items: { type: object, additionalProperties: true } }
+        execution_credentials:
+          type: object
+          required: [status, reason_code]
+          properties:
+            status: { type: string, enum: [UNKNOWN, ABSENT, CONFIGURED] }
+            reason_code: { type: string }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        content_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
     ConnectAccountRequest:
       type: object
+      additionalProperties: false
       required: [provider, name, account_id, region]
       properties:
         provider: { type: string, enum: [AWS] }
         name: { type: string }
         account_id: { type: string }
         region: { type: string }
+        read_role_binding_id: { type: string, description: Opaque operator-approved binding. Required in AWS mode; fixture mode may select the explicitly synthetic default. }
     CreateScheduleRequest:
       type: object
       required: [workload_id, stop_time, ready_time, timezone, days]

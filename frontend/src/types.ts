@@ -75,6 +75,8 @@ export interface Account extends Document {
   account_id: string;
   region: string;
   status?: string;
+  read_role_binding_id?: string;
+  connection_mode?: "READ_ONLY";
 }
 export interface Workload extends Document {
   name: string;

@@ -1,0 +1,3 @@
+sources:
+  accountApprovedBindingsJSON: '{"ireland-read":{"tenant_id":"tenant-demo","account_id":"111122223333","regions":["eu-west-1"],"role_arn":"arn:aws:iam::111122223333:role/ApprovedReadOnly","scope_mode":"ACCOUNT","external_id_configured":true}}'
+  accountReadBindingsSecret: finops-approved-account-read

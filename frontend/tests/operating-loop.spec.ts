@@ -57,6 +57,58 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
     page.getByText("Acceptance sandbox", { exact: true }),
   ).toBeVisible();
 
+  // Normal authenticated onboarding: actual queue/ingester/persisted report,
+  // with synthetic provider access and independently selected database evidence.
+  // Panel is a section with a labelled heading; scope by its title for browsers
+  // which expose that section without an implicit named region.
+  const commissioningPanel = page.locator("section").filter({ has: page.getByRole("heading", { name: "AWS read-only commissioning", exact: true }) }).last();
+  await expect(commissioningPanel).toBeVisible();
+  await commissioningPanel.getByLabel("Commissioning account").selectOption({ label: "Acceptance sandbox · 555566667777 · eu-west-1" });
+  const requested = page.waitForResponse(result => result.url().includes("/preflights") && result.request().method() === "POST" && result.status() === 202);
+  await commissioningPanel.getByRole("button", { name: "Run read-only preflight", exact: true }).click();
+  const queued = await (await requested).json();
+  expect(queued.status).toBe("QUEUED");
+  const preflightURL = `/v1/cloud-accounts/${queued.cloud_account_id}/preflights/${queued.id}`;
+  await expect.poll(async () => {
+    const result = await page.request.get(preflightURL, { headers: { Authorization: authorization } });
+    expect(result.ok()).toBeTruthy();
+    return (await result.json()).status;
+  }, { timeout: 30_000, intervals: [500, 1000] }).toBe("COMPLETED");
+  await commissioningPanel.getByRole("button", { name: "Refresh commissioning", exact: true }).click();
+  await expect(commissioningPanel.getByRole("region", { name: "AWS commissioning readiness dimensions" })).toBeVisible();
+  const sealedResponse = await page.request.get(`${preflightURL}/report`, { headers: { Authorization: authorization } });
+  expect(sealedResponse.ok()).toBeTruthy();
+  const sealed = await sealedResponse.json();
+  expect(sealed.fixture).toBe(true);
+  expect(sealed.provider_mode).toBe("DETERMINISTIC_FIXTURE");
+  expect(sealed.summary_state).toBe("READ_ONLY_READY");
+  expect(sealed.inventory).toHaveLength(13);
+  expect(sealed.dimensions).toHaveLength(10);
+  expect(sealed.inventory.find((item: { category: string }) => item.category === "S3").status).toBe("DENIED");
+  expect(sealed.coverage.complete).toBe(false);
+  for (const currency of sealed.coverage.currencies) {
+    expect(currency.denominator_complete).toBe(false);
+    expect(Object.values(currency.percentages).every(value => value === null)).toBe(true);
+  }
+  expect(sealed.execution_authorized).toBe(false);
+  expect(sealed.verified_saving).toBeNull();
+  expect(sealed.execution_credentials.status).toBe("UNKNOWN");
+  expect(sealed.content_hash).toMatch(/^[a-f0-9]{64}$/);
+  expect(Object.keys(sealed.identity)).not.toContain("external_id");
+  const downloaded = page.waitForEvent("download");
+  await commissioningPanel.getByRole("button", { name: "Export commissioning JSON" }).click();
+  const commissioningDownload = await downloaded;
+  const stream = await commissioningDownload.createReadStream();
+  expect(stream).not.toBeNull();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual(sealed);
+  const repeatedReport = await page.request.get(`${preflightURL}/report`, { headers: { Authorization: authorization } });
+  expect(await repeatedReport.json()).toEqual(sealed);
+  const anonymousReport = await page.request.get(`${preflightURL}/report`);
+  expect(anonymousReport.status()).toBe(401);
+  testInfo.attach("immutable-aws-commissioning", { body: JSON.stringify({ preflight_id: queued.id, report_id: sealed.id, content_hash: sealed.content_hash, fixture: true, execution_authorized: false }), contentType: "application/json" });
+
   await page.getByRole("link", { name: "Workloads & resources" }).click();
   await expect(
     page.getByRole("heading", { name: "Know what you run." }),

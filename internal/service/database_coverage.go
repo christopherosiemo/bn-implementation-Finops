@@ -159,6 +159,12 @@ type databaseCoveragePublication struct {
 // Coverage is a financial observation, not an execution gate or savings claim.
 // Positive charges are the denominator; credits never shrink that denominator.
 func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Document, error) {
+	return a.databaseCoverageScoped(ctx, tx, "", "")
+}
+
+// Commissioning keeps the account's complete all-AWS denominator. Inventory
+// region limits classification, never which account charges are detected.
+func (a *API) databaseCoverageScoped(ctx context.Context, tx *store.Tx, accountID, inventoryRegion string) (model.Document, error) {
 	now := a.now()
 	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	start := time.Date(end.Year(), end.Month(), 1, 0, 0, 0, 0, time.UTC)
@@ -173,7 +179,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	mark := func(code string) { blockers[code] = true; incomplete = true }
 	// Inventory is used only for exact native ID/account/region attribution;
 	// every unowned or resourceless charge still enters the denominator.
-	rows, err := tx.Query(ctx, `SELECT id,document FROM entities WHERE tenant_id=$1 AND kind='resources' AND document->>'provider'='AWS' ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1)
+	rows, err := tx.Query(ctx, `SELECT r.id,r.document,EXISTS(SELECT FROM entities w WHERE w.tenant_id=r.tenant_id AND w.kind='workloads' AND w.id=r.document->>'workload_id') FROM entities r WHERE r.tenant_id=$1 AND r.kind='resources' AND r.document->>'provider'='AWS' AND ($3='' OR r.document->>'account_id'=$3) ORDER BY r.id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +188,8 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	for rows.Next() {
 		var id string
 		var raw []byte
-		if err = rows.Scan(&id, &raw); err != nil {
+		var workloadExists bool
+		if err = rows.Scan(&id, &raw, &workloadExists); err != nil {
 			break
 		}
 		count++
@@ -195,6 +202,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			break
 		}
 		resource["id"] = id
+		if accountID != "" {
+			resource["_commissioning_workload_exists"] = workloadExists
+		}
 		// Only exact immutable aliases from authenticated native discovery qualify.
 		// Names, suffixes and inferred identifiers never establish attribution.
 		aliases := map[string]bool{model.String(resource, "provider_resource_id"): true}
@@ -290,16 +300,26 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		publication.economicLines = databaseCoverageEconomicLines(publication.assessment)
 		publications[row.resource] = publication
 	}
-	storagePublications, storageErr := a.storageCoveragePublications(ctx, tx)
+	storagePublications, storageErr := a.storageCoveragePublications(ctx, tx, accountID)
 	if storageErr != nil {
 		return nil, storageErr
 	}
 	for id, publication := range storagePublications {
 		publications[id] = publication
+		for _, code := range model.Strings(publication.assessment, "commissioning_readiness_blockers") {
+			// Missing analysis authority changes a partition, not the independently
+			// proven billing denominator.
+			blockers[code] = true
+		}
 	}
-	objectPublications, objectErr := a.objectStorageCoveragePublications(ctx, tx)
+	objectPublications, objectErr := a.objectStorageCoveragePublications(ctx, tx, accountID)
 	if objectErr != nil {
 		return nil, objectErr
+	}
+	for _, publication := range objectPublications {
+		for _, code := range publication.reasonCodes {
+			blockers[code] = true
+		}
 	}
 	lambdaPublications, lambdaErr := a.lambdaCoveragePublications(ctx, tx)
 	servicePublications, serviceErr := a.awsServiceCoveragePublications(ctx, tx)
@@ -313,7 +333,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	if networkErr != nil {
 		return nil, networkErr
 	}
-	rows, err = tx.Query(ctx, `SELECT id FROM source_registrations WHERE tenant_id=$1 AND kind='AWS_CUR2' ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1)
+	rows, err = tx.Query(ctx, `SELECT id FROM source_registrations WHERE tenant_id=$1 AND kind='AWS_CUR2' AND ($3='' OR document->'usage_account_ids' ? $3 OR document->>'payer_account_id'=$3) ORDER BY id LIMIT $2`, tx.Tenant, databaseCoverageLimit+1, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -366,6 +386,7 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 		months = append(months, month{ref, records, payer})
 	}
 	groups := map[string]*databaseCoverageTotals{}
+	billingMetadata := model.Document{"record_count": 0, "records_with_resource_id": 0, "credit_record_count": 0, "native_discount_fields_present": false}
 	serviceGroups := map[string]map[string]*databaseCoverageTotals{}
 	objectGroups := map[string]*databaseCoverageTotals{}
 	networkGroups := map[string]*databaseCoverageTotals{}
@@ -374,6 +395,10 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	groupFor := func(currency string) *databaseCoverageTotals {
 		if groups[currency] == nil {
 			groups[currency] = newDatabaseCoverageTotals()
+			if accountID != "" {
+				groups[currency].values["unallocated_spend"] = new(big.Rat)
+				groups[currency].values["unowned_spend"] = new(big.Rat)
+			}
 		}
 		return groups[currency]
 	}
@@ -394,6 +419,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			mark("DATABASE_COVERAGE_BILLING_WINDOW_INCOMPLETE")
 		}
 		for _, record := range selected.records {
+			if accountID != "" && !commissioningAccountCharge(record, accountID) {
+				continue
+			}
 			at, e1 := time.Parse(time.RFC3339Nano, model.String(record, "ChargePeriodStart"))
 			until, e2 := time.Parse(time.RFC3339Nano, model.String(record, "ChargePeriodEnd"))
 			currency := model.String(record, "BillingCurrency")
@@ -474,6 +502,18 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			if at.Before(start) || !at.Before(end) {
 				continue
 			}
+			if accountID != "" {
+				billingMetadata["record_count"] = model.Number(billingMetadata, "record_count") + 1
+				if model.String(record, "ResourceId") != "" {
+					billingMetadata["records_with_resource_id"] = model.Number(billingMetadata, "records_with_resource_id") + 1
+				}
+				fields := evidence.Object(record["x_ProviderFields"])
+				for _, key := range []string{"line_item_net_unblended_cost", "savings_plan_savings_plan_effective_cost", "reservation_effective_cost"} {
+					if value, ok := fields[key]; ok && value != nil && value != "" {
+						billingMetadata["native_discount_fields_present"] = true
+					}
+				}
+			}
 			if !complete || until.After(end) {
 				group.complete = false
 				for _, networkGroup := range networkPartitions {
@@ -505,6 +545,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				objectGroup.values["net_spend"].Add(objectGroup.values["net_spend"], cost)
 			}
 			if cost.Sign() < 0 {
+				if accountID != "" {
+					billingMetadata["credit_record_count"] = model.Number(billingMetadata, "credit_record_count") + 1
+				}
 				group.values["credits"].Add(group.values["credits"], cost)
 				for _, networkGroup := range networkPartitions {
 					networkGroup.values["credits"].Add(networkGroup.values["credits"], cost)
@@ -518,6 +561,14 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 				continue
 			}
 			group.values["detected_spend"].Add(group.values["detected_spend"], cost)
+			if accountID != "" {
+				if resource == nil || !model.Bool(resource, "_commissioning_workload_exists") {
+					group.values["unallocated_spend"].Add(group.values["unallocated_spend"], cost)
+				}
+				if resource == nil || !commissioningKnownOwner(model.String(resource, "owner")) {
+					group.values["unowned_spend"].Add(group.values["unowned_spend"], cost)
+				}
+			}
 			for _, networkGroup := range networkPartitions {
 				networkGroup.values["detected_spend"].Add(networkGroup.values["detected_spend"], cost)
 			}
@@ -618,6 +669,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 			if exact, matched := awsServiceCoverageLineCategory(servicePublications, databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId")), currency); matched {
 				category = exact
 			}
+			if accountID != "" && inventoryRegion != "" && model.String(record, "RegionId") != "" && model.String(record, "RegionId") != inventoryRegion {
+				category = "unsupported_spend"
+			}
 			group.values[category].Add(group.values[category], cost)
 			for _, networkGroup := range networkPartitions {
 				networkGroup.values[category].Add(networkGroup.values[category], cost)
@@ -695,7 +749,15 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 	for _, name := range serviceNames {
 		services = append(services, model.Document{"service": name, "groups": networkCoverageRows(serviceGroups[name], incomplete)})
 	}
-	return model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "service_groups": services, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "lambda_groups": networkCoverageRows(lambdaGroups, incomplete), "network_component_groups": components, "blockers": codes}, nil
+	result := model.Document{"period": model.Document{"start": start.Format(time.RFC3339), "end": end.Format(time.RFC3339)}, "groups": out, "service_groups": services, "object_storage_groups": objectOut, "network_groups": networkCoverageRows(networkGroups, incomplete), "lambda_groups": networkCoverageRows(lambdaGroups, incomplete), "network_component_groups": components, "blockers": codes}
+	if accountID != "" {
+		refs := []model.Document{}
+		for _, month := range months {
+			refs = append(refs, month.ref)
+		}
+		result["source_refs"], result["billing_metadata"] = refs, billingMetadata
+	}
+	return result, nil
 }
 
 // Only an actually issued, unexpired v3 readiness with accepted financial

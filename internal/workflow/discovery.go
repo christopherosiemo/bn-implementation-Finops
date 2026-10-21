@@ -2,12 +2,15 @@ package workflow
 
 import (
 	"context"
+	"errors"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/provider"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/service"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
 	"github.com/jackc/pgx/v5"
 )
@@ -29,12 +32,23 @@ func discoverTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 			continue
 		}
 		id := model.String(account, "account_id")
-		if !strings.Contains(a.Config.AWSReadRole, ":"+id+":") {
+		readRole, externalID := a.Config.AWSReadRole, a.Config.AWSExternalID
+		bindingError := false
+		boundAccount := model.String(account, "read_role_binding_id") != ""
+		if bindingID := model.String(account, "read_role_binding_id"); bindingID != "" {
+			binding, err := source.ResolveApprovedAWSAccountReadBinding(os.Getenv("AWS_ACCOUNT_READ_BINDINGS_JSON"), os.Getenv("AWS_ACCOUNT_APPROVED_BINDINGS_JSON"), bindingID, t.Tenant, id, model.String(account, "region"))
+			if err != nil {
+				bindingError = true
+			} else {
+				readRole, externalID = binding.RoleARN, binding.ExternalID
+			}
+		}
+		if bindingError || !strings.Contains(readRole, ":"+id+":") {
 			account["status"], account["error"] = "DEGRADED", "configured read role account mismatch"
 		} else {
-			aws, e := provider.NewAWS(ctx, model.String(account, "region"), a.Config.AWSReadRole, a.Config.AWSExternalID)
+			aws, e := provider.NewAWS(ctx, model.String(account, "region"), readRole, externalID)
 			if e != nil {
-				return e
+				return boundAccountDiscoveryError(boundAccount, e)
 			}
 			rows, e := aws.Inventory(ctx, model.String(account, "region"), id)
 			// Optional database reads have their own rollback boundary; EC2 inventory
@@ -57,11 +71,11 @@ func discoverTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 				}
 			}
 			if e != nil {
-				account["status"], account["error"] = "DEGRADED", e.Error()
+				account["status"], account["error"] = "DEGRADED", boundAccountDiscoveryError(boundAccount, e).Error()
 			} else {
 				rows, e = discoverOperationalEvidence(ctx, a, t, aws, rows, model.String(account, "region"), id)
 				if e != nil {
-					return e
+					return boundAccountDiscoveryError(boundAccount, e)
 				}
 				for _, d := range rows {
 					d["cloud_account_id"] = account["id"]
@@ -120,4 +134,14 @@ func discoverTenant(ctx context.Context, a *Activities, t *store.Tx) error {
 		}
 	}
 	return nil
+}
+
+// Newly bound accounts use a private external ID. Neither provider SDK errors
+// nor their wrapped causes may enter persisted account diagnostics or logs.
+// Existing legacy deployments retain their prior error behavior.
+func boundAccountDiscoveryError(bound bool, cause error) error {
+	if cause == nil || !bound {
+		return cause
+	}
+	return errors.New("AWS_BOUND_ACCOUNT_DISCOVERY_UNAVAILABLE")
 }

@@ -154,6 +154,8 @@ jobs:
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops > /tmp/finops-rendered.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml > /tmp/finops-readonly.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/account-commissioning-values.yaml > /tmp/finops-account-commissioning.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-readonly.yaml:/default.yaml:ro -v /tmp/finops-account-commissioning.yaml:/account.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/tests/test_account_commissioning_chart.py /default.yaml /account.yaml'
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set notifications.webhookUrl=https://hooks.example.invalid/finops > /tmp/finops-notifications.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set activity.issuer=https://machine.example.invalid --set sources.readBindingsSecret=finops-source-read-bindings > /tmp/finops-sources.yaml
           docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/native-values.yaml

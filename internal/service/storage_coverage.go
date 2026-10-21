@@ -10,7 +10,7 @@ import (
 
 // Add storage classifications to the existing all-service denominator. Only
 // canonical line IDs used by a current assessment can count as analysed spend.
-func (a *API) storageCoveragePublications(ctx context.Context, t *store.Tx) (map[string]databaseCoveragePublication, error) {
+func (a *API) storageCoveragePublications(ctx context.Context, t *store.Tx, commissioningAccount ...string) (map[string]databaseCoveragePublication, error) {
 	out := map[string]databaseCoveragePublication{}
 	var exists bool
 	if e := t.QueryRow(ctx, "SELECT EXISTS(SELECT FROM entities WHERE tenant_id=$1 AND kind='resources' AND document->>'resource_type' IN('EBS_VOLUME','EBS_SNAPSHOT'))", t.Tenant).Scan(&exists); e != nil {
@@ -53,11 +53,30 @@ func (a *API) storageCoveragePublications(ctx context.Context, t *store.Tx) (map
 		}
 		record["id"] = s.id
 		record["resource_id"] = s.resource
-		current, e := a.storageAssessmentCurrent(ctx, t, record)
-		if e != nil {
-			return nil, e
+		scoped := len(commissioningAccount) == 1 && commissioningAccount[0] != ""
+		if scoped {
+			resource, err := t.Get(ctx, "resources", s.resource)
+			if err != nil {
+				return nil, err
+			}
+			if model.String(resource, "account_id") != commissioningAccount[0] {
+				continue
+			}
 		}
-		p := databaseCoveragePublication{status: model.String(record, "status"), assessment: storageObject(record["assessment"]), current: model.Bool(current, "current")}
+		p := databaseCoveragePublication{status: model.String(record, "status"), assessment: storageObject(record["assessment"])}
+		if storageCommissioningAuthorityUnavailable(record, scoped) {
+			// The commissioning ingester cannot read private authority snapshots.
+			// Preserve the charge, but do not reuse analysis whose authority cannot
+			// be revalidated through this reporting identity.
+			p.status = "BLOCKED"
+			p.assessment["commissioning_readiness_blockers"] = []string{"COMMISSIONING_EBS_AUTHORITY_CURRENTNESS_UNAVAILABLE"}
+		} else {
+			current, err := a.storageAssessmentCurrent(ctx, t, record)
+			if err != nil {
+				return nil, err
+			}
+			p.current = model.Bool(current, "current")
+		}
 		if s.currency != nil {
 			p.currency = *s.currency
 		}
@@ -68,4 +87,16 @@ func (a *API) storageCoveragePublications(ctx context.Context, t *store.Tx) (map
 		out[s.resource] = p
 	}
 	return out, nil
+}
+
+func storageCommissioningAuthorityUnavailable(record model.Document, scoped bool) bool {
+	if !scoped {
+		return false
+	}
+	for _, ref := range storageRows(storageObject(record["assessment"])["source_refs"]) {
+		if ref["kind"] == "DECLARED_CONFIGURATION_AUTHORITY" {
+			return true
+		}
+	}
+	return false
 }

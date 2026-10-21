@@ -1872,6 +1872,25 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Checkpoint A exact-source required CI finished13PASS/3historicalFAIL; reachable Go security scan PASS. Local Lambda dedicated machine identity commissioning PASS. EKS native/Kubernetes identity product slice and ECS native cohort/rate path implemented; frontend/static/Helm and12focused ECS model checks pass. Three bounded connected paths stop before tests because fixed Go image is unavailable locally; ECS invocation fails its source-path assertion and trusted historical-demand reader remains absent. No positive connected or family maturity transition accepted. Existing fixed weights, reviews and external requirements unchanged."
+    },
+    {
+      "id": "aws_readiness_closure_c",
+      "recorded_at": "2026-10-21",
+      "base_commit": "28e533c4ffb71ae6577d612631a020539c17e0f8",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "076264bb246971f52bbd65ebf103c90e669d04fe67e5324d9c92b9d866dc9ffb",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "docs/aws-readonly-commissioning.md",
+        "migrations/049_aws_account_commissioning.sql",
+        "frontend/tests/operating-loop.spec.ts",
+        "internal/workflow/aws_account_commissioning.go"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Read-only commissioning product now includes approved secret-binding metadata, asynchronous identity/category probes, durable immutable tenant reports, persisted evidence/coverage dimensions, normal authenticated console and export. Pre-release frontend/static/schema/Helm/IAM checks pass; full final-source CI, browser and installed migration/restoration are separate release gates, not assumed passed. Generic telemetry, raw class-assessor currentness, remote Git resolution and ECS historical-demand limitations remain explicit. No new package maturity transition, scope split, live/customer/financial credit or mutation authority is claimed; fixed weights and historical reviews remain unchanged."
     }
   ],
   "reserved_package": {
