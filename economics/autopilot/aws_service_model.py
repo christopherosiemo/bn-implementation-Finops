@@ -84,7 +84,7 @@ def _history(data, policy):
     if supplied_start > start or supplied_start >= end:
         reasons.append("AWS_SERVICE_INSUFFICIENT_OBSERVATION_HISTORY")
     rows = obs.get("metrics", [])
-    if not isinstance(rows, list) or len(rows) > 100000:
+    if not isinstance(rows, list) or len(rows) > 250000:
         raise EvidenceError("bounded AWS service metric samples required")
     groups = {}
     for row in rows:
@@ -101,7 +101,7 @@ def _history(data, policy):
         if count <= 0:
             raise EvidenceError("observed native sample count required")
         metric, statistic, unit = (_text(row.get(k)) for k in ("metric", "statistic", "unit"))
-        if statistic not in ("Maximum", "Minimum", "Sum", "Average"):
+        if statistic not in ("Maximum", "Minimum", "Sum", "Average", "SAMPLED_VALUE"):
             raise EvidenceError("unsupported aggregated AWS statistic")
         dimensions = _obj(row.get("dimensions", {}))
         if any(not isinstance(k, str) or not isinstance(v, str) for k, v in dimensions.items()):
@@ -128,7 +128,7 @@ def _history(data, policy):
                         "coverage": "COMPLETE_OBSERVED" if complete else "UNKNOWN_GAPS", "sample_count": _money(g["sample_count"]),
                         "maximum": _money(max(g["values"])), "minimum": _money(min(g["values"])),
                         "total": _money(sum(g["values"], Decimal(0))) if g["statistic"] == "Sum" else None,
-                        "semantics": "NATIVE_PERIOD_STATISTIC_NOT_RAW_EVENT_PERCENTILE"})
+                        "semantics": "SAMPLED_POINT_NOT_PERIOD_MAXIMUM" if g["statistic"] == "SAMPLED_VALUE" else "NATIVE_PERIOD_STATISTIC_NOT_RAW_EVENT_PERCENTILE"})
     expected_series=obs.get("expected_series",[])
     if not isinstance(expected_series,list) or len(expected_series)>512:raise EvidenceError("bounded native metric selectors required")
     for selector in expected_series:
@@ -276,6 +276,14 @@ def _application_guards(summary, limits):
     return reasons
 
 
+def _ecs_history_decision(reasons):
+    if any(r in reasons for r in ("ECS_HISTORICAL_DEPLOYMENT_OR_SCALING_EPOCH_CHANGED", "CONFIGURATION_EPOCH_CHANGED")):
+        return "CONFIGURATION_EPOCH_CHANGED"
+    if any(r in reasons for r in ("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED", "ECS_CPU_MEMORY_AND_SCALING_PEAK_EVIDENCE_REQUIRED", "ECS_HISTORICAL_SERVICE_DEMAND_AND_DEPLOYMENT_EVIDENCE_REQUIRED", "INSUFFICIENT_HISTORICAL_DEMAND", "AWS_SERVICE_INSUFFICIENT_OBSERVATION_HISTORY")):
+        return "INSUFFICIENT_HISTORICAL_DEMAND"
+    return None
+
+
 def _ecs(data, summary, fin, base):
     c, limits = data["configuration"], _limits(data["policy"])
     # Resource utilisation and a current SLO probe do not establish historical
@@ -284,21 +292,35 @@ def _ecs(data, summary, fin, base):
     base = list(base)
     if activity is None:
         base.append("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED")
+    base.extend(_ecs_service_history(data))
     task = _obj(c.get("task_definition", {}))
     cpu, memory = _native(task.get("cpu"), True), _native(task.get("memory"), True)
     replicas = _native(c.get("runningCount"), True)
     max_replicas = _metric(summary, "RunningTaskCount", "Maximum", unit="Count")
     min_replicas = _metric(summary, "RunningTaskCount", "Minimum", "min", "Count")
+    max_desired = _metric(summary, "DesiredTaskCount", "Maximum", unit="Count")
+    min_desired = _metric(summary, "DesiredTaskCount", "Minimum", "min", "Count")
+    pending_peak = _metric(summary, "PendingTaskCount", "Maximum", unit="Count")
+    deployment_peak = _metric(summary, "DeploymentCount", "Maximum", unit="Count")
     cpu_peak, memory_peak = _metric(summary, "CPUUtilization", unit="Percent"), _metric(summary, "MemoryUtilization", unit="Percent")
     reasons = list(base) + _application_guards(summary,limits) + _required_constraints(limits, ("cpu_headroom_fraction", "memory_headroom_fraction", "burst_requirements_known", "autoscaling_reviewed"))
     if cpu is None or memory is None or replicas is None or replicas <= 0:
         reasons.append("ECS_TASK_RESOURCES_OR_RUNNING_REPLICAS_UNKNOWN")
     if cpu_peak is None or memory_peak is None or min_replicas is None or max_replicas is None:
         reasons.append("ECS_CPU_MEMORY_AND_SCALING_PEAK_EVIDENCE_REQUIRED")
+    if any(v is None for v in (max_desired, min_desired, pending_peak, deployment_peak)):
+        reasons.append("ECS_HISTORICAL_SERVICE_DEMAND_AND_DEPLOYMENT_EVIDENCE_REQUIRED")
+    elif pending_peak > 0 or deployment_peak != 1 or max_desired != min_desired or min_desired != replicas:
+        reasons.append("ECS_HISTORICAL_DEPLOYMENT_OR_SCALING_EPOCH_CHANGED")
     if "fargate_cohort" in c and (min_replicas != replicas or max_replicas != replicas):
         reasons.append("ECS_STEADY_NATIVE_TASK_COHORT_HISTORY_REQUIRED")
     if limits.get("burst_requirements_known") is not True or limits.get("autoscaling_reviewed") is not True:
         reasons.append("ECS_BURST_AND_AUTOSCALING_REQUIREMENTS_UNRESOLVED")
+    if not all(k in c for k in ("scalable_targets", "scaling_policies", "scheduled_actions")):
+        reasons.append("ECS_AUTOSCALING_CONFIGURATION_UNKNOWN")
+    minimum_replicas = _num(limits.get("min_replicas"), True)
+    if minimum_replicas is not None and min_replicas is not None and min_replicas < minimum_replicas:
+        reasons.append("ECS_WORKLOAD_MINIMUM_REPLICAS_NOT_PRESERVED")
     if _native(c.get("pendingCount", 0)) > 0 or _native(c.get("desiredCount", 0)) != replicas:
         reasons.append("ECS_DEPLOYMENT_OR_CAPACITY_UNSTABLE")
     deployments = c.get("deployments", [])
@@ -354,10 +376,15 @@ def _ecs(data, summary, fin, base):
         if launch != "FARGATE":
             blocked.append("ECS_EC2_HOST_AVOIDANCE_AND_SHARED_ALLOCATION_UNPROVEN")
         kind = "FARGATE_TASK_RIGHTSIZE" if launch == "FARGATE" else "ECS_TASK_CPU_MEMORY_RIGHTSIZE"
-        candidates.append(_candidate(_text(shape.get("id")), kind, task, proposed, blocked,
-                                     _econ(fin, replacement, ["UNCHANGED_SUCCESSFUL_WORK_AND_TASK_RUNTIME_REQUIRED", "AWS_ECS_MAXIMUM_IS_HIGHEST_OBSERVED_TASK_NOT_FLEET_AVERAGE"])))
+        result = _candidate(_text(shape.get("id")), kind, task, proposed, blocked,
+                            _econ(fin, replacement, ["UNCHANGED_SUCCESSFUL_WORK_AND_TASK_RUNTIME_REQUIRED", "AWS_ECS_MAXIMUM_IS_HIGHEST_OBSERVED_TASK_NOT_FLEET_AVERAGE"]))
+        if result["status"] == "NO_CHANGE":
+            result["decision_code"] = "KEEP_CURRENT"
+        elif result["status"] == "BLOCKED":
+            result["decision_code"] = _ecs_history_decision(blocked) or result["decision_code"]
+        candidates.append(result)
     if not candidates:
-        candidates.append(_candidate("ecs-task-evidence", "FARGATE_TASK_RIGHTSIZE" if c.get("launchType") == "FARGATE" else "ECS_TASK_CPU_MEMORY_RIGHTSIZE", task, None, reasons, _econ(fin)))
+        candidates.append(_candidate("ecs-task-evidence", "FARGATE_TASK_RIGHTSIZE" if c.get("launchType") == "FARGATE" else "ECS_TASK_CPU_MEMORY_RIGHTSIZE", task, None, reasons, _econ(fin), decision=_ecs_history_decision(reasons)))
     idle_reasons = list(base)
     if activity is None:
         idle_reasons.append("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED")
@@ -469,6 +496,55 @@ def _cache(data,summary,fin,base):
     return candidates
 
 
+def _ecs_service_history(data):
+    """Only receipt-backed service epochs can qualify the stable economic unit.
+
+    These sampled configuration observations are not a continuous AWS change
+    log. Native task/cohort and billing checks remain independent gates.
+    """
+    history = data.get("observations", {}).get("service_history")
+    if not isinstance(history, dict) or history.get("schema_version") != "ECS_SERVICE_HISTORY_V1":
+        return ["INSUFFICIENT_HISTORICAL_DEMAND"]
+    binding = _obj(history.get("binding"), BINDING)
+    if any(binding.get(k) != data["binding"].get(k) for k in BINDING):
+        raise EvidenceError("ECS historical service binding mismatch")
+    refs = history.get("source_refs", [])
+    if not isinstance(refs, list) or not refs or len(refs) > 32:
+        raise EvidenceError("ECS immutable historical references required")
+    for reference in refs:
+        _ref(reference, data["binding"])
+    reasons = history.get("reason_codes", [])
+    if not isinstance(reasons, list) or any(not isinstance(r, str) for r in reasons):
+        raise EvidenceError("ECS historical reason codes required")
+    if reasons:
+        return sorted(set(reasons))
+    epochs = history.get("epochs", [])
+    if not isinstance(epochs, list) or not epochs or len(epochs) > 10000:
+        return ["INSUFFICIENT_HISTORICAL_DEMAND"]
+    if len(epochs) != 1:
+        return ["CONFIGURATION_EPOCH_CHANGED"]
+    epoch = _obj(epochs[0])
+    start, end, _, _ = _history(data, data["policy"])
+    if _stamp(epoch.get("start")) > start or _stamp(epoch.get("end")) < end:
+        return ["INSUFFICIENT_HISTORICAL_DEMAND"]
+    configuration = data["configuration"]
+    definition = _obj(configuration.get("task_definition", {}))
+    runtime = _obj(definition.get("runtimePlatform", {}))
+    expected = {"cluster_arn": configuration.get("clusterArn"), "service_arn": data["binding"]["provider_resource_id"],
+                "task_definition_arn": configuration.get("taskDefinition"), "cpu_units": definition.get("cpu"),
+                "memory_mib": definition.get("memory"), "launch_type": configuration.get("launchType"),
+                "architecture": runtime.get("cpuArchitecture")}
+    if any(str(epoch.get(key)) != str(value) or value in (None, "") for key, value in expected.items()):
+        return ["CONFIGURATION_EPOCH_CHANGED"]
+    if _native(epoch.get("desired_count"), True) != _native(configuration.get("desiredCount"), True) or _native(epoch.get("running_count"), True) != _native(configuration.get("runningCount"), True):
+        return ["CONFIGURATION_EPOCH_CHANGED"]
+    deployments = configuration.get("deployments", [])
+    if len(deployments) != 1 or not deployments[0].get("id") or epoch.get("deployment_id") != deployments[0]["id"] or configuration.get("launchType") == "FARGATE" and epoch.get("capacity_provider") != "FARGATE":
+        return ["CONFIGURATION_EPOCH_CHANGED"]
+    _ref(epoch.get("source_ref"), data["binding"])
+    return []
+
+
 def _activity(data,summary):
     # Historical native queries never manufacture independent workload receipts.
     rows=data.get("observations",{}).get("activity",[])
@@ -482,8 +558,37 @@ def _activity(data,summary):
     shadow={**data,"observations":{**data["observations"],"metrics":metrics}}
     _,_,activity,_=_history(shadow,data["policy"])
     values=[_metric(activity,name,"Sum","sum","Count") for name in ("AcceptedWork","CompletedWork","RejectedWork")]
-    backlog=[_metric(activity,name,"Maximum",unit="Count") for name in ("Backlog","InFlightWork")]
+    # Native historical gauges are points at their actual scrape timestamps,
+    # not an invented maximum over the following bin. They can establish
+    # observed activity while CPU/memory and queue SLO peaks remain separate.
+    backlog=[]
+    for name in ("Backlog","InFlightWork"):
+        value=_metric(activity,name,"SAMPLED_VALUE",unit="Count")
+        if value is None:value=_metric(activity,name,"Maximum",unit="Count")
+        backlog.append(value)
     return sum(values+backlog,Decimal(0)) if all(v is not None for v in values+backlog) else None
+
+
+def _ecs_historical_demand(data, summary):
+    history = data.get("observations", {}).get("service_history", {})
+    reasons = _ecs_service_history(data)
+    activity = _activity(data, summary)
+    if activity is None:
+        reasons.append("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED")
+    selectors = (("CPUUtilization", "Maximum", "Percent"), ("MemoryUtilization", "Maximum", "Percent"),
+                 ("RunningTaskCount", "Maximum", "Count"), ("RunningTaskCount", "Minimum", "Count"),
+                 ("DesiredTaskCount", "Maximum", "Count"), ("DesiredTaskCount", "Minimum", "Count"),
+                 ("PendingTaskCount", "Maximum", "Count"), ("DeploymentCount", "Maximum", "Count"))
+    if any(_metric(summary, name, statistic, "min" if statistic == "Minimum" else "max", unit) is None for name, statistic, unit in selectors):
+        reasons.append("ECS_HISTORICAL_SERVICE_DEMAND_AND_DEPLOYMENT_EVIDENCE_REQUIRED")
+    fields = {"id", "start", "end", "cluster_arn", "service_arn", "task_definition_arn", "cpu_units", "memory_mib",
+              "desired_count", "running_count", "launch_type", "capacity_provider", "architecture", "deployment_id", "source_ref"}
+    epochs = history.get("epochs", []) if isinstance(history, dict) else []
+    return {"status": "BLOCKED" if reasons else "COMPLETE_OBSERVED", "reason_codes": sorted(set(reasons)),
+            "epoch_count": len(epochs), "epochs": [{k: v for k, v in row.items() if k in fields} for row in epochs if isinstance(row, dict)],
+            "source_refs": history.get("source_refs", []) if isinstance(history, dict) else [],
+            "activity_status": "COMPLETE_OBSERVED" if activity is not None else "UNKNOWN_GAPS",
+            "semantics": "SAMPLED_CONFIGURATION_NOT_CONTINUOUS_CHANGE_LOG"}
 
 
 def _elb(data,summary,fin,base):
@@ -539,4 +644,7 @@ def evaluate_aws_service(data):
         winner=max(numerical,key=lambda c:Decimal(c["economics"]["estimated_window_saving"])) if numerical else recommended[0] if recommended else next((c for c in candidates if c["status"]=="NO_CHANGE"),candidates[0])
         all_reasons=sorted(set(reasons+[reason for c in candidates for reason in c["reason_codes"]]))
         analysed=sorted(r["id"] for r in fin["components"]) if numerical and not fin["reasons"] else []
-        return {"schema_version":"1","model_version":MODEL_VERSION,"model_kind":MODEL_KIND,"family":data["family"],"binding":binding,"resource_id":binding["resource_id"],"config_hash":data.get("config_hash"),"status":winner["status"],"decision_code":winner["decision_code"],"recommendation_kind":winner["recommendation_kind"],"current_configuration":data["configuration"],"proposed_configuration":winner["proposed_configuration"],"evidence_window":{"start":start.isoformat().replace("+00:00","Z"),"end":end.isoformat().replace("+00:00","Z")},"metric_distributions":summary,"candidates":candidates,"reason_codes":all_reasons,"blockers":all_reasons,"economics":winner["economics"],"source_refs":refs,"economically_analysed_source_record_ids":analysed,"confidence":winner["confidence"],"risk_class":"R3","read_only":True,"pre_execution_ready":False,"execution_authorized":False,"verified_saving":None}
+        result = {"schema_version":"1","model_version":MODEL_VERSION,"model_kind":MODEL_KIND,"family":data["family"],"binding":binding,"resource_id":binding["resource_id"],"config_hash":data.get("config_hash"),"status":winner["status"],"decision_code":winner["decision_code"],"recommendation_kind":winner["recommendation_kind"],"current_configuration":data["configuration"],"proposed_configuration":winner["proposed_configuration"],"evidence_window":{"start":start.isoformat().replace("+00:00","Z"),"end":end.isoformat().replace("+00:00","Z")},"metric_distributions":summary,"candidates":candidates,"reason_codes":all_reasons,"blockers":all_reasons,"economics":winner["economics"],"source_refs":refs,"economically_analysed_source_record_ids":analysed,"confidence":winner["confidence"],"risk_class":"R3","read_only":True,"pre_execution_ready":False,"execution_authorized":False,"verified_saving":None}
+        if data["family"] == "ECS":
+            result["historical_demand"] = _ecs_historical_demand(data, summary)
+        return result

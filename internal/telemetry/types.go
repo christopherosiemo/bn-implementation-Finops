@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
@@ -204,6 +205,7 @@ func ParseConnection(d model.Document) (Connection, error) {
 var namePattern = regexp.MustCompile(`^[A-Za-z_:][A-Za-z0-9_:]*$`)
 var labelPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 var ec2ID = regexp.MustCompile(`^i-(?:[0-9a-f]{8}|[0-9a-f]{17})$`)
+var ecsServiceName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,255}$`)
 var accountID = regexp.MustCompile(`^[0-9]{12}$`)
 var decimalPattern = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
 
@@ -219,7 +221,18 @@ func number(s string) (*big.Rat, bool) {
 }
 func ValidateConnection(c Connection) error {
 	b := c.Binding
-	if c.SchemaVersion != "1" || c.ID == "" || c.Version < 1 || b.TenantID == "" || b.ResourceID == "" || b.WorkloadID == "" || b.Provider != "AWS" || !ec2ID.MatchString(b.ProviderResourceID) || !accountID.MatchString(b.AccountID) || b.Region != "eu-west-1" || len(c.Definitions) < 1 || len(c.Definitions) > 32 {
+	servicePrefix := "arn:aws:ecs:" + b.Region + ":" + b.AccountID + ":service/"
+	serviceName := strings.TrimPrefix(b.ProviderResourceID, servicePrefix)
+	service := strings.HasPrefix(b.ProviderResourceID, servicePrefix) && len(strings.Split(serviceName, "/")) == 2
+	if service {
+		for _, part := range strings.Split(serviceName, "/") {
+			service = service && ecsServiceName.MatchString(part)
+		}
+	}
+	// Native historical service readers are explicitly commissioned Prometheus
+	// bindings. This does not turn OTLP or guarded minute observations into a
+	// retrospective service collector.
+	if c.SchemaVersion != "1" || c.ID == "" || c.Version < 1 || b.TenantID == "" || b.ResourceID == "" || b.WorkloadID == "" || b.Provider != "AWS" || !(ec2ID.MatchString(b.ProviderResourceID) || service && c.Kind == "PROMETHEUS") || !accountID.MatchString(b.AccountID) || b.Region != "eu-west-1" || len(c.Definitions) < 1 || len(c.Definitions) > 32 {
 		return errors.New("TELEMETRY_BINDING_INVALID")
 	}
 	if c.Kind == "PROMETHEUS" {

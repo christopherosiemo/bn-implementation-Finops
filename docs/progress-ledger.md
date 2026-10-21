@@ -1,5 +1,7 @@
 # Product scope progress ledger
 
+Final pre-pilot checkpoint 1: **26.9% → 26.9%**. Registered ECS historical demand and immutable sampled serving epochs extend the existing service assessor. Focused components pass; the single connected attempt fails before tests because Docker is unavailable. No maturity transition is awarded. See [bounded evidence](prepilot-software-polish.md).
+
 Forward-only AWS checkpoint3: **26.9% →26.9%**. Native LambdaV2 proof,18reviewed RDS classes and a coherent Network journey extend existing software scopes; positive connected acceptance remains partial. [Sprint outcomes](forward-aws-sprint.md) record every bounded attempt and failure without changing weights/history. No fourth milestone is started.
 
 Forward-only AWS checkpoint 2: **26.9% → 26.9%**. Four shared read-only service assessment families add product capability; full native economic/demand closure remains PARTIAL. [Sprint evidence](forward-aws-sprint.md) separates software gaps, accepted components and external gates.

@@ -21,9 +21,9 @@ def fixture(family, days=14):
     binding={"tenant_id":"synthetic-tenant","provider":"AWS","account_id":"111122223333","region":"eu-west-1","resource_id":"synthetic-resource","provider_resource_id":"arn:aws:"+native,"workload_id":"synthetic-workload"}
     limits={"cpu_headroom_fraction":"0.2","memory_headroom_fraction":"0.2","burst_requirements_known":True,"autoscaling_reviewed":True,"read_target_utilization_fraction":"0.5","write_target_utilization_fraction":"0.5","min_read_capacity_units":"1","min_write_capacity_units":"1","max_swap_bytes":"0","max_evictions":"0","max_replication_lag_seconds":"1","min_replicas_per_shard":"1","recovery_requirements_known":True,"failover_required":True,"purpose":"ACTIVE","low_requests_per_second":"1","low_bytes_per_second":"1000"}
     runtime={"cpuArchitecture":"X86_64","operatingSystemFamily":"LINUX"}
-    configs={"ECS":{"launchType":"FARGATE","runningCount":1,"desiredCount":1,"pendingCount":0,"deployments":[{"rolloutState":"COMPLETED"}],"task_definition":{"cpu":"1024","memory":"2048","runtimePlatform":runtime},"scalable_targets":[],"scaling_policies":[]},"DYNAMODB":{"TableName":"table","BillingModeSummary":{"BillingMode":"PROVISIONED"},"ProvisionedThroughput":{"ReadCapacityUnits":1000,"WriteCapacityUnits":500}},"ELASTICACHE":{"Engine":"valkey","EngineVersion":"8.0","CacheNodeType":"cache.synthetic.large","CacheNodes":{"CacheNode":[{"CacheNodeId":"0001"}]}},"ELB":{"subtype":"ALB","LoadBalancerName":"web","target_groups":[]}}
+    configs={"ECS":{"clusterArn":"arn:aws:ecs:eu-west-1:111122223333:cluster/cluster","taskDefinition":"arn:aws:ecs:eu-west-1:111122223333:task-definition/workload:1","launchType":"FARGATE","runningCount":1,"desiredCount":1,"pendingCount":0,"deployments":[{"id":"ecs-synthetic-deployment","rolloutState":"COMPLETED"}],"task_definition":{"cpu":"1024","memory":"2048","runtimePlatform":runtime},"scalable_targets":[],"scaling_policies":[],"scheduled_actions":[]},"DYNAMODB":{"TableName":"table","BillingModeSummary":{"BillingMode":"PROVISIONED"},"ProvisionedThroughput":{"ReadCapacityUnits":1000,"WriteCapacityUnits":500}},"ELASTICACHE":{"Engine":"valkey","EngineVersion":"8.0","CacheNodeType":"cache.synthetic.large","CacheNodes":{"CacheNode":[{"CacheNodeId":"0001"}]}},"ELB":{"subtype":"ALB","LoadBalancerName":"web","target_groups":[]}}
     shapes={"ECS":{"candidates":[{"id":"half","cpu_units":"512","memory_mib":"1024","architecture":"X86_64","operating_system_family":"LINUX","source_ref":ref("fargate-capability")}]},"DYNAMODB":{"candidates":[]},"ELASTICACHE":{"current":{"memory_bytes":"17179869184","vcpu":"4"},"candidates":[{"id":"smaller","memory_bytes":"8589934592","vcpu":"2","engine":"valkey","engine_version":"8.0","preserves_topology":True,"source_ref":ref("cache-physical-capability")}]},"ELB":{"candidates":[]}}
-    series={"ECS":[("CPUUtilization","Maximum","10","Percent"),("MemoryUtilization","Maximum","20","Percent"),("RunningTaskCount","Maximum","1","Count"),("RunningTaskCount","Minimum","1","Count")],"DYNAMODB":[("ConsumedReadCapacityUnits","Sum","1","Count"),("ConsumedWriteCapacityUnits","Sum","1","Count"),("ReadThrottleEvents","Sum","0","Count"),("WriteThrottleEvents","Sum","0","Count")],"ELASTICACHE":[("CPUUtilization","Maximum","10","Percent"),("EngineCPUUtilization","Maximum","10","Percent"),("DatabaseMemoryUsagePercentage","Maximum","10","Percent"),("SwapUsage","Maximum","0","Bytes"),("Evictions","Sum","0","Count"),("ReplicationLag","Maximum","0","Seconds"),("CurrConnections","Maximum","1","Count"),("CacheHits","Sum","100","Count"),("CacheMisses","Sum","1","Count")],"ELB":[("RequestCount","Sum","0","Count"),("ProcessedBytes","Sum","0","Bytes"),("ActiveConnectionCount","Maximum","0","Count")]}
+    series={"ECS":[("CPUUtilization","Maximum","10","Percent"),("MemoryUtilization","Maximum","20","Percent"),("RunningTaskCount","Maximum","1","Count"),("RunningTaskCount","Minimum","1","Count"),("DesiredTaskCount","Maximum","1","Count"),("DesiredTaskCount","Minimum","1","Count"),("PendingTaskCount","Maximum","0","Count"),("DeploymentCount","Maximum","1","Count")],"DYNAMODB":[("ConsumedReadCapacityUnits","Sum","1","Count"),("ConsumedWriteCapacityUnits","Sum","1","Count"),("ReadThrottleEvents","Sum","0","Count"),("WriteThrottleEvents","Sum","0","Count")],"ELASTICACHE":[("CPUUtilization","Maximum","10","Percent"),("EngineCPUUtilization","Maximum","10","Percent"),("DatabaseMemoryUsagePercentage","Maximum","10","Percent"),("SwapUsage","Maximum","0","Bytes"),("Evictions","Sum","0","Count"),("ReplicationLag","Maximum","0","Seconds"),("CurrConnections","Maximum","1","Count"),("CacheHits","Sum","100","Count"),("CacheMisses","Sum","1","Count")],"ELB":[("RequestCount","Sum","0","Count"),("ProcessedBytes","Sum","0","Bytes"),("ActiveConnectionCount","Maximum","0","Count")]}
     metrics=[]
     for n in range(days):
         for name,stat,value,unit in series[family]:
@@ -44,7 +44,10 @@ def fixture(family, days=14):
     if family=="DYNAMODB":
         for component in ("READ_REQUEST","WRITE_REQUEST"):rates.append({"id":component,"component":component,"rate":"0.000001","unit":"Requests","currency":"GBP","bracket_resolved":True,"source_ref":ref(component)})
     if family=="ELASTICACHE":rates.append({"id":"candidate-price","component":"CACHE_NODE","candidate_key":"smaller","rate":"0.5","unit":"Hrs","currency":"GBP","bracket_resolved":True,"source_ref":ref("candidate-price")})
-    return {"schema_version":"1","model_version":"aws-service-v1","model_kind":MODEL_KIND,"binding":binding,"family":family,"now":stamp(end+timedelta(hours=1)),"configuration":configs[family],"snapshot_ref":ref("native-snapshot"),"observations":{"start":stamp(start),"end":stamp(end),"metrics":metrics,"activity":activity},"capabilities":shapes[family],"policy":{"owner":"customer-team","configuration_authority":"TERRAFORM","criticality":"NON_PRODUCTION","seasonal":False,"service_constraints":limits},"billing":{"currency":"GBP","start":stamp(start),"end":stamp(end),"complete":True,"scope_complete":True,"marginal_pricing_known":True,"commitment_scope_known":True,"capacity_request_unit_equivalence_known":True,"components":components,"rate_witnesses":rates},"source_refs":[ref("native-snapshot")]}
+    observations={"start":stamp(start),"end":stamp(end),"metrics":metrics,"activity":activity}
+    if family=="ECS":
+        observations["service_history"]={"schema_version":"ECS_SERVICE_HISTORY_V1","binding":copy.deepcopy(binding),"source_refs":[ref("service-history")],"reason_codes":[],"epochs":[{"id":"synthetic-service-epoch","start":stamp(start),"end":stamp(end),"cluster_arn":configs[family]["clusterArn"],"service_arn":binding["provider_resource_id"],"task_definition_arn":configs[family]["taskDefinition"],"cpu_units":"1024","memory_mib":"2048","desired_count":"1","running_count":"1","launch_type":"FARGATE","capacity_provider":"FARGATE","architecture":"X86_64","deployment_id":"ecs-synthetic-deployment","source_ref":ref("service-history")}]}
+    return {"schema_version":"1","model_version":"aws-service-v1","model_kind":MODEL_KIND,"binding":binding,"family":family,"now":stamp(end+timedelta(hours=1)),"configuration":configs[family],"snapshot_ref":ref("native-snapshot"),"observations":observations,"capabilities":shapes[family],"policy":{"owner":"customer-team","configuration_authority":"TERRAFORM","criticality":"NON_PRODUCTION","seasonal":False,"service_constraints":limits},"billing":{"currency":"GBP","start":stamp(start),"end":stamp(end),"complete":True,"scope_complete":True,"marginal_pricing_known":True,"commitment_scope_known":True,"capacity_request_unit_equivalence_known":True,"components":components,"rate_witnesses":rates},"source_refs":[ref("native-snapshot")]}
 
 
 def candidate(data,identity):
@@ -52,6 +55,50 @@ def candidate(data,identity):
 
 
 class ECSServiceEconomicsTests(unittest.TestCase):
+    def test_stable_service_history_is_independent_of_current_task_roster(self):
+        for change in ("missing", "gap", "task-definition", "capacity", "replicas", "epochs"):
+            with self.subTest(change=change):
+                d=fixture("ECS")
+                history=d["observations"]["service_history"]
+                if change=="missing":del d["observations"]["service_history"]
+                elif change=="gap":history["epochs"][0]["start"]="2026-10-07T00:00:00Z"
+                elif change=="task-definition":history["epochs"][0]["task_definition_arn"]+="-changed"
+                elif change=="capacity":history["epochs"][0]["memory_mib"]="4096"
+                elif change=="replicas":history["epochs"][0]["desired_count"]="2"
+                else:history["epochs"].append(copy.deepcopy(history["epochs"][0]))
+                result=candidate(d,"half")
+                self.assertEqual(result["status"],"BLOCKED")
+                self.assertIsNone(result["economics"]["estimated_window_saving"])
+                self.assertEqual(result["decision_code"],"INSUFFICIENT_HISTORICAL_DEMAND" if change in ("missing","gap") else "CONFIGURATION_EPOCH_CHANGED")
+        d=fixture("ECS");d["observations"]["service_history"]["binding"]["tenant_id"]="foreign"
+        with self.assertRaises(EvidenceError):evaluate_aws_service(d)
+
+    def test_historical_pending_scaling_and_deployment_gaps_fail_closed(self):
+        for change in ("pending", "deployment", "desired", "missing", "autoscaling"):
+            with self.subTest(change=change):
+                d=fixture("ECS")
+                if change=="autoscaling":del d["configuration"]["scheduled_actions"]
+                elif change=="missing":d["observations"]["metrics"]=[r for r in d["observations"]["metrics"] if r["metric"]!="DesiredTaskCount"]
+                else:
+                    metric={"pending":"PendingTaskCount","deployment":"DeploymentCount","desired":"DesiredTaskCount"}[change]
+                    next(r for r in d["observations"]["metrics"] if r["metric"]==metric)["value"]="2"
+                result=candidate(d,"half")
+                self.assertEqual(result["status"],"BLOCKED")
+                self.assertIsNone(result["economics"]["estimated_window_saving"])
+
+    def test_sampled_activity_keeps_native_semantics_and_explicit_zero(self):
+        d=fixture("ECS")
+        for row in d["observations"]["activity"]:
+            row["value"]="0"
+            if row["metric"] in ("Backlog","InFlightWork"):row["statistic"]="SAMPLED_VALUE"
+        r=evaluate_aws_service(d)
+        self.assertEqual(candidate(d,"half")["status"],"RECOMMENDED")
+        self.assertEqual(r["historical_demand"]["status"],"COMPLETE_OBSERVED")
+        self.assertEqual(r["historical_demand"]["activity_status"],"COMPLETE_OBSERVED")
+        self.assertEqual(r["historical_demand"]["epoch_count"],1)
+        d["observations"]["activity"].pop()
+        self.assertEqual(evaluate_aws_service(d)["historical_demand"]["activity_status"],"UNKNOWN_GAPS")
+
     def test_missing_or_gapped_work_history_blocks_all_ecs_decisions(self):
         for change in ("missing","gap","current-only"):
             with self.subTest(change=change):
@@ -83,6 +130,7 @@ class ECSServiceEconomicsTests(unittest.TestCase):
         self.assertEqual(r["status"],"RECOMMENDED");self.assertGreater(Decimal(r["economics"]["estimated_window_saving"]),0);self.assertEqual(d,before)
         d["capabilities"]["candidates"][0].update(cpu_units="1024",memory_mib="2048")
         self.assertEqual(candidate(d,"half")["status"],"NO_CHANGE")
+        self.assertEqual(candidate(d,"half")["decision_code"],"KEEP_CURRENT")
 
     def test_memory_peak_missing_data_autoscaling_and_ec2_block(self):
         for change in ("memory","missing","scaling","ec2"):

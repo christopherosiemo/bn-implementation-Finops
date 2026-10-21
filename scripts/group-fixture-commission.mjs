@@ -86,9 +86,9 @@ function privateDirectory(id){
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
  const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)).sort();
- assert.equal(names.length,49);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:49},(_,n)=>n+1));
- assert.equal(names.at(-1),'049_aws_account_commissioning.sql');
+ assert.equal(names.length,50);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:50},(_,n)=>n+1));
+ assert.equal(names.at(-1),'050_aws_service_historical_demand.sql');
  const manifest=Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
  assert.equal(manifest['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051','Migration037 must equal the independently reviewed release bytes');
  assert.equal(manifest['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984','Migration038 must equal the independently reviewed credential scope bytes');
@@ -103,6 +103,7 @@ export function commissionMigrationManifest(directory){
  assert.equal(manifest['047_aws_service_assessments.sql'],'0f65098a068481b7fb8fd612b09d00833cd66003f37c2958542e92e4ba1c9577','Migration047 must equal the reviewed read-only AWS service assessment bytes');
  assert.equal(manifest['048_eks_kubernetes_associations.sql'],'73acc6ce78d3d0b4506baf0bbce36945e6cfba46d9d9ae60512deafe2eda4152','Migration048 must equal the reviewed read-only EKS identity association bytes');
  assert.equal(manifest['049_aws_account_commissioning.sql'],'8377080417d6561b0aa076bb4a3a6af5391b6628804df07501abddea8aad1e71','Migration049 must equal the reviewed read-only account commissioning bytes');
+ assert.equal(manifest['050_aws_service_historical_demand.sql'],'bb5c70d8eddf50d5550730aca8ed8b9b9e13d703e67e38283ec4532356967d72','Migration050 must equal the reviewed historical demand read-scope bytes');
  return manifest;
 }
 

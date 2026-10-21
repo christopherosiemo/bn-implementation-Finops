@@ -31,6 +31,7 @@ import (
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/slo"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/source"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/telemetry"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/workload"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
@@ -132,7 +133,7 @@ func TestAWSServiceNativeFargatePositiveThroughActualPythonAndOIDC(t *testing.T)
 			case "ListServices":
 				respond(model.Document{"serviceArns": []string{arn}})
 			case "DescribeServices":
-				respond(model.Document{"services": []model.Document{{"serviceArn": arn, "clusterArn": cluster, "serviceName": "web", "taskDefinition": definition, "launchType": "FARGATE", "desiredCount": 2, "runningCount": 2, "pendingCount": 0, "status": "ACTIVE", "deployments": []model.Document{{"rolloutState": "COMPLETED", "taskDefinition": definition, "createdAt": start.Add(-time.Hour).Unix()}}}}, "failures": []any{}})
+				respond(model.Document{"services": []model.Document{{"serviceArn": arn, "clusterArn": cluster, "serviceName": "web", "taskDefinition": definition, "launchType": "FARGATE", "desiredCount": 2, "runningCount": 2, "pendingCount": 0, "status": "ACTIVE", "deployments": []model.Document{{"id": "ecs-svc/7", "rolloutState": "COMPLETED", "taskDefinition": definition, "createdAt": start.Add(-time.Hour).Unix()}}}}, "failures": []any{}})
 			case "DescribeTaskDefinition":
 				respond(model.Document{"taskDefinition": model.Document{"taskDefinitionArn": definition, "family": "orders", "revision": 7, "cpu": "1024", "memory": "2048", "networkMode": "awsvpc", "requiresCompatibilities": []string{"FARGATE"}, "runtimePlatform": model.Document{"cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX"}, "containerDefinitions": []model.Document{{"name": "app", "cpu": 128, "memoryReservation": 256}}}, "tags": []any{}})
 			case "ListContainerInstances":
@@ -258,8 +259,92 @@ func TestAWSServiceNativeFargatePositiveThroughActualPythonAndOIDC(t *testing.T)
 	if e != nil || response.StatusCode != 200 || strings.TrimSpace(string(body)) != strconv.FormatInt(expected, 10) || expected == 0 {
 		t.Fatal("independent native metric population differs")
 	}
+	awsServiceNativeHistoricalDemand(t, ctx, admin, roles["api"], storage, resource, start, end)
 	awsServiceSLOMachine(t, ctx, admin, roles["api"], tenant, resource)
 	awsServiceComponentBrowser(t, ctx, roles["api"], analyst, tenant, resource, nil, "", true)
+}
+
+// Reuse the commissioned native Prometheus reader: this endpoint supplies raw
+// historical samples, not canonical projections or guarded minute receipts.
+// The fixture labels synthetic history explicitly; no live customer history is
+// claimed. Raw endpoint bodies and parsed samples traverse the real pipeline.
+func awsServiceNativeHistoricalDemand(t *testing.T, ctx context.Context, admin, apiDB *store.Store, storage *native.Storage, resource model.Document, start, end time.Time) {
+	t.Helper()
+	readerDB := lambdaComponentRuntime(t, ctx, admin, "telemetry-reader", "finops_telemetry_reader")
+	binding := telemetry.Binding{TenantID: model.String(resource, "tenant_id"), ResourceID: model.String(resource, "id"), WorkloadID: model.String(resource, "workload_id"), Provider: "AWS", ProviderResourceID: model.String(resource, "provider_resource_id"), AccountID: model.String(resource, "account_id"), Region: model.String(resource, "region")}
+	c := telemetry.Connection{SchemaVersion: "1", ID: "native-fargate-history", Version: 1, Kind: "PROMETHEUS", ReadBindingID: "native-fargate-off-instance-collector", Enabled: true, Binding: binding}
+	definitionByName := map[string]telemetry.Definition{}
+	for _, metric := range []string{"ECSServiceConfiguration", "AcceptedWork", "CompletedWork", "RejectedWork", "Backlog", "InFlightWork"} {
+		kind, name := "GAUGE", "finops_"+metric
+		if awsservice.Contains([]string{"AcceptedWork", "CompletedWork", "RejectedWork"}, metric) {
+			kind, name = "SUM", name+"_total"
+		}
+		d := telemetry.Definition{ID: metric, Version: "1", Metric: metric, Name: name, Unit: "Count", Type: kind, Monotonic: kind == "SUM", CadenceSeconds: 300, MaxGapSeconds: 300, Attributes: map[string]string{"service_arn": binding.ProviderResourceID}, EpochAttributes: map[string]string{"service_arn": binding.ProviderResourceID}, EpochMetric: "finops_service_collector_start_time_seconds"}
+		c.Definitions = append(c.Definitions, d)
+		definitionByName[name] = d
+	}
+	if e := apiDB.Do(ctx, binding.TenantID, func(tx *store.Tx) error { _, e := tx.TelemetryConnectionAppend(ctx, c.ID, 0, telemetry.Document(c)); return e }); e != nil {
+		t.Fatal("commission native stable-service historical reader", e)
+	}
+	cfg := awsservice.Document(resource["aws_service_configuration"])
+	labels := map[string]string{"service_arn": binding.ProviderResourceID, "cluster_arn": model.String(cfg, "clusterArn"), "task_definition_arn": model.String(cfg, "taskDefinition"), "cpu_units": "1024", "memory_mib": "2048", "desired_count": "2", "running_count": "2", "launch_type": "FARGATE", "capacity_provider": "FARGATE", "architecture": "X86_64", "deployment_id": "ecs-svc/7", "evidence_mode": "SYNTHETIC_PROVIDER_SHAPED_HISTORY"}
+	prom := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v1/metadata" {
+			name := r.Form.Get("metric")
+			kind := "gauge"
+			if d, exists := definitionByName[name+"_total"]; exists && d.Type == "SUM" { kind = "counter" }
+			_ = json.NewEncoder(w).Encode(model.Document{"status": "success", "data": model.Document{name: []model.Document{{"type": kind, "unit": "Count"}}}})
+			return
+		}
+		if r.URL.Path != "/api/v1/query" { w.WriteHeader(404); return }
+		name := strings.SplitN(r.Form.Get("query"), "{", 2)[0]
+		if strings.Contains(name, "[") { name = strings.SplitN(name, "[", 2)[0] }
+		d, known := definitionByName[name]
+		if !known && name != "finops_service_collector_start_time_seconds" { t.Error("unregistered historical query"); w.WriteHeader(400); return }
+		metricLabels := map[string]string{"__name__": name}
+		for k, v := range labels { metricLabels[k] = v }
+		values := []any{}
+		for at := start.Add(-5*time.Minute); !at.After(end); at = at.Add(5*time.Minute) {
+			value := "0"
+			switch {
+			case name == "finops_service_collector_start_time_seconds": value = strconv.FormatInt(start.Add(-time.Hour).Unix(), 10)
+			case d.Metric == "ECSServiceConfiguration": value = "1"
+			case d.Metric == "AcceptedWork" || d.Metric == "CompletedWork": value = strconv.FormatInt(int64(at.Sub(start.Add(-5*time.Minute))/(5*time.Minute))*100, 10)
+			}
+			values = append(values, []any{at.Unix(), value})
+		}
+		_ = json.NewEncoder(w).Encode(model.Document{"status": "success", "data": model.Document{"resultType": "matrix", "result": []model.Document{{"metric": metricLabels, "values": values}}}})
+	}))
+	defer prom.Close()
+	batch, e := (telemetry.PromReader{URL: prom.URL, AllowHTTP: true, AllowPrivate: true}).Read(ctx, c, start, end)
+	if e != nil || len(batch.Rejections) != 0 || len(batch.Warnings) != 0 { t.Fatal("native historical demand parse", e) }
+	pipeline := native.Pipeline{Store: readerDB, Archive: storage.Archive, ReadObject: storage.Read, WriteFacts: storage.WriteFacts}
+	receipt, replay, e := pipeline.Publish(ctx, c, batch, "native-fargate-historical-demand", start, end)
+	if e != nil || replay { t.Fatal("native historical demand immutable/analytics publication", e) }
+	if e = readerDB.Do(ctx, binding.TenantID, func(tx *store.Tx) error { var e error; receipt, e = tx.TelemetryReceipt(ctx, model.String(receipt, "id")); return e }); e != nil { t.Fatal(e) }
+	back, e := pipeline.ReadBatch(ctx, binding.TenantID, receipt)
+	if e != nil || telemetry.CanonicalHash(back) != telemetry.CanonicalHash(batch) || len(back.Samples) != len(batch.Samples) { t.Fatal("independent original historical batch readback", e) }
+	u, e := url.Parse(storage.AnalyticsURL)
+	if e != nil { t.Fatal(e) }
+	query := u.Query()
+	query.Set("database", storage.Database)
+	query.Set("query", "SELECT uniqExact(sample_id) FROM native_metric_samples WHERE tenant_id={tenant:String} AND resource_id={resource:String} AND batch_id={batch:String} FORMAT TabSeparated")
+	query.Set("param_tenant", binding.TenantID)
+	query.Set("param_resource", binding.ResourceID)
+	query.Set("param_batch", model.String(receipt, "batch_id"))
+	u.RawQuery = query.Encode()
+	request, e := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
+	if e != nil { t.Fatal(e) }
+	request.Header.Set("X-ClickHouse-User", storage.AnalyticsUser)
+	request.Header.Set("X-ClickHouse-Key", storage.AnalyticsSecret)
+	response, e := storage.Client.Do(request)
+	if e != nil { t.Fatal(e) }
+	count, readErr := io.ReadAll(io.LimitReader(response.Body, 1024))
+	response.Body.Close()
+	if readErr != nil || response.StatusCode != 200 || strings.TrimSpace(string(count)) != strconv.Itoa(len(batch.Samples)) { t.Fatal("independent historical native ClickHouse population differs") }
+	if _, replay, e = pipeline.Publish(ctx, c, batch, "native-fargate-historical-demand", start, end); e != nil || !replay { t.Fatal("historical native replay changed population", e) }
 }
 
 func awsServicePositiveBilling(t *testing.T, ctx context.Context, apiDB, ingester *store.Store, storage *native.Storage, tenant string, tasks []string, start, end time.Time) {

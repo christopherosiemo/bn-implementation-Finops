@@ -128,6 +128,15 @@ func (a *API) awsServiceAssessmentCurrent(ctx context.Context, t *store.Tx, d mo
 			reasons = append(reasons, "AWS_SERVICE_BILLING_CORRECTED_OR_REVOKED")
 		}
 	}
+	if r["service_family"] == "ECS" {
+		current, err := awsServiceHistoricalReferencesCurrent(ctx, t, storageRows(result["source_refs"]))
+		if err != nil {
+			return nil, err
+		}
+		if !current {
+			reasons = append(reasons, "AWS_SERVICE_HISTORICAL_DEMAND_CHANGED_OR_REVOKED")
+		}
+	}
 	out := model.Clone(d)
 	out["current"], out["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
 	return out, nil
@@ -243,6 +252,15 @@ func awsServiceAssessmentInput(ctx context.Context, a *API, t *store.Tx, r, s, c
 			}
 		}
 		observations["metrics"] = kept
+		if r["service_family"] == "ECS" {
+			history, activity, refs, blockers, e := awsServiceHistoricalDemand(ctx, a, t, r, configuration, from, until, read)
+			if e != nil {
+				return nil, nil, e
+			}
+			observations["service_history"], observations["activity"] = history, activity
+			sourceRefs = append(sourceRefs, refs...)
+			reasons = append(reasons, blockers...)
+		}
 	}
 	input := model.Document{"schema_version": "1", "model_version": "aws-service-v1", "model_kind": "AWS_SERVICE_ASSESSMENT_V1", "binding": storageBinding(t.Tenant, r), "family": r["service_family"], "now": a.now().UTC().Format(time.RFC3339Nano), "configuration": configuration, "snapshot_ref": nil, "observations": observations, "capabilities": capabilities, "policy": policy, "source_refs": sourceRefs, "period": model.Document{"start": start, "end": end}, "billing": model.Document{}}
 	if s != nil {
@@ -270,6 +288,17 @@ func awsServiceBlockResult(result model.Document, reasons []string) {
 	reasons = databaseSortedReasons(append(model.Strings(result, "blockers"), reasons...))
 	result["status"], result["blockers"], result["reason_codes"] = "BLOCKED", reasons, reasons
 	result["decision_code"] = "AWS_SERVICE_SERVER_EVIDENCE_BLOCKED"
+	if result["family"] == "ECS" {
+		for _, reason := range reasons {
+			if reason == "CONFIGURATION_EPOCH_CHANGED" || reason == "ECS_HISTORICAL_DEPLOYMENT_OR_SCALING_EPOCH_CHANGED" {
+				result["decision_code"] = "CONFIGURATION_EPOCH_CHANGED"
+				break
+			}
+			if reason == "INSUFFICIENT_HISTORICAL_DEMAND" || reason == "ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED" || reason == "ECS_HISTORICAL_SERVICE_DEMAND_AND_DEPLOYMENT_EVIDENCE_REQUIRED" {
+				result["decision_code"] = "INSUFFICIENT_HISTORICAL_DEMAND"
+			}
+		}
+	}
 	result["proposed_configuration"] = nil
 	result["economically_analysed_source_record_ids"] = []string{}
 	clear := func(e model.Document) {

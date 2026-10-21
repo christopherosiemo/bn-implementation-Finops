@@ -708,7 +708,7 @@ func commissioningTelemetry(ctx context.Context, tx *store.Tx, resources, source
 		}
 		if class == "ECS" {
 			ready = false
-			g.reasons = append(g.reasons, "ECS_ACTIVITY_READER_NOT_CONNECTED")
+			g.reasons = append(g.reasons, "ECS_HISTORICAL_DEMAND_REQUIRES_CURRENT_SERVICE_ASSESSMENT")
 		}
 		if class == "S3" {
 			ready = false
@@ -775,7 +775,7 @@ func commissioningTelemetry(ctx context.Context, tx *store.Tx, resources, source
 	remediation := []string{"Commission missing approved metric sources, including independent memory telemetry; synchronize and evaluate actual historical receipts. Do not enable paid telemetry or infer missing samples merely to pass preflight.", "Use the existing class assessor for native REPORT, Inventory, access and Flow Log population/comparability gates."}
 	for _, class := range classes {
 		if class == "ECS" {
-			remediation = append(remediation, "Software blocker: connect the existing activity evidence reader to the ECS assessor; customer credentials alone do not resolve ECS_ACTIVITY_READER_NOT_CONNECTED.")
+			remediation = append(remediation, "Run the existing ECS service assessor with a current registered historical-demand receipt and compatible serving epochs. Generic metric coverage alone does not establish service-history readiness.")
 		}
 	}
 	return details, commissioningDimension("METRICS", status, allReasons, remediation, details, nil), nil

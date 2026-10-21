@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/awsservice"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/evidence"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -99,6 +100,11 @@ func (a *API) awsServiceFinancialInput(ctx context.Context, t *store.Tx, resourc
 			reasons = append(reasons, "ECS_NATIVE_LONG_LIVED_TASK_COHORT_REQUIRED")
 		}
 		bill["attribution_basis"] = "NATIVE_CUR_MANAGED_TAGS_AND_LONG_LIVED_TASK_COHORT_V1"
+		history := storageObject(storageObject(input["observations"])["service_history"])
+		if history["schema_version"] == awsservice.ServiceHistoryVersion && len(model.Strings(history, "reason_codes")) == 0 && len(storageRows(history["epochs"])) == 1 {
+			bill["historical_service_epoch_id"] = storageRows(history["epochs"])[0]["id"]
+			bill["historical_service_evidence_refs"] = history["source_refs"]
+		}
 	}
 	for month := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC); month.Before(end); month = month.AddDate(0, 1, 0) {
 		ref, records, e := lambdaCurrentMonth(ctx, t, model.String(resource, "account_id"), month)

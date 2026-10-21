@@ -6874,6 +6874,7 @@ export interface components {
             metric_distributions?: {
                 [key: string]: unknown;
             }[];
+            historical_demand?: components["schemas"]["ECSServiceHistoricalDemand"];
             candidates?: components["schemas"]["AWSServiceAssessmentCandidate"][];
             economics?: components["schemas"]["AWSServiceAssessmentEconomics"];
             reason_codes?: string[];
@@ -6895,6 +6896,44 @@ export interface components {
             execution_authorized?: false;
             /** @enum {string|null} */
             verified_saving?: null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Historical native receipts remain separate from guarded minute-ingress observations. Sampled configuration establishes observed epochs only; current task rosters do not establish historical membership. */
+        ECSServiceHistoricalDemand: {
+            /** @enum {string} */
+            status: "COMPLETE_OBSERVED" | "BLOCKED";
+            reason_codes: string[];
+            epoch_count: number;
+            /** @enum {string} */
+            activity_status: "COMPLETE_OBSERVED" | "UNKNOWN_GAPS";
+            /** @enum {string} */
+            semantics: "SAMPLED_CONFIGURATION_NOT_CONTINUOUS_CHANGE_LOG";
+            source_refs: {
+                [key: string]: unknown;
+            }[];
+            epochs: components["schemas"]["ECSServiceServingEpoch"][];
+        };
+        ECSServiceServingEpoch: {
+            id?: string;
+            /** Format: date-time */
+            start?: string;
+            /** Format: date-time */
+            end?: string;
+            cluster_arn?: string;
+            service_arn?: string;
+            task_definition_arn?: string;
+            cpu_units?: string;
+            memory_mib?: string;
+            desired_count?: number;
+            running_count?: number;
+            launch_type?: string;
+            capacity_provider?: string;
+            architecture?: string;
+            deployment_id?: string;
+            source_ref?: {
+                [key: string]: unknown;
+            };
         } & {
             [key: string]: unknown;
         };

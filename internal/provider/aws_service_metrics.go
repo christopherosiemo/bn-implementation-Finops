@@ -41,6 +41,7 @@ func serviceMetricSpecs(resource model.Document) []serviceMetric {
 			add("ECS/ContainerInsights", name, "Maximum", "Count", d)
 		}
 		add("ECS/ContainerInsights", "RunningTaskCount", "Minimum", "Count", d)
+		add("ECS/ContainerInsights", "DesiredTaskCount", "Minimum", "Count", d)
 		// Existing commissioned Container Insights is read only. These aggregate
 		// service statistics are not relabelled exact individual task peaks.
 		add("ECS/ContainerInsights", "TaskCpuUtilization", "Maximum", "Percent", d)

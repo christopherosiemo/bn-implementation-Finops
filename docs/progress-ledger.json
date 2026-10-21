@@ -1891,6 +1891,25 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Read-only commissioning product now includes approved secret-binding metadata, asynchronous identity/category probes, durable immutable tenant reports, persisted evidence/coverage dimensions, normal authenticated console and export. Pre-release frontend/static/schema/Helm/IAM checks pass; full final-source CI, browser and installed migration/restoration are separate release gates, not assumed passed. Generic telemetry, raw class-assessor currentness, remote Git resolution and ECS historical-demand limitations remain explicit. No new package maturity transition, scope split, live/customer/financial credit or mutation authority is claimed; fixed weights and historical reviews remain unchanged."
+    },
+    {
+      "id": "prepilot_polish_1",
+      "recorded_at": "2026-10-21",
+      "base_commit": "4583df9a340baf8874a57f1465c6369384d44741",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "1fd618f5ad6d31ceafa496b2af15dcd0ac975564aef11f635245f63e7b676988",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/prepilot-software-polish.md",
+        "internal/awsservice/service_history.go",
+        "internal/service/aws_service_history.go",
+        "migrations/050_aws_service_historical_demand.sql",
+        "frontend/tests/aws-service-live.spec.ts"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Registered historical ECS service-demand and sampled configuration epochs connect to the existing restricted evaluator. Focused Python, generated contracts, frontend build, two supplementary browser presentations and29migration guards pass. One connected attempt fails at unresponsive Docker API before native/browser start (EXTERNAL_INFRASTRUCTURE_FAILURE); positive E2E and installed migration/restoration remain unaccepted. Fixed weights, historical reviews, broader maturity and external obligations unchanged."
     }
   ],
   "reserved_package": {

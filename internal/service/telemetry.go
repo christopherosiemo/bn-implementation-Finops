@@ -213,6 +213,9 @@ func (a *API) telemetryMutate(ctx context.Context, t *store.Tx, i auth.Identity,
 			return nil, 0, true, e
 		}
 		binding := telemetry.Binding{TenantID: i.Tenant, ResourceID: req.ResourceID, WorkloadID: model.String(w, "id"), Provider: model.String(res, "provider"), ProviderResourceID: model.String(res, "provider_resource_id"), AccountID: model.String(res, "account_id"), Region: model.String(res, "region")}
+		if strings.HasPrefix(binding.ProviderResourceID, "arn:aws:ecs:") && (res["resource_type"] != "ECS_SERVICE" || res["service_family"] != "ECS" || req.Kind != "PROMETHEUS") {
+			return nil, 0, true, problem(422, "TELEMETRY_STABLE_ECS_SERVICE_REQUIRED", "historical ECS telemetry requires a registered stable native service")
+		}
 		if req.Kind == "PROMETHEUS" {
 			if req.Subject != "" {
 				return nil, 0, true, problem(422, "TELEMETRY_SOURCE_FIELDS_INVALID", "Prometheus uses an approved read binding")

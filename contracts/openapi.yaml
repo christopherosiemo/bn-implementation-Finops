@@ -10980,6 +10980,7 @@ components:
           allOf: [{ $ref: '#/components/schemas/AWSServiceConfiguration' }]
         evidence_window: { $ref: '#/components/schemas/DatabaseEvidenceWindow' }
         metric_distributions: { type: array, items: { type: object, additionalProperties: true } }
+        historical_demand: { $ref: '#/components/schemas/ECSServiceHistoricalDemand' }
         candidates: { type: array, items: { $ref: '#/components/schemas/AWSServiceAssessmentCandidate' } }
         economics: { $ref: '#/components/schemas/AWSServiceAssessmentEconomics' }
         reason_codes: { type: array, items: { type: string } }
@@ -10992,6 +10993,41 @@ components:
         pre_execution_ready: { type: boolean, enum: [false] }
         execution_authorized: { type: boolean, enum: [false] }
         verified_saving: { type: string, nullable: true, enum: [null] }
+    ECSServiceHistoricalDemand:
+      type: object
+      additionalProperties: false
+      description: Historical native receipts remain separate from guarded minute-ingress observations. Sampled configuration establishes observed epochs only; current task rosters do not establish historical membership.
+      required: [status, reason_codes, epoch_count, epochs, source_refs, activity_status, semantics]
+      properties:
+        status: { type: string, enum: [COMPLETE_OBSERVED, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+        epoch_count: { type: integer, minimum: 0 }
+        activity_status: { type: string, enum: [COMPLETE_OBSERVED, UNKNOWN_GAPS] }
+        semantics: { type: string, enum: [SAMPLED_CONFIGURATION_NOT_CONTINUOUS_CHANGE_LOG] }
+        source_refs: { type: array, items: { type: object, additionalProperties: true } }
+        epochs:
+          type: array
+          maxItems: 256
+          items: { $ref: '#/components/schemas/ECSServiceServingEpoch' }
+    ECSServiceServingEpoch:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        cluster_arn: { type: string }
+        service_arn: { type: string }
+        task_definition_arn: { type: string }
+        cpu_units: { type: string }
+        memory_mib: { type: string }
+        desired_count: { type: integer, minimum: 0 }
+        running_count: { type: integer, minimum: 0 }
+        launch_type: { type: string }
+        capacity_provider: { type: string }
+        architecture: { type: string }
+        deployment_id: { type: string }
+        source_ref: { type: object, additionalProperties: true }
     AWSServiceAssessmentRecord:
       type: object
       additionalProperties: true

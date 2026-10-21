@@ -71,12 +71,16 @@ test("commissioned native Fargate evidence reaches ordinary OIDC, customer econo
   const assessment = result.assessment!; expect(assessment).not.toBeNull();
   expect(assessment.model_kind).toBe("AWS_SERVICE_ASSESSMENT_V1"); expect(assessment.family).toBe("ECS"); expect(assessment.resource_id).toBe(resourceID); expect(assessment.status).toBe("RECOMMENDED"); expect(assessment.recommendation_kind).toBe("FARGATE_TASK_RIGHTSIZE");
   expect(assessment.read_only).toBe(true); expect(assessment.pre_execution_ready).toBe(false); expect(assessment.execution_authorized).toBe(false); expect(assessment.verified_saving).toBeNull(); expect(assessment.blockers).toEqual([]);
+  expect(assessment.historical_demand).toMatchObject({ status: "COMPLETE_OBSERVED", epoch_count: 1, activity_status: "COMPLETE_OBSERVED", semantics: "SAMPLED_CONFIGURATION_NOT_CONTINUOUS_CHANGE_LOG" });
+  expect(assessment.historical_demand!.source_refs.length).toBeGreaterThan(0);
   expect(assessment.source_refs!.length).toBeGreaterThan(0); expect(Array.isArray(assessment.financial_references)).toBe(true); expect((assessment.financial_references as unknown[]).length).toBeGreaterThan(0);
   const economicalIDs = assessment.economically_analysed_source_record_ids!; expect(economicalIDs.length).toBeGreaterThan(0); expect(new Set(economicalIDs).size).toBe(economicalIDs.length);
   expect(assessment.economics).toMatchObject({ status: "NATIVE_CUSTOMER_ECONOMICS", currency: "GBP", current_window_cost: "32.256000000000", candidate_window_cost: "16.128000000000", estimated_window_saving: "16.128000000000", conditional_monthly_run_rate: null });
   expect(String(assessment.proposed_configuration?.cpu)).toBe("512"); expect(String(assessment.proposed_configuration?.memory)).toBe("1024");
   expect(assessment.candidates?.some(candidate => candidate.recommendation_kind === "FARGATE_TASK_RIGHTSIZE" && candidate.status === "RECOMMENDED")).toBe(true);
   const dialog = page.getByRole("dialog", { name: "AWS service assessment", exact: true });
+  await expect(dialog.getByRole("region", { name: "ECS historical service demand", exact: true })).toContainText("Complete observed");
+  await expect(dialog.getByRole("region", { name: "ECS historical service demand", exact: true })).toContainText("orders:7");
   await dialog.getByRole("button", { name: "Refresh selected AWS service assessment", exact: true }).click();
   await expect(dialog.getByRole("region", { name: "AWS service customer economics", exact: true }).first()).toContainText("16.128000000000 GBP");
   await expect(dialog.getByRole("button", { name: /Execute|Approve|Resize|Deploy|Delete|Create.*plan/ })).toHaveCount(0);
