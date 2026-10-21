@@ -131,4 +131,3 @@ func (c *LocalArtifactCollector) repositoryRemoteRevision(ctx context.Context, r
 	}
 	return fields[0], nil
 }
-
