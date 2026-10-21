@@ -1854,6 +1854,24 @@
       ],
       "live_credit_awarded": false,
       "acceptance": "Active Go1.27.3 pins and103existing focused Node/static checks accepted. Local fixed-image download failed DockerHub EOF (EXTERNAL_INFRASTRUCTURE_FAILURE), with no retry or fallback. Reachable-vulnerability and complete release acceptance are pending required CI on the pushed source; no secure-baseline completion or maturity transition is claimed until the scan itself passes. Historical evidence/credits/weights remain unchanged."
+    },
+    {
+      "id": "aws_readiness_closure_b",
+      "recorded_at": "2026-10-21",
+      "base_commit": "71e1f88ce4e561bfc0a6173309aee368f19f5a69",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "11f67f9679315a41652b64aef2de925621de83a57c7f99f0e75b9df65695751e",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "migrations/048_eks_kubernetes_associations.sql",
+        "internal/eksassociation/",
+        "scripts/commission-lambda-performance.mjs"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Checkpoint A exact-source required CI finished13PASS/3historicalFAIL; reachable Go security scan PASS. Local Lambda dedicated machine identity commissioning PASS. EKS native/Kubernetes identity product slice and ECS native cohort/rate path implemented; frontend/static/Helm and12focused ECS model checks pass. Three bounded connected paths stop before tests because fixed Go image is unavailable locally; ECS invocation fails its source-path assertion and trusted historical-demand reader remains absent. No positive connected or family maturity transition accepted. Existing fixed weights, reviews and external requirements unchanged."
     }
   ],
   "reserved_package": {

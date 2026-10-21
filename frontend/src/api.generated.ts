@@ -1669,6 +1669,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/eks-kubernetes-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant-scoped safe identifiers for operator-approved Kubernetes read bindings. Credentials, token paths, endpoints and certificate authorities are never returned. This list does not grant cluster access. */
+        get: operations["listApprovedEKSKubernetesBindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/eks-association": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Currentness of an immutable point-in-time association between native EKS and observed Kubernetes identities. Managed nodes require native ASG and EC2 membership; Fargate requires observed running placement and an exact active native profile. Relationships add no costs or execution authority. Declaration names alone are insufficient. */
+        get: operations["getEKSKubernetesAssociation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/source-connections": {
         parameters: {
             query?: never;
@@ -6820,6 +6854,106 @@ export interface components {
         };
         /** @enum {string} */
         AWSServiceFamily: "ECS" | "EKS" | "ELASTICACHE" | "DYNAMODB" | "ELB";
+        /** @description Customer identity scope hints. The reader must independently observe matching namespace and deployment UIDs and pod ownership before association. */
+        EKSWorkloadIdentityBinding: {
+            workload_id: string;
+            namespace: string;
+            namespace_uid: string;
+            deployment: string;
+            deployment_uid: string;
+        };
+        /** @description Select existing approved AWS and Kubernetes binding IDs only. An unambiguous current native EKS registration is required. No endpoint, CA, token, credentials, RBAC changes or execution permission may be supplied. */
+        EKSSourceConnectionRequest: {
+            /** @enum {string} */
+            kind: "AWS_EKS_KUBERNETES_V1";
+            name?: string;
+            account_id: string;
+            /** @enum {string} */
+            region: "eu-west-1";
+            cluster_arn: string;
+            read_role_binding_id: string;
+            kubernetes_read_binding_id: string;
+            workload_bindings?: components["schemas"]["EKSWorkloadIdentityBinding"][];
+        };
+        EKSApprovedBindingList: {
+            items: {
+                id: string;
+                account_id: string;
+                /** @enum {string} */
+                region: "eu-west-1";
+                cluster_arn: string;
+            }[];
+        };
+        EKSNodeIdentityAssociation: {
+            kubernetes_node_uid: string;
+            kubernetes_node_name: string;
+            provider_id: string;
+            resource_version: string;
+            ec2_instance_id?: string;
+            ec2_resource_id?: string | null;
+            nodegroup_resource_id?: string | null;
+            fargate_profile_resource_id?: string | null;
+            fargate_profile_name?: string;
+            /** @enum {string} */
+            status: "ASSOCIATED" | "PARTIAL" | "BLOCKED" | "FARGATE_PLACEMENT_UNPROVEN";
+            reason_codes: string[];
+        };
+        EKSWorkloadIdentityAssociation: {
+            workload_id: string;
+            namespace_uid: string;
+            deployment_uid: string;
+            pod_uids: string[];
+            node_uids: string[];
+            /** @enum {string} */
+            status: "ASSOCIATED" | "BLOCKED";
+            reason_codes: string[];
+        };
+        EKSKubernetesAssociation: {
+            id?: string;
+            /** @enum {string} */
+            schema_version?: "1";
+            resource_id: string;
+            account_id?: string;
+            region?: string;
+            /** @enum {string} */
+            status: "ASSOCIATED" | "PARTIAL" | "BLOCKED";
+            current: boolean;
+            reason_codes: string[];
+            currentness_blockers?: string[];
+            cluster?: {
+                arn: string;
+                kube_system_uid: string;
+                endpoint_sha256: string;
+                ca_sha256: string;
+            };
+            nodes: components["schemas"]["EKSNodeIdentityAssociation"][];
+            workloads: components["schemas"]["EKSWorkloadIdentityAssociation"][];
+            source_id?: string;
+            source_version?: number;
+            native_source_id?: string;
+            native_source_version?: number;
+            config_hash?: string;
+            native_configuration_hashes?: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            observed_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+            source_refs?: {
+                [key: string]: unknown;
+            }[];
+            archive?: {
+                [key: string]: unknown;
+            };
+            content_hash?: string;
+            /** @enum {boolean} */
+            execution_authorized: false;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {string} */
+            cost_attribution: "RELATIONSHIP_ONLY_NO_ADDITIONAL_COST";
+        };
         AWSServiceSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_SERVICE_NATIVE_V1";
@@ -6884,7 +7018,7 @@ export interface components {
             audience?: string;
             subject?: string;
         };
-        SourceConnectionRequest: components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
+        SourceConnectionRequest: components["schemas"]["EKSSourceConnectionRequest"] | components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionRequest"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"];
         AWSBillingSourceConnectionRequest: {
             /** @enum {string} */
             kind: "AWS_CUR2";
@@ -6952,7 +7086,7 @@ export interface components {
                 dataset_hash?: string;
             }[];
         };
-        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
+        SourceConnection: components["schemas"]["Document"] & (components["schemas"]["EKSSourceConnectionRequest"] | components["schemas"]["AWSServiceSourceConnectionRequest"] | components["schemas"]["AWSBillingSourceConnectionRequest"] | components["schemas"]["ObjectStorageSourceConnectionConfiguration"] | components["schemas"]["LambdaSourceConnectionRequest"] | components["schemas"]["NetworkSourceConnectionRequest"]) & {
             bucket?: string;
             flow_log_id?: string;
             payer_account_id?: string;
@@ -13428,6 +13562,69 @@ export interface operations {
             };
             413: components["responses"]["MutationBodyTooLarge"];
             /** @description Invalid review fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listApprovedEKSKubernetesBindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Existing approved binding identifiers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EKSApprovedBindingList"];
+                };
+            };
+        };
+    };
+    getEKSKubernetesAssociation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Association evidence or explicit collection blocker */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EKSKubernetesAssociation"];
+                };
+            };
+            /** @description Current workload access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Resource unavailable in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An observed EKS cluster is required */
             422: {
                 headers: {
                     [name: string]: unknown;

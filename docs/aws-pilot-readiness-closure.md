@@ -26,9 +26,13 @@ The first local fixed-image download ended in a DockerHub layer EOF, classified
 `EXTERNAL_INFRASTRUCTURE_FAILURE`. It was not retried or replaced with an
 unreviewed image. Required checkpoint CI performs the actual reachable
 `govulncheck` and existing Go/test/race, contract, dependency, secret and
-infrastructure gates. **Security acceptance is pending on this pushed source;
-Checkpoint A cannot be COMPLETE until the vulnerability scan itself passes.**
-No advisory is suppressed. The three historical commitment/fleet jobs remain
+infrastructure gates. The pushed checkpoint is
+`71e1f88ce4e561bfc0a6173309aee368f19f5a69`. Its required reachable scan
+**passed** in run `39557938865`, security job `119082036849`; the security
+baseline subset is COMPLETE. This closes the reported Go release failure without
+suppressing the advisory. Economics, generated types/build, dependency audits,
+secret scan and infrastructure also passed. Terminal required CI is **13 PASS /
+3 historical FAIL**; optional fleet-protocol is skipped. The three historical commitment/fleet jobs remain
 enabled and outside investigation unless a concrete new regression is exposed.
 No maturity points are claimed by pin changes or test counts.
 
@@ -47,12 +51,85 @@ only while the full economics suite remains a required final-source CI gate.
 Original deadlines, CPU/memory budgets, safety assertions, private model calls,
 ordinary OIDC and independent persisted readback remain unchanged.
 
+### Equivalent Python gate composition
+
+The existing connected invocations now discover each complete relevant module:
+`test_lambda.py`, `test_object_storage.py` and `test_network.py`. Their module
+scope includes private HTTP authentication, safety refusals and decimal model
+tests. The full `python -m unittest discover -s tests -v` remains unchanged in the
+required economics CI job and must pass on final source before acceptance is
+banked. The combined validation is the full suite plus each connected persisted
+native/model/browser path, with no removed or split safety tests. Preflights
+retain 120 seconds, 512 MiB, one CPU, strict successful-summary parsing and no
+accepted skips. Actual CUR normalization and private model HTTP calls remain in
+the connected journey. Invocation parent/child hashes and receipts are retained
+privately; historical invocations and failed receipts are not rewritten.
+
+### Lambda identity commissioning
+
+Explicit bootstrap opt-in now creates four distinct, replay-stable local secrets
+without enabling ingress. Existing empty rows are replaced once; duplicate keys
+or mixed identities are refused. Targeted object initialization commissions only
+the existing Lambda performance writer policy and user. The explicit local
+ClickHouse commissioning command creates that dedicated identity with INSERT on
+`native_metric_samples` and `native_metric_batches`, plus SELECT on only the six
+columns needed for exact sample readback. It grants no other tables, roles, DDL
+or user-management rights and preserves unrelated metadata. Authentication and
+tenant/source binding remain the trusted-ingress boundary; these grants are not
+database row-level isolation. Neither external AWS nor execution authority is
+added. Actual local bootstrap, targeted object commissioning and ClickHouse
+commissioning passed; the positive connected result is still pending.
+
 ECS/Fargate retains stable service assessments and real task billing identities.
 Only an evidenced long-lived homogeneous cohort with complete history qualifies.
 Current task rosters cannot establish historical membership. Native dimensional
 metadata does not supply customer prices. EKS associations require independent
 native and Kubernetes identities; unknown placement remains blocked and creates
 no additional charge or execution authority.
+
+### Bounded checkpoint-B outcome
+
+**PARTIAL; official 26.9 → 26.9.** Actual local Lambda bootstrap, dedicated
+MinIO policy/user and narrowly granted ClickHouse identity commissioning passed.
+The existing default-off service-assessor object identity was also commissioned
+without sharing the ingress identity or changing unrelated users. Ingress and
+analytical deployments remain disabled by default.
+
+Lambda, S3 and Network each received one bounded connected invocation. All
+stopped at the exact pinned Go-image inspection before Python/native tests:
+the approved image is absent following DockerHub EOF downloads. Each retained
+receipt confirms zero tests and successful cleanup. These are
+`EXTERNAL_INFRASTRUCTURE_FAILURE`, not positive acceptance. ECS received one
+invocation, which stopped at a source-file assertion (service path selected;
+test actually resides in workflow). This is `UNKNOWN_ACCEPTANCE_FAILURE`;
+no acceptance-infrastructure repair or second family was started.
+
+ECS native cohort, customer-rate dimensions, financial association and component
+coverage are implemented. Review also found that rightsizing could bypass
+independent historical work evidence. One minimal product correction now blocks
+all ECS decisions without complete demand, preserving current cost while leaving
+candidate savings and analysed charge claims unavailable; 12 focused model
+checks passed. Its positive connected assertion remains unchanged. The existing
+analyst cannot yet read a trusted ECS historical-demand source. This is a
+software gap, not a customer commissioning task disguised as readiness.
+
+EKS association now has independent native endpoint/CA and observed Kubernetes
+UID/provider identities, managed-capacity/Fargate placement proofs, immutable
+tenant-RLS migration 048, currentness, source/API and ordinary console paths.
+Unknown placement remains blocked and relationships create no additional cost.
+Frontend generation/build, 29 migration/static checks and default/enabled Helm
+secret-boundary renders passed. Ten Go identity tests remain locally unrun
+because the fixed image is unavailable. Genuine TLS/native archive-to-console
+acceptance and customer commissioning remain outstanding. Migrations 001–047
+are unchanged; 048 hash is
+`73acc6ce78d3d0b4506baf0bbce36945e6cfba46d9d9ae60512deafe2eda4152`.
+
+The central Node rerun passed 34 checks with one platform-specific shell case
+skipped; the targeted actual local commissioning above passed independently.
+No whole-family maturity transition, live acceptance or new savings is claimed.
+Private receipts retain source hashes, original limits and failure evidence.
+All five slices are PARTIAL; genuine AWS/customer/operational requirements are
+`EXTERNAL_ACCEPTANCE_REQUIRED`. Checkpoint CI will run on the pushed source.
 
 ## Checkpoint C: read-only commissioning product
 

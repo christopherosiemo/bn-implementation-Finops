@@ -90,6 +90,9 @@ func ingestionTick(ctx context.Context, a *Activities) error {
 		if serviceError := awsServiceTick(ctx, a, tenant); serviceError != nil && e == nil {
 			e = serviceError
 		}
+		if associationError := eksAssociationTick(ctx, a, tenant); associationError != nil && e == nil {
+			e = associationError
+		}
 		status := "HEALTHY"
 		if e != nil {
 			status = "DEGRADED"

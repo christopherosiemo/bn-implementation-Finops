@@ -45,7 +45,8 @@ locals {
     ] : []
     eks = var.enable_eks_readonly ? [
       "eks:ListClusters", "eks:DescribeCluster", "eks:ListNodegroups", "eks:DescribeNodegroup",
-      "eks:ListFargateProfiles", "eks:DescribeFargateProfile", "eks:ListAddons", "eks:DescribeAddon", "eks:ListTagsForResource"
+      "eks:ListFargateProfiles", "eks:DescribeFargateProfile", "eks:ListAddons", "eks:DescribeAddon", "eks:ListTagsForResource",
+      "autoscaling:DescribeAutoScalingGroups", "ec2:DescribeInstances"
     ] : []
     elasticache = var.enable_elasticache_readonly ? [
       "elasticache:DescribeReplicationGroups", "elasticache:DescribeCacheClusters", "elasticache:DescribeServerlessCaches",

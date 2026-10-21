@@ -271,6 +271,10 @@ func SyncAWSServiceSource(ctx context.Context, a *Activities, s *native.Storage,
 		if e != nil {
 			return e
 		}
+		collection, e = enrichAWSServicePricing(ctx, a.Store, reader, r, collection, s)
+		if e != nil {
+			return e
+		}
 		// Completeness belongs to the entire generation, not merely its last
 		// page. A denied optional read on an earlier page remains a visible gap.
 		collection = awsServiceGenerationCollection(checkpoint, collection)

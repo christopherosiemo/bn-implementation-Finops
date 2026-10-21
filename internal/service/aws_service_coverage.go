@@ -70,6 +70,27 @@ func (a *API) awsServiceCoveragePublications(ctx context.Context, t *store.Tx) (
 			}
 		}
 		out[model.String(record, "resource_id")] = p
+		// Native Fargate billing keeps task ResourceId. Service analysis claims
+		// only the exact immutable charge keys, never an alias for every task.
+		for line := range p.lines {
+			key := "line:" + line
+			if _, exists := out[key]; exists {
+				out[key] = lambdaCoveragePublication{blocked: true, lines: map[string]bool{}}
+			} else {
+				out[key] = p
+			}
+		}
 	}
 	return out, nil
+}
+
+func awsServiceCoverageLineCategory(publications map[string]lambdaCoveragePublication, line, currency string) (string, bool) {
+	p, ok := publications["line:"+line]
+	if !ok {
+		return "", false
+	}
+	if p.blocked || p.currency != currency || !p.lines[line] {
+		return "blocked_spend", true
+	}
+	return "analysed_spend", true
 }

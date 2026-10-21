@@ -25,8 +25,8 @@ const assessmentFiles = ['database', 'access-key', 'secret-key'].map(name => pat
 const copiedBootstrap = path.join(temporaryRoot, 'scripts', 'bootstrap.mjs');
 const mode = file => statSync(file).mode & 0o777;
 
-function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false, network = false, lambda = false, service = false) {
-  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly), FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: String(network), FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR: String(lambda), FINOPS_BOOTSTRAP_SERVICE_ASSESSOR: String(service)}, encoding: 'utf8', timeout: 15_000 });
+function bootstrap(capacity = false, storage = false, objectStorage = false, s3Readonly = false, network = false, lambda = false, service = false, performance = false) {
+  const result = spawnSync(process.execPath, [copiedBootstrap], { cwd: temporaryRoot, env: {...process.env, FINOPS_BOOTSTRAP_FLEET_CAPACITY: String(capacity), FINOPS_BOOTSTRAP_STORAGE_ASSESSOR: String(storage), FINOPS_BOOTSTRAP_OBJECT_STORAGE_ASSESSOR: String(objectStorage), FINOPS_BOOTSTRAP_S3_READONLY: String(s3Readonly), FINOPS_BOOTSTRAP_NETWORK_ASSESSOR: String(network), FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR: String(lambda), FINOPS_BOOTSTRAP_SERVICE_ASSESSOR: String(service), FINOPS_BOOTSTRAP_LAMBDA_PERFORMANCE: String(performance)}, encoding: 'utf8', timeout: 15_000 });
   if (result.error) throw result.error;
   assert.equal(result.status, 0, `isolated bootstrap failed: ${result.stderr}`);
 }
@@ -195,7 +195,29 @@ try {
   for(const earlier of ['OBJECT_SECRET_KEY','AUDIT_SECRET_KEY','LAMBDA_ASSESSOR_SECRET_KEY','NETWORK_ASSESSOR_SECRET_KEY'])assert.notEqual(serviceValues.SERVICE_ASSESSOR_SECRET_KEY,serviceValues[earlier]);
   assert.equal(mode(generatedEnv),0o600);bootstrap(true,true,true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),withService);probeAsKeycloak(true);
   console.log('PASS AWS service credentials default absent, independently commissioned, private and replay stable');
-  console.log('\n11 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
+  const performanceNames=['LAMBDA_PERFORMANCE_ACCESS_KEY','LAMBDA_PERFORMANCE_SECRET_KEY','LAMBDA_PERFORMANCE_CLICKHOUSE_USER','LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD'];
+  for(const name of performanceNames)assert.ok(!withService.includes(name+'='),'ordinary bootstrap must not commission Lambda performance ingress');
+  bootstrap(true,true,true,true,true,true,true,true);
+  const withPerformance=readFileSync(generatedEnv,'utf8');assert.ok(withPerformance.startsWith(withService));
+  const performanceValues=Object.fromEntries(withPerformance.trim().split('\n').map(line=>{const at=line.indexOf('=');return[line.slice(0,at),line.slice(at+1)];}));
+  assert.match(performanceValues.LAMBDA_PERFORMANCE_ACCESS_KEY,/^lambda-perf-[a-f0-9]{8}$/);assert.match(performanceValues.LAMBDA_PERFORMANCE_CLICKHOUSE_USER,/^lambda_performance_[a-f0-9]{16}$/);
+  assert.equal(new Set(performanceNames.map(name=>performanceValues[name])).size,4);
+  for(const name of performanceNames)for(const [earlier,value]of Object.entries(serviceValues))assert.notEqual(performanceValues[name],value,'performance identity must not reuse '+earlier);
+  assert.ok(!withPerformance.includes('LAMBDA_PERFORMANCE_ENABLED=true'));assert.equal(mode(generatedEnv),0o600);
+  bootstrap(true,true,true,true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),withPerformance);probeAsKeycloak(true);
+  const incomplete=withPerformance.replace(/^LAMBDA_PERFORMANCE_SECRET_KEY=.+$/m,'LAMBDA_PERFORMANCE_SECRET_KEY=');writeFileSync(generatedEnv,incomplete,{mode:0o600});
+  const refused=spawnSync(process.execPath,[copiedBootstrap],{cwd:temporaryRoot,env:{...process.env,FINOPS_BOOTSTRAP_LAMBDA_PERFORMANCE:'true'},encoding:'utf8',timeout:15000});
+  assert.equal(refused.status,1);assert.match(refused.stderr,/LAMBDA_PERFORMANCE_IDENTITY_INCOMPLETE/);assert.equal(readFileSync(generatedEnv,'utf8'),incomplete);writeFileSync(generatedEnv,withPerformance,{mode:0o600});
+  const emptyRows=withService+'# Preserve this optional configuration comment\r\n'+performanceNames.map(name=>name+'=\r\n').join('')+'# Preserve trailing customer notes\n';
+  writeFileSync(generatedEnv,emptyRows,{mode:0o600});bootstrap(true,true,true,true,true,true,true,true);
+  const replaced=readFileSync(generatedEnv,'utf8');assert.ok(replaced.startsWith(withService+'# Preserve this optional configuration comment\r\n'));assert.ok(replaced.endsWith('# Preserve trailing customer notes\n'));
+  for(const name of performanceNames){const lines=replaced.split(/\r?\n/).filter(line=>line.startsWith(name+'='));assert.equal(lines.length,1);assert.ok(lines[0].length>name.length+1);}
+  bootstrap(true,true,true,true,true,true,true,true);assert.equal(readFileSync(generatedEnv,'utf8'),replaced);assert.equal(mode(generatedEnv),0o600);probeAsKeycloak(true);
+  const duplicate=replaced+performanceNames[0]+'=\n';writeFileSync(generatedEnv,duplicate,{mode:0o600});
+  const duplicateRefused=spawnSync(process.execPath,[copiedBootstrap],{cwd:temporaryRoot,env:{...process.env,FINOPS_BOOTSTRAP_LAMBDA_PERFORMANCE:'true'},encoding:'utf8',timeout:15000});
+  assert.equal(duplicateRefused.status,1);assert.match(duplicateRefused.stderr,/LAMBDA_PERFORMANCE_DUPLICATE_SECRET_KEY/);assert.equal(readFileSync(generatedEnv,'utf8'),duplicate);writeFileSync(generatedEnv,replaced,{mode:0o600});
+  console.log('PASS optional Lambda ingress materializes four private distinct replay-stable secrets without enabling ingress; partial identities fail closed');
+  console.log('\n12 Linux bootstrap permission checks passed. Isolated temporary artifacts only.');
 } finally {
   process.umask(originalUmask);
   const resolved = realpathSync(temporaryRoot);

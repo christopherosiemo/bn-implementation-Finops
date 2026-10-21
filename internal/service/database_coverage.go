@@ -615,6 +615,9 @@ func (a *API) databaseCoverage(ctx context.Context, tx *store.Tx) (model.Documen
 					category = "blocked_spend"
 				}
 			}
+			if exact, matched := awsServiceCoverageLineCategory(servicePublications, databaseCoverageLineKey(selected.ref, model.String(record, "x_SourceRecordId")), currency); matched {
+				category = exact
+			}
 			group.values[category].Add(group.values[category], cost)
 			for _, networkGroup := range networkPartitions {
 				networkGroup.values[category].Add(networkGroup.values[category], cost)

@@ -1,10 +1,17 @@
 #!/bin/sh
 set -eu
 
+mode=${1:-all}
+if [ "$#" -gt 1 ] || { [ "$mode" != all ] && [ "$mode" != lambda-performance-only ] && [ "$mode" != service-assessor-only ]; }; then
+  printf '%s\n' MINIO_INITIALIZER_MODE_INVALID >&2
+  exit 1
+fi
 # This is a one-shot initializer. Never echo credentials or raw mc errors.
-if [ -z "${MINIO_ROOT_USER:-}" ] || [ -z "${MINIO_ROOT_PASSWORD:-}" ] ||
-   [ -z "${OBJECT_ACCESS_KEY:-}" ] || [ -z "${OBJECT_SECRET_KEY:-}" ] ||
-   [ -z "${AUDIT_ACCESS_KEY:-}" ] || [ -z "${AUDIT_SECRET_KEY:-}" ]; then
+if [ -z "${MINIO_ROOT_USER:-}" ] || [ -z "${MINIO_ROOT_PASSWORD:-}" ]; then
+  printf '%s\n' MINIO_CONFIGURATION_INVALID >&2
+  exit 1
+fi
+if [ "$mode" = all ] && { [ -z "${OBJECT_ACCESS_KEY:-}" ] || [ -z "${OBJECT_SECRET_KEY:-}" ] || [ -z "${AUDIT_ACCESS_KEY:-}" ] || [ -z "${AUDIT_SECRET_KEY:-}" ]; }; then
   printf '%s\n' MINIO_CONFIGURATION_INVALID >&2
   exit 1
 fi
@@ -32,6 +39,46 @@ run_mc() {
     exit 1
   fi
 }
+
+commission_lambda_performance() {
+  if [ -z "${LAMBDA_PERFORMANCE_ACCESS_KEY:-}" ] || [ -z "${LAMBDA_PERFORMANCE_SECRET_KEY:-}" ]; then
+    printf '%s\n' MINIO_LAMBDA_PERFORMANCE_CONFIGURATION_INVALID >&2
+    exit 1
+  fi
+  for other in "$MINIO_ROOT_USER" "${OBJECT_ACCESS_KEY:-}" "${AUDIT_ACCESS_KEY:-}" "${ASSESSMENT_ACCESS_KEY:-}" "${CAPACITY_ACCESS_KEY:-}" "${DATABASE_ASSESSOR_ACCESS_KEY:-}" "${STORAGE_ASSESSOR_ACCESS_KEY:-}" "${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}" "${NETWORK_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_ASSESSOR_ACCESS_KEY:-}" "${SERVICE_ASSESSOR_ACCESS_KEY:-}"; do
+    if [ "$LAMBDA_PERFORMANCE_ACCESS_KEY" = "$other" ]; then
+      printf '%s\n' MINIO_LAMBDA_PERFORMANCE_CONFIGURATION_INVALID >&2
+      exit 1
+    fi
+  done
+  run_mc MINIO_LAMBDA_PERFORMANCE_POLICY_FAILED admin policy create local lambda-performance /config/lambda-performance-policy.json
+  run_mc MINIO_LAMBDA_PERFORMANCE_USER_FAILED admin user add local "$LAMBDA_PERFORMANCE_ACCESS_KEY" "$LAMBDA_PERFORMANCE_SECRET_KEY"
+  run_mc MINIO_LAMBDA_PERFORMANCE_POLICY_ATTACH_FAILED admin policy attach local lambda-performance --user "$LAMBDA_PERFORMANCE_ACCESS_KEY"
+}
+commission_service_assessor() {
+  if [ -z "${SERVICE_ASSESSOR_ACCESS_KEY:-}" ] || [ -z "${SERVICE_ASSESSOR_SECRET_KEY:-}" ]; then
+    printf '%s\n' MINIO_SERVICE_ASSESSOR_CONFIGURATION_INVALID >&2
+    exit 1
+  fi
+  for other in "$MINIO_ROOT_USER" "${OBJECT_ACCESS_KEY:-}" "${AUDIT_ACCESS_KEY:-}" "${ASSESSMENT_ACCESS_KEY:-}" "${CAPACITY_ACCESS_KEY:-}" "${DATABASE_ASSESSOR_ACCESS_KEY:-}" "${STORAGE_ASSESSOR_ACCESS_KEY:-}" "${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}" "${NETWORK_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_PERFORMANCE_ACCESS_KEY:-}"; do
+    if [ "$SERVICE_ASSESSOR_ACCESS_KEY" = "$other" ]; then
+      printf '%s\n' MINIO_SERVICE_ASSESSOR_CONFIGURATION_INVALID >&2
+      exit 1
+    fi
+  done
+  run_mc MINIO_SERVICE_ASSESSOR_POLICY_FAILED admin policy create local aws-service-assessor /config/group-assessor-policy.json
+  run_mc MINIO_SERVICE_ASSESSOR_USER_FAILED admin user add local "$SERVICE_ASSESSOR_ACCESS_KEY" "$SERVICE_ASSESSOR_SECRET_KEY"
+  run_mc MINIO_SERVICE_ASSESSOR_POLICY_ATTACH_FAILED admin policy attach local aws-service-assessor --user "$SERVICE_ASSESSOR_ACCESS_KEY"
+}
+if [ "$mode" = lambda-performance-only ]; then
+  # Existing stores and all unrelated identities remain untouched.
+  commission_lambda_performance
+  exit 0
+fi
+if [ "$mode" = service-assessor-only ]; then
+  commission_service_assessor
+  exit 0
+fi
 
 run_mc MINIO_RAW_BUCKET_CREATE_FAILED mb --ignore-existing local/finops-raw
 run_mc MINIO_RAW_VERSIONING_FAILED version enable local/finops-raw
@@ -155,34 +202,10 @@ if [ -n "${LAMBDA_ASSESSOR_ACCESS_KEY:-}" ] || [ -n "${LAMBDA_ASSESSOR_SECRET_KE
 fi
 
 if [ -n "${SERVICE_ASSESSOR_ACCESS_KEY:-}" ] || [ -n "${SERVICE_ASSESSOR_SECRET_KEY:-}" ]; then
-  if [ -z "${SERVICE_ASSESSOR_ACCESS_KEY:-}" ] || [ -z "${SERVICE_ASSESSOR_SECRET_KEY:-}" ]; then
-    printf '%s\n' MINIO_SERVICE_ASSESSOR_CONFIGURATION_INVALID >&2
-    exit 1
-  fi
-  for other in "$MINIO_ROOT_USER" "$OBJECT_ACCESS_KEY" "$AUDIT_ACCESS_KEY" "${ASSESSMENT_ACCESS_KEY:-}" "${CAPACITY_ACCESS_KEY:-}" "${DATABASE_ASSESSOR_ACCESS_KEY:-}" "${STORAGE_ASSESSOR_ACCESS_KEY:-}" "${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}" "${NETWORK_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_PERFORMANCE_ACCESS_KEY:-}"; do
-    if [ "$SERVICE_ASSESSOR_ACCESS_KEY" = "$other" ]; then
-      printf '%s\n' MINIO_SERVICE_ASSESSOR_CONFIGURATION_INVALID >&2
-      exit 1
-    fi
-  done
-  run_mc MINIO_SERVICE_ASSESSOR_POLICY_FAILED admin policy create local aws-service-assessor /config/group-assessor-policy.json
-  run_mc MINIO_SERVICE_ASSESSOR_USER_FAILED admin user add local "$SERVICE_ASSESSOR_ACCESS_KEY" "$SERVICE_ASSESSOR_SECRET_KEY"
-  run_mc MINIO_SERVICE_ASSESSOR_POLICY_ATTACH_FAILED admin policy attach local aws-service-assessor --user "$SERVICE_ASSESSOR_ACCESS_KEY"
+  commission_service_assessor
 fi
 
 # Independent machine ingress has no source-reader or analytical credentials.
 if [ -n "${LAMBDA_PERFORMANCE_ACCESS_KEY:-}" ] || [ -n "${LAMBDA_PERFORMANCE_SECRET_KEY:-}" ]; then
-  if [ -z "${LAMBDA_PERFORMANCE_ACCESS_KEY:-}" ] || [ -z "${LAMBDA_PERFORMANCE_SECRET_KEY:-}" ]; then
-    printf '%s\n' MINIO_LAMBDA_PERFORMANCE_CONFIGURATION_INVALID >&2
-    exit 1
-  fi
-  for other in "$MINIO_ROOT_USER" "$OBJECT_ACCESS_KEY" "$AUDIT_ACCESS_KEY" "${ASSESSMENT_ACCESS_KEY:-}" "${CAPACITY_ACCESS_KEY:-}" "${DATABASE_ASSESSOR_ACCESS_KEY:-}" "${STORAGE_ASSESSOR_ACCESS_KEY:-}" "${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}" "${NETWORK_ASSESSOR_ACCESS_KEY:-}" "${LAMBDA_ASSESSOR_ACCESS_KEY:-}" "${SERVICE_ASSESSOR_ACCESS_KEY:-}"; do
-    if [ "$LAMBDA_PERFORMANCE_ACCESS_KEY" = "$other" ]; then
-      printf '%s\n' MINIO_LAMBDA_PERFORMANCE_CONFIGURATION_INVALID >&2
-      exit 1
-    fi
-  done
-  run_mc MINIO_LAMBDA_PERFORMANCE_POLICY_FAILED admin policy create local lambda-performance /config/lambda-performance-policy.json
-  run_mc MINIO_LAMBDA_PERFORMANCE_USER_FAILED admin user add local "$LAMBDA_PERFORMANCE_ACCESS_KEY" "$LAMBDA_PERFORMANCE_SECRET_KEY"
-  run_mc MINIO_LAMBDA_PERFORMANCE_POLICY_ATTACH_FAILED admin policy attach local lambda-performance --user "$LAMBDA_PERFORMANCE_ACCESS_KEY"
+  commission_lambda_performance
 fi

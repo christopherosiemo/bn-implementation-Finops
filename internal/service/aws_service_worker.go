@@ -167,6 +167,12 @@ func awsServiceAssessmentInput(ctx context.Context, a *API, t *store.Tx, r, s, c
 					}
 				}
 				configuration, observations, capabilities = enriched, storageObject(data["observations"]), storageObject(data["capabilities"])
+				// This data is read back from the immutable ingester-owned archive.
+				// Metadata witnesses constrain customer CUR rates; public prices are omitted.
+				canonical["price_dimensions"] = data["price_dimensions"]
+				if pricingRef := databaseArchiveRef("AWS_SERVICE_PRICE_DIMENSIONS_V1", data["price_source_ref"]); pricingRef != nil {
+					sourceRefs = append(sourceRefs, pricingRef)
+				}
 				ref := databaseArchiveRef("AWS_SERVICE_NATIVE_METRIC_HISTORY", descriptor["archive"])
 				if ref != nil {
 					sourceRefs = append(sourceRefs, ref)

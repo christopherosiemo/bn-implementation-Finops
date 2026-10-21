@@ -24,6 +24,11 @@ if (!existsSync(envPath)) {
   writeFileSync(envPath, Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
 }
 const env = Object.fromEntries(readFileSync(envPath, 'utf8').split(/\r?\n/).filter(s => s && !s.startsWith('#')).map(s => { const i = s.indexOf('='); return [s.slice(0, i), s.slice(i + 1)]; }));
+const lambdaPerformanceNames = ['LAMBDA_PERFORMANCE_ACCESS_KEY', 'LAMBDA_PERFORMANCE_SECRET_KEY', 'LAMBDA_PERFORMANCE_CLICKHOUSE_USER', 'LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD'];
+if (process.env.FINOPS_BOOTSTRAP_LAMBDA_PERFORMANCE === 'true') {
+  const lines = readFileSync(envPath, 'utf8').split(/\r?\n/);
+  if (lambdaPerformanceNames.some(name => lines.filter(line => line.startsWith(name + '=')).length > 1)) throw new Error('LAMBDA_PERFORMANCE_DUPLICATE_SECRET_KEY');
+}
 for (const [key, value] of Object.entries({ DB_INGESTER_PASSWORD: random(), DB_ACTIVITY_PASSWORD: random(), ACTIVITY_CLIENT_SECRET: random(), DB_TELEMETRY_READER_PASSWORD: random(), DB_TELEMETRY_INGRESS_PASSWORD: random(), TELEMETRY_READER_TOKEN: random(), TELEMETRY_CLIENT_SECRET: random(), DB_DEPLOYMENT_OBSERVER_PASSWORD: random(), DEPLOYMENT_OBSERVER_CLIENT_SECRET: random(), OBJECT_ACCESS_KEY: 'raw-writer', OBJECT_SECRET_KEY: random(), AUDIT_ACCESS_KEY: 'audit-writer', AUDIT_SECRET_KEY: random(), WEBHOOK_SECRET: random() })) {
   if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
 }
@@ -149,6 +154,44 @@ if (process.env.FINOPS_BOOTSTRAP_LAMBDA_ASSESSOR === 'true') {
   for (const [key, value] of Object.entries({ LAMBDA_DATABASE_PASSWORD: random(), LAMBDA_ASSESSOR_ACCESS_KEY: 'lambda-assessor', LAMBDA_ASSESSOR_SECRET_KEY: random() })) {
     if (!env[key]) { env[key] = value; writeFileSync(envPath, `${key}=${value}\n`, { flag: 'a', mode: 0o600 }); }
   }
+}
+// Explicit local materialization only. The ingress remains disabled until it is
+// separately configured; no store, database, provider or OIDC is contacted here.
+if (process.env.FINOPS_BOOTSTRAP_LAMBDA_PERFORMANCE === 'true') {
+  const names = lambdaPerformanceNames;
+  const present = names.filter(name => Boolean(env[name]));
+  if (present.length !== 0 && present.length !== names.length) throw new Error('LAMBDA_PERFORMANCE_IDENTITY_INCOMPLETE');
+  const stat = lstatSync(envPath);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('LAMBDA_PERFORMANCE_SECRET_FILE_INVALID');
+  if (present.length === 0) {
+    const values = {LAMBDA_PERFORMANCE_ACCESS_KEY: 'lambda-perf-' + randomBytes(4).toString('hex'), LAMBDA_PERFORMANCE_SECRET_KEY: random(), LAMBDA_PERFORMANCE_CLICKHOUSE_USER: 'lambda_performance_' + randomBytes(8).toString('hex'), LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD: random()};
+    const original = readFileSync(envPath, 'utf8');
+    let updated = original;
+    for (const [name, value] of Object.entries(values)) {
+      const empty = new RegExp('^' + name + '=\\r?$', 'm');
+      if (empty.test(updated)) updated = updated.replace(empty, match => name + '=' + value + (match.endsWith('\r') ? '\r' : ''));
+      else updated += (updated.endsWith('\n') ? '' : '\n') + name + '=' + value + '\n';
+    }
+    const temporary = envPath + '.lambda-performance-' + randomBytes(8).toString('hex');
+    let descriptor;
+    try {
+      descriptor = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW || 0), 0o600);
+      writeFileSync(descriptor, updated); fsyncSync(descriptor); closeSync(descriptor); descriptor = undefined;
+      const current = lstatSync(envPath);
+      if (!current.isFile() || current.isSymbolicLink() || current.dev !== stat.dev || current.ino !== stat.ino || readFileSync(envPath, 'utf8') !== original) throw new Error('LAMBDA_PERFORMANCE_SECRET_FILE_CHANGED');
+      renameSync(temporary, envPath);
+    } catch {
+      if (descriptor !== undefined) closeSync(descriptor);
+      try { unlinkSync(temporary); } catch {}
+      throw new Error('LAMBDA_PERFORMANCE_SECRET_PUBLICATION_FAILED');
+    }
+    for (const [name, value] of Object.entries(values)) env[name] = value;
+  }
+  if (!/^lambda-perf-[a-f0-9]{8}$/.test(env.LAMBDA_PERFORMANCE_ACCESS_KEY) || !/^lambda_performance_[a-f0-9]{16}$/.test(env.LAMBDA_PERFORMANCE_CLICKHOUSE_USER) || !names.filter(name => name.endsWith('SECRET_KEY') || name.endsWith('PASSWORD')).every(name => /^[a-f0-9]{48}$/.test(env[name]))) throw new Error('LAMBDA_PERFORMANCE_IDENTITY_INVALID');
+  for (const name of names) {
+    if (Object.entries(env).some(([other, value]) => !names.includes(other) && value && value === env[name])) throw new Error('LAMBDA_PERFORMANCE_IDENTITY_REUSED');
+  }
+  if (new Set(names.map(name => env[name])).size !== names.length) throw new Error('LAMBDA_PERFORMANCE_IDENTITY_REUSED');
 }
 // AWS service analysis is optional and never inherits provider/action credentials.
 if (process.env.FINOPS_BOOTSTRAP_SERVICE_ASSESSOR === 'true') {

@@ -35,6 +35,9 @@ func AWSServiceConfigurationHash(r model.Document) string { return awsservice.Co
 // they never become EC2 STOP dependencies or execution authority.
 func (a *API) awsServiceGet(ctx context.Context, t *store.Tx, i auth.Identity, r *http.Request) (any, bool, error) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/"), "/")
+	if result, handled, err := a.eksAssociationGet(ctx, t, i, r, parts); handled {
+		return result, true, err
+	}
 	if len(parts) == 3 && parts[0] == "resources" && parts[2] == "aws-service-evidence" {
 		if e := storageReadScope(ctx, t, i, parts[1]); e != nil {
 			return nil, true, e

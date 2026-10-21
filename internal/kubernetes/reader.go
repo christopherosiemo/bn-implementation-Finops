@@ -26,6 +26,9 @@ type Reader struct {
 }
 
 func (r Reader) get(ctx context.Context, path string) (Document, string, error) {
+	return r.getDocument(ctx, path, false)
+}
+func (r Reader) getDocument(ctx context.Context, path string, allowContinuation bool) (Document, string, error) {
 	u, err := url.Parse(r.URL)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" {
 		return nil, "", errors.New("K8S_ENDPOINT_INVALID")
@@ -63,7 +66,7 @@ func (r Reader) get(ctx context.Context, path string) (Document, string, error) 
 	if dec.Decode(&d) != nil || dec.Decode(new(any)) != io.EOF {
 		return nil, "", errors.New("K8S_READ_INVALID_JSON")
 	}
-	if str(object(d["metadata"]), "continue") != "" {
+	if !allowContinuation && str(object(d["metadata"]), "continue") != "" {
 		return nil, "", errors.New("K8S_INVENTORY_PAGINATION_UNSUPPORTED")
 	}
 	return d, HashBytes(raw), nil

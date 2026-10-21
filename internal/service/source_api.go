@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/awsservice"
+	"github.com/christopherosiemo/bn-implementation-Finops/internal/eksassociation"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/lambdacost"
 	"net/http"
 	"os"
@@ -33,6 +34,10 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 		isLambdaSource := strings.HasPrefix(model.String(d, "kind"), "AWS_LAMBDA_")
 		isNetworkSource := model.String(d, "kind") == network.FlowKind
 		isAWSServiceSource := model.String(d, "kind") == "AWS_SERVICE_NATIVE_V1"
+		isEKSSource := model.String(d, "kind") == eksassociation.Kind
+		if isEKSSource {
+			allowed = map[string]bool{"kind": true, "name": true, "account_id": true, "region": true, "cluster_arn": true, "read_role_binding_id": true, "kubernetes_read_binding_id": true, "workload_bindings": true}
+		}
 		if isAWSServiceSource {
 			allowed = map[string]bool{"kind": true, "name": true, "account_id": true, "region": true, "read_role_binding_id": true, "service_families": true, "scope_mode": true, "root_resource_arns": true}
 		}
@@ -90,7 +95,36 @@ func (a *API) sourceMutate(ctx context.Context, t *store.Tx, i auth.Identity, r 
 			delete(d, "dataset_ids")
 		}
 		var validation error
-		if isAWSServiceSource {
+		if isEKSSource {
+			for _, binding := range awsservice.Rows(d["workload_bindings"]) {
+				for key := range binding {
+					if key != "workload_id" && key != "namespace" && key != "namespace_uid" && key != "deployment" && key != "deployment_uid" {
+						return nil, 0, true, problem(422, "EKS_WORKLOAD_BINDING_FIELDS_INVALID", "workload declarations accept only identity scope hints")
+					}
+				}
+			}
+			registration, err := eksassociation.Parse(d)
+			if err == nil {
+				err = source.ValidateEKSApprovedBinding(os.Getenv("EKS_KUBERNETES_APPROVED_BINDINGS_JSON"), registration)
+			}
+			if err == nil {
+				_, err = t.EKSNativeSource(ctx, registration)
+			}
+			if err == nil {
+				for _, binding := range registration.WorkloadBindings {
+					workload, e := t.Get(ctx, "workloads", binding.WorkloadID)
+					if e != nil {
+						err = e
+						break
+					}
+					if e = workloadAccess(i, workload); e != nil {
+						err = e
+						break
+					}
+				}
+			}
+			validation = err
+		} else if isAWSServiceSource {
 			_, validation = awsservice.ParseRegistration(d)
 		} else if isLambdaSource {
 			validation = lambdacost.ValidateRegistration(d)

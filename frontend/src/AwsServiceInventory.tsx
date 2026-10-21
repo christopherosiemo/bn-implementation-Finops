@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { components } from "./api.generated";
 import type { Resource, Workload } from "./types";
 import { RemotePage, useRemote } from "./RemoteData";
+import { EksAssociation } from "./EksAssociation";
 import { AwsServiceAssessmentDialog, AwsServiceResourceAssessment } from "./AwsServiceAssessment";
 import { Badge, Button, Modal, Panel, Table, dateTime, readable, type RunMutation } from "./ui";
 
@@ -58,7 +59,7 @@ function NativeEvidence({ resourceID }: { resourceID: string }) {
 export function AwsServiceResourceDetails({ resource, run, busy }: { resource: Resource; run: RunMutation; busy: boolean }) {
   const [open, setOpen] = useState(false), [assessment, setAssessment] = useState("");
   const native = resource as NativeResource;
-  return <><Badge value={native.spend_coverage || "OBSERVATION_ONLY"} /><Button secondary small onClick={() => setOpen(true)}>Inspect AWS service {resource.name || resource.provider_resource_id}</Button>{open && <Modal title="AWS service resource" subtitle={resource.provider_resource_id} onClose={() => setOpen(false)}><Configuration resource={native} /><NativeEvidence resourceID={resource.id} /><AwsServiceResourceAssessment resource={resource} run={run} busy={busy} onRequested={id => { setOpen(false); setAssessment(id); }} /><p className="form-note">Read-only inventory and advice. This view grants no deployment, scaling, deletion or execution authority.</p></Modal>}{assessment && <AwsServiceAssessmentDialog id={assessment} onClose={() => setAssessment("")} />}</>;
+  return <><Badge value={native.spend_coverage || "OBSERVATION_ONLY"} /><Button secondary small onClick={() => setOpen(true)}>Inspect AWS service {resource.name || resource.provider_resource_id}</Button>{open && <Modal title="AWS service resource" subtitle={resource.provider_resource_id} onClose={() => setOpen(false)}><Configuration resource={native} /><NativeEvidence resourceID={resource.id} />{resource.resource_type === "EKS_CLUSTER" ? <EksAssociation resourceID={resource.id} /> : null}<AwsServiceResourceAssessment resource={resource} run={run} busy={busy} onRequested={id => { setOpen(false); setAssessment(id); }} /><p className="form-note">Read-only inventory and advice. This view grants no deployment, scaling, deletion or execution authority.</p></Modal>}{assessment && <AwsServiceAssessmentDialog id={assessment} onClose={() => setAssessment("")} />}</>;
 }
 export function AwsServiceInventory({ workloads, run, busy }: { workloads: Workload[]; run: RunMutation; busy: boolean }) {
   const [open, setOpen] = useState(false), [family, setFamily] = useState<AwsServiceFamily>("ECS"), [kind, setKind] = useState("ECS_SERVICE"), [workload, setWorkload] = useState(""), [revision, setRevision] = useState(0);

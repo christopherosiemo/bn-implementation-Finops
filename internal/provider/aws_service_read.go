@@ -51,7 +51,7 @@ func (r *serviceRead) retain(service, action, selector string, status int, body 
 	return nil
 }
 func (r *serviceRead) send(ctx context.Context, c aws.Credentials, service, method, path, body, target string) ([]byte, error) {
-	if !awsservice.Contains([]string{"sts", "ecs", "eks", "elasticache", "dynamodb", "elasticloadbalancing", "application-autoscaling", "monitoring"}, service) || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "\r\n") {
+	if !awsservice.Contains([]string{"sts", "ecs", "eks", "elasticache", "dynamodb", "elasticloadbalancing", "application-autoscaling", "monitoring", "autoscaling", "ec2"}, service) || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "\r\n") {
 		return nil, awsservice.ErrEvidence
 	}
 	client := r.a.client

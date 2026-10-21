@@ -21,6 +21,7 @@ export default defineConfig({
         ...(process.env.FINOPS_LAMBDA_COMPONENT_COMMISSIONED === "true" ? [] : ["lambda-component-live.spec.ts"]),
         ...(process.env.FINOPS_LAMBDA_COMMISSIONED === "true" ? [] : ["lambda-live.spec.ts"]),
         ...(process.env.FINOPS_NETWORK_COMMISSIONED === "true" ? [] : ["network-live.spec.ts"]),
+        ...(process.env.FINOPS_AWS_SERVICE_COMMISSIONED === "true" ? [] : ["aws-service-live.spec.ts"]),
         "fleet-group-authorization.spec.ts",
         "fleet-fixture-runs.spec.ts",
         "fleet-native-assessment.spec.ts",

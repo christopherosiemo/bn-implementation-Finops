@@ -72,6 +72,12 @@ sources:
   # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
   # ingester receives it; leave empty for discovery-only installations.
   readBindingsSecret: ""
+  # Public safe metadata only: binding ID -> tenant/account/region/cluster ARN.
+  eksApprovedBindingsJSON: "{}"
+  # Existing ingester-only Secret, never created by this chart. Contains
+  # EKS_KUBERNETES_READ_BINDINGS_JSON and operator-managed renewable token files.
+  # Configure token_file inside /var/run/finops/eks-kubernetes; mounted read-only.
+  eksKubernetesReadBindingsSecret: ""
   # Optional existing ingester-only Secret with S3_OBJECT_IDENTITY_KEY_HEX
   # (32 random bytes or more, hex encoded) and S3_OBJECT_IDENTITY_KEY_VERSION.
   # Required when commissioning S3 object evidence; never supplied to analysts.

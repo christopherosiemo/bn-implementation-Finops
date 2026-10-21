@@ -2534,6 +2534,26 @@ paths:
         '403': { description: PLATFORM_ADMIN required }
         '409': { description: Resource version, graph or inventory changed; refresh before retrying }
         '422': { description: Invalid review fields, acknowledgement, note, expiry or unresolved dependency graph }
+  /eks-kubernetes-bindings:
+    get:
+      operationId: listApprovedEKSKubernetesBindings
+      description: Tenant-scoped safe identifiers for operator-approved Kubernetes read bindings. Credentials, token paths, endpoints and certificate authorities are never returned. This list does not grant cluster access.
+      responses:
+        '200':
+          description: Existing approved binding identifiers
+          content: { application/json: { schema: { $ref: '#/components/schemas/EKSApprovedBindingList' } } }
+  /resources/{id}/eks-association:
+    get:
+      operationId: getEKSKubernetesAssociation
+      description: Currentness of an immutable point-in-time association between native EKS and observed Kubernetes identities. Managed nodes require native ASG and EC2 membership; Fargate requires observed running placement and an exact active native profile. Relationships add no costs or execution authority. Declaration names alone are insufficient.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Association evidence or explicit collection blocker
+          content: { application/json: { schema: { $ref: '#/components/schemas/EKSKubernetesAssociation' } } }
+        '403': { description: Current workload access denied }
+        '404': { description: Resource unavailable in this tenant }
+        '422': { description: An observed EKS cluster is required }
   /source-connections:
     get:
       operationId: listSourceConnections
@@ -10932,6 +10952,114 @@ components:
     AWSServiceFamily:
       type: string
       enum: [ECS, EKS, ELASTICACHE, DYNAMODB, ELB]
+    EKSWorkloadIdentityBinding:
+      type: object
+      additionalProperties: false
+      required: [workload_id, namespace, namespace_uid, deployment, deployment_uid]
+      description: Customer identity scope hints. The reader must independently observe matching namespace and deployment UIDs and pod ownership before association.
+      properties:
+        workload_id: { type: string, minLength: 1, maxLength: 128 }
+        namespace: { type: string, minLength: 1, maxLength: 63 }
+        namespace_uid: { type: string, minLength: 1, maxLength: 128 }
+        deployment: { type: string, minLength: 1, maxLength: 63 }
+        deployment_uid: { type: string, minLength: 1, maxLength: 128 }
+    EKSSourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, account_id, region, cluster_arn, read_role_binding_id, kubernetes_read_binding_id]
+      description: Select existing approved AWS and Kubernetes binding IDs only. An unambiguous current native EKS registration is required. No endpoint, CA, token, credentials, RBAC changes or execution permission may be supplied.
+      properties:
+        kind: { type: string, enum: [AWS_EKS_KUBERNETES_V1] }
+        name: { type: string, maxLength: 200 }
+        account_id: { type: string, pattern: '^[0-9]{12}$' }
+        region: { type: string, enum: [eu-west-1] }
+        cluster_arn: { type: string }
+        read_role_binding_id: { type: string, minLength: 1, maxLength: 128 }
+        kubernetes_read_binding_id: { type: string, minLength: 1, maxLength: 128 }
+        workload_bindings: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/EKSWorkloadIdentityBinding' } }
+    EKSApprovedBindingList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, account_id, region, cluster_arn]
+            properties:
+              id: { type: string }
+              account_id: { type: string }
+              region: { type: string, enum: [eu-west-1] }
+              cluster_arn: { type: string }
+    EKSNodeIdentityAssociation:
+      type: object
+      additionalProperties: false
+      required: [kubernetes_node_uid, kubernetes_node_name, provider_id, resource_version, status, reason_codes]
+      properties:
+        kubernetes_node_uid: { type: string }
+        kubernetes_node_name: { type: string }
+        provider_id: { type: string }
+        resource_version: { type: string }
+        ec2_instance_id: { type: string }
+        ec2_resource_id: { type: string, nullable: true }
+        nodegroup_resource_id: { type: string, nullable: true }
+        fargate_profile_resource_id: { type: string, nullable: true }
+        fargate_profile_name: { type: string }
+        status: { type: string, enum: [ASSOCIATED, PARTIAL, BLOCKED, FARGATE_PLACEMENT_UNPROVEN] }
+        reason_codes: { type: array, items: { type: string } }
+    EKSWorkloadIdentityAssociation:
+      type: object
+      additionalProperties: false
+      required: [workload_id, namespace_uid, deployment_uid, pod_uids, node_uids, status, reason_codes]
+      properties:
+        workload_id: { type: string }
+        namespace_uid: { type: string }
+        deployment_uid: { type: string }
+        pod_uids: { type: array, items: { type: string } }
+        node_uids: { type: array, items: { type: string } }
+        status: { type: string, enum: [ASSOCIATED, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+    EKSKubernetesAssociation:
+      type: object
+      additionalProperties: false
+      required: [resource_id, status, current, reason_codes, nodes, workloads, execution_authorized, verified_saving, cost_attribution]
+      properties:
+        id: { type: string }
+        schema_version: { type: string, enum: ['1'] }
+        resource_id: { type: string }
+        account_id: { type: string }
+        region: { type: string }
+        status: { type: string, enum: [ASSOCIATED, PARTIAL, BLOCKED] }
+        current: { type: boolean }
+        reason_codes: { type: array, items: { type: string } }
+        currentness_blockers: { type: array, items: { type: string } }
+        cluster:
+          type: object
+          additionalProperties: false
+          required: [arn, kube_system_uid, endpoint_sha256, ca_sha256]
+          properties:
+            arn: { type: string }
+            kube_system_uid: { type: string }
+            endpoint_sha256: { type: string }
+            ca_sha256: { type: string }
+        nodes: { type: array, items: { $ref: '#/components/schemas/EKSNodeIdentityAssociation' } }
+        workloads: { type: array, items: { $ref: '#/components/schemas/EKSWorkloadIdentityAssociation' } }
+        source_id: { type: string }
+        source_version: { type: integer }
+        native_source_id: { type: string }
+        native_source_version: { type: integer }
+        config_hash: { type: string }
+        native_configuration_hashes: { type: object, additionalProperties: { type: string } }
+        observed_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        source_refs: { type: array, items: { type: object, additionalProperties: true } }
+        archive: { type: object, additionalProperties: true }
+        content_hash: { type: string }
+        execution_authorized: { type: boolean, enum: [false] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        cost_attribution: { type: string, enum: [RELATIONSHIP_ONLY_NO_ADDITIONAL_COST] }
     AWSServiceSourceConnectionRequest:
       type: object
       additionalProperties: false
@@ -10998,6 +11126,7 @@ components:
         subject: { type: string }
     SourceConnectionRequest:
       oneOf:
+        - { $ref: '#/components/schemas/EKSSourceConnectionRequest' }
         - { $ref: '#/components/schemas/AWSServiceSourceConnectionRequest' }
         - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
         - { $ref: '#/components/schemas/ObjectStorageSourceConnectionRequest' }
@@ -11072,6 +11201,7 @@ components:
       allOf:
         - { $ref: '#/components/schemas/Document' }
         - oneOf:
+            - { $ref: '#/components/schemas/EKSSourceConnectionRequest' }
             - { $ref: '#/components/schemas/AWSServiceSourceConnectionRequest' }
             - { $ref: '#/components/schemas/AWSBillingSourceConnectionRequest' }
             - { $ref: '#/components/schemas/ObjectStorageSourceConnectionConfiguration' }

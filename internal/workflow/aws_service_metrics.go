@@ -58,6 +58,7 @@ func EnrichAWSServiceCollection(ctx context.Context, reader AWSServiceReader, re
 		if resource["resource_type"] == "ECS_SERVICE" {
 			if def := definitions[model.String(cfg, "taskDefinition")]; def != nil {
 				cfg["task_definition"] = def
+				cfg["fargate_cohort"] = awsservice.FargateCohort(c.Resources, resource, c.CollectedAt)
 				if cfg["launchType"] == "FARGATE" {
 					capabilities = fargateServiceCapabilities(cfg, def)
 				}
@@ -81,6 +82,12 @@ func EnrichAWSServiceCollection(ctx context.Context, reader AWSServiceReader, re
 // rates. This reviewed subset is a capability constraint, not price authority.
 func fargateServiceCapabilities(config, definition model.Document) model.Document {
 	shapes := []model.Document{}
+	runtime := awsservice.Document(definition["runtimePlatform"])
+	// This accepted subset is ordinary Linux/x86 Fargate. Other models remain
+	// visible without invented capability or licensing equivalence.
+	if runtime["operatingSystemFamily"] != "LINUX" || runtime["cpuArchitecture"] != "X86_64" || definition["networkMode"] != "awsvpc" || !awsservice.Contains(model.Strings(definition, "requiresCompatibilities"), "FARGATE") {
+		return model.Document{"version": "AWS_FARGATE_TASK_CAPABILITY_V1", "candidates": shapes, "reason_codes": []string{"ECS_SUPPORTED_NATIVE_RUNTIME_CAPABILITY_REQUIRED"}}
+	}
 	for _, shape := range []struct{ cpu, min, max, step int }{{256, 512, 2048, 512}, {512, 1024, 4096, 1024}, {1024, 2048, 8192, 1024}, {2048, 4096, 16384, 1024}, {4096, 8192, 30720, 1024}} {
 		for mem := shape.min; mem <= shape.max; mem += shape.step {
 			if shape.cpu == 256 && mem == 1536 {

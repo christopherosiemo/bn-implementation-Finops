@@ -28,6 +28,13 @@ def fixture(family, days=14):
     for n in range(days):
         for name,stat,value,unit in series[family]:
             metrics.append({"metric":name,"statistic":stat,"value":value,"unit":unit,"sample_count":"1440","period_seconds":86400,"source_time":stamp(start+timedelta(days=n)),"provider_resource_id":binding["provider_resource_id"],"dimensions":{}})
+    # Model-unit projections only: these are explicitly synthetic work samples,
+    # never receipts from the guarded machine ingress or connected acceptance.
+    activity=[]
+    if family=="ECS":
+        for n in range(days):
+            for name,stat,value in (("AcceptedWork","Sum","100"),("CompletedWork","Sum","100"),("RejectedWork","Sum","0"),("Backlog","Maximum","0"),("InFlightWork","Maximum","0")):
+                activity.append({"metric":name,"statistic":stat,"value":value,"unit":"Count","sample_count":"1440","period_seconds":86400,"source_time":stamp(start+timedelta(days=n)),"provider_resource_id":binding["provider_resource_id"],"dimensions":{}})
     hours=Decimal(days*24)
     charges={"ECS":[("FARGATE_CPU",hours,"0.04","vCPU-Hours"),("FARGATE_MEMORY",hours*2,"0.004","GB-Hours")],"DYNAMODB":[("READ_PROVISIONED",hours*1000,"0.0001","Hrs"),("WRITE_PROVISIONED",hours*500,"0.0004","Hrs")],"ELASTICACHE":[("CACHE_NODE",hours,"1","Hrs")],"ELB":[("CONTINUING",hours,"0.02","Hrs")]}
     components=[];rates=[]
@@ -37,7 +44,7 @@ def fixture(family, days=14):
     if family=="DYNAMODB":
         for component in ("READ_REQUEST","WRITE_REQUEST"):rates.append({"id":component,"component":component,"rate":"0.000001","unit":"Requests","currency":"GBP","bracket_resolved":True,"source_ref":ref(component)})
     if family=="ELASTICACHE":rates.append({"id":"candidate-price","component":"CACHE_NODE","candidate_key":"smaller","rate":"0.5","unit":"Hrs","currency":"GBP","bracket_resolved":True,"source_ref":ref("candidate-price")})
-    return {"schema_version":"1","model_version":"aws-service-v1","model_kind":MODEL_KIND,"binding":binding,"family":family,"now":stamp(end+timedelta(hours=1)),"configuration":configs[family],"snapshot_ref":ref("native-snapshot"),"observations":{"start":stamp(start),"end":stamp(end),"metrics":metrics,"activity":[]},"capabilities":shapes[family],"policy":{"owner":"customer-team","configuration_authority":"TERRAFORM","criticality":"NON_PRODUCTION","seasonal":False,"service_constraints":limits},"billing":{"currency":"GBP","start":stamp(start),"end":stamp(end),"complete":True,"scope_complete":True,"marginal_pricing_known":True,"commitment_scope_known":True,"capacity_request_unit_equivalence_known":True,"components":components,"rate_witnesses":rates},"source_refs":[ref("native-snapshot")]}
+    return {"schema_version":"1","model_version":"aws-service-v1","model_kind":MODEL_KIND,"binding":binding,"family":family,"now":stamp(end+timedelta(hours=1)),"configuration":configs[family],"snapshot_ref":ref("native-snapshot"),"observations":{"start":stamp(start),"end":stamp(end),"metrics":metrics,"activity":activity},"capabilities":shapes[family],"policy":{"owner":"customer-team","configuration_authority":"TERRAFORM","criticality":"NON_PRODUCTION","seasonal":False,"service_constraints":limits},"billing":{"currency":"GBP","start":stamp(start),"end":stamp(end),"complete":True,"scope_complete":True,"marginal_pricing_known":True,"commitment_scope_known":True,"capacity_request_unit_equivalence_known":True,"components":components,"rate_witnesses":rates},"source_refs":[ref("native-snapshot")]}
 
 
 def candidate(data,identity):
@@ -45,6 +52,32 @@ def candidate(data,identity):
 
 
 class ECSServiceEconomicsTests(unittest.TestCase):
+    def test_missing_or_gapped_work_history_blocks_all_ecs_decisions(self):
+        for change in ("missing","gap","current-only"):
+            with self.subTest(change=change):
+                d=fixture("ECS")
+                if change=="missing":d["observations"]["activity"]=[]
+                elif change=="gap":d["observations"]["activity"].pop()
+                else:d["observations"]["activity"]=d["observations"]["activity"][-5:]
+                result=evaluate_aws_service(d)
+                self.assertEqual(result["status"],"BLOCKED")
+                self.assertEqual(result["economically_analysed_source_record_ids"],[])
+                self.assertIn("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED",result["reason_codes"])
+                for row in [result]+result["candidates"]:
+                    self.assertEqual(row["status"],"BLOCKED")
+                    self.assertIsNotNone(row["economics"]["current_window_cost"])
+                    self.assertIsNone(row["economics"]["candidate_window_cost"])
+                    self.assertIsNone(row["economics"]["estimated_window_saving"])
+
+    def test_native_container_floor_and_steady_cohort_are_independent(self):
+        d=fixture("ECS")
+        d["configuration"]["task_definition"]["containerDefinitions"]=[{"cpu":768,"memoryReservation":1536}]
+        self.assertIn("ECS_CONTAINER_REQUIREMENTS_EXCEED_CANDIDATE",candidate(d,"half")["reason_codes"])
+        d=fixture("ECS");d["configuration"]["fargate_cohort"]={"schema_version":"ECS_FARGATE_SERVICE_COHORT_V1"}
+        for row in d["observations"]["metrics"]:
+            if row["metric"]=="RunningTaskCount" and row["statistic"]=="Maximum":row["value"]="2"
+        self.assertIn("ECS_STEADY_NATIVE_TASK_COHORT_HISTORY_REQUIRED",candidate(d,"half")["reason_codes"])
+
     def test_fargate_cpu_memory_customer_economics_and_no_change(self):
         d=fixture("ECS");before=copy.deepcopy(d);r=candidate(d,"half")
         self.assertEqual(r["status"],"RECOMMENDED");self.assertGreater(Decimal(r["economics"]["estimated_window_saving"]),0);self.assertEqual(d,before)

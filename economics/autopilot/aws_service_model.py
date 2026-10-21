@@ -278,6 +278,12 @@ def _application_guards(summary, limits):
 
 def _ecs(data, summary, fin, base):
     c, limits = data["configuration"], _limits(data["policy"])
+    # Resource utilisation and a current SLO probe do not establish historical
+    # demand. All ECS decisions retain the independently observed work window.
+    activity = _activity(data, summary)
+    base = list(base)
+    if activity is None:
+        base.append("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED")
     task = _obj(c.get("task_definition", {}))
     cpu, memory = _native(task.get("cpu"), True), _native(task.get("memory"), True)
     replicas = _native(c.get("runningCount"), True)
@@ -289,6 +295,8 @@ def _ecs(data, summary, fin, base):
         reasons.append("ECS_TASK_RESOURCES_OR_RUNNING_REPLICAS_UNKNOWN")
     if cpu_peak is None or memory_peak is None or min_replicas is None or max_replicas is None:
         reasons.append("ECS_CPU_MEMORY_AND_SCALING_PEAK_EVIDENCE_REQUIRED")
+    if "fargate_cohort" in c and (min_replicas != replicas or max_replicas != replicas):
+        reasons.append("ECS_STEADY_NATIVE_TASK_COHORT_HISTORY_REQUIRED")
     if limits.get("burst_requirements_known") is not True or limits.get("autoscaling_reviewed") is not True:
         reasons.append("ECS_BURST_AND_AUTOSCALING_REQUIREMENTS_UNRESOLVED")
     if _native(c.get("pendingCount", 0)) > 0 or _native(c.get("desiredCount", 0)) != replicas:
@@ -316,6 +324,18 @@ def _ecs(data, summary, fin, base):
         runtime=_obj(task.get("runtimePlatform",{}))
         if shape.get("architecture")!=runtime.get("cpuArchitecture") or shape.get("operating_system_family")!=runtime.get("operatingSystemFamily"):
             blocked.append("ECS_CANDIDATE_RUNTIME_OR_ARCHITECTURE_INCOMPATIBLE")
+        if "containerDefinitions" in task:
+            containers=task["containerDefinitions"]
+            if not isinstance(containers,list) or not containers:
+                blocked.append("ECS_NATIVE_CONTAINER_REQUIREMENTS_UNKNOWN")
+            else:
+                reserved_cpu=Decimal(0);reserved_memory=Decimal(0)
+                for container in containers:
+                    _obj(container)
+                    reserved_cpu+=_native(container.get("cpu",0))
+                    reserved_memory+=max(_native(container.get("memory",0)),_native(container.get("memoryReservation",0)))
+                if reserved_cpu>candidate_cpu or reserved_memory>candidate_mem:
+                    blocked.append("ECS_CONTAINER_REQUIREMENTS_EXCEED_CANDIDATE")
         # AWS documents Maximum as the most resource-intensive individual task;
         # Average is the fleet aggregate. Never substitute Average for this gate.
         cpu_limit=min(1-head_cpu,_num(limits.get("cpu_max_fraction"),True) or Decimal(1)) if head_cpu is not None else None
@@ -338,7 +358,6 @@ def _ecs(data, summary, fin, base):
                                      _econ(fin, replacement, ["UNCHANGED_SUCCESSFUL_WORK_AND_TASK_RUNTIME_REQUIRED", "AWS_ECS_MAXIMUM_IS_HIGHEST_OBSERVED_TASK_NOT_FLEET_AVERAGE"])))
     if not candidates:
         candidates.append(_candidate("ecs-task-evidence", "FARGATE_TASK_RIGHTSIZE" if c.get("launchType") == "FARGATE" else "ECS_TASK_CPU_MEMORY_RIGHTSIZE", task, None, reasons, _econ(fin)))
-    activity = _activity(data, summary)
     idle_reasons = list(base)
     if activity is None:
         idle_reasons.append("ECS_INDEPENDENT_WORKLOAD_ACTIVITY_REQUIRED")

@@ -87,6 +87,19 @@ func (a *API) awsServiceFinancialInput(ctx context.Context, t *store.Tx, resourc
 	parts, witnesses := []model.Document{}, []model.Document{}
 	seen := map[string]bool{}
 	dimensions := storageRows(canonical["price_dimensions"])
+	fargate := resource["resource_type"] == "ECS_SERVICE"
+	cohort := map[string]model.Document{}
+	coverage := fargateBillingCoverage{}
+	configuration := storageObject(input["configuration"])
+	if fargate {
+		var e error
+		cohort, e = fargateInputCohort(resource, input, start, end)
+		if e != nil {
+			bill["scope_complete"], bill["marginal_pricing_known"] = false, false
+			reasons = append(reasons, "ECS_NATIVE_LONG_LIVED_TASK_COHORT_REQUIRED")
+		}
+		bill["attribution_basis"] = "NATIVE_CUR_MANAGED_TAGS_AND_LONG_LIVED_TASK_COHORT_V1"
+	}
 	for month := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC); month.Before(end); month = month.AddDate(0, 1, 0) {
 		ref, records, e := lambdaCurrentMonth(ctx, t, model.String(resource, "account_id"), month)
 		if e != nil {
@@ -132,13 +145,29 @@ func (a *API) awsServiceFinancialInput(ctx context.Context, t *store.Tx, resourc
 		}
 		ids := []string{}
 		for _, record := range records {
-			if record["SubAccountId"] != resource["account_id"] || record["RegionId"] != resource["region"] || record["ResourceId"] != resource["provider_resource_id"] || !objectStorageRecordInPeriod(record, left, right) {
+			if record["SubAccountId"] != resource["account_id"] || record["RegionId"] != resource["region"] || !objectStorageRecordInPeriod(record, left, right) {
+				continue
+			}
+			if fargate {
+				matched, unknown := fargateCURMatches(resource, configuration, record, cohort)
+				if unknown {
+					bill["scope_complete"], bill["marginal_pricing_known"] = false, false
+					reasons = append(reasons, "ECS_HISTORICAL_TASK_BILLING_ATTRIBUTION_UNRESOLVED")
+				}
+				if !matched {
+					continue
+				}
+				if !coverage.observe(record, configuration) {
+					bill["scope_complete"], bill["marginal_pricing_known"] = false, false
+					reasons = append(reasons, "ECS_TASK_CONFIGURATION_BILLING_QUANTITY_MISMATCH")
+				}
+			} else if record["ResourceId"] != resource["provider_resource_id"] {
 				continue
 			}
 			raw := storageObject(record["x_ProviderFields"])
 			id := model.String(record, "x_SourceRecordId")
 			key := databaseCoverageLineKey(ref, id)
-			if id == "" || seen[key] || record["BillingAccountId"] != ref["payer_account_id"] || databaseRawString(raw, "bill_payer_account_id") != model.String(ref, "payer_account_id") || databaseRawString(raw, "line_item_usage_account_id") != model.String(resource, "account_id") || databaseRawString(raw, "product_region_code") != model.String(resource, "region") || databaseRawString(raw, "line_item_resource_id") != model.String(resource, "provider_resource_id") {
+			if id == "" || seen[key] || record["BillingAccountId"] != ref["payer_account_id"] || databaseRawString(raw, "bill_payer_account_id") != model.String(ref, "payer_account_id") || databaseRawString(raw, "line_item_usage_account_id") != model.String(resource, "account_id") || databaseRawString(raw, "product_region_code") != model.String(resource, "region") || databaseRawString(raw, "line_item_resource_id") != model.String(record, "ResourceId") {
 				return nil, nil, errors.New("AWS_SERVICE_FINANCIAL_BINDING_INVALID")
 			}
 			seen[key] = true
@@ -162,6 +191,9 @@ func (a *API) awsServiceFinancialInput(ctx context.Context, t *store.Tx, resourc
 			net, nok := databaseDecimal(databaseRawString(raw, "line_item_net_unblended_cost"))
 			effective, eok := databaseDecimal(record["EffectiveCost"])
 			valid := component != "CREDIT" && component != "CONTINUING" && databaseRawString(raw, "line_item_line_item_type") == "Usage" && qok && rok && nok && quantity.Sign() > 0 && rate.Sign() >= 0 && amount.Cmp(net) == 0 && new(big.Rat).Mul(quantity, rate).Cmp(net) == 0 && awsServiceChargeUnit(component, databaseRawString(raw, "pricing_unit")) && networkFlatDimension(raw, dimensions, left)
+			if fargate {
+				valid = valid && fargateCustomerDimensions(raw, dimensions, left)
+			}
 			var q, r, eff any
 			if qok {
 				q = databaseInputMoney(quantity)
@@ -198,6 +230,10 @@ func (a *API) awsServiceFinancialInput(ctx context.Context, t *store.Tx, resourc
 	if len(parts) == 0 {
 		bill["complete"], bill["scope_complete"], bill["marginal_pricing_known"] = false, false, false
 		reasons = append(reasons, "AWS_SERVICE_EXACT_NATIVE_RESOURCE_BILLING_UNAVAILABLE")
+	}
+	if fargate && !coverage.complete(cohort, start, end) {
+		bill["scope_complete"], bill["marginal_pricing_known"] = false, false
+		reasons = append(reasons, "ECS_COMPLETE_TASK_CPU_MEMORY_BILLING_REQUIRED")
 	}
 	bill["components"], bill["rate_witnesses"] = parts, witnesses
 	input["billing"] = bill

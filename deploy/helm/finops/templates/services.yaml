@@ -1,12 +1,18 @@
 {{- if not (has .Values.dataMode (list "fixture" "aws")) }}{{ fail "dataMode must be fixture or aws" }}{{ end }}
 {{- if ne .Values.aws.region "eu-west-1" }}{{ fail "This pilot is restricted to AWS eu-west-1" }}{{ end }}
 {{- if and .Values.notifications.webhookUrl (not (hasPrefix "https://" .Values.notifications.webhookUrl)) }}{{ fail "notifications.webhookUrl must use HTTPS" }}{{ end }}
-{{- range $field, $secret := dict "readBindingsSecret" .Values.sources.readBindingsSecret "objectIdentitySecret" .Values.sources.objectIdentitySecret "commitmentQuoteTargetsSecret" .Values.sources.commitmentQuoteTargetsSecret "controllerBindingsSecret" .Values.sources.controllerBindingsSecret "ownershipArchiveTargetsSecret" .Values.sources.ownershipArchiveTargetsSecret }}
+{{- range $field, $secret := dict "readBindingsSecret" .Values.sources.readBindingsSecret "eksKubernetesReadBindingsSecret" .Values.sources.eksKubernetesReadBindingsSecret "objectIdentitySecret" .Values.sources.objectIdentitySecret "commitmentQuoteTargetsSecret" .Values.sources.commitmentQuoteTargetsSecret "controllerBindingsSecret" .Values.sources.controllerBindingsSecret "ownershipArchiveTargetsSecret" .Values.sources.ownershipArchiveTargetsSecret }}
 {{- if not (kindIs "string" $secret) }}{{ fail (printf "sources.%s must be a Secret name string" $field) }}{{ end }}
 {{- if $secret }}
 {{- if or (gt (len $secret) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" $secret)) }}{{ fail (printf "sources.%s must be a DNS Secret name" $field) }}{{ end }}
 {{- range $part := splitList "." $secret }}{{- if gt (len $part) 63 }}{{ fail "source Secret name label is too long" }}{{ end }}{{- end }}
 {{- end }}
+{{- end }}
+{{- if .Values.sources.eksKubernetesReadBindingsSecret }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "EKS identity reads require explicit AWS read-only mode" }}{{ end }}
+{{- $_ := required "EKS identity requires ingester-only approved native read bindings" .Values.sources.readBindingsSecret }}
+{{- range $role,$secret := .Values.database.secrets }}{{- if eq $.Values.sources.eksKubernetesReadBindingsSecret $secret }}{{ fail "EKS read identity cannot reuse database credentials" }}{{ end }}{{ end }}
+{{- range $role,$secret := .Values.secrets }}{{- if eq $.Values.sources.eksKubernetesReadBindingsSecret $secret }}{{ fail "EKS read identity cannot reuse service credentials" }}{{ end }}{{ end }}
 {{- end }}
 {{- if .Values.sources.objectIdentitySecret }}
 {{- if ne .Values.dataMode "aws" }}{{ fail "S3 object identity requires explicit AWS read-only mode" }}{{ end }}
@@ -99,6 +105,9 @@ spec:
             - name: http
               containerPort: {{ if eq $role "economics" }}8000{{ else if eq $role "web" }}{{ $.Values.web.containerPort }}{{ else }}8080{{ end }}
           env:
+            {{- if eq $role "api" }}
+            - { name: EKS_KUBERNETES_APPROVED_BINDINGS_JSON, value: {{ $.Values.sources.eksApprovedBindingsJSON | quote }} }
+            {{- end }}
             - { name: AWS_REGION, value: {{ $.Values.aws.region | quote }} }
             - { name: AWS_TENANT_ID, value: {{ $.Values.aws.tenantId | quote }} }
             - { name: AWS_STS_REGIONAL_ENDPOINTS, value: regional }
@@ -179,6 +188,11 @@ spec:
             {{- end }}
             {{- end }}
             {{- if eq $role "ingester" }}
+            {{- if $.Values.sources.eksKubernetesReadBindingsSecret }}
+            - name: EKS_KUBERNETES_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.eksKubernetesReadBindingsSecret | quote }}, key: EKS_KUBERNETES_READ_BINDINGS_JSON }
+            {{- end }}
             - {name: LAMBDA_READONLY_ENABLED, value: {{ $.Values.sources.lambdaReadonlyEnabled | quote }}}
             - {name: LAMBDA_COMPUTE_OPTIMIZER_ENABLED, value: {{ $.Values.sources.lambdaComputeOptimizerEnabled | quote }}}
             {{- if $.Values.sources.lambdaReadBindingsSecret }}
@@ -268,11 +282,18 @@ spec:
             periodSeconds: 20
           resources: {{ toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
+            {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
+            - { name: eks-kubernetes-read, mountPath: /var/run/finops/eks-kubernetes, readOnly: true }
+            {{- end }}
             - { name: tmp, mountPath: /tmp }
             {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
             - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
             {{- end }}
       volumes:
+        {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
+        - name: eks-kubernetes-read
+          secret: { secretName: {{ $.Values.sources.eksKubernetesReadBindingsSecret | quote }}, defaultMode: 0440 }
+        {{- end }}
         - name: tmp
           emptyDir: { sizeLimit: 128Mi }
         {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}

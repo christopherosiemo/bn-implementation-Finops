@@ -3,6 +3,7 @@ import { SourceTrust } from "./SourceTrust";
 import { ObjectStorageSources } from "./ObjectStorageSources";
 import { AwsServiceInventory, AwsServiceResourceDetails, isAwsServiceResource } from "./AwsServiceInventory";
 import { AwsServiceSources } from "./AwsServiceSources";
+import { EksAssociationSources, EksWorkloadAssociations } from "./EksAssociation";
 import { AwsServiceAssessmentHistory, AwsServiceRecommendation, AwsServiceRecommendationHistory } from "./AwsServiceAssessment";
 import { LambdaAssessmentHistory, LambdaInventory, LambdaRecommendation, LambdaRecommendationHistory, LambdaResourceAssessment, isLambdaResource } from "./LambdaAssessment";
 import { LambdaSources } from "./LambdaSources";
@@ -269,6 +270,7 @@ export function WorkloadsPage({ data, run, busy, query }: PageProps) {
         title="Know what you run"
         description="Workload context and fresh safety evidence make automation possible."
       />
+      <EksWorkloadAssociations workloads={data.workloads} />
       <div className="workload-grid">
         {workloads.map((item) => (
           <Panel key={item.id} className="workload-card">
@@ -2139,6 +2141,7 @@ export function ConnectionsPage({ data, run, busy, query }: PageProps) {
       </Panel>
       <DatabaseCoverage />
       <AwsServiceSources data={data} run={run} busy={busy} />
+      <EksAssociationSources data={data} run={run} busy={busy} />
       <SourceTrust data={data} run={run} busy={busy} />
       <ObjectStorageSources data={data} run={run} busy={busy} />
       <NetworkSources data={data} run={run} busy={busy} />
