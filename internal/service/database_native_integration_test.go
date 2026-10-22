@@ -503,6 +503,12 @@ func databaseAssessmentTestCoverage(t *testing.T, f *mutationReplayFixture, toke
 				t.Fatal("unowned/blocked/unsupported charges disappeared", key)
 			}
 		}
+		for _, key := range []string{"unallocated_spend", "unowned_spend"} {
+			value, ok := databaseDecimal(group[key])
+			if !ok || value.Cmp(big.NewRat(10, 1)) < 0 {
+				t.Fatal("account-wide attribution overlay omitted resource-less and unregistered charges", key, group[key])
+			}
+		}
 		if group["basis"] != "POSITIVE_BILLED_CHARGES" || credits.Sign() >= 0 {
 			t.Fatal("credit/positive denominator basis changed")
 		}

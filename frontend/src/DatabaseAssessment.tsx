@@ -177,12 +177,12 @@ function CoverageContent() {
     {state.error && <p role="alert">Assessment coverage unavailable. {state.error}</p>}
     {state.value && <>
       <p>{utcTime(state.value.period.start)} — {utcTime(state.value.period.end)} · UTC, end exclusive</p>
-      <p className="form-note">Coverage uses all-AWS positive billed charges, separated by currency. Credits and net spend are shown separately. A null percentage is unknown, including when a denominator cannot establish coverage; it is not zero coverage or savings.</p>
+      <p className="form-note">Coverage uses all-AWS positive billed charges, separated by currency. Credits and net spend are shown separately. Unallocated and unowned amounts are attribution overlays, not additional spend. A null percentage is unknown, including when a denominator cannot establish coverage; it is not zero coverage or savings.</p>
       <Reasons values={state.value.blockers} />
-      {state.value.groups.length ? <Table scrollLabel="All AWS assessment spend coverage" headings={["Currency / completeness", "Detected", "Analysed", "Observation only", "Blocked", "Unsupported", "Credits", "Net", "Analysed %"]}>
+      {state.value.groups.length ? <Table scrollLabel="All AWS assessment spend coverage" headings={["Currency / completeness", "Detected", "Analysed", "Observation only", "Blocked", "Unsupported", "Unallocated", "Unowned", "Credits", "Net", "Analysed %"]}>
         {state.value.groups.map((group, index) => <tr key={`${group.currency}:${index}`}>
           <th scope="row">{group.currency ?? "Currency unavailable"}<small>{group.complete ? "Complete billing window" : "Incomplete billing window"}</small><small>{group.basis}</small></th>
-          {[group.detected_spend, group.analysed_spend, group.observation_only_spend, group.blocked_spend, group.unsupported_spend, group.credits, group.net_spend].map((value, column) => <td key={column}>{amount(value, group.currency)}</td>)}
+          {[group.detected_spend, group.analysed_spend, group.observation_only_spend, group.blocked_spend, group.unsupported_spend, group.unallocated_spend ?? null, group.unowned_spend ?? null, group.credits, group.net_spend].map((value, column) => <td key={column}>{amount(value, group.currency)}</td>)}
           <td>{group.analysed_percent === null ? "Unavailable" : `${group.analysed_percent}%`}</td>
         </tr>)}
       </Table> : <p>Spend coverage unavailable. No currency groups were returned.</p>}

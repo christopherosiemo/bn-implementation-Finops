@@ -202,9 +202,7 @@ func (a *API) databaseCoverageScoped(ctx context.Context, tx *store.Tx, accountI
 			break
 		}
 		resource["id"] = id
-		if accountID != "" {
-			resource["_commissioning_workload_exists"] = workloadExists
-		}
+		resource["_commissioning_workload_exists"] = workloadExists
 		// Only exact immutable aliases from authenticated native discovery qualify.
 		// Names, suffixes and inferred identifiers never establish attribution.
 		aliases := map[string]bool{model.String(resource, "provider_resource_id"): true}
@@ -395,10 +393,10 @@ func (a *API) databaseCoverageScoped(ctx context.Context, tx *store.Tx, accountI
 	groupFor := func(currency string) *databaseCoverageTotals {
 		if groups[currency] == nil {
 			groups[currency] = newDatabaseCoverageTotals()
-			if accountID != "" {
-				groups[currency].values["unallocated_spend"] = new(big.Rat)
-				groups[currency].values["unowned_spend"] = new(big.Rat)
-			}
+			// Attribution overlays describe the same detected charges; they are
+			// not additional partitions and belong on account-wide coverage too.
+			groups[currency].values["unallocated_spend"] = new(big.Rat)
+			groups[currency].values["unowned_spend"] = new(big.Rat)
 		}
 		return groups[currency]
 	}
@@ -561,13 +559,11 @@ func (a *API) databaseCoverageScoped(ctx context.Context, tx *store.Tx, accountI
 				continue
 			}
 			group.values["detected_spend"].Add(group.values["detected_spend"], cost)
-			if accountID != "" {
-				if resource == nil || !model.Bool(resource, "_commissioning_workload_exists") {
-					group.values["unallocated_spend"].Add(group.values["unallocated_spend"], cost)
-				}
-				if resource == nil || !commissioningKnownOwner(model.String(resource, "owner")) {
-					group.values["unowned_spend"].Add(group.values["unowned_spend"], cost)
-				}
+			if resource == nil || !model.Bool(resource, "_commissioning_workload_exists") {
+				group.values["unallocated_spend"].Add(group.values["unallocated_spend"], cost)
+			}
+			if resource == nil || !commissioningKnownOwner(model.String(resource, "owner")) {
+				group.values["unowned_spend"].Add(group.values["unowned_spend"], cost)
 			}
 			for _, networkGroup := range networkPartitions {
 				networkGroup.values["detected_spend"].Add(networkGroup.values["detected_spend"], cost)

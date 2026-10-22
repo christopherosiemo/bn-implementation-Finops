@@ -3565,6 +3565,10 @@ export interface components {
             observation_only_spend: components["schemas"]["NullableDecimal"];
             blocked_spend: components["schemas"]["NullableDecimal"];
             unsupported_spend: components["schemas"]["NullableDecimal"];
+            /** @description Positive billed spend without an evidenced workload mapping. This is an attribution overlay and must not be added to the exclusive spend categories. */
+            unallocated_spend?: components["schemas"]["NullableDecimal"];
+            /** @description Positive billed spend without an evidenced owner. This is an attribution overlay and must not be added to the exclusive spend categories. */
+            unowned_spend?: components["schemas"]["NullableDecimal"];
             credits: components["schemas"]["NullableDecimal"];
             net_spend: components["schemas"]["NullableDecimal"];
             analysed_percent: components["schemas"]["NullableDecimal"];

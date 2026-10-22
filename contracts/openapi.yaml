@@ -4437,6 +4437,8 @@ components:
         observation_only_spend: { $ref: '#/components/schemas/NullableDecimal' }
         blocked_spend: { $ref: '#/components/schemas/NullableDecimal' }
         unsupported_spend: { $ref: '#/components/schemas/NullableDecimal' }
+        unallocated_spend: { $ref: '#/components/schemas/NullableDecimal', description: Positive billed spend without an evidenced workload mapping. This is an attribution overlay and must not be added to the exclusive spend categories. }
+        unowned_spend: { $ref: '#/components/schemas/NullableDecimal', description: Positive billed spend without an evidenced owner. This is an attribution overlay and must not be added to the exclusive spend categories. }
         credits: { $ref: '#/components/schemas/NullableDecimal' }
         net_spend: { $ref: '#/components/schemas/NullableDecimal' }
         analysed_percent: { $ref: '#/components/schemas/NullableDecimal' }
