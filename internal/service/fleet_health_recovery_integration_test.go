@@ -148,6 +148,13 @@ func TestFleetOwnedRecoveryUsesFreshGreenZeroHealthAfterLegacyExpiryPauseAndRevo
 		}
 		return e
 	})
+	f.must("finops_worker", func(tx *store.Tx) error {
+		d, e := tx.FleetExecutionFinish(f.ctx, model.String(execution, "id"), "ROLLED_BACK")
+		if e == nil && model.String(d, "status") != "ROLLED_BACK" {
+			return errors.New("verified owned inverse did not reach rollback terminal state")
+		}
+		return e
+	})
 	f.must("finops_api", func(tx *store.Tx) error {
 		var n int
 		if e := tx.QueryRow(f.ctx, "SELECT count(*) FROM fleet_cohort_failures WHERE tenant_id=$1 AND execution_id=$2 AND document->>'positive_savings_eligible'='false'", f.tenant, execution["id"]).Scan(&n); e != nil {

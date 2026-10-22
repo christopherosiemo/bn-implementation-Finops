@@ -86,9 +86,9 @@ function privateDirectory(id){
 // A future runtime migration still fails assertMigrationManifest below.
 export function commissionMigrationManifest(directory){
  const names=readdirSync(directory).filter(x=>/^\d{3}_[a-z0-9_]+\.sql$/.test(x)).sort();
- assert.equal(names.length,51);
- assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:51},(_,n)=>n+1));
- assert.equal(names.at(-1),'051_recommendation_currentness.sql');
+ assert.equal(names.length,52);
+ assert.deepEqual(names.map(x=>Number(x.slice(0,3))),Array.from({length:52},(_,n)=>n+1));
+ assert.equal(names.at(-1),'052_fleet_verified_rollback.sql');
  const manifest=Object.fromEntries(names.map(name=>{const file=path.join(directory,name),info=lstatSync(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.size>0&&info.size<=(2<<20));return[name,sha(readFileSync(file))];}));
  assert.equal(manifest['037_fleet_joint_decisions.sql'],'54a44013471e1ca3c8e6990d3f554a0f986133441a3a9762b37eabc0fb51f051','Migration037 must equal the independently reviewed release bytes');
  assert.equal(manifest['038_fleet_decision_credential_scope.sql'],'789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984','Migration038 must equal the independently reviewed credential scope bytes');
@@ -105,6 +105,7 @@ export function commissionMigrationManifest(directory){
  assert.equal(manifest['049_aws_account_commissioning.sql'],'8377080417d6561b0aa076bb4a3a6af5391b6628804df07501abddea8aad1e71','Migration049 must equal the reviewed read-only account commissioning bytes');
  assert.equal(manifest['050_aws_service_historical_demand.sql'],'bb5c70d8eddf50d5550730aca8ed8b9b9e13d703e67e38283ec4532356967d72','Migration050 must equal the reviewed historical demand read-scope bytes');
  assert.equal(manifest['051_recommendation_currentness.sql'],'5de02d9c96d459efbf3ea4a6de123c769b8e396b55a747e817d0d7917ec94c81','Migration051 must equal the reviewed immutable currentness context bytes');
+ assert.equal(manifest['052_fleet_verified_rollback.sql'],'52d2c434a062d8cfa15c5a296d7b1ec858a5c21421ef32226cacf8fcd2167cd0','Migration052 must equal the reviewed verified rollback guard bytes');
  return manifest;
 }
 

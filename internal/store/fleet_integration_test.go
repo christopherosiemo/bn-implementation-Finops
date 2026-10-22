@@ -346,6 +346,12 @@ func TestFleetProtocolOwnedRecoverySurvivesPauseAndSharesRetainedBudget(t *testi
 	f := newFleetProtocolTest(t)
 	p := f.parent()
 	e := f.prepared(p)
+	if err := f.run("finops_worker", func(tx *Tx) error {
+		_, err := tx.FleetExecutionFinish(f.ctx, model.String(e, "id"), "ROLLED_BACK")
+		return err
+	}); err == nil {
+		t.Fatal("execution without an owned inverse was reported rolled back")
+	}
 	c := f.child(p, 1, 2, fleet.Transition{OldBefore: 20, OldAfter: 20, CandidateAfter: 2, InFlight: 2})
 	cmd := f.authorize(e, c)
 	f.callback(p, c, cmd, "APPLIED", "owned")

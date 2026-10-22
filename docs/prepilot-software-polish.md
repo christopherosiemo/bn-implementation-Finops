@@ -122,3 +122,15 @@ Acceptance evidence:
 - Risk remains R1-only for the existing EC2 scheduling action. No alternate execution engine, provider mutation, migration, or broader role was introduced.
 
 Checkpoint 8 is **PARTIAL** pending connected CI and broader lifecycle acceptance for cancellation, cooldown/hysteresis, dependency ordering and terminal audit outcomes. Expiry now fails closed at API transitions; approval still grants no execution authority by itself. Checkpoint 9 follows immediately.
+
+### Checkpoint 9 — require verified owned recovery before rollback terminal state
+
+Fleet rollback already requires every owned apply effect to be compensated and its reservations released. The database previously allowed the execution itself to be labelled `ROLLED_BACK` without proving that an owned inverse had completed with fresh healthy recovery evidence. Additive migration 052 now requires an applied rollback command with an owned receipt, a linked compensation for a restored original command, fresh healthy `OWNED_RECOVERY` evidence, and the matching durable release event before the terminal status can be written. Existing forward and restoration ownership rules remain unchanged.
+
+Acceptance evidence:
+
+- Added PostgreSQL-role integration coverage rejecting a rollback terminal update before any owned inverse, and accepting it after the existing recovery flow records healthy owned recovery and releases the original reservation.
+- The focused migration guard suites pass 29/29, including exact `001–052` migration sequence/hash pinning, historical byte preservation, and rejection of `053`.
+- `git diff --check` passes. Go/PostgreSQL execution is pending pushed-source CI; this host has no Go or `psql` toolchain, so the database trigger has not been executed locally.
+
+Checkpoint 9 is **PARTIAL** until the PostgreSQL recovery integration passes on the pushed source. No maturity credit is claimed. Checkpoint 10 follows immediately.
