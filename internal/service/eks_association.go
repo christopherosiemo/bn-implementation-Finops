@@ -117,17 +117,20 @@ func (a *API) eksAssociationGet(ctx context.Context, t *store.Tx, i auth.Identit
 			binding["owner"] = eksWorkloadOwner(workload)
 			visibleWorkloads[model.String(binding, "workload_id")] = workload
 		}
+		assessments := []model.Document{}
 		for _, assessment := range eksassociation.Rows(d["request_assessments"]) {
 			workload, ok := visibleWorkloads[model.String(assessment, "workload_id")]
 			if !ok {
 				blockEKSRequestAssessment(assessment)
-				continue
+			} else {
+				assessment["owner"] = eksWorkloadOwner(workload)
+				if model.String(assessment, "owner") == "" {
+					blockEKSRequestAssessment(assessment)
+				}
 			}
-			assessment["owner"] = eksWorkloadOwner(workload)
-			if model.String(assessment, "owner") == "" {
-				blockEKSRequestAssessment(assessment)
-			}
+			assessments = append(assessments, assessment)
 		}
+		d["request_assessments"] = assessments
 	}
 	return d, true, nil
 }
