@@ -10099,9 +10099,23 @@ components:
         verified_saving: { type: string, nullable: true, enum: [null] }
         change_plan_id: { type: string, nullable: true, enum: [null] }
         proposed_by: { type: string }
+        review_currentness:
+          $ref: '#/components/schemas/ConfigurationProposalCurrentness'
         hash: { type: string }
         created_at: { type: string, format: date-time }
         writer_role: { type: string }
+    ConfigurationProposalCurrentness:
+      type: object
+      required: [schema_version, status, checked_at, reason_codes, repository_revision_status, review_status, review_blockers, execution_authorized]
+      properties:
+        schema_version: { type: string, enum: ['1'] }
+        status: { type: string, enum: [CURRENT, STALE, BLOCKED] }
+        checked_at: { type: string, format: date-time }
+        reason_codes: { type: array, items: { type: string } }
+        repository_revision_status: { type: string, enum: [UNBOUND] }
+        review_status: { type: string, enum: [BLOCKED] }
+        review_blockers: { type: array, minItems: 1, items: { type: string } }
+        execution_authorized: { type: boolean, enum: [false] }
     ConfigurationProposalPage:
       type: object
       required: [items, next_cursor]

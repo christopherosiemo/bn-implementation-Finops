@@ -272,6 +272,31 @@ func TestConfigurationProposalSelectsBlockedEvidenceAndRejectsSupersededBindings
 	if model.String(out, "status") != "BLOCKED" || model.Bool(out, "execution_authorized") || out["estimated_saving"] != nil || out["verified_saving"] != nil || out["change_plan_id"] != nil || model.String(out, "capacity_assessment_hash") != model.String(f.assessment, "hash") {
 		t.Fatal("blocked proposal gained authority or fabricated money", out)
 	}
+	readProposal := func() model.Document {
+		t.Helper()
+		var result any
+		err := f.db.Do(ctx, f.tenant, func(tx *store.Tx) error {
+			if _, e := tx.Exec(ctx, "SET LOCAL ROLE finops_api"); e != nil {
+				return e
+			}
+			var handled bool
+			var e error
+			result, handled, e = f.api.configurationGet(ctx, tx, f.identity, httptest.NewRequest(http.MethodGet, path+"/"+model.String(out, "id"), nil))
+			if e == nil && !handled {
+				return errors.New("configuration proposal detail was not handled")
+			}
+			return e
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result.(model.Document)
+	}
+	current := readProposal()
+	currentness := model.Doc(current["review_currentness"])
+	if model.String(currentness, "status") != "CURRENT" || model.String(currentness, "repository_revision_status") != "UNBOUND" || model.String(currentness, "review_status") != "BLOCKED" || model.Bool(currentness, "execution_authorized") {
+		t.Fatal("current evidence was confused with a reviewable or executable IaC proposal", currentness)
+	}
 	if _, err = f.mutate(path, `"0"`, body, f.identity); err == nil {
 		t.Fatal("stale authority If-Match accepted")
 	}
@@ -287,6 +312,10 @@ func TestConfigurationProposalSelectsBlockedEvidenceAndRejectsSupersededBindings
 		return e
 	}); err != nil {
 		t.Fatal(err)
+	}
+	stale := model.Doc(readProposal()["review_currentness"])
+	if model.String(stale, "status") != "STALE" || !strings.Contains(strings.Join(model.Strings(stale, "reason_codes"), ","), "RESOURCE_CONFIGURATION_CHANGED") {
+		t.Fatal("changed resource configuration did not stale the review projection", stale)
 	}
 	if _, err = f.mutate(path, `"1"`, body, f.identity); err == nil {
 		t.Fatal("stale resource declaration reused")

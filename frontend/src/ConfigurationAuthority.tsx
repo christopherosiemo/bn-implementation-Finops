@@ -26,6 +26,44 @@ type Props = { data: Dashboard; run: RunMutation; busy: boolean };
 type AuthorityPage = components["schemas"]["ConfigurationAuthorityPage"];
 type Assessment = components["schemas"]["CapacityAssessment"];
 
+function ProposalCurrentness({ proposal }: { proposal: ConfigurationProposal }) {
+  const [expanded, setExpanded] = useState(false);
+  const detail = useRemote<ConfigurationProposal>(
+    expanded
+      ? `/workloads/${encodeURIComponent(proposal.workload_id)}/configuration-proposals/${encodeURIComponent(proposal.id)}`
+      : null,
+  );
+  return (
+    <details onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary>Recheck evidence and IaC review</summary>
+      {detail.loading && <p className="form-note">Checking current evidence…</p>}
+      {detail.error && (
+        <p role="alert" className="blocker-text">
+          Currentness unavailable. {detail.error}
+        </p>
+      )}
+      {detail.value?.review_currentness && (
+        <div>
+          <p>
+            Evidence <Badge value={detail.value.review_currentness.status} />
+            <small>Checked {dateTime(detail.value.review_currentness.checked_at)}</small>
+          </p>
+          <p>
+            IaC review <Badge value={detail.value.review_currentness.review_status} />
+            <small>
+              Repository revision: {readable(detail.value.review_currentness.repository_revision_status)}
+            </small>
+          </p>
+          {[...detail.value.review_currentness.reason_codes, ...detail.value.review_currentness.review_blockers].map((reason) => (
+            <small className="blocker-text" key={reason}>{readable(reason)}</small>
+          ))}
+          <small>Execution remains disabled.</small>
+        </div>
+      )}
+    </details>
+  );
+}
+
 function DeclarationForm({
   resource,
   latest,
@@ -718,6 +756,7 @@ function ResourceAuthority({
                       ))}
                     </ul>
                   </details>
+                  <ProposalCurrentness proposal={row} />
                 </td>
                 <td>
                   <Badge value={row.status} />

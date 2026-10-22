@@ -5964,10 +5964,27 @@ export interface components {
             /** @enum {string|null} */
             change_plan_id: null;
             proposed_by: string;
+            review_currentness?: components["schemas"]["ConfigurationProposalCurrentness"];
             hash: string;
             /** Format: date-time */
             created_at: string;
             writer_role: string;
+        };
+        ConfigurationProposalCurrentness: {
+            /** @enum {string} */
+            schema_version: "1";
+            /** @enum {string} */
+            status: "CURRENT" | "STALE" | "BLOCKED";
+            /** Format: date-time */
+            checked_at: string;
+            reason_codes: string[];
+            /** @enum {string} */
+            repository_revision_status: "UNBOUND";
+            /** @enum {string} */
+            review_status: "BLOCKED";
+            review_blockers: string[];
+            /** @enum {boolean} */
+            execution_authorized: false;
         };
         ConfigurationProposalPage: {
             items: components["schemas"]["ConfigurationProposal"][];
