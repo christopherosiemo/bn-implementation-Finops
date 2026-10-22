@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/model"
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/store"
@@ -33,7 +34,7 @@ func trustedDependencyServiceBoundaries(t *testing.T, ctx context.Context, apiDB
 	approved := func(p model.Plan) string {
 		t.Helper()
 		if err := apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
-			_, err := tx.Create(ctx, "change_plans", model.Document{"id": p.ID, "workload_id": p.WorkloadID, "resource_id": p.Operations[0].ResourceID, "status": "AWAITING_APPROVAL", "policy_version": p.PolicyVersion, "payload": p})
+			_, err := tx.Create(ctx, "change_plans", model.Document{"id": p.ID, "workload_id": p.WorkloadID, "resource_id": p.Operations[0].ResourceID, "status": "AWAITING_APPROVAL", "policy_version": p.PolicyVersion, "expires_at": p.ExpiresAt.Format(time.RFC3339Nano), "payload": p})
 			return err
 		}); err != nil {
 			t.Fatal(err)

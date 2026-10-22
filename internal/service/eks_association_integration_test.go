@@ -34,7 +34,7 @@ func TestEKSPersistedAssociationAPIIsolationCurrentnessAndImmutableRLS(t *testin
 		t.Fatalf("native registration %d %#v", code, native)
 	}
 	var workload model.Document
-	if e := f.roles["ingester"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+	if e := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
 		var e error
 		workload, e = tx.Create(ctx, "workloads", model.Document{"name": "Synthetic EKS workload", "owner": "platform-team", "environment": "NON_PRODUCTION"})
 		return e
