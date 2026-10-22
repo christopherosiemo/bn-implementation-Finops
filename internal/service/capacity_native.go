@@ -18,6 +18,8 @@ import (
 	"github.com/christopherosiemo/bn-implementation-Finops/internal/workload"
 )
 
+const capacityFleetAvoidabilityUnproven = "FLEET_AVOIDABLE_COST_UNPROVEN"
+
 // capacityWithNativeHardware selects immutable ingester hardware receipts.
 // Public callers select a connection only, never capacities or prices.
 func (a *API) capacityWithNativeHardware(ctx context.Context, tx *store.Tx, p native.CapacityPopulation, profile workload.Profile) (model.Document, error) {
@@ -99,7 +101,7 @@ func (a *API) capacityWithNativeHardware(ctx context.Context, tx *store.Tx, p na
 	if err != nil {
 		return nil, err
 	}
-	reasons := append([]string{"NATIVE_PRICE_UNAVAILABLE", "EXECUTION_AUTHORITY_NOT_GRANTED"}, mapping.ReasonCodes...)
+	reasons := append([]string{"NATIVE_PRICE_UNAVAILABLE", "EXECUTION_AUTHORITY_NOT_GRANTED", capacityFleetAvoidabilityUnproven}, mapping.ReasonCodes...)
 	var result any
 	inputKind := "MAPPING_OBSERVATION"
 	inputHash := telemetry.Hash(mapping)

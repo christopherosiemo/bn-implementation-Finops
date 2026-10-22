@@ -258,6 +258,14 @@ function ResultEvidence({ record }: { record: Result }) {
         Server-selected provider hardware and pinned native observations. This
         immutable analysis creates no execution plan and claims no savings.
       </p>
+      <p className="blocker-text">
+        This result assesses physical fit for one EC2 resource. It does not
+        establish that an Auto Scaling group can reduce capacity or its billed
+        cost: group membership, minimum and desired capacity, scaling behaviour,
+        workload-wide headroom, commitments and contracted rates need separate
+        evidence. A physically suitable instance type is not a fleet savings
+        recommendation.
+      </p>
       <ul className="evidence-refs">
         {record.reason_codes.map((reason) => (
           <li key={reason}>{readable(reason)}</li>

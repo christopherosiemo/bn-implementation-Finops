@@ -117,7 +117,7 @@ func (a *API) capacityMutate(ctx context.Context, tx *store.Tx, identity auth.Id
 		}
 		return out, 201, true, e
 	}
-	reasons := append([]string{"BLOCKED_NATIVE_CAPACITY_CATALOG_REQUIRED", "NATIVE_PRICE_UNAVAILABLE"}, selected.ReasonCodes...)
+	reasons := append([]string{"BLOCKED_NATIVE_CAPACITY_CATALOG_REQUIRED", "NATIVE_PRICE_UNAVAILABLE", capacityFleetAvoidabilityUnproven}, selected.ReasonCodes...)
 	if selected.Evaluation.Status != "READY" {
 		reasons = append(reasons, selected.Evaluation.ReasonCodes...)
 	}

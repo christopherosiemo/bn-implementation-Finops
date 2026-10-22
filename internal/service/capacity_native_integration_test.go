@@ -248,6 +248,15 @@ func TestNativeHardwareCapacityBrokerRealWorkerAndPostgresBoundaries(t *testing.
 	if model.String(evaluation, "schema_version") != "4" || model.String(saved, "status") != "BLOCKED" || model.Bool(saved, "execution_authorized") || saved["estimated_saving"] != nil || saved["verified_saving"] != nil || saved["change_plan_id"] != nil || model.String(saved, "hardware_receipt_id") != model.String(hardware, "id") {
 		t.Fatal("native model gained price or execution authority", saved)
 	}
+	fleetAvoidabilityUnproven := false
+	for _, reason := range model.Strings(saved, "reason_codes") {
+		if reason == capacityFleetAvoidabilityUnproven {
+			fleetAvoidabilityUnproven = true
+		}
+	}
+	if !fleetAvoidabilityUnproven {
+		t.Fatal("single-resource physical fit was presented without the unresolved fleet-cost gate", saved["reason_codes"])
+	}
 	mapping, e := native.BuildCapacityModelInput(population, profile, hardware)
 	if e != nil || mapping.Request == nil {
 		t.Fatal("trusted input was not reproducible", e)
