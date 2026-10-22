@@ -30,7 +30,12 @@ BEGIN
  SELECT jsonb_build_object('id',id,'version',version,'hash',content_hash) INTO profile FROM public.workload_safety_profiles WHERE tenant_id=tenant_scope AND workload_id=r->>'workload_id' ORDER BY version DESC LIMIT 1;
  SELECT jsonb_build_object('id',id,'version',version,'hash',content_hash) INTO slo FROM public.slo_objectives WHERE tenant_id=tenant_scope AND workload_id=r->>'workload_id' ORDER BY version DESC LIMIT 1;
  SELECT coalesce(jsonb_agg(jsonb_build_object('id',id,'version',version,'hash',public.recommendation_context_fingerprint(document)) ORDER BY id),'[]'::jsonb) INTO policies FROM (SELECT id,version,document FROM public.entities WHERE tenant_id=tenant_scope AND kind='policies' AND (id='policy-default' OR document->>'workload_id'=r->>'workload_id') ORDER BY id LIMIT 129) bounded;
- SELECT jsonb_build_object('id',id,'version',version,'hash',content_hash) INTO a FROM public.configuration_authority_revisions WHERE tenant_id=tenant_scope AND resource_id=p_resource ORDER BY version DESC LIMIT 1;
+ -- Fixture reset starts a new server-owned org incarnation while retaining
+ -- immutable declarations. An older declaration cannot bind a reused seed ID.
+ SELECT jsonb_build_object('id',c.id,'version',c.version,'hash',c.content_hash) INTO a FROM public.configuration_authority_revisions c
+ WHERE c.tenant_id=tenant_scope AND c.resource_id=p_resource
+  AND NOT EXISTS(SELECT FROM public.entities o WHERE o.tenant_id=c.tenant_id AND o.kind='org' AND o.id=tenant_scope AND o.document->'fixture'='true'::jsonb AND o.created_at>c.created_at)
+ ORDER BY c.version DESC LIMIT 1;
  IF a IS NOT NULL THEN
   SELECT jsonb_build_object('commit',j.metadata->'git'->>'commit','receipt_id',p.id,'expires_at',p.expires_at,'registration_id',g.id,'registration_version',g.version,
    'active',NOT EXISTS(SELECT FROM public.configuration_artifact_revocations v WHERE v.tenant_id=g.tenant_id AND v.registration_id=g.id AND v.registration_version=g.version)

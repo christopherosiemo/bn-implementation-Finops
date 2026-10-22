@@ -89,7 +89,7 @@ func TestRecommendationCurrentnessImmutableContextAndTrustedChanges(t *testing.T
 					_, err = tx.WorkloadSafetyAppend(ctx, "workload-dev", model.Number(latest, "version"), p)
 					return err
 				case "slo":
-					o := slo.Objective{SchemaVersion: "1", WorkloadID: "workload-dev", Limits: slo.Limits{MaxErrorRatePPM: 0, MinAvailabilityPPM: 1000000, MaxP95LatencyMS: 200, MaxP99LatencyMS: 200, MinLatencySamples: 1}, EvaluationMinutes: 1, Availability: slo.Availability{Mode: "ALWAYS", Timezone: "UTC", Windows: []slo.Window{}}, Regression: slo.Regression{Enabled: false, MaxPercent: 15}}
+					o := slo.Objective{SchemaVersion: "1", WorkloadID: "workload-dev", Limits: slo.Limits{MaxErrorRatePPM: 0, MinAvailabilityPPM: 1000000, MaxP95LatencyMS: 200, MaxP99LatencyMS: 200, MinLatencySamples: 1}, EvaluationMinutes: 2, Availability: slo.Availability{Mode: "ALWAYS", Timezone: "UTC", Windows: []slo.Window{}}, Regression: slo.Regression{Enabled: false, MaxPercent: 15}}
 					latest, err := tx.SLOObjectiveLatest(ctx, "workload-dev")
 					if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 						return err
@@ -265,11 +265,11 @@ func TestRecommendationCurrentnessRejectsCorrectedNativeBillingHead(t *testing.T
 func TestRecommendationCurrentnessTenantIsolationAndAppendOnlyContext(t *testing.T) {
 	f := newMutationReplayFixture(t)
 	ctx := context.Background()
-	const recommendationID = "recommendation-dev"
+	const recommendationID = "currentness-tenant-isolation-recommendation"
 	var original, contextBefore model.Document
 	if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
 		var err error
-		original, err = tx.Get(ctx, "recommendations", recommendationID)
+		original, err = tx.Create(ctx, "recommendations", model.Document{"id": recommendationID, "resource_id": "resource-dev-api", "workload_id": "workload-dev", "status": "VALIDATED", "pre_execution_ready": true, "title": "Tenant isolation fixture", "monthly_saving": "12.340000000001", "currency": "GBP", "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)})
 		if err != nil {
 			return err
 		}
@@ -382,6 +382,25 @@ func TestRecommendationCurrentnessFixtureResetPreservesOriginalContext(t *testin
 		t.Fatal("fixture seed did not capture its original generation")
 	}
 	originalHash := evidence.Hash(original["baseline"])
+	code, authority, _ := f.request("resources/resource-dev-api/configuration-authorities", `"0"`, "currentness-pre-reset-authority", operator, configurationRequest())
+	if code != 201 || authority["status"] != "DECLARED_NOT_ATTESTED" {
+		t.Fatal("fixture authority declaration was not retained", code, authority)
+	}
+	authorityHash := evidence.Hash(authority)
+	if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		fresh, err := tx.Create(ctx, "recommendations", model.Document{"resource_id": "resource-dev-api", "workload_id": "workload-dev", "status": "VALIDATED", "pre_execution_ready": true, "fixture": true, "title": "Same-generation unknown Git regression", "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)})
+		if err != nil {
+			return err
+		}
+		view, err := f.api.recommendationCurrentness(ctx, tx, "EC2", fresh)
+		state := storageObject(view["currentness"])
+		if err == nil && (state["status"] != "BLOCKED" || view["pre_execution_ready"] != false || !slices.Contains(model.Strings(state, "reason_codes"), "IAC_REVISION_UNAVAILABLE")) {
+			t.Fatal("same-generation unattested authority became current", state)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	for reset := 0; reset < 2; reset++ {
 		code, response, _ := f.request("demo/reset", "", fmt.Sprintf("currentness-reset-%d", reset), operator, model.Document{})
 		if code != 200 || response["reset"] != true || response["audit_preserved"] != true || response["ledger_preserved"] != true {
@@ -403,6 +422,13 @@ func TestRecommendationCurrentnessFixtureResetPreservesOriginalContext(t *testin
 			}
 			if evidence.Hash(retained["baseline"]) != originalHash || retained["captured_at"] != original["captured_at"] {
 				t.Fatal("reset rewrote or renewed the original immutable context")
+			}
+			retainedAuthority, err := tx.ConfigurationAuthorityGet(ctx, model.String(authority, "id"))
+			if err != nil {
+				return err
+			}
+			if evidence.Hash(retainedAuthority) != authorityHash {
+				t.Fatal("reset rewrote or removed the original immutable authority")
 			}
 			seed, err := tx.Get(ctx, "recommendations", "recommendation-dev")
 			if err != nil {
