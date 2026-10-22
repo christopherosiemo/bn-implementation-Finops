@@ -72,6 +72,7 @@ func reasons(xs []string) []string {
 func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership []model.Document) model.Document {
 	nodes := []model.Document{}
 	workloads := []model.Document{}
+	requestAssessments := []model.Document{}
 	all := append([]string{}, s.Problems...)
 	groupByASG := map[string][]model.Document{}
 	profiles := map[string][]model.Document{}
@@ -102,7 +103,7 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 	nodeUIDs := map[string]string{}
 	for _, node := range s.Nodes {
 		rs := []string{}
-		out := model.Document{"kubernetes_node_uid": node.UID, "kubernetes_node_name": node.Name, "provider_id": node.ProviderID, "resource_version": node.ResourceVersion, "ec2_resource_id": nil, "nodegroup_resource_id": nil, "fargate_profile_resource_id": nil, "status": "BLOCKED", "reason_codes": []string{}}
+		out := model.Document{"kubernetes_node_uid": node.UID, "kubernetes_node_name": node.Name, "provider_id": node.ProviderID, "resource_version": node.ResourceVersion, "architecture": node.Architecture, "cpu_allocatable_milli": optionalRequest(node.CPUAllocatableMilli, node.CapacityKnown), "memory_allocatable_bytes": optionalRequest(node.MemoryAllocatableBytes, node.CapacityKnown), "capacity_known": node.CapacityKnown, "ready": node.Ready, "ec2_resource_id": nil, "nodegroup_resource_id": nil, "fargate_profile_resource_id": nil, "status": "BLOCKED", "reason_codes": []string{}}
 		nodeUIDs[node.Name] = node.UID
 		if node.ComputeType == "fargate" {
 			out["status"] = "FARGATE_PLACEMENT_UNPROVEN"
@@ -151,14 +152,48 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 	for _, w := range s.Workloads {
 		rs := append([]string{}, w.Problems...)
 		podIDs, nodeIDs := []string{}, []string{}
+		requestCPU, requestMemory, limitCPU, limitMemory := int64(0), int64(0), int64(0), int64(0)
+		requestsKnown, limitsKnown, placementsReady, nodeCapacityKnown := len(w.Pods) > 0, len(w.Pods) > 0, len(w.Pods) > 0, len(w.Pods) > 0
+		groupIDs, architectures, seenGroups, seenArchitectures := []string{}, []string{}, map[string]bool{}, map[string]bool{}
 		for _, pod := range w.Pods {
 			podIDs = append(podIDs, pod.UID)
+			if !pod.ResourceRequestsKnown || pod.CPURequestMilli < 0 || pod.MemoryRequestBytes < 0 || requestCPU > int64(^uint64(0)>>1)-pod.CPURequestMilli || requestMemory > int64(^uint64(0)>>1)-pod.MemoryRequestBytes {
+				requestsKnown = false
+			} else {
+				requestCPU += pod.CPURequestMilli
+				requestMemory += pod.MemoryRequestBytes
+			}
+			if !pod.ResourceLimitsKnown || pod.CPULimitMilli < 0 || pod.MemoryLimitBytes < 0 || limitCPU > int64(^uint64(0)>>1)-pod.CPULimitMilli || limitMemory > int64(^uint64(0)>>1)-pod.MemoryLimitBytes {
+				limitsKnown = false
+			} else {
+				limitCPU += pod.CPULimitMilli
+				limitMemory += pod.MemoryLimitBytes
+			}
+			if !pod.Scheduled || !pod.Running || pod.Terminating || pod.Phase != "Running" {
+				placementsReady = false
+			}
 			n := matchedNodes[pod.Node]
 			if n == nil {
 				rs = append(rs, "EKS_POD_NODE_UNOBSERVED")
+				placementsReady = false
 				continue
 			}
 			nodeIDs = append(nodeIDs, nodeUIDs[pod.Node])
+			if id := model.String(n, "nodegroup_resource_id"); id != "" && !seenGroups[id] {
+				seenGroups[id] = true
+				groupIDs = append(groupIDs, id)
+			}
+			architecture := model.String(n, "architecture")
+			if architecture != "" && !seenArchitectures[architecture] {
+				seenArchitectures[architecture] = true
+				architectures = append(architectures, architecture)
+			}
+			if n["status"] != "ASSOCIATED" || n["ready"] != true {
+				placementsReady = false
+			}
+			if n["capacity_known"] != true || architecture == "" {
+				nodeCapacityKnown = false
+			}
 			if n["status"] == "FARGATE_PLACEMENT_UNPROVEN" {
 				profileName := model.String(n, "fargate_profile_name")
 				matches := profiles[profileName]
@@ -187,6 +222,42 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 			status = "BLOCKED"
 		}
 		workloads = append(workloads, model.Document{"workload_id": w.Binding.WorkloadID, "namespace_uid": w.NamespaceUID, "deployment_uid": w.DeploymentUID, "pod_uids": podIDs, "node_uids": nodeIDs, "status": status, "reason_codes": reasons(rs)})
+		assessmentStatus := "BLOCKED"
+		assessmentReasons := []string{}
+		if !requestsKnown {
+			assessmentReasons = append(assessmentReasons, "K8S_RESOURCE_REQUESTS_INCOMPLETE")
+		}
+		if !placementsReady || status != "ASSOCIATED" {
+			assessmentReasons = append(assessmentReasons, "EKS_WORKLOAD_CAPACITY_ASSOCIATION_INCOMPLETE")
+		}
+		if !nodeCapacityKnown {
+			assessmentReasons = append(assessmentReasons, "K8S_NODE_ALLOCATABLE_CAPACITY_OR_ARCHITECTURE_UNKNOWN")
+		}
+		if requestsKnown && placementsReady && nodeCapacityKnown && status == "ASSOCIATED" {
+			assessmentStatus = "REVIEW_ONLY"
+		}
+		assessmentReasons = append(assessmentReasons, "K8S_HISTORICAL_OBSERVED_USAGE_REQUIRED", "K8S_NODE_POOL_DEMAND_AND_AUTOSCALER_EVIDENCE_REQUIRED", "K8S_COST_REALIZATION_UNPROVEN")
+		requestAssessments = append(requestAssessments, model.Document{
+			"workload_id": w.Binding.WorkloadID,
+			"status": assessmentStatus,
+			"recommendation_kind": "KUBERNETES_REQUEST_ALLOCATION_REVIEW",
+			"decision_code": "REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES",
+			"pod_count": len(podIDs),
+			"cpu_request_milli": optionalRequest(requestCPU, requestsKnown),
+			"memory_request_bytes": optionalRequest(requestMemory, requestsKnown),
+			"cpu_limit_milli": optionalRequest(limitCPU, limitsKnown),
+			"memory_limit_bytes": optionalRequest(limitMemory, limitsKnown),
+			"limits_known": limitsKnown,
+			"nodegroup_resource_ids": groupIDs,
+			"node_architectures": architectures,
+			"request_basis": "CURRENT_POD_SPEC_DECLARATIONS",
+			"observed_usage": nil,
+			"economics_status": "UNAVAILABLE_NODE_POOL_COST_AND_REALIZATION_EVIDENCE_REQUIRED",
+			"estimated_saving": nil,
+			"verified_saving": nil,
+			"execution_authorized": false,
+			"reason_codes": reasons(assessmentReasons),
+		})
 		all = append(all, rs...)
 	}
 	for _, n := range nodes {
@@ -203,7 +274,14 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 		status = "BLOCKED"
 		all = append(all, "EKS_NODE_PLACEMENT_UNOBSERVED")
 	}
-	return model.Document{"schema_version": "1", "status": status, "reason_codes": reasons(all), "cluster": model.Document{"arn": r.ClusterARN, "kube_system_uid": s.ClusterID}, "nodes": nodes, "workloads": workloads, "execution_authorized": false, "verified_saving": nil, "cost_attribution": "RELATIONSHIP_ONLY_NO_ADDITIONAL_COST"}
+	return model.Document{"schema_version": "1", "status": status, "reason_codes": reasons(all), "cluster": model.Document{"arn": r.ClusterARN, "kube_system_uid": s.ClusterID}, "nodes": nodes, "workloads": workloads, "request_assessments": requestAssessments, "execution_authorized": false, "verified_saving": nil, "cost_attribution": "RELATIONSHIP_ONLY_NO_ADDITIONAL_COST"}
+}
+
+func optionalRequest(value int64, known bool) any {
+	if !known {
+		return nil
+	}
+	return value
 }
 func profileMatches(cfg model.Document, namespace string, labels map[string]string) bool {
 	for _, selector := range Rows(cfg["selectors"]) {

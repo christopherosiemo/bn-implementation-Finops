@@ -11177,6 +11177,11 @@ components:
         kubernetes_node_name: { type: string }
         provider_id: { type: string }
         resource_version: { type: string }
+        architecture: { type: string, nullable: true }
+        cpu_allocatable_milli: { type: integer, format: int64, nullable: true }
+        memory_allocatable_bytes: { type: integer, format: int64, nullable: true }
+        capacity_known: { type: boolean }
+        ready: { type: boolean }
         ec2_instance_id: { type: string }
         ec2_resource_id: { type: string, nullable: true }
         nodegroup_resource_id: { type: string, nullable: true }
@@ -11190,11 +11195,37 @@ components:
       required: [workload_id, namespace_uid, deployment_uid, pod_uids, node_uids, status, reason_codes]
       properties:
         workload_id: { type: string }
+        owner: { type: string, nullable: true }
         namespace_uid: { type: string }
         deployment_uid: { type: string }
         pod_uids: { type: array, items: { type: string } }
         node_uids: { type: array, items: { type: string } }
         status: { type: string, enum: [ASSOCIATED, BLOCKED] }
+        reason_codes: { type: array, items: { type: string } }
+    EKSRequestAllocationReview:
+      type: object
+      additionalProperties: false
+      required: [workload_id, status, recommendation_kind, decision_code, pod_count, request_basis, economics_status, estimated_saving, verified_saving, execution_authorized, reason_codes]
+      properties:
+        workload_id: { type: string }
+        owner: { type: string, nullable: true }
+        status: { type: string, enum: [REVIEW_ONLY, BLOCKED] }
+        recommendation_kind: { type: string, enum: [KUBERNETES_REQUEST_ALLOCATION_REVIEW] }
+        decision_code: { type: string, enum: [REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES] }
+        pod_count: { type: integer, minimum: 0 }
+        cpu_request_milli: { type: integer, format: int64, nullable: true }
+        memory_request_bytes: { type: integer, format: int64, nullable: true }
+        cpu_limit_milli: { type: integer, format: int64, nullable: true }
+        memory_limit_bytes: { type: integer, format: int64, nullable: true }
+        limits_known: { type: boolean }
+        nodegroup_resource_ids: { type: array, items: { type: string } }
+        node_architectures: { type: array, items: { type: string } }
+        request_basis: { type: string, enum: [CURRENT_POD_SPEC_DECLARATIONS] }
+        observed_usage: { type: object, nullable: true, additionalProperties: true }
+        economics_status: { type: string, enum: [UNAVAILABLE_NODE_POOL_COST_AND_REALIZATION_EVIDENCE_REQUIRED] }
+        estimated_saving: { type: string, nullable: true, enum: [null] }
+        verified_saving: { type: string, nullable: true, enum: [null] }
+        execution_authorized: { type: boolean, enum: [false] }
         reason_codes: { type: array, items: { type: string } }
     EKSKubernetesAssociation:
       type: object
@@ -11221,6 +11252,7 @@ components:
             ca_sha256: { type: string }
         nodes: { type: array, items: { $ref: '#/components/schemas/EKSNodeIdentityAssociation' } }
         workloads: { type: array, items: { $ref: '#/components/schemas/EKSWorkloadIdentityAssociation' } }
+        request_assessments: { type: array, items: { $ref: '#/components/schemas/EKSRequestAllocationReview' } }
         source_id: { type: string }
         source_version: { type: integer }
         native_source_id: { type: string }

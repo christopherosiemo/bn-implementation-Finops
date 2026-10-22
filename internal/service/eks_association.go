@@ -85,13 +85,62 @@ func (a *API) eksAssociationGet(ctx context.Context, t *store.Tx, i auth.Identit
 	d["current"], d["currentness_blockers"] = len(reasons) == 0, databaseSortedReasons(reasons)
 	if scopedOwner(i) {
 		visible := []model.Document{}
+		visibleWorkloads := map[string]model.Document{}
 		for _, binding := range eksassociation.Rows(d["workloads"]) {
 			workload, err := t.Get(ctx, "workloads", model.String(binding, "workload_id"))
 			if err == nil && workloadAccess(i, workload) == nil {
+				binding["owner"] = eksWorkloadOwner(workload)
 				visible = append(visible, binding)
+				visibleWorkloads[model.String(binding, "workload_id")] = workload
 			}
 		}
 		d["workloads"] = visible
+		assessments := []model.Document{}
+		for _, assessment := range eksassociation.Rows(d["request_assessments"]) {
+			if workload, ok := visibleWorkloads[model.String(assessment, "workload_id")]; ok {
+				assessment["owner"] = eksWorkloadOwner(workload)
+				if model.String(assessment, "owner") == "" {
+					assessment["status"] = "BLOCKED"
+					assessment["reason_codes"] = databaseSortedReasons(append(model.Strings(assessment, "reason_codes"), "K8S_WORKLOAD_OWNER_UNAVAILABLE"))
+				}
+				assessments = append(assessments, assessment)
+			}
+		}
+		d["request_assessments"] = assessments
+	} else {
+		visibleWorkloads := map[string]model.Document{}
+		for _, binding := range eksassociation.Rows(d["workloads"]) {
+			workload, err := t.Get(ctx, "workloads", model.String(binding, "workload_id"))
+			if err != nil {
+				continue
+			}
+			binding["owner"] = eksWorkloadOwner(workload)
+			visibleWorkloads[model.String(binding, "workload_id")] = workload
+		}
+		for _, assessment := range eksassociation.Rows(d["request_assessments"]) {
+			workload, ok := visibleWorkloads[model.String(assessment, "workload_id")]
+			if !ok {
+				blockEKSRequestAssessment(assessment)
+				continue
+			}
+			assessment["owner"] = eksWorkloadOwner(workload)
+			if model.String(assessment, "owner") == "" {
+				blockEKSRequestAssessment(assessment)
+			}
+		}
 	}
 	return d, true, nil
+}
+
+func eksWorkloadOwner(w model.Document) string {
+	if subject := model.String(w, "owner_subject"); subject != "" {
+		return subject
+	}
+	return model.String(w, "owner")
+}
+
+func blockEKSRequestAssessment(assessment model.Document) {
+	assessment["owner"] = nil
+	assessment["status"] = "BLOCKED"
+	assessment["reason_codes"] = databaseSortedReasons(append(model.Strings(assessment, "reason_codes"), "K8S_WORKLOAD_OWNER_UNAVAILABLE"))
 }

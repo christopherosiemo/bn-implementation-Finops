@@ -24,7 +24,7 @@ func identityTestReader(t *testing.T, deny bool) (Reader, *bool) {
 			if r.URL.Query().Get("continue") == "next" {
 				d = Document{"items": []any{Document{"metadata": Document{"uid": "other-node", "name": "other"}}}}
 			} else {
-				d = Document{"metadata": Document{"continue": "next"}, "items": []any{Document{"metadata": Document{"uid": "node-uid", "name": "worker", "labels": Document{"topology.kubernetes.io/zone": "eu-west-1a"}}, "spec": Document{"providerID": "aws:///eu-west-1a/i-0123456789abcdef0"}, "status": Document{"conditions": []any{Document{"type": "Ready", "status": "True"}}}}}}
+				d = Document{"metadata": Document{"continue": "next"}, "items": []any{Document{"metadata": Document{"uid": "node-uid", "name": "worker", "labels": Document{"topology.kubernetes.io/zone": "eu-west-1a", "kubernetes.io/arch": "amd64"}}, "spec": Document{"providerID": "aws:///eu-west-1a/i-0123456789abcdef0"}, "status": Document{"allocatable": Document{"cpu": "4", "memory": "8Gi"}, "conditions": []any{Document{"type": "Ready", "status": "True"}}}}}}
 			}
 		case "/api/v1/namespaces/apps":
 			d = Document{"metadata": Document{"uid": "namespace-uid"}}
@@ -37,7 +37,7 @@ func identityTestReader(t *testing.T, deny bool) (Reader, *bool) {
 		case "/apis/apps/v1/namespaces/apps/replicasets":
 			d = Document{"items": []any{Document{"metadata": Document{"uid": "rs-uid", "ownerReferences": []any{Document{"kind": "Deployment", "uid": "deployment-uid", "controller": true}}}}}}
 		case "/api/v1/namespaces/apps/pods":
-			d = Document{"items": []any{Document{"metadata": Document{"uid": "pod-uid", "name": "pod", "ownerReferences": []any{Document{"kind": "ReplicaSet", "uid": "rs-uid", "controller": true}}}, "spec": Document{"nodeName": "worker", "containers": []any{Document{"env": []any{Document{"value": "NEVER_RETAIN_APPLICATION_SECRET"}}}}}, "status": Document{"phase": "Running", "conditions": []any{Document{"type": "PodScheduled", "status": "True"}}, "containerStatuses": []any{Document{"state": Document{"running": Document{"startedAt": "2026-10-20T12:00:00Z"}}}}}}, Document{"metadata": Document{"uid": "unrelated", "ownerReferences": []any{Document{"kind": "ReplicaSet", "uid": "foreign-rs", "controller": true}}}}}}
+			d = Document{"items": []any{Document{"metadata": Document{"uid": "pod-uid", "name": "pod", "ownerReferences": []any{Document{"kind": "ReplicaSet", "uid": "rs-uid", "controller": true}}}, "spec": Document{"nodeName": "worker", "containers": []any{Document{"env": []any{Document{"value": "NEVER_RETAIN_APPLICATION_SECRET"}}, "resources": Document{"requests": Document{"cpu": "250m", "memory": "128Mi"}, "limits": Document{"cpu": "1", "memory": "512Mi"}}}}}, "status": Document{"phase": "Running", "conditions": []any{Document{"type": "PodScheduled", "status": "True"}}, "containerStatuses": []any{Document{"state": Document{"running": Document{"startedAt": "2026-10-20T12:00:00Z"}}}}}}, Document{"metadata": Document{"uid": "unrelated", "ownerReferences": []any{Document{"kind": "ReplicaSet", "uid": "foreign-rs", "controller": true}}}}}}
 		default:
 			http.NotFound(w, r)
 			return
@@ -53,7 +53,7 @@ func TestEKSIdentityReaderUsesObservedUIDOwnershipPaginationAndSecretMinimizatio
 	if e != nil {
 		t.Fatal(e)
 	}
-	if *mutated || len(s.Nodes) != 2 || len(s.Workloads) != 1 || len(s.Workloads[0].Pods) != 1 || !s.Workloads[0].Pods[0].Scheduled || !s.Workloads[0].Pods[0].Running || len(s.RawHashes) != 7 {
+	if *mutated || len(s.Nodes) != 2 || !s.Nodes[0].CapacityKnown || s.Nodes[0].CPUAllocatableMilli != 4000 || s.Nodes[0].MemoryAllocatableBytes != 8*1024*1024*1024 || s.Nodes[0].Architecture != "amd64" || len(s.Workloads) != 1 || len(s.Workloads[0].Pods) != 1 || !s.Workloads[0].Pods[0].Scheduled || !s.Workloads[0].Pods[0].Running || !s.Workloads[0].Pods[0].ResourceRequestsKnown || s.Workloads[0].Pods[0].CPURequestMilli != 250 || s.Workloads[0].Pods[0].MemoryRequestBytes != 128*1024*1024 || s.Workloads[0].Pods[0].CPULimitMilli != 1000 || s.Workloads[0].Pods[0].MemoryLimitBytes != 512*1024*1024 || len(s.RawHashes) != 7 {
 		t.Fatalf("observed identity incomplete: %+v", s)
 	}
 	raw, _ := json.Marshal(s)

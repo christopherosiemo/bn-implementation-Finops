@@ -7063,6 +7063,13 @@ export interface components {
             kubernetes_node_name: string;
             provider_id: string;
             resource_version: string;
+            architecture?: string | null;
+            /** Format: int64 */
+            cpu_allocatable_milli?: number | null;
+            /** Format: int64 */
+            memory_allocatable_bytes?: number | null;
+            capacity_known?: boolean;
+            ready?: boolean;
             ec2_instance_id?: string;
             ec2_resource_id?: string | null;
             nodegroup_resource_id?: string | null;
@@ -7074,12 +7081,49 @@ export interface components {
         };
         EKSWorkloadIdentityAssociation: {
             workload_id: string;
+            owner?: string | null;
             namespace_uid: string;
             deployment_uid: string;
             pod_uids: string[];
             node_uids: string[];
             /** @enum {string} */
             status: "ASSOCIATED" | "BLOCKED";
+            reason_codes: string[];
+        };
+        EKSRequestAllocationReview: {
+            workload_id: string;
+            owner?: string | null;
+            /** @enum {string} */
+            status: "REVIEW_ONLY" | "BLOCKED";
+            /** @enum {string} */
+            recommendation_kind: "KUBERNETES_REQUEST_ALLOCATION_REVIEW";
+            /** @enum {string} */
+            decision_code: "REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES";
+            pod_count: number;
+            /** Format: int64 */
+            cpu_request_milli?: number | null;
+            /** Format: int64 */
+            memory_request_bytes?: number | null;
+            /** Format: int64 */
+            cpu_limit_milli?: number | null;
+            /** Format: int64 */
+            memory_limit_bytes?: number | null;
+            limits_known?: boolean;
+            nodegroup_resource_ids?: string[];
+            node_architectures?: string[];
+            /** @enum {string} */
+            request_basis: "CURRENT_POD_SPEC_DECLARATIONS";
+            observed_usage?: {
+                [key: string]: unknown;
+            } | null;
+            /** @enum {string} */
+            economics_status: "UNAVAILABLE_NODE_POOL_COST_AND_REALIZATION_EVIDENCE_REQUIRED";
+            /** @enum {string|null} */
+            estimated_saving: null;
+            /** @enum {string|null} */
+            verified_saving: null;
+            /** @enum {boolean} */
+            execution_authorized: false;
             reason_codes: string[];
         };
         EKSKubernetesAssociation: {
@@ -7102,6 +7146,7 @@ export interface components {
             };
             nodes: components["schemas"]["EKSNodeIdentityAssociation"][];
             workloads: components["schemas"]["EKSWorkloadIdentityAssociation"][];
+            request_assessments?: components["schemas"]["EKSRequestAllocationReview"][];
             source_id?: string;
             source_version?: number;
             native_source_id?: string;

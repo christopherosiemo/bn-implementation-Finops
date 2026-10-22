@@ -11,6 +11,15 @@ import (
 	"testing"
 )
 
+func hasEKSReason(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
 // Component acceptance only: synthetic archive references do not claim native
 // cluster, object storage or browser acceptance.
 func TestEKSPersistedAssociationAPIIsolationCurrentnessAndImmutableRLS(t *testing.T) {
@@ -24,7 +33,16 @@ func TestEKSPersistedAssociationAPIIsolationCurrentnessAndImmutableRLS(t *testin
 	if code != 201 {
 		t.Fatalf("native registration %d %#v", code, native)
 	}
-	body := model.Document{"kind": eksassociation.Kind, "name": "Component identity source", "account_id": "111122223333", "region": "eu-west-1", "cluster_arn": arn, "read_role_binding_id": "aws-reader", "kubernetes_read_binding_id": "kube-reader", "workload_bindings": []model.Document{}}
+	var workload model.Document
+	if e := f.roles["ingester"].Do(ctx, f.tenant, func(tx *store.Tx) error {
+		var e error
+		workload, e = tx.Create(ctx, "workloads", model.Document{"name": "Synthetic EKS workload", "owner": "platform-team", "environment": "NON_PRODUCTION"})
+		return e
+	}); e != nil {
+		t.Fatal(e)
+	}
+	workloadID := model.String(workload, "id")
+	body := model.Document{"kind": eksassociation.Kind, "name": "Component identity source", "account_id": "111122223333", "region": "eu-west-1", "cluster_arn": arn, "read_role_binding_id": "aws-reader", "kubernetes_read_binding_id": "kube-reader", "workload_bindings": []model.Document{{"workload_id": workloadID, "namespace": "apps", "namespace_uid": "namespace-uid", "deployment": "web", "deployment_uid": "deployment-uid"}}}
 	code, registration, _ := f.request("source-connections", `"0"`, "eks-identity-source", token, body)
 	if code != 201 {
 		t.Fatalf("identity registration %d %#v", code, registration)
@@ -44,12 +62,18 @@ func TestEKSPersistedAssociationAPIIsolationCurrentnessAndImmutableRLS(t *testin
 	}
 	id := model.String(resource, "id")
 	h := awsservice.Hash(model.Document{"synthetic": "identity component"})
-	doc := model.Document{"id": model.ID(), "schema_version": "1", "resource_id": id, "source_id": registration["id"], "source_version": 1, "native_source_id": native["id"], "native_source_version": 1, "config_hash": awsservice.ConfigurationHash(resource), "content_hash": h, "status": "ASSOCIATED", "reason_codes": []string{}, "nodes": []model.Document{}, "workloads": []model.Document{}, "observed_at": model.Now(), "execution_authorized": false, "verified_saving": nil, "cost_attribution": "RELATIONSHIP_ONLY_NO_ADDITIONAL_COST", "archive": model.Document{"key": "tenant/" + f.tenant + "/native/synthetic/canonical/" + h, "version_id": "synthetic-reference", "body_sha256": h}}
+	doc := model.Document{"id": model.ID(), "schema_version": "1", "resource_id": id, "source_id": registration["id"], "source_version": 1, "native_source_id": native["id"], "native_source_version": 1, "config_hash": awsservice.ConfigurationHash(resource), "content_hash": h, "status": "ASSOCIATED", "reason_codes": []string{}, "nodes": []model.Document{}, "workloads": []model.Document{model.Document{"workload_id": workloadID, "status": "ASSOCIATED", "node_uids": []string{"node-uid"}}}, "request_assessments": []model.Document{model.Document{"workload_id": workloadID, "owner": "stale-owner-must-not-be-trusted", "status": "REVIEW_ONLY", "recommendation_kind": "KUBERNETES_REQUEST_ALLOCATION_REVIEW", "decision_code": "REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES", "request_basis": "CURRENT_POD_SPEC_DECLARATIONS", "cpu_request_milli": 250, "memory_request_bytes": 134217728, "observed_usage": nil, "economics_status": "UNAVAILABLE_NODE_POOL_COST_AND_REALIZATION_EVIDENCE_REQUIRED", "estimated_saving": nil, "verified_saving": nil, "execution_authorized": false, "reason_codes": []string{"K8S_HISTORICAL_OBSERVED_USAGE_REQUIRED"}}}, "observed_at": model.Now(), "execution_authorized": false, "verified_saving": nil, "cost_attribution": "RELATIONSHIP_ONLY_NO_ADDITIONAL_COST", "archive": model.Document{"key": "tenant/" + f.tenant + "/native/synthetic/canonical/" + h, "version_id": "synthetic-reference", "body_sha256": h}}
+	doc["request_assessments"] = append(eksassociation.Rows(doc["request_assessments"]), model.Document{"workload_id": "unregistered-workload", "owner": "stale-owner-must-not-be-trusted", "status": "REVIEW_ONLY", "recommendation_kind": "KUBERNETES_REQUEST_ALLOCATION_REVIEW", "decision_code": "REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES", "pod_count": 1, "cpu_request_milli": 250, "memory_request_bytes": 134217728, "request_basis": "CURRENT_POD_SPEC_DECLARATIONS", "observed_usage": nil, "economics_status": "UNAVAILABLE_NODE_POOL_COST_AND_REALIZATION_EVIDENCE_REQUIRED", "estimated_saving": nil, "verified_saving": nil, "execution_authorized": false, "reason_codes": []string{}})
 	if e := f.roles["ingester"].Do(ctx, f.tenant, func(tx *store.Tx) error { _, e := tx.EKSAssociationCreate(ctx, doc); return e }); e != nil {
 		t.Fatal(e)
 	}
 	if c, d := fleetNativeHTTPGet(t, f, "resources/"+id+"/eks-association", token); c != 200 || d["current"] != true || d["execution_authorized"] != false {
 		t.Fatalf("normal read %d %#v", c, d)
+	} else {
+		assessments := eksassociation.Rows(d["request_assessments"])
+		if len(assessments) != 2 || assessments[0]["owner"] != "platform-team" || assessments[0]["status"] != "REVIEW_ONLY" || model.Number(assessments[0], "cpu_request_milli") != 250 || assessments[0]["observed_usage"] != nil || assessments[0]["estimated_saving"] != nil || assessments[1]["owner"] != nil || assessments[1]["status"] != "BLOCKED" || !hasEKSReason(model.Strings(assessments[1], "reason_codes"), "K8S_WORKLOAD_OWNER_UNAVAILABLE") {
+			t.Fatalf("persisted request allocation review or current owner missing: %#v", assessments)
+		}
 	}
 	if c, _ := fleetNativeHTTPGet(t, f, "resources/"+id+"/eks-association", f.token("foreign-"+f.tenant, "other", "FINOPS_ADMIN")); c != 404 {
 		t.Fatalf("foreign identity disclosed %d", c)

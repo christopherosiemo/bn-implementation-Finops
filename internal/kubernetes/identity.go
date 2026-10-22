@@ -21,6 +21,10 @@ type IdentityNode struct {
 	ResourceVersion string `json:"resource_version"`
 	ProviderID      string `json:"provider_id"`
 	Zone            string `json:"zone"`
+	Architecture    string `json:"architecture,omitempty"`
+	CPUAllocatableMilli    int64 `json:"cpu_allocatable_milli,omitempty"`
+	MemoryAllocatableBytes int64 `json:"memory_allocatable_bytes,omitempty"`
+	CapacityKnown   bool   `json:"capacity_known"`
 	ComputeType     string `json:"compute_type"`
 	Profile         string `json:"fargate_profile"`
 	Nodegroup       string `json:"nodegroup"`
@@ -34,7 +38,14 @@ type IdentityPod struct {
 	Labels          map[string]string `json:"labels"`
 	Scheduled       bool              `json:"scheduled"`
 	Running         bool              `json:"running"`
+	Terminating     bool              `json:"terminating"`
 	Phase           string            `json:"phase"`
+	CPURequestMilli int64             `json:"cpu_request_milli,omitempty"`
+	MemoryRequestBytes int64          `json:"memory_request_bytes,omitempty"`
+	CPULimitMilli int64               `json:"cpu_limit_milli,omitempty"`
+	MemoryLimitBytes int64            `json:"memory_limit_bytes,omitempty"`
+	ResourceRequestsKnown bool        `json:"resource_requests_known"`
+	ResourceLimitsKnown bool          `json:"resource_limits_known"`
 }
 type IdentityWorkload struct {
 	Binding       IdentityWorkloadBinding `json:"binding"`
@@ -127,7 +138,10 @@ func (r Reader) CollectIdentity(ctx context.Context, expectedUID string, binding
 		d := object(item)
 		m, spec, status := object(d["metadata"]), object(d["spec"]), object(d["status"])
 		labels := stringMap(m["labels"])
-		n := IdentityNode{UID: str(m, "uid"), Name: str(m, "name"), ResourceVersion: str(m, "resourceVersion"), ProviderID: str(spec, "providerID"), Zone: labels["topology.kubernetes.io/zone"], ComputeType: labels["eks.amazonaws.com/compute-type"], Profile: labels["eks.amazonaws.com/fargate-profile"], Nodegroup: labels["eks.amazonaws.com/nodegroup"], Ready: condition(status, "Ready")}
+		allocatable := object(status["allocatable"])
+		cpu, cpuErr := CPUQuantity(str(allocatable, "cpu"))
+		memory, memoryErr := MemoryQuantity(str(allocatable, "memory"))
+		n := IdentityNode{UID: str(m, "uid"), Name: str(m, "name"), ResourceVersion: str(m, "resourceVersion"), ProviderID: str(spec, "providerID"), Zone: labels["topology.kubernetes.io/zone"], Architecture: labels["kubernetes.io/arch"], CPUAllocatableMilli: cpu, MemoryAllocatableBytes: memory, CapacityKnown: cpuErr == nil && memoryErr == nil, ComputeType: labels["eks.amazonaws.com/compute-type"], Profile: labels["eks.amazonaws.com/fargate-profile"], Nodegroup: labels["eks.amazonaws.com/nodegroup"], Ready: condition(status, "Ready")}
 		if n.UID == "" || n.Name == "" || seenNodes[n.Name] || seenNodeUIDs[n.UID] {
 			return s, errors.New("EKS_KUBERNETES_NODE_IDENTITY_AMBIGUOUS")
 		}
@@ -202,7 +216,8 @@ func (r Reader) CollectIdentity(ctx context.Context, expectedUID string, binding
 					return s, errors.New("EKS_KUBERNETES_LABEL_BOUND")
 				}
 			}
-			p := IdentityPod{UID: str(m, "uid"), Name: str(m, "name"), ResourceVersion: str(m, "resourceVersion"), Node: str(spec, "nodeName"), Labels: labels, Scheduled: condition(status, "PodScheduled"), Phase: str(status, "phase")}
+			cpuRequest, memoryRequest, cpuLimit, memoryLimit, requestsKnown, limitsKnown := podResourceProfile(spec)
+			p := IdentityPod{UID: str(m, "uid"), Name: str(m, "name"), ResourceVersion: str(m, "resourceVersion"), Node: str(spec, "nodeName"), Labels: labels, Scheduled: condition(status, "PodScheduled"), Terminating: str(m, "deletionTimestamp") != "", Phase: str(status, "phase"), CPURequestMilli: cpuRequest, MemoryRequestBytes: memoryRequest, CPULimitMilli: cpuLimit, MemoryLimitBytes: memoryLimit, ResourceRequestsKnown: requestsKnown, ResourceLimitsKnown: limitsKnown}
 			for _, c := range array(status["containerStatuses"]) {
 				if object(object(c)["state"])["running"] != nil {
 					p.Running = true
@@ -222,6 +237,53 @@ func (r Reader) CollectIdentity(ctx context.Context, expectedUID string, binding
 	s.Hash = Hash(s)
 	return s, nil
 }
+
+// podResourceProfile retains only bounded resource quantities. The aggregate is
+// marked unknown when init-container or pod-overhead semantics would make a
+// regular-container sum an incomplete scheduling request.
+func podResourceProfile(spec Document) (int64, int64, int64, int64, bool, bool) {
+	containers := array(spec["containers"])
+	if len(containers) == 0 || len(containers) > 256 || len(array(spec["initContainers"])) != 0 || len(object(spec["overhead"])) != 0 {
+		return 0, 0, 0, 0, false, false
+	}
+	var cpuRequest, memoryRequest, cpuLimit, memoryLimit int64
+	requestsKnown, limitsKnown := true, true
+	for _, raw := range containers {
+		container := object(raw)
+		resources := object(container["resources"])
+		requests, limits := object(resources["requests"]), object(resources["limits"])
+		cpu, cpuErr := CPUQuantity(str(requests, "cpu"))
+		memory, memoryErr := MemoryQuantity(str(requests, "memory"))
+		if cpuErr != nil || memoryErr != nil || cpu < 0 || memory < 0 || cpuRequest > int64(^uint64(0)>>1)-cpu || memoryRequest > int64(^uint64(0)>>1)-memory {
+			requestsKnown = false
+		} else {
+			cpuRequest += cpu
+			memoryRequest += memory
+		}
+		if value := str(limits, "cpu"); value != "" {
+			parsed, err := CPUQuantity(value)
+			if err != nil || parsed < 0 || cpuLimit > int64(^uint64(0)>>1)-parsed {
+				limitsKnown = false
+			} else {
+				cpuLimit += parsed
+			}
+		} else {
+			limitsKnown = false
+		}
+		if value := str(limits, "memory"); value != "" {
+			parsed, err := MemoryQuantity(value)
+			if err != nil || parsed < 0 || memoryLimit > int64(^uint64(0)>>1)-parsed {
+				limitsKnown = false
+			} else {
+				memoryLimit += parsed
+			}
+		} else {
+			limitsKnown = false
+		}
+	}
+	return cpuRequest, memoryRequest, cpuLimit, memoryLimit, requestsKnown, limitsKnown
+}
+
 func identityName(value string) bool {
 	if value == "" || len(value) > 63 {
 		return false

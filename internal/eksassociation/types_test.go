@@ -6,6 +6,15 @@ import (
 	"testing"
 )
 
+func hasReason(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func testRegistration() Registration {
 	return Registration{ID: "eks-source", TenantID: "tenant", Kind: Kind, AccountID: "111122223333", Region: "eu-west-1", ClusterARN: "arn:aws:eks:eu-west-1:111122223333:cluster/pilot", ReadRoleBindingID: "aws-reader", KubernetesReadBindingID: "kube-reader", Version: 1, Enabled: true}
 }
@@ -31,6 +40,33 @@ func TestEKSManagedNodeAssociationRequiresNativeMembershipAndCanonicalIdentity(t
 		t.Fatal("foreign native owner associated")
 	}
 }
+
+func TestEKSRequestAllocationReviewRequiresExactPlacementAndNeverClaimsSavings(t *testing.T) {
+	r := testRegistration()
+	r.WorkloadBindings = []kubernetes.IdentityWorkloadBinding{{WorkloadID: "web", Namespace: "apps", NamespaceUID: "namespace-uid", Deployment: "web", DeploymentUID: "deployment-uid"}}
+	node := kubernetes.IdentityNode{UID: "node-uid", Name: "worker", ProviderID: "aws:///eu-west-1a/i-0123456789abcdef0", Zone: "eu-west-1a", Architecture: "amd64", CPUAllocatableMilli: 3800, MemoryAllocatableBytes: 7 << 30, CapacityKnown: true, Nodegroup: "workers", Ready: true}
+	pod := kubernetes.IdentityPod{UID: "pod-uid", Node: "worker", Scheduled: true, Running: true, Phase: "Running", CPURequestMilli: 250, MemoryRequestBytes: 128 << 20, CPULimitMilli: 1000, MemoryLimitBytes: 512 << 20, ResourceRequestsKnown: true, ResourceLimitsKnown: true}
+	s := kubernetes.IdentitySnapshot{ClusterID: "observed-cluster-uid", Nodes: []kubernetes.IdentityNode{node}, Workloads: []kubernetes.IdentityWorkload{{Binding: r.WorkloadBindings[0], NamespaceUID: "namespace-uid", DeploymentUID: "deployment-uid", Pods: []kubernetes.IdentityPod{pod}}}}
+	group := nativeResource("EKS_NODE_GROUP", "group", model.Document{"clusterName": "pilot", "nodegroupName": "workers", "native_auto_scaling_group_names": []string{"eks-workers"}})
+	ec2 := nativeResource("EC2", "ec2", nil)
+	ec2["provider_resource_id"] = "i-0123456789abcdef0"
+	member := model.Document{"instance_id": "i-0123456789abcdef0", "asg_name": "eks-workers", "account_id": r.AccountID, "region": r.Region, "zone": "eu-west-1a", "state": "running"}
+	d := Associate(r, s, []model.Document{group, ec2}, []model.Document{member})
+	assessments := Rows(d["request_assessments"])
+	if len(assessments) != 1 || assessments[0]["status"] != "REVIEW_ONLY" || assessments[0]["recommendation_kind"] != "KUBERNETES_REQUEST_ALLOCATION_REVIEW" || assessments[0]["cpu_request_milli"] != int64(250) || assessments[0]["memory_request_bytes"] != int64(128<<20) || assessments[0]["cpu_limit_milli"] != int64(1000) || assessments[0]["memory_limit_bytes"] != int64(512<<20) || assessments[0]["observed_usage"] != nil || assessments[0]["estimated_saving"] != nil || assessments[0]["verified_saving"] != nil || assessments[0]["execution_authorized"] != false {
+		t.Fatalf("request review overstated or unavailable: %#v", d)
+	}
+	if !hasReason(model.Strings(assessments[0], "reason_codes"), "K8S_HISTORICAL_OBSERVED_USAGE_REQUIRED") || !hasReason(model.Strings(assessments[0], "reason_codes"), "K8S_COST_REALIZATION_UNPROVEN") {
+		t.Fatalf("review blockers missing: %#v", assessments[0])
+	}
+	blocked := s
+	blocked.Nodes = []kubernetes.IdentityNode{{UID: node.UID, Name: node.Name, ProviderID: "aws:///eu-west-1a/i-0123456789abcdef0", Zone: node.Zone, Nodegroup: node.Nodegroup, Ready: true}}
+	blockedAssessment := Rows(Associate(r, blocked, []model.Document{group, ec2}, nil)["request_assessments"])[0]
+	if blockedAssessment["status"] != "BLOCKED" || blockedAssessment["cpu_request_milli"] != nil || !hasReason(model.Strings(blockedAssessment, "reason_codes"), "EKS_WORKLOAD_CAPACITY_ASSOCIATION_INCOMPLETE") {
+		t.Fatalf("unknown node association allowed workload allocation: %#v", blockedAssessment)
+	}
+}
+
 func TestEKSFargateAssociationNeedsObservedScheduledRunningExactProfile(t *testing.T) {
 	r := testRegistration()
 	profile := nativeResource("EKS_FARGATE_PROFILE", "profile", model.Document{"clusterName": "pilot", "fargateProfileName": "web-profile", "status": "ACTIVE", "selectors": []model.Document{{"namespace": "apps-*", "labels": model.Document{"app": "web"}}}})
