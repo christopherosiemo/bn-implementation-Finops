@@ -408,7 +408,7 @@ test("OIDC sign-in and the complete fixture operating loop", async ({
   expect(stale.created_at).toBe(retained.created_at);
   expect(stale.historical_status).toBe(retained.historical_status);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("link", { name: "Recommendations", exact: true }).click();
+  await page.getByRole("link", { name: /^Recommendations(?:\s+\d+)?$/ }).click();
   await page.getByRole("button", { name: "Refresh data", exact: true }).click();
   const staleCard = page.locator("section.recommendation-card").filter({ has: page.getByRole("heading", { name: retained.title, exact: true }) }).filter({ has: page.locator('[data-currentness="STALE"]') }).first();
   await expect(staleCard.getByRole("region", { name: "Recommendation currentness", exact: true })).toContainText("Stale recommendation");

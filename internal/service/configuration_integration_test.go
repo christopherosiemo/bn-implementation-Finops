@@ -293,7 +293,7 @@ func TestConfigurationProposalSelectsBlockedEvidenceAndRejectsSupersededBindings
 		return result.(model.Document)
 	}
 	current := readProposal()
-	currentness := model.Document(current["review_currentness"])
+	currentness, _ := current["review_currentness"].(model.Document)
 	if model.String(currentness, "status") != "CURRENT" || model.String(currentness, "repository_revision_status") != "UNBOUND" || model.String(currentness, "review_status") != "BLOCKED" || model.Bool(currentness, "execution_authorized") {
 		t.Fatal("current evidence was confused with a reviewable or executable IaC proposal", currentness)
 	}
@@ -313,7 +313,7 @@ func TestConfigurationProposalSelectsBlockedEvidenceAndRejectsSupersededBindings
 	}); err != nil {
 		t.Fatal(err)
 	}
-	stale := model.Document(readProposal()["review_currentness"])
+	stale, _ := readProposal()["review_currentness"].(model.Document)
 	if model.String(stale, "status") != "STALE" || !strings.Contains(strings.Join(model.Strings(stale, "reason_codes"), ","), "RESOURCE_CONFIGURATION_CHANGED") {
 		t.Fatal("changed resource configuration did not stale the review projection", stale)
 	}

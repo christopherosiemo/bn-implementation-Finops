@@ -236,6 +236,7 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 		if requestsKnown && placementsReady && nodeCapacityKnown && status == "ASSOCIATED" {
 			assessmentStatus = "REVIEW_ONLY"
 		}
+		allocationBound := assessmentStatus == "REVIEW_ONLY"
 		assessmentReasons = append(assessmentReasons, "K8S_HISTORICAL_OBSERVED_USAGE_REQUIRED", "K8S_NODE_POOL_DEMAND_AND_AUTOSCALER_EVIDENCE_REQUIRED", "K8S_COST_REALIZATION_UNPROVEN")
 		requestAssessments = append(requestAssessments, model.Document{
 			"workload_id": w.Binding.WorkloadID,
@@ -243,11 +244,11 @@ func Associate(r Registration, s kubernetes.IdentitySnapshot, native, membership
 			"recommendation_kind": "KUBERNETES_REQUEST_ALLOCATION_REVIEW",
 			"decision_code": "REVIEW_REQUESTS_BEFORE_NODE_CAPACITY_CHANGES",
 			"pod_count": len(podIDs),
-			"cpu_request_milli": optionalRequest(requestCPU, requestsKnown),
-			"memory_request_bytes": optionalRequest(requestMemory, requestsKnown),
-			"cpu_limit_milli": optionalRequest(limitCPU, limitsKnown),
-			"memory_limit_bytes": optionalRequest(limitMemory, limitsKnown),
-			"limits_known": limitsKnown,
+			"cpu_request_milli": optionalRequest(requestCPU, allocationBound),
+			"memory_request_bytes": optionalRequest(requestMemory, allocationBound),
+			"cpu_limit_milli": optionalRequest(limitCPU, limitsKnown && allocationBound),
+			"memory_limit_bytes": optionalRequest(limitMemory, limitsKnown && allocationBound),
+			"limits_known": limitsKnown && allocationBound,
 			"nodegroup_resource_ids": groupIDs,
 			"node_architectures": architectures,
 			"request_basis": "CURRENT_POD_SPEC_DECLARATIONS",
