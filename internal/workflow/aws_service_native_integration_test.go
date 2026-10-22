@@ -426,7 +426,7 @@ func awsServiceSLOMachine(t *testing.T, ctx context.Context, admin, apiDB *store
 	const audience = "finops-activity"
 	var src slo.Source
 	if e = apiDB.Do(ctx, tenant, func(tx *store.Tx) error {
-		o := slo.Objective{SchemaVersion: "1", WorkloadID: model.String(resource, "workload_id"), Limits: slo.Limits{MaxErrorRatePPM: 0, MinAvailabilityPPM: 1000000, MaxP95LatencyMS: 200, MaxP99LatencyMS: 200, MinLatencySamples: 1}, EvaluationMinutes: 1, Availability: slo.Availability{Mode: "ALWAYS", Timezone: "UTC", Windows: []slo.Window{}}, Regression: slo.Regression{Enabled: false, MaxPercent: 15}}
+		o := slo.Objective{SchemaVersion: "1", WorkloadID: model.String(resource, "workload_id"), Limits: slo.Limits{MaxErrorRatePPM: 0, MinAvailabilityPPM: 1000000, MaxP95LatencyMS: 200, MaxP99LatencyMS: 200, MinLatencySamples: 1}, EvaluationMinutes: 2, Availability: slo.Availability{Mode: "ALWAYS", Timezone: "UTC", Windows: []slo.Window{}}, Regression: slo.Regression{Enabled: false, MaxPercent: 15}}
 		d, e := tx.SLOObjectiveAppend(ctx, o.WorkloadID, 0, slo.Document(o))
 		if e != nil {
 			return e
