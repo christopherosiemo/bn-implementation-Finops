@@ -58,6 +58,13 @@ func TestRecommendationCurrentnessImmutableContextAndTrustedChanges(t *testing.T
 			}); err != nil {
 				t.Fatal(err)
 			}
+			if scenario == "resource_configuration" {
+				reader := f.token(f.tenant, "currentness-reader", "PLATFORM_ADMIN")
+				code, public := fleetNativeHTTPGet(t, f, "recommendations/"+id, reader)
+				if code != http.StatusOK || storageObject(public["currentness"])["status"] != "CURRENT" {
+					t.Fatalf("ordinary authenticated recommendation read lost currentness: code=%d projection=%#v", code, public["currentness"])
+				}
+			}
 			originalHash, baselineHash := evidence.Hash(original), evidence.Hash(before["baseline"])
 			if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
 				update := func(kind, identifier string, change func(model.Document)) error {
@@ -107,6 +114,14 @@ func TestRecommendationCurrentnessImmutableContextAndTrustedChanges(t *testing.T
 				return errors.New("unhandled currentness scenario")
 			}); err != nil {
 				t.Fatal(err)
+			}
+			if scenario == "resource_configuration" {
+				reader := f.token(f.tenant, "currentness-reader", "PLATFORM_ADMIN")
+				code, public := fleetNativeHTTPGet(t, f, "recommendations/"+id, reader)
+				state := storageObject(public["currentness"])
+				if code != http.StatusOK || state["status"] != "STALE" || public["pre_execution_ready"] != false || !slices.Contains(model.Strings(state, "reason_codes"), "STALE_RECOMMENDATION") {
+					t.Fatalf("ordinary authenticated recommendation read did not project stale evidence: code=%d projection=%#v", code, public["currentness"])
+				}
 			}
 			if err := f.roles["api"].Do(ctx, f.tenant, func(tx *store.Tx) error {
 				historical, err := tx.Get(ctx, "recommendations", id)
