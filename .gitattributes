@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
+# Preserve the supplied specification's Markdown hard line breaks.
+docs/product-specification.md whitespace=-blank-at-eol

@@ -1,0 +1,8 @@
+# Render-only input. Commission the distinct login and existing secret first.
+# DATABASE_URL must preserve the verified server DNS name and use
+# sslmode=verify-full&sslrootcert=/run/ca/group-decision-root.crt.
+# No cloud identity or resource is provisioned by this process.
+fleetDecision:
+  enabled: true
+  tenantId: tenant-fixture
+  postgresEgressCidrs: ["10.42.10.0/24", "10.42.11.0/24"]

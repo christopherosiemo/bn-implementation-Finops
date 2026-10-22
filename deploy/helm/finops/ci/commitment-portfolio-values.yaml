@@ -1,0 +1,8 @@
+# Render-only fixture. These are existing-secret names, never credentials.
+commitmentPortfolio:
+  enabled: true
+  tenantId: tenant-reviewed
+  modelTokenSecret: finops-portfolio-model-token
+  modelTLSSecret: finops-portfolio-model-tls
+  modelCAConfigMap: finops-portfolio-model-ca
+  postgresEgressCidrs: [10.42.17.0/24]

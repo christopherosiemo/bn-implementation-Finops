@@ -1,0 +1,883 @@
+name: Pilot validation
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      fleet_protocol:
+        description: Optional real-clock private fleet protocol; shorter policy earns no default-duration acceptance
+        type: choice
+        default: "OFF"
+        options: ["OFF", DEFAULT, TEST_POLICY_120S]
+permissions:
+  contents: read
+concurrency:
+  # Preserve explicitly requested real-clock acceptance while later engineering
+  # receives normal PR validation. Ordinary superseded checks may still cancel.
+  group: validation-${{ github.ref }}-${{ inputs.fleet_protocol || 'OFF' }}-${{ github.event_name == 'workflow_dispatch' && inputs.fleet_protocol != 'OFF' && github.sha || 'latest' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || inputs.fleet_protocol == 'OFF' }}
+jobs:
+  fleet-protocol:
+    if: github.event_name == 'workflow_dispatch' && contains(fromJSON('["DEFAULT","TEST_POLICY_120S"]'), inputs.fleet_protocol)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: fleet_protocol_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run selected signed policy without changing its clock or observation windows
+        env:
+          REQUESTED_POLICY: ${{ inputs.fleet_protocol }}
+        run: |
+          set -euo pipefail
+          case "$REQUESTED_POLICY" in
+            DEFAULT) flag=TEST_FLEET_FULL_PROGRAM; test=TestFleetFullProgramRealClockControlledDrain ;;
+            TEST_POLICY_120S) flag=TEST_FLEET_TEST_POLICY; test=TestFleetFullProgramRealClockTestPolicy ;;
+            *) exit 2 ;;
+          esac
+          mkdir -p work
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/fleet_protocol_ci?sslmode=disable -e "$flag=true" -v "$PWD:/workspace" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f go test ./internal/service -run "^$test$" -count=1 -v -timeout=235m 2>&1 | tee work/fleet-protocol-acceptance.log
+      - name: Preserve bounded private protocol evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-protocol-${{ inputs.fleet_protocol }}-${{ github.sha }}
+          path: work/fleet-protocol-acceptance.log
+          retention-days: 5
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Match both the RDS reference major and the local Compose major.
+        postgres: ["16", "17"]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}-alpine
+        env:
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: finops_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start isolated real economics worker for provider-shaped acceptance
+        run: |
+          docker run --detach --name economics-tests --network host -e PORT=8001 -e FIXTURE_MODE=true -v "$PWD/economics:/app:ro" -w /app python:3.13-slim python -m autopilot.server
+          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8001/healthz
+      - name: Go tests and vet in container
+        run: |
+          docker run --rm --network host -e TEST_DATABASE_URL=postgres://postgres:ephemeral-ci-only@127.0.0.1:5432/finops_ci?sslmode=disable -e ECONOMICS_TEST_URL=http://127.0.0.1:8001 -v "$PWD:/workspace" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f sh -ec 'go test ./... -timeout=25m && go test -race -count=1 ./internal/commitmentarchive -timeout=3m && go vet ./...'
+      - name: Stop isolated economics worker
+        if: always()
+        run: docker rm -f economics-tests || true
+  economics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decimal economics tests in container
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace/economics python:3.13-slim sh -ec 'pip install --no-cache-dir -r requirements.txt && python -m unittest discover -s tests -v'
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check reachable Go dependency vulnerabilities
+        run: |
+          docker run --rm --memory=2g -e GOMAXPROCS=2 -e GOMEMLIMIT=1500MiB -v "$PWD:/workspace:ro" -w /workspace golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f sh -ec 'go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...'
+  frontend-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck, build, and regenerate OpenAPI types
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace/frontend node:22-bookworm-slim sh -ec 'npm ci && npm run generate && npm run typecheck && npm run build'
+      - name: Generated API types match the contract
+        run: git diff --exit-code -- frontend/src/api.generated.ts
+      - name: Audit locked frontend production and development dependencies
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace/frontend node:22-bookworm-slim npm audit --audit-level=low
+      - name: Audit locked native capacity browser dependencies
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace/examples/fleet-capacity-browser node:22-bookworm-slim npm audit --audit-level=low
+      - name: All specification sections have traceability coverage
+        run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/traceability.mjs --check
+      - name: Fixed product progress weights and acceptance credit reconcile
+        run: docker run --rm -v "$PWD:/workspace" -w /workspace node:22-bookworm-slim node scripts/progress.mjs --check
+      - name: Linux fixture realm is readable without exposing service secrets
+        run: docker run --rm -v "$PWD:/workspace:ro" -w /workspace node:22-bookworm-slim node scripts/bootstrap-permissions.mjs
+      - name: Scan tracked source for secrets
+        run: |
+          mkdir -p /tmp/finops-secret-scan
+          git archive HEAD | tar -x -C /tmp/finops-secret-scan
+          docker run --rm -v /tmp/finops-secret-scan:/src:ro zricethezav/gitleaks:v8.28.0 dir /src --redact --no-banner
+  infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Terraform formatting
+        run: docker run --rm -v "$PWD:/src" -w /src/deploy/terraform hashicorp/terraform:1.9.8 fmt -check -recursive
+      - name: Terraform init and validate without AWS credentials
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate && terraform test -no-color && terraform -chdir=modules/customer-roles init -backend=false -input=false && terraform -chdir=modules/customer-roles validate && terraform -chdir=modules/customer-roles test -no-color && terraform -chdir=modules/native-telemetry init -backend=false -input=false && terraform -chdir=modules/native-telemetry validate && terraform -chdir=modules/native-telemetry test -no-color'
+      - name: Validate explicit blue-green workload reference without applying
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src/examples/terraform-fleet --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform fmt -check -recursive && terraform init -backend=false -input=false && terraform validate'
+          docker run --rm --network none -v "$PWD:/src" -w /src/examples/terraform-fleet hashicorp/terraform:1.9.8 test -no-color
+      - name: Validate optional hardware evidence IAM with offline mock plans
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence --entrypoint sh hashicorp/terraform:1.9.8 -ec 'terraform init -backend=false -input=false && terraform validate'
+          docker run --rm --network none -v "$PWD:/src" -w /src/deploy/terraform/modules/hardware-evidence hashicorp/terraform:1.9.8 test -no-color
+      - name: Sandbox guards, offline cost arithmetic and plan checker regressions (no AWS)
+        # The source-snapshot regression exercises real Git. Use the runner's
+        # Git with explicit Node22; the slim Node image contains no Git binary.
+        run: |
+          git --version
+          node --test scripts/tests/*.test.mjs
+      - name: Helm lint and render
+        run: |
+          cmp config/clickhouse/001_facts.sql deploy/helm/finops/files/001_facts.sql
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops > /tmp/finops-rendered.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml > /tmp/finops-readonly.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/account-commissioning-values.yaml > /tmp/finops-account-commissioning.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-readonly.yaml:/default.yaml:ro -v /tmp/finops-account-commissioning.yaml:/account.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/tests/test_account_commissioning_chart.py /default.yaml /account.yaml'
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set notifications.webhookUrl=https://hooks.example.invalid/finops > /tmp/finops-notifications.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops --set activity.issuer=https://machine.example.invalid --set sources.readBindingsSecret=finops-source-read-bindings > /tmp/finops-sources.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/native-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/native-values.yaml > /tmp/finops-native.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/fleet-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/fleet-values.yaml > /tmp/finops-fleet.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/hardware-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/hardware-values.yaml > /tmp/finops-hardware.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml > /tmp/finops-fleet-history.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml > /tmp/finops-fleet-assessment.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml > /tmp/finops-fleet-capacity.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-decision-values.yaml
+          docker run --rm -v "$PWD:/src" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-decision-values.yaml > /tmp/finops-fleet-decision.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml > /tmp/finops-database-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-database-assessor.yaml:/database.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /database.yaml && python deploy/tests/test_database_assessor_chart.py /default.yaml /database.yaml'
+          for unsafe in 'databaseAssessor.evidenceReaderSecret=finops-db-api' 'databaseAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/database-assessor-values.yaml --set "$unsafe" > /tmp/finops-database-refused.log 2>&1; then
+              echo "Unsafe database assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-database-refused.log
+              grep -Fq 'finops/templates/database-assessor.yaml' /tmp/finops-database-refused.log
+            fi
+          done
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/storage-assessor-values.yaml
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/storage-assessor-values.yaml > /tmp/finops-storage-assessor.yaml
+            docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-storage-assessor.yaml:/storage.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /storage.yaml && python deploy/tests/test_storage_assessor_chart.py /default.yaml /storage.yaml'
+            for unsafe in 'storageAssessor.evidenceReaderSecret=finops-db-api' 'storageAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'storageAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'storageAssessor.evidenceReaderSecret=finops-db-storage-analyst' 'storageAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+              if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/storage-assessor-values.yaml --set "$unsafe" > /tmp/finops-storage-refused.log 2>&1; then
+                echo "Unsafe storage assessor configuration unexpectedly rendered"
+                exit 1
+              else
+                rejected=$?
+                test "$rejected" -eq 1
+                grep -Fq 'Error: execution error at' /tmp/finops-storage-refused.log
+                grep -Fq 'finops/templates/storage-assessor.yaml' /tmp/finops-storage-refused.log
+              fi
+            done
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml
+            docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml > /tmp/finops-object-storage-assessor.yaml
+            docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-object-storage-assessor.yaml:/object-storage.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /object-storage.yaml && python deploy/tests/test_object_storage_assessor_chart.py /default.yaml /object-storage.yaml'
+            for unsafe in 'objectStorageAssessor.evidenceReaderSecret=finops-db-api' 'objectStorageAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'objectStorageAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'objectStorageAssessor.evidenceReaderSecret=finops-db-object-storage-analyst' 'objectStorageAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+              if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/object-storage-assessor-values.yaml --set "$unsafe" > /tmp/finops-storage-refused.log 2>&1; then
+                echo "Unsafe storage assessor configuration unexpectedly rendered"
+                exit 1
+              else
+                rejected=$?
+                test "$rejected" -eq 1
+                grep -Fq 'Error: execution error at' /tmp/finops-storage-refused.log
+                grep -Fq 'finops/templates/object-storage-assessor.yaml' /tmp/finops-storage-refused.log
+              fi
+            done
+      - name: Check optional read-only network analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml > /tmp/finops-network-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-network-assessor.yaml:/network.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /network.yaml && python deploy/tests/test_network_assessor_chart.py /default.yaml /network.yaml'
+          for unsafe in 'networkAssessor.evidenceReaderSecret=finops-db-api' 'networkAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'networkAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'networkAssessor.evidenceReaderSecret=finops-db-network-analyst' 'networkAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/network-assessor-values.yaml --set "$unsafe" > /tmp/finops-network-refused.log 2>&1; then
+              echo "Unsafe network assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-network-refused.log
+              grep -Fq 'finops/templates/network-assessor.yaml' /tmp/finops-network-refused.log
+            fi
+          done
+      - name: Check optional read-only Lambda analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml > /tmp/finops-lambda-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-lambda-assessor.yaml:/lambda.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /lambda.yaml && python deploy/tests/test_lambda_assessor_chart.py /default.yaml /lambda.yaml'
+          for unsafe in 'lambdaAssessor.evidenceReaderSecret=finops-db-api' 'lambdaAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'lambdaAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'lambdaAssessor.evidenceReaderSecret=finops-db-lambda-analyst' 'lambdaAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-assessor-values.yaml --set "$unsafe" > /tmp/finops-lambda-refused.log 2>&1; then
+              echo "Unsafe Lambda assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-lambda-refused.log
+              grep -Fq 'finops/templates/lambda-assessor.yaml' /tmp/finops-lambda-refused.log
+            fi
+          done
+      - name: Check optional read-only AWS service analysis deployment
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml > /tmp/finops-service-assessor.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-service-assessor.yaml:/service.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /service.yaml && python deploy/tests/test_aws_service_assessor_chart.py /default.yaml /service.yaml'
+          for unsafe in 'serviceAssessor.evidenceReaderSecret=finops-db-api' 'serviceAssessor.httpsEgressCidrs[0]=0.0.0.0/0' 'serviceAssessor.postgresEgressCidrs[0]=203.0.113.0/24' 'serviceAssessor.evidenceReaderSecret=finops-db-service-analyst' 'serviceAssessor.replicas=4' 'objectStorage.endpoint=http://evidence.example.invalid' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/aws-service-assessor-values.yaml --set "$unsafe" > /tmp/finops-service-refused.log 2>&1; then
+              echo "Unsafe AWS service assessor configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-service-refused.log
+              grep -Fq 'finops/templates/aws-service-assessor.yaml' /tmp/finops-service-refused.log
+            fi
+          done
+      - name: Check optional Lambda machine performance ingress
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-performance-values.yaml > /tmp/finops-lambda-performance.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/default.yaml:ro -v /tmp/finops-lambda-performance.yaml:/performance.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/tests/test_lambda_performance_chart.py /default.yaml /performance.yaml'
+          for unsafe in 'lambdaPerformance.evidenceWriterSecret=finops-db-api' 'lambdaPerformance.audience=finops' 'lambdaPerformance.httpsEgressCidrs[0]=0.0.0.0/0' 'networkPolicy.enabled=false'; do
+            if docker run --rm --network none -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/lambda-performance-values.yaml --set "$unsafe" > /tmp/finops-lambda-performance-refused.log 2>&1; then exit 1; else test "$?" -eq 1; fi
+            grep -Fq 'finops/templates/lambda-performance.yaml' /tmp/finops-lambda-performance-refused.log
+          done
+      - name: Check rendered credential and network isolation
+        run: |
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-rendered.yaml:/rendered.yaml:ro -v /tmp/finops-readonly.yaml:/readonly.yaml:ro -v /tmp/finops-notifications.yaml:/notifications.yaml:ro -v /tmp/finops-sources.yaml:/sources.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/check_chart.py /readonly.yaml && python deploy/check_chart.py /notifications.yaml && python deploy/check_chart.py /sources.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-native.yaml:/native.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /native.yaml && python deploy/tests/test_native_chart.py /native.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet.yaml:/fleet.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /fleet.yaml && python deploy/tests/test_fleet_chart.py /fleet.yaml'
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-hardware.yaml:/hardware.yaml:ro -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /hardware.yaml && python deploy/tests/test_hardware_chart.py /hardware.yaml'
+      - name: Check optional assessment identity, network isolation and refused deployment inputs
+        run: |
+          mkdir -p /tmp/finops-assessment-negative
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-assessment.yaml:/assessment.yaml:ro -v /tmp/finops-assessment-negative:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /assessment.yaml && python deploy/tests/test_fleet_assessment_chart.py /assessment.yaml --write-negative-values /checks'
+          for invalid in /tmp/finops-assessment-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-assessment-values.yaml -f /invalid.json > /tmp/finops-assessment-negative/rejected.log 2>&1; then
+              echo "Unsafe assessment configuration unexpectedly rendered"
+              exit 1
+            fi
+            grep -Eq 'finops/templates/(fleet-assessment|services).yaml' /tmp/finops-assessment-negative/rejected.log
+          done
+      - name: Check optional capacity identity, service access and refused deployment inputs
+        run: |
+          mkdir -p /tmp/finops-capacity-negative
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-capacity.yaml:/capacity.yaml:ro -v /tmp/finops-capacity-negative:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /capacity.yaml && python deploy/tests/test_fleet_capacity_chart.py /capacity.yaml --write-negative-values /checks'
+          for invalid in /tmp/finops-capacity-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/native-values.yaml -f /src/deploy/helm/finops/ci/fleet-capacity-values.yaml -f /invalid.json > /tmp/finops-capacity-negative/rejected.log 2>&1; then
+              echo "Unsafe capacity configuration unexpectedly rendered"
+              exit 1
+            fi
+            grep -Eq 'finops/templates/(fleet-capacity|fleet-assessment|native-telemetry|services).yaml' /tmp/finops-capacity-negative/rejected.log
+          done
+      - name: Check optional decision database identity and fail-closed deployment inputs
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/finops-decision-negative
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-decision.yaml:/decision.yaml:ro -v /tmp/finops-decision-negative:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /decision.yaml && python deploy/tests/test_fleet_decision_chart.py /decision.yaml --write-negative-values /checks'
+          test "$(find /tmp/finops-decision-negative -name '*.json' -type f | wc -l)" -eq 19
+          for invalid in /tmp/finops-decision-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-decision-values.yaml -f /invalid.json > /tmp/finops-decision-negative/rejected.log 2>&1; then
+              echo "Unsafe analytical decision configuration unexpectedly rendered"
+              exit 1
+            else
+              rejected=$?
+              test "$rejected" -eq 1
+              grep -Fq 'Error: execution error at' /tmp/finops-decision-negative/rejected.log
+              grep -Fq 'finops/templates/fleet-decision.yaml' /tmp/finops-decision-negative/rejected.log
+            fi
+          done
+      - name: Check optional history-reader identity, additive policies and fail-closed configuration
+        run: |
+          set -euo pipefail
+          mkdir /tmp/finops-history-checks
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-fleet-history.yaml:/history.yaml:ro -v /tmp/finops-history-checks:/checks -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /history.yaml && python deploy/tests/test_fleet_history_chart.py /history.yaml --write-negative-values /checks/negative'
+          for invalid in /tmp/finops-history-checks/negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v "$invalid:/invalid.json:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/aws-readonly-values.yaml -f /src/deploy/helm/finops/ci/fleet-history-values.yaml -f /invalid.json > /tmp/finops-history-checks/rejected.log 2>&1; then
+              echo "Unexpectedly accepted history-reader configuration: $(basename "$invalid")"
+              exit 1
+            else
+              rejected=$?
+              guard=finops/templates/fleet-history-reader.yaml
+              if [ "$(basename "$invalid")" = missing-tenant.json ]; then
+                guard=finops/templates/services.yaml
+                grep -Fq 'aws.tenantId must bind this live pilot to exactly one customer' /tmp/finops-history-checks/rejected.log
+              fi
+              if [ "$rejected" -ne 1 ] || ! grep -Fq 'Error: execution error at' /tmp/finops-history-checks/rejected.log || ! grep -Fq "$guard" /tmp/finops-history-checks/rejected.log; then
+                echo "History-reader refusal was not produced by its Helm guard: $(basename "$invalid")"
+                exit 1
+              fi
+            fi
+          done
+  fleet-group-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate isolated artifact runner boundaries
+        run: node --test scripts/tests/fleet-group-terraform-lab.test.mjs scripts/tests/fleet-group-git-lab.test.mjs
+      - name: Exercise preserved single-revision group artifact contract
+        run: node scripts/fleet-group-terraform-lab.mjs
+      - name: Exercise approved Git stage manifest and appended owned inverse
+        run: node scripts/fleet-group-git-lab.mjs
+      - name: Exercise issued journal recovery and real pipeline process cutpoints
+        run: |
+          node --test scripts/tests/fleet-group-journal-lab.test.mjs
+          node scripts/fleet-group-journal-lab.mjs
+      - name: Retain bounded component acceptance after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-group-artifact-acceptance
+          path: |
+            work/private/fleet-group-terraform/*/acceptance.json
+            work/private/fleet-group-git/*/acceptance.json
+            work/private/fleet-group-journal/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+  fleet-group-connected:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate connected runner isolation and fixed targets
+        run: node --test scripts/tests/fleet-group-connected-lab.test.mjs scripts/tests/group-connected-failure.test.mjs
+      - name: Prepare approved native toolchain images on the fresh runner
+        run: |
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+          docker pull hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e
+      - name: Generate local-only source fixture keys and service secrets
+        run: node scripts/bootstrap.mjs
+      - name: Build and start only the source fixture and its normal dependencies
+        run: |
+          docker compose config --quiet
+          docker compose build minio
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise approved native effects and real-clock owned recovery
+        run: node scripts/fleet-group-connected-lab.mjs
+      - name: Validate independent runtime retirement and empty-workspace reconstruction guards
+        run: node --test scripts/tests/group-workspace-reconstruction-lab.test.mjs scripts/tests/group-workspace-retirement.test.mjs
+      - name: Remove an actual owned worker and reconstruct its positive outcome in an empty replacement
+        run: node scripts/group-workspace-reconstruction-lab.mjs
+      - name: Retain bounded acceptance or fixed-vocabulary failure receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-group-connected-acceptance
+          path: |
+            work/private/fleet-group-connected/*/acceptance.json
+            work/private/fleet-group-connected/*/failure-receipt.json
+            work/private/group-workspace-reconstruction/*/acceptance.json
+            work/private/group-workspace-reconstruction/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  fleet-native-assessment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate native assessment source, identity and cleanup boundaries
+        run: node --test scripts/tests/fleet-native-assessment-lab.test.mjs scripts/tests/fleet-assessment-compose.test.mjs
+      - name: Prepare the pinned offline Go toolchain
+        run: docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+      - name: Generate local-only fixture keys and distinct service credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build and start the inspected local source fixture
+        run: |
+          docker compose config --quiet
+          docker compose build minio buckets
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise native-shaped CUR ingestion, versioned readback and restricted assessment publication
+        run: node scripts/fleet-native-assessment-lab.mjs
+      - name: Retain bounded assessment evidence after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-native-assessment-acceptance
+          path: |
+            work/private/fleet-native-assessment/*/acceptance.json
+            work/private/fleet-native-assessment/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  fleet-native-capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate native capacity source, daemon recovery and browser isolation
+        run: node --test scripts/tests/fleet-native-capacity-lab.test.mjs scripts/tests/fleet-capacity-daemon.test.mjs scripts/tests/fleet-capacity-browser.test.mjs scripts/tests/fleet-capacity-compose.test.mjs
+      - name: Prepare pinned native, browser and identity toolchains
+        run: |
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+          docker pull prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+          docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
+          docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
+          docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          docker pull node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+          docker pull nginxinc/nginx-unprivileged@sha256:782bb89768cc87b7f95c18b95baa1af250e5d451f26794f59363540161147c01
+      - name: Generate local-only fixture keys and separate service credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build and start the inspected source fixture
+        run: |
+          docker compose config --quiet
+          docker compose build minio buckets
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise actual native telemetry, capacity model, daemon replacement and OIDC console
+        run: node scripts/fleet-native-capacity-lab.mjs
+      - name: Retain bounded capacity evidence after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-native-capacity-acceptance
+          path: |
+            work/private/fleet-native-capacity/*/acceptance.json
+            work/private/fleet-native-capacity/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  fleet-joint-decision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate joint evidence source, database-only process and browser isolation
+        run: node --test scripts/tests/fleet-joint-decision-lab.test.mjs scripts/tests/fleet-joint-browser.test.mjs scripts/tests/fleet-capacity-daemon.test.mjs scripts/tests/fleet-capacity-browser.test.mjs
+      - name: Prepare pinned native, browser and identity toolchains
+        run: |
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+          docker pull prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+          docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
+          docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
+          docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          docker pull node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+          docker pull nginxinc/nginx-unprivileged@sha256:782bb89768cc87b7f95c18b95baa1af250e5d451f26794f59363540161147c01
+      - name: Generate local-only fixture keys and separate service credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build and start the inspected source fixture
+        run: |
+          docker compose config --quiet
+          docker compose build minio buckets
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Exercise issued native cost and physical evidence, dedicated decision worker and OIDC console
+        run: node scripts/fleet-joint-decision-lab.mjs
+      - name: Retain bounded joint evidence after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-joint-decision-acceptance
+          path: |
+            work/private/fleet-joint-decision/*/acceptance.json
+            work/private/fleet-joint-decision/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  fleet-workspace-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate frozen activation, signed outcomes and exact recovered-health source boundaries
+        run: node --test scripts/tests/group-workspace-health-runner.test.mjs scripts/tests/group-workspace-health.test.mjs scripts/tests/group-workspace-retirement.test.mjs
+      - name: Prepare approved native toolchain images on the fresh runner
+        run: |
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+          docker pull hashicorp/terraform:1.16.0@sha256:64360659224d6cbeb099eeed61aa66a80e02c18ba08c0243bd905165b47b088e
+      - name: Generate local-only source fixture keys and service secrets
+        run: node scripts/bootstrap.mjs
+      - name: Build and start only the source fixture and its normal dependencies
+        run: |
+          docker compose config --quiet
+          docker compose build minio
+          docker compose build api economics
+          docker compose up --no-build -d api minio
+      - name: Require the actual source fixture API to be healthy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          let healthy = false;
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:8080/healthz', { signal: AbortSignal.timeout(2000) });
+              const body = await response.json();
+              if (response.ok && body.fixture === true && body.status === 'ok') { healthy = true; break; }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          assert.ok(healthy, 'The fresh local source fixture API did not become healthy');
+          NODE
+      - name: Reconstruct an empty workspace and restart its observer before a fresh full recovery window
+        run: node scripts/group-workspace-health-lab.mjs
+      - name: Retain bounded recovered-health acceptance or fixed failure receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-workspace-health-acceptance
+          path: |
+            work/private/group-workspace-health/*/acceptance.json
+            work/private/group-workspace-health/*/failure-receipt.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop only this fresh job's source fixture
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  kubernetes-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create pinned isolated local Kubernetes lab
+        run: node scripts/kubernetes-bootstrap.mjs
+      - name: Exercise Git rollout, zero-disruption blocking and owned rollback
+        run: node scripts/kubernetes-lab.mjs
+      - name: Retain bounded local lab acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-kubernetes-acceptance
+          path: |
+            work/kubernetes-lab/acceptance.json
+            work/kubernetes-lab/observation-failure.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Remove only the named CI-owned local lab
+        if: always()
+        run: |
+          if [ -x work/tools/kind ]; then work/tools/kind delete cluster --name finops-autopilot-lab; fi
+  flux-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # A separate disposable job: never change the main fixture daemon or an
+      # operator's Docker settings. Preserve exact OCI manifests for KIND import.
+      - name: Configure this runner's digest-preserving image store
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5
+        with:
+          daemon-config: |
+            {"features":{"containerd-snapshotter":true}}
+      - name: Exercise real Flux rollout, PDB refusal and owned Git rollback
+        run: node scripts/flux-lab.mjs
+      - name: Retain bounded controller acceptance without credentials or admin config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-flux-acceptance
+          path: |
+            work/flux-lab/acceptance.json
+            work/flux-lab/*/observation-failure.json
+            work/flux-lab/*/controllers-failure.json
+          if-no-files-found: ignore
+          retention-days: 7
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Generate local-only keys and service secrets
+        run: node scripts/bootstrap-fleet-capacity.mjs
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build fixture pilot
+        run: |
+          docker compose build minio
+          docker compose build buckets
+          docker compose build api economics web
+      - name: Start fixture pilot with a bounded dependency wait
+        run: timeout --signal=TERM --kill-after=10s 240s docker compose up --no-build -d
+      - name: Exercise authenticated execution and verification
+        run: node scripts/smoke.mjs
+      - name: Exercise actual console proxy request boundaries on isolated HTTP fixtures
+        run: |
+          node --test scripts/tests/nginx-body-boundary-lab.test.mjs
+          node scripts/nginx-body-boundary-lab.mjs
+      - name: Preserve bounded proxy acceptance after owned cleanup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-body-boundary-acceptance
+          path: work/nginx-body-boundary/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Restart API and worker during an owned stop
+        run: node scripts/recovery-smoke.mjs
+      - name: Exercise dedicated machine OIDC and activity-ingress isolation
+        run: node scripts/activity-smoke.mjs
+      - name: Exercise tenant-isolated dependency graph and review safety
+        run: node scripts/dependency-smoke.mjs
+      - name: Exercise trusted SLO objective and machine receipt safety
+        run: node scripts/slo-smoke.mjs
+      - name: Exercise native Prometheus and authenticated OTLP evidence persistence
+        run: node scripts/native-smoke.mjs
+      - name: Exercise the real OpenTelemetry collector and machine OAuth2 export
+        run: node scripts/native-otel-smoke.mjs
+      # Run after API smoke: both tests intentionally use/reset the same fixture tenant.
+      - name: Exercise OIDC login and console journey in Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:e2e -- --grep-invert 'real OIDC two registered groups produce a persisted isolated fixture selection while unknown-program approval and runtime remain refused|real OIDC privately prepared fixture program receives an independent exact-program approval without execution authority'
+      - name: Commission, privately prepare and independently review the exact isolated fixture program
+        run: |
+          node scripts/fleet-assessment-compose-check.mjs
+          docker compose --profile fleet-assessment run --rm --no-deps fleet-assessment-secrets-init
+          docker compose --profile fleet-assessment up -d --no-build --no-deps --wait --wait-timeout 90 fleet-assessment
+          node scripts/fleet-capacity-compose-check.mjs
+          docker compose --profile fleet-capacity run --rm --no-deps fleet-capacity-secrets-init
+          docker compose --profile fleet-capacity up -d --no-build --no-deps --wait --wait-timeout 90 fleet-capacity
+          node --test scripts/tests/group-fixture-commission.test.mjs
+          node --test scripts/tests/group-fixture-preparer-job.test.mjs scripts/tests/group-fixture-program-review.test.mjs scripts/tests/group-fixture-review-sequence.test.mjs
+          node scripts/group-fixture-review-sequence.mjs
+      - name: Preserve bounded local commissioning acceptance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-fixture-browser-acceptance
+          path: |
+            work/private/group-fixture-commission/*/acceptance.json
+            work/private/group-fixture-commission/*/failure-receipt.json
+            work/private/group-fixture-preparer/*/acceptance.json
+            work/private/group-fixture-program-review/*/acceptance.json
+            work/private/group-fixture-review-sequence/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve UI failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot-ui-failure
+          path: |
+            frontend/test-results/**/test-failed-*.png
+            work/private/group-fixture-commission/*/browser/results/**/test-failed-*.png
+            work/private/group-fixture-program-review/*/results/**/test-failed-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Exercise isolated provisional multicloud publication with actual local storage
+        run: |
+          node --test scripts/tests/multicloud-publication-lab.test.mjs
+          node scripts/multicloud-publication-lab.mjs
+      - name: Exercise isolated encrypted Terraform artifact capture with actual local tools
+        run: |
+          node --test scripts/tests/fixture-go-modules.test.mjs scripts/tests/configuration-artifact-lab.test.mjs
+          node scripts/configuration-artifact-lab.mjs
+      - name: Exercise private native historical-rate broker with isolated PostgreSQL
+        run: |
+          node --test scripts/tests/fleet-billing-price-lab.test.mjs
+          node scripts/fleet-billing-price-lab.mjs
+      - name: Exercise fleet history with actual isolated PostgreSQL and versioned objects
+        run: |
+          node --test scripts/tests/fleet-history-lab.test.mjs
+          node scripts/fleet-history-lab.mjs
+      - name: Preserve bounded history acceptance without credentials or source bodies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-history-storage-acceptance
+          path: work/private/fleet-history/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Exercise private hardware identity derivation with actual isolated storage
+        run: |
+          node --test scripts/tests/hardware-identity-lab.test.mjs
+          node scripts/hardware-identity-lab.mjs
+      - name: Preserve bounded identity acceptance without credentials or native bodies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardware-identity-storage-acceptance
+          path: work/private/hardware-identity/*/acceptance.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Verify final encrypted whole-cluster PostgreSQL backup in network quarantine
+        run: node scripts/postgres-recovery-lab.mjs
+      - name: Collect bounded service diagnostics on failure or cancellation
+        if: ${{ failure() || cancelled() }}
+        run: node scripts/compose-startup-diagnostics.mjs
+      - name: Stop fixture containers
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+  commitment-portfolio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate portfolio source, identity and local container boundaries
+        run: node --test scripts/tests/commitment-portfolio-browser.test.mjs scripts/tests/commitment-portfolio-diagnostic.test.mjs
+      - name: Validate optional hosted portfolio identities, TLS and network isolation
+        run: |
+          mkdir -p /tmp/finops-portfolio-negative
+          docker run --rm -v "$PWD:/src:ro" alpine/helm:3.17.2 lint /src/deploy/helm/finops --strict -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml
+          docker run --rm -v "$PWD:/src:ro" alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml > /tmp/finops-portfolio.yaml
+          docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-portfolio.yaml:/rendered.yaml:ro -v /tmp/finops-portfolio-negative:/negative -w /src python:3.13-slim sh -ec 'pip install --no-cache-dir PyYAML==6.0.3 && python deploy/check_chart.py /rendered.yaml && python deploy/tests/test_commitment_portfolio_chart.py /rendered.yaml --write-negative-values /negative'
+          for values in /tmp/finops-portfolio-negative/*.json; do
+            if docker run --rm -v "$PWD:/src:ro" -v /tmp/finops-portfolio-negative:/negative:ro alpine/helm:3.17.2 template finops /src/deploy/helm/finops --namespace finops -f /src/deploy/helm/finops/ci/commitment-portfolio-values.yaml -f "/negative/$(basename "$values")" > /tmp/finops-portfolio-rejected.yaml 2> /tmp/finops-portfolio-rejected.log; then exit 1; fi
+            grep -q 'commitment portfolio' /tmp/finops-portfolio-rejected.log
+          done
+      - name: Prepare pinned analysis, browser and identity toolchains
+        run: |
+          docker pull golang:1.27.3-bookworm@sha256:32fa283222e2905d9fee971f60c842e5c815fdc036cf7ea599bf36bd7ca8f67f
+          docker pull clickhouse/clickhouse-server:26.8-alpine@sha256:2ad322429c7965bde31e3a6389daa2df62db7e1898b1b91d50eb3a7bad716f1f
+          docker pull quay.io/keycloak/keycloak@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
+          docker pull mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          docker pull node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+          docker pull nginxinc/nginx-unprivileged@sha256:782bb89768cc87b7f95c18b95baa1af250e5d451f26794f59363540161147c01
+      - name: Prepare distinct local fixture credentials
+        run: node scripts/bootstrap.mjs
+      - name: Build native ingestion services and private portfolio model
+        run: |
+          docker compose config --quiet
+          docker compose build minio economics
+          docker compose up --no-build -d --wait postgres minio clickhouse economics
+      - name: Exercise issued native commitments, restricted daemon and real Finance journey
+        run: node scripts/commitment-portfolio-lab.mjs
+      - name: Retain bounded portfolio acceptance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-portfolio-acceptance
+          path: work/private/commitment-portfolio/*/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain encrypted native failure diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-portfolio-private-failure
+          path: work/private/commitment-portfolio/*/native-failure.encrypted.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Stop only this fresh job's local services
+        if: always()
+        run: docker compose down --volumes --remove-orphans

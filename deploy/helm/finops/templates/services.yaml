@@ -1,0 +1,352 @@
+{{- if not (has .Values.dataMode (list "fixture" "aws")) }}{{ fail "dataMode must be fixture or aws" }}{{ end }}
+{{- if ne .Values.aws.region "eu-west-1" }}{{ fail "This pilot is restricted to AWS eu-west-1" }}{{ end }}
+{{- if and .Values.notifications.webhookUrl (not (hasPrefix "https://" .Values.notifications.webhookUrl)) }}{{ fail "notifications.webhookUrl must use HTTPS" }}{{ end }}
+{{- if not (kindIs "string" .Values.configurationRevision.bindingsJSON) }}{{ fail "configurationRevision.bindingsJSON must be a JSON registry string" }}{{ end }}
+{{- $revisionBindings := mustFromJson .Values.configurationRevision.bindingsJSON }}
+{{- if not (kindIs "map" $revisionBindings) }}{{ fail "configuration revision registry must be an object" }}{{ end }}
+{{- if gt (len $revisionBindings) 256 }}{{ fail "configuration revision registry is too large" }}{{ end }}
+{{- if not (kindIs "string" .Values.configurationRevision.existingClaim) }}{{ fail "configuration revision claim must be a name string" }}{{ end }}
+{{- if .Values.configurationRevision.existingClaim }}
+{{- if or (gt (len .Values.configurationRevision.existingClaim) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" .Values.configurationRevision.existingClaim)) }}{{ fail "configuration revision existing claim name invalid" }}{{ end }}
+{{- if eq (len $revisionBindings) 0 }}{{ fail "configuration revision claim requires explicit approved bindings" }}{{ end }}
+{{- else if gt (len $revisionBindings) 0 }}{{ fail "configuration revision bindings require an existing read-only repository claim" }}{{ end }}
+{{- range $id,$binding := $revisionBindings }}
+{{- if not (kindIs "map" $binding) }}{{ fail "configuration revision binding must be an object" }}{{ end }}
+{{- if or (not (kindIs "string" $binding.repository_root)) (not (hasPrefix "/var/run/finops/configuration-revisions/" $binding.repository_root)) (contains ".." $binding.repository_root) (contains "\\" $binding.repository_root) }}{{ fail "configuration revision root must stay beneath its read-only mount" }}{{ end }}
+{{- if ne $id (printf "%s:%s" $binding.tenant_id $binding.authority_id) }}{{ fail "configuration revision tenant/authority key mismatch" }}{{ end }}
+{{- end }}
+{{- range $field, $secret := dict "accountReadBindingsSecret" .Values.sources.accountReadBindingsSecret "readBindingsSecret" .Values.sources.readBindingsSecret "eksKubernetesReadBindingsSecret" .Values.sources.eksKubernetesReadBindingsSecret "objectIdentitySecret" .Values.sources.objectIdentitySecret "commitmentQuoteTargetsSecret" .Values.sources.commitmentQuoteTargetsSecret "controllerBindingsSecret" .Values.sources.controllerBindingsSecret "ownershipArchiveTargetsSecret" .Values.sources.ownershipArchiveTargetsSecret }}
+{{- if not (kindIs "string" $secret) }}{{ fail (printf "sources.%s must be a Secret name string" $field) }}{{ end }}
+{{- if $secret }}
+{{- if or (gt (len $secret) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" $secret)) }}{{ fail (printf "sources.%s must be a DNS Secret name" $field) }}{{ end }}
+{{- range $part := splitList "." $secret }}{{- if gt (len $part) 63 }}{{ fail "source Secret name label is too long" }}{{ end }}{{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.sources.accountReadBindingsSecret }}
+{{- if eq .Values.sources.accountApprovedBindingsJSON "{}" }}{{ fail "account read bindings require safe approved account metadata" }}{{ end }}
+{{- range $role,$secret := .Values.database.secrets }}{{- if eq $.Values.sources.accountReadBindingsSecret $secret }}{{ fail "account read identity cannot reuse database credentials" }}{{ end }}{{ end }}
+{{- range $role,$secret := .Values.secrets }}{{- if eq $.Values.sources.accountReadBindingsSecret $secret }}{{ fail "account read identity cannot reuse service credentials" }}{{ end }}{{ end }}
+{{- end }}
+{{- if .Values.sources.eksKubernetesReadBindingsSecret }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "EKS identity reads require explicit AWS read-only mode" }}{{ end }}
+{{- $_ := required "EKS identity requires ingester-only approved native read bindings" .Values.sources.readBindingsSecret }}
+{{- range $role,$secret := .Values.database.secrets }}{{- if eq $.Values.sources.eksKubernetesReadBindingsSecret $secret }}{{ fail "EKS read identity cannot reuse database credentials" }}{{ end }}{{ end }}
+{{- range $role,$secret := .Values.secrets }}{{- if eq $.Values.sources.eksKubernetesReadBindingsSecret $secret }}{{ fail "EKS read identity cannot reuse service credentials" }}{{ end }}{{ end }}
+{{- end }}
+{{- if .Values.sources.objectIdentitySecret }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "S3 object identity requires explicit AWS read-only mode" }}{{ end }}
+{{- range $role,$secret := .Values.database.secrets }}{{- if eq $.Values.sources.objectIdentitySecret $secret }}{{ fail "S3 object identity cannot reuse a database credential Secret" }}{{ end }}{{ end }}
+{{- range $role,$secret := .Values.secrets }}{{- if eq $.Values.sources.objectIdentitySecret $secret }}{{ fail "S3 object identity cannot reuse another service credential Secret" }}{{ end }}{{ end }}
+{{- end }}
+{{- if or .Values.sources.commitmentQuoteTargetsSecret .Values.sources.controllerBindingsSecret .Values.sources.ownershipArchiveTargetsSecret }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "trusted commitment sources require explicit AWS read-only mode" }}{{ end }}
+{{- $_ := required "trusted commitment sources require ingester-only approved read bindings" .Values.sources.readBindingsSecret }}
+{{- end }}
+{{- if eq .Values.dataMode "aws" }}
+{{- $_ := required "aws.tenantId must bind this live pilot to exactly one customer" .Values.aws.tenantId }}
+{{- $_ := required "aws.readRoleArn required for AWS mode" .Values.aws.readRoleArn }}
+{{- $_ := required "aws.ingesterRoleArn IRSA role required for AWS mode" .Values.aws.ingesterRoleArn }}
+{{- $_ := required "aws.rawBucket required for AWS mode" .Values.aws.rawBucket }}
+{{- $_ := required "aws.auditBucket required for AWS mode" .Values.aws.auditBucket }}
+{{- if .Values.aws.executionRoleArn }}
+{{- $_ := required "aws.executorRoleArn IRSA role required when AWS execution is configured" .Values.aws.executorRoleArn }}
+{{- if eq .Values.health.allowedHosts "" }}{{ fail "health.allowedHosts must list exact HTTPS health hostnames when AWS execution is configured" }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if eq .Values.activity.audience .Values.oidc.audience }}{{ fail "activity.audience must differ from the human API audience" }}{{ end }}
+{{- $roles := list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "economics" "web" }}
+{{- if .Values.deploymentObserver.enabled }}
+{{- if has .Values.deploymentObserver.audience (list .Values.oidc.audience .Values.activity.audience .Values.telemetry.audience) }}{{ fail "deployment observer requires a separate machine audience" }}{{ end }}
+{{- if eq (len .Values.deploymentObserver.httpsEgressCidrs) 0 }}{{ fail "deployment observer requires approved JWKS HTTPS destination CIDRs" }}{{ end }}
+{{- range .Values.deploymentObserver.httpsEgressCidrs }}{{ if regexMatch "/0+$" . }}{{ fail "deployment observer egress cannot be world-open" }}{{ end }}{{ end }}
+{{- if eq (len .Values.deploymentObserver.pipelinePodSelector) 0 }}{{ fail "deployment observer requires an explicit local pipeline selector" }}{{ end }}
+{{- $roles = append $roles "deployment-observer" }}
+{{- end }}
+{{- range $role := $roles }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+    finops-role: {{ $role }}
+  {{- $arn := index $.Values.aws (printf "%sRoleArn" $role) }}
+  {{- if $arn }}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ $arn | quote }}
+  {{- end }}
+# IRSA mutating webhook mounts the audience-scoped AWS token for these roles.
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+    finops-role: {{ $role }}
+spec:
+  replicas: {{ index $.Values.replicas $role }}
+  selector:
+    matchLabels: { finops-role: {{ $role }} }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels:
+        {{- include "finops.labels" $ | nindent 8 }}
+        finops-role: {{ $role }}
+    spec:
+      serviceAccountName: finops-{{ $role }}
+      terminationGracePeriodSeconds: 60
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ if eq $role "web" }}101{{ else }}10001{{ end }}
+        fsGroup: {{ if eq $role "web" }}101{{ else }}10001{{ end }}
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: {{ $role }}
+          {{- $image := $.Values.images.backend }}
+          {{- if eq $role "economics" }}{{ $image = $.Values.images.economics }}{{ end }}
+          {{- if eq $role "web" }}{{ $image = $.Values.images.web }}{{ end }}
+          image: {{ include "finops.image" $image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ if eq $role "web" }}{{ $.Values.web.readOnlyRootFilesystem }}{{ else }}true{{ end }}
+            capabilities: { drop: [ALL] }
+          ports:
+            - name: http
+              containerPort: {{ if eq $role "economics" }}8000{{ else if eq $role "web" }}{{ $.Values.web.containerPort }}{{ else }}8080{{ end }}
+          env:
+            {{- if or (eq $role "api") (eq $role "ingester") }}
+            - { name: AWS_ACCOUNT_APPROVED_BINDINGS_JSON, value: {{ $.Values.sources.accountApprovedBindingsJSON | quote }} }
+            {{- end }}
+            {{- if eq $role "api" }}
+            - { name: CONFIGURATION_REVISION_BINDINGS_JSON, value: {{ $.Values.configurationRevision.bindingsJSON | quote }} }
+            - { name: EKS_KUBERNETES_APPROVED_BINDINGS_JSON, value: {{ $.Values.sources.eksApprovedBindingsJSON | quote }} }
+            {{- end }}
+            - { name: AWS_REGION, value: {{ $.Values.aws.region | quote }} }
+            - { name: AWS_TENANT_ID, value: {{ $.Values.aws.tenantId | quote }} }
+            - { name: AWS_STS_REGIONAL_ENDPOINTS, value: regional }
+            - { name: DATA_MODE, value: {{ $.Values.dataMode | quote }} }
+            - { name: FIXTURE_MODE, value: {{ eq $.Values.dataMode "fixture" | quote }} }
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
+            - { name: APP_ROLE, value: {{ $role | quote }} }
+            - { name: PORT, value: "8080" }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: {{ index $.Values.database.secrets $role }}, key: DATABASE_URL }
+            - { name: TEMPORAL_ADDRESS, value: {{ include "finops.temporal" $ | quote }} }
+            - { name: TEMPORAL_NAMESPACE, value: {{ $.Values.temporal.namespace | quote }} }
+            - { name: ECONOMICS_URL, value: "http://finops-economics:8000" }
+            - { name: OIDC_ISSUER, value: {{ $.Values.oidc.issuer | quote }} }
+            - { name: OIDC_AUDIENCE, value: {{ $.Values.oidc.audience | quote }} }
+            {{- if $.Values.oidc.jwksUrl }}
+            - { name: OIDC_JWKS_URL, value: {{ $.Values.oidc.jwksUrl | quote }} }
+            {{- end }}
+            {{- if eq $role "activity-ingress" }}
+            {{- if $.Values.lambdaPerformance.enabled }}
+            - {name: LAMBDA_PERFORMANCE_ENABLED, value: "true"}
+            - {name: LAMBDA_PERFORMANCE_OIDC_ISSUER, value: {{ $.Values.lambdaPerformance.issuer | quote }}}
+            - {name: LAMBDA_PERFORMANCE_OIDC_AUDIENCE, value: {{ $.Values.lambdaPerformance.audience | quote }}}
+            - {name: LAMBDA_PERFORMANCE_OIDC_JWKS_URL, value: {{ $.Values.lambdaPerformance.jwksUrl | quote }}}
+            - {name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }}}
+            - {name: OBJECT_REGION, value: eu-west-1}
+            - {name: OBJECT_BUCKET_RAW, value: {{ $.Values.aws.rawBucket | quote }}}
+            - {name: CLICKHOUSE_URL, value: {{ include "finops.clickhouse" $ | quote }}}
+            - {name: CLICKHOUSE_DATABASE, value: {{ $.Values.clickhouseCredentials.database | quote }}}
+            {{- range $key := list "LAMBDA_PERFORMANCE_ACCESS_KEY" "LAMBDA_PERFORMANCE_SECRET_KEY" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.lambdaPerformance.evidenceWriterSecret | quote }}, key: {{ $key }}}
+            {{- end }}
+            {{- range $key := list "LAMBDA_PERFORMANCE_CLICKHOUSE_USER" "LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.lambdaPerformance.analyticsSecret | quote }}, key: {{ $key }}}
+            {{- end }}
+            {{- end }}
+            - { name: ACTIVITY_OIDC_AUDIENCE, value: {{ $.Values.activity.audience | quote }} }
+            {{- if $.Values.activity.jwksUrl }}
+            - { name: ACTIVITY_OIDC_JWKS_URL, value: {{ $.Values.activity.jwksUrl | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- if eq $role "deployment-observer" }}
+            - {name: DEPLOYMENT_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.deploymentObserver.issuer | quote }}}
+            - {name: DEPLOYMENT_OIDC_AUDIENCE, value: {{ $.Values.deploymentObserver.audience | quote }}}
+            {{- if or $.Values.deploymentObserver.jwksUrl $.Values.oidc.jwksUrl }}
+            - {name: DEPLOYMENT_OIDC_JWKS_URL, value: {{ default $.Values.oidc.jwksUrl $.Values.deploymentObserver.jwksUrl | quote }}}
+            {{- end }}
+            {{- end }}
+            {{- if has $role (list "api" "activity-ingress") }}
+            - { name: ACTIVITY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.activity.issuer | quote }} }
+            {{- end }}
+            {{- if and $.Values.telemetry.enabled (eq $role "api") }}
+            - { name: TELEMETRY_READER_URL, value: "http://finops-telemetry-reader:8080" }
+            - { name: TELEMETRY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.telemetry.issuer | quote }} }
+            - name: TELEMETRY_READER_TOKEN
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.telemetry.readerTokenSecret }}, key: TELEMETRY_READER_TOKEN }
+            {{- if $.Values.telemetry.bindingCatalogSecret }}
+            - name: TELEMETRY_BINDING_CATALOG_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.telemetry.bindingCatalogSecret }}, key: TELEMETRY_BINDING_CATALOG_JSON }
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- if eq $role "worker" }}
+            - { name: SIGNER_URL, value: "http://finops-signer:8080" }
+            - { name: EXECUTOR_URL, value: "http://finops-executor:8080" }
+            {{- if $.Values.notifications.webhookUrl }}
+            - { name: WEBHOOK_URL, value: {{ $.Values.notifications.webhookUrl | quote }} }
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.secrets.worker }}, key: WEBHOOK_SECRET }
+            {{- end }}
+            {{- end }}
+            {{- if eq $role "ingester" }}
+            {{- if $.Values.sources.accountReadBindingsSecret }}
+            - name: AWS_ACCOUNT_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.accountReadBindingsSecret | quote }}, key: AWS_ACCOUNT_READ_BINDINGS_JSON }
+            {{- end }}
+            {{- if $.Values.sources.eksKubernetesReadBindingsSecret }}
+            - name: EKS_KUBERNETES_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.eksKubernetesReadBindingsSecret | quote }}, key: EKS_KUBERNETES_READ_BINDINGS_JSON }
+            {{- end }}
+            - {name: LAMBDA_READONLY_ENABLED, value: {{ $.Values.sources.lambdaReadonlyEnabled | quote }}}
+            - {name: LAMBDA_COMPUTE_OPTIMIZER_ENABLED, value: {{ $.Values.sources.lambdaComputeOptimizerEnabled | quote }}}
+            {{- if $.Values.sources.lambdaReadBindingsSecret }}
+            - name: AWS_LAMBDA_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.sources.lambdaReadBindingsSecret | quote }}, key: AWS_LAMBDA_READ_BINDINGS_JSON}
+            {{- end }}
+            - {name: NETWORK_READONLY_ENABLED, value: {{ $.Values.sources.networkReadonlyEnabled | quote }}}
+            {{- if $.Values.sources.networkReadBindingsSecret }}
+            - name: AWS_NETWORK_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.sources.networkReadBindingsSecret | quote }}, key: AWS_NETWORK_READ_BINDINGS_JSON}
+            {{- end }}
+            {{- if $.Values.sources.objectIdentitySecret }}
+            {{- range $key := list "S3_OBJECT_IDENTITY_KEY_HEX" "S3_OBJECT_IDENTITY_KEY_VERSION" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.objectIdentitySecret | quote }}, key: {{ $key }} }
+            {{- end }}
+            {{- end }}
+            {{- if $.Values.sources.readBindingsSecret }}
+            - name: AWS_SOURCE_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.sources.readBindingsSecret | quote }}, key: AWS_SOURCE_READ_BINDINGS_JSON }
+            {{- end }}
+            {{- range $key, $secret := dict "AWS_SAVINGS_PLAN_QUOTE_TARGETS_JSON" $.Values.sources.commitmentQuoteTargetsSecret "AWS_CONTROLLER_DISCOVERY_BINDINGS_JSON" $.Values.sources.controllerBindingsSecret "AWS_OWNERSHIP_ARCHIVE_TARGETS_JSON" $.Values.sources.ownershipArchiveTargetsSecret }}
+            {{- if $secret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: { name: {{ $secret | quote }}, key: {{ $key }} }
+            {{- end }}
+            {{- end }}
+            - { name: AWS_READ_ROLE_ARN, value: {{ $.Values.aws.readRoleArn | quote }} }
+            - { name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }} }
+            - { name: OBJECT_REGION, value: {{ $.Values.aws.region | quote }} }
+            - { name: OBJECT_BUCKET_RAW, value: {{ $.Values.aws.rawBucket | quote }} }
+            - { name: OBJECT_BUCKET_AUDIT, value: {{ $.Values.aws.auditBucket | quote }} }
+            - { name: CLICKHOUSE_URL, value: {{ include "finops.clickhouse" $ | quote }} }
+            - { name: CLICKHOUSE_DATABASE, value: {{ $.Values.clickhouseCredentials.database | quote }} }
+            - { name: CLICKHOUSE_USER, value: {{ $.Values.clickhouseCredentials.username | quote }} }
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.secrets.clickhouse }}, key: password }
+            {{- end }}
+            {{- if eq $role "executor" }}
+            - { name: AWS_EXECUTION_ROLE_ARN, value: {{ $.Values.aws.executionRoleArn | quote }} }
+            - { name: HEALTH_ALLOWED_HOSTS, value: {{ $.Values.health.allowedHosts | quote }} }
+            {{- end }}
+            {{- if has $role (list "api" "ingester" "economics") }}
+            - name: ECONOMICS_TOKEN
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.secrets.economics }}, key: ECONOMICS_TOKEN }
+            {{- end }}
+            {{- if and (eq $.Values.dataMode "aws") (has $role (list "ingester" "executor")) }}
+            - name: AWS_EXTERNAL_ID
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.aws.externalIdSecret }}, key: AWS_EXTERNAL_ID }
+            {{- end }}
+            {{- if has $role (list "worker" "signer" "executor") }}
+            {{- $secret := index $.Values.secrets $role }}
+            {{- $keys := list "SIGNING_PUBLIC_KEY" }}
+            {{- if eq $role "worker" }}{{ $keys = list "SIGNING_PUBLIC_KEY" "SIGNER_TOKEN" "EXECUTOR_TOKEN" }}{{ end }}
+            {{- if eq $role "signer" }}{{ $keys = list "SIGNING_PRIVATE_KEY" "SIGNER_TOKEN" }}{{ end }}
+            {{- if eq $role "executor" }}{{ $keys = list "SIGNING_PUBLIC_KEY" "EXECUTOR_TOKEN" }}{{ end }}
+            {{- range $key := $keys }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef: { name: {{ $secret }}, key: {{ $key }} }
+            {{- end }}
+            {{- end }}
+            {{- if eq $role "economics" }}
+            - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+            {{- end }}
+            {{- if eq $role "web" }}
+            - { name: API_UPSTREAM, value: "finops-api.{{ $.Release.Namespace }}.svc.cluster.local:8080" }
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources: {{ toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if and (eq $role "api") $.Values.configurationRevision.existingClaim }}
+            - { name: configuration-revisions, mountPath: /var/run/finops/configuration-revisions, readOnly: true }
+            {{- end }}
+            {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
+            - { name: eks-kubernetes-read, mountPath: /var/run/finops/eks-kubernetes, readOnly: true }
+            {{- end }}
+            - { name: tmp, mountPath: /tmp }
+            {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
+            - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
+            {{- end }}
+      volumes:
+        {{- if and (eq $role "api") $.Values.configurationRevision.existingClaim }}
+        - name: configuration-revisions
+          persistentVolumeClaim: { claimName: {{ $.Values.configurationRevision.existingClaim | quote }}, readOnly: true }
+        {{- end }}
+        {{- if and (eq $role "ingester") $.Values.sources.eksKubernetesReadBindingsSecret }}
+        - name: eks-kubernetes-read
+          secret: { secretName: {{ $.Values.sources.eksKubernetesReadBindingsSecret | quote }}, defaultMode: 0440 }
+        {{- end }}
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
+        {{- if has $role (list "api" "worker" "ingester" "signer" "executor" "activity-ingress" "deployment-observer") }}
+        - name: rds-ca
+          configMap: { name: {{ $.Values.database.caConfigMap }} }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: { finops-role: {{ $role }} }
+  ports:
+    - name: http
+      port: {{ if eq $role "economics" }}8000{{ else if eq $role "web" }}80{{ else }}8080{{ end }}
+      targetPort: http
+{{- end }}

@@ -1,0 +1,1982 @@
+{
+  "schema_version": "1",
+  "recorded_at": "2026-10-21",
+  "scope": "Full preserved 233-section specification, including commercial GA obligations",
+  "method": "Fixed version-1 domain weights. Acceptance packages use stages 0/20/40/70/90/100. Contribution = package scope weight times accepted maturity / 100. Engineering judgement based on capability acceptance; code, test counts and planned work earn no independent credit. Shared foundations count once.",
+  "baseline_weighted_percent": 17.5,
+  "current_weighted_percent": 26.9,
+  "rounded_description": "26.9 weighted percent of the full product; approximately 27 percent",
+  "credit_review": "Shared four-family AWS service recommendation components, restricted persisted refusals, native metric semantics and normal console presentation extend product capability. Native positive financial/demand/physical-candidate closure and complete connected acceptance remain software gates. Existing optimisation scopes/weights are unchanged; no arbitrary package subdivision or maturity uplift.",
+  "live_aws_validated": false,
+  "customer_verified_savings": false,
+  "commercial_ga_accepted": false,
+  "maturity_stages": {
+    "0": "Absent",
+    "20": "Component",
+    "40": "Deterministic E2E",
+    "70": "Supervised live",
+    "90": "Production operations",
+    "100": "Contract complete"
+  },
+  "domains": [
+    {
+      "id": "billing_inventory_telemetry",
+      "weight_percent": 18,
+      "contribution_points": 5.1,
+      "packages": [
+        {
+          "id": "inventory_adapters",
+          "scope_weight_percent": 10.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/provider",
+            "docs/acceptance.md",
+            "docs/forward-aws-sprint.md"
+          ],
+          "remaining": [
+            "Live inventory/IAM and broader resources"
+          ]
+        },
+        {
+          "id": "bounded_native_telemetry",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/telemetry",
+            "internal/native/runtime_integration_test.go",
+            "internal/store/telemetry_integration_test.go",
+            "scripts/native-smoke.mjs",
+            "scripts/native-otel-smoke.mjs",
+            "frontend/tests/native-live.spec.ts",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Genuine customer history and independently commissioned instrumentation",
+            "Streaming dense populations above explicit bounds, additional native histogram/statistic formats and broader provider metrics",
+            "Hosted/live and sustained production acceptance"
+          ]
+        },
+        {
+          "id": "billing_mapping_ingestion",
+          "scope_weight_percent": 4.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/source/pipeline_integration_test.go",
+            "internal/service/trusted_integration_test.go",
+            "economics/tests/test_v3.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Authentic AWS manifest, invoice issuance and payer/member IAM acceptance",
+            "Provider-scale exports, wider FOCUS coverage and multi-cloud billing"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 28.333333333333332
+    },
+    {
+      "id": "workload_graph_demand_slo",
+      "weight_percent": 12,
+      "contribution_points": 4.8,
+      "packages": [
+        {
+          "id": "bounded_workload_mapping",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/dependency/graph_test.go",
+            "internal/service/dependencies_integration_test.go",
+            "internal/service/dependencies_concurrency_test.go",
+            "internal/service/trusted_integration_test.go",
+            "scripts/dependency-smoke.mjs",
+            "frontend/tests/dependencies.spec.ts",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Complete automatic topology and dependency reconciliation, including additional resource types",
+            "Supervised customer graph, ownership and external-consumer validation"
+          ]
+        },
+        {
+          "id": "independent_demand_and_slo",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/slo",
+            "internal/activity/slo_integration_test.go",
+            "internal/service/trusted_integration_test.go",
+            "internal/service/slo_control_integration_test.go",
+            "internal/service/slo_savings_integration_test.go",
+            "internal/workflow/slo_test.go",
+            "scripts/slo-smoke.mjs",
+            "scripts/tests/slo-collector.test.mjs",
+            "frontend/tests/slo.spec.ts"
+          ],
+          "remaining": [
+            "Deploy independently instrumented customer collectors and collect genuine history",
+            "Longer native application distributions, dense seasonal populations and full instrumentation commissioning",
+            "Complete candidate capacity, replica/AZ/RTO/RPO recovery proof and broader action-specific SLO gates"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 10,
+      "current_area_maturity": 40
+    },
+    {
+      "id": "optimisation_forecast_commitments",
+      "weight_percent": 18,
+      "contribution_points": 3.2,
+      "packages": [
+        {
+          "id": "idle_schedule_model",
+          "scope_weight_percent": 4.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "economics/tests/test_v2.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Supervised native-data scheduling acceptance and additional actions/simulation"
+          ]
+        },
+        {
+          "id": "bounded_native_physical_capacity_analysis",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 40,
+          "evidence": [
+            "economics/autopilot/capacity.py",
+            "economics/tests/test_capacity.py",
+            "internal/native/capacity_test.go",
+            "internal/service/capacity_integration_test.go",
+            "docs/acceptance.md",
+            "internal/service/capacity_native_integration_test.go",
+            "docs/native-hardware-capacity.md",
+            "internal/fleetcapacity",
+            "internal/fleetcapacityworker",
+            "internal/service/fleet_capacity_native_integration_test.go",
+            "internal/service/fleet_capacity_browser_fixture_test.go",
+            "internal/service/fleet_capacity_daemon_fixture_test.go",
+            "internal/store/fleet_native_capacity_integration_test.go",
+            "internal/store/fleet_native_capacity_busy_integration_test.go",
+            "migrations/036_fleet_native_capacity.sql",
+            "frontend/src/FleetNativeCapacity.tsx",
+            "scripts/fleet-native-capacity-lab.mjs",
+            "docs/fleet-native-capacity-acceptance.md"
+          ],
+          "remaining": [
+            "Supervised genuine customer hardware, historical telemetry and workload-profile/backtest acceptance",
+            "Wider hardware/options, unsupported populations/statistics and broader horizons remain explicit gaps; future breach probabilities and seasonal risk remain uncalibrated",
+            "Historical fleet-interval ownership, independent business-work preservation and complete group feasibility are not established",
+            "Production operation and complete contractual physical-analysis acceptance"
+          ]
+        },
+        {
+          "id": "native_costed_capacity_decision",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "evidence": [
+            "economics/autopilot/capacity.py",
+            "economics/tests/test_capacity.py",
+            "internal/native/capacity_test.go",
+            "internal/service/capacity_integration_test.go",
+            "docs/acceptance.md",
+            "internal/service/capacity_native_integration_test.go",
+            "docs/native-hardware-capacity.md"
+          ],
+          "remaining": [
+            "Native contracted candidate economics and complete commitment compatibility; wider hardware and the public execution gate remain blocked",
+            "Calibrated production breach probabilities, unsupported horizons and larger seasonal populations",
+            "Connected approved fleet/action execution, supervised customer backtests and production outcomes",
+            "Native avoidable contracted economics must join complete group feasibility and action-specific decisions; historical account-rate estimates are insufficient"
+          ]
+        },
+        {
+          "id": "bounded_observed_cost_allocation",
+          "scope_weight_percent": 0.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/allocation",
+            "internal/store/allocation_integration_test.go",
+            "internal/service/allocation_integration_test.go",
+            "migrations/023_allocation.sql",
+            "frontend/tests/allocation-live.spec.ts",
+            "docs/cost-allocation.md",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Historical ownership and complete chargeback policies remain in the broader package",
+            "Provider-scale asynchronous reporting and customer validation",
+            "Supervised live use, production operation and contractual acceptance"
+          ]
+        },
+        {
+          "id": "bounded_native_commitment_observations",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 40,
+          "release_1_status": "DETERMINISTIC",
+          "evidence": [
+            "internal/commitmentportfolio",
+            "economics/autopilot/portfolio.py",
+            "migrations/039_commitment_portfolio.sql",
+            "frontend/src/CommitmentPortfolio.tsx",
+            "scripts/commitment-portfolio-lab.mjs",
+            "docs/commitment-portfolio-acceptance.md"
+          ],
+          "remaining": [
+            "Authentic customer AWS evidence and supervised live use",
+            "Production operations and contractual acceptance of this bounded observation capability",
+            "Purchase recommendations and portfolio optimization remain in the separate unaccepted package"
+          ]
+        },
+        {
+          "id": "bounded_readonly_database_class_assessment",
+          "scope_weight_percent": 0.5,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/rds-readonly-assessment.md",
+            "internal/provider/rds_discovery.go",
+            "internal/workflow/database_discovery.go",
+            "internal/service/database_native_integration_test.go",
+            "internal/workflow/database_discovery_integration_test.go",
+            "economics/autopilot/database.py",
+            "frontend/tests/database-live.spec.ts"
+          ],
+          "remaining": [
+            "Combined native/browser independent readback within the unchanged 120-second deadline",
+            "Supervised genuine AWS/customer acceptance of the bounded class advice",
+            "Sustained production operation and contractual completion of this bounded component"
+          ]
+        },
+        {
+          "id": "bounded_readonly_ebs_performance_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 40,
+          "release_1_status": "DETERMINISTIC",
+          "evidence": [
+            "docs/ebs-readonly-assessment.md",
+            "internal/provider/ebs_discovery.go",
+            "internal/provider/ebs_metrics.go",
+            "internal/provider/ebs_history.go",
+            "internal/workflow/block_storage_discovery_integration_test.go",
+            "internal/service/storage_native_integration_test.go",
+            "economics/autopilot/storage.py",
+            "frontend/tests/storage-live.spec.ts",
+            "migrations/042_storage_assessments.sql"
+          ],
+          "remaining": [
+            "Authentic customer AWS identity, native Config/CloudTrail, telemetry and CUR history plus ownership, dependency, safety-policy and SLO commissioning",
+            "Supervised genuine AWS/customer acceptance of bounded same-capacity gp2/gp3 performance advice",
+            "Production operation and contractual completion of this bounded read-only capability",
+            "Other storage opportunity breadth, execution/deletion, rollback and verified savings remain in separate unaccepted scope"
+          ]
+        },
+        {
+          "id": "bounded_readonly_s3_dataset_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/s3-readonly-assessment.md",
+            "internal/objectstorage",
+            "internal/provider/object_storage.go",
+            "internal/service/object_storage_integration_test.go",
+            "internal/service/object_storage_financial_test.go",
+            "economics/autopilot/object_storage.py",
+            "migrations/043_object_storage_assessments.sql"
+          ],
+          "remaining": [
+            "Connected persisted positive native Inventory/archive/ClickHouse → IDs-only API → restricted analyst/Python → normal OIDC console and independent readback is NOT accepted; bounded runner stopped at Python120s before native/browser stages",
+            "Final release CI and installed migration/restoration are separate release gates, reported on the pilot PR",
+            "Genuine AWS/source commissioning, customer NET prices, ownership/retention/RTO/dependency declarations and operational acceptance",
+            "Source scale, evidenced object-tag membership, wider formats, production operation and contractual completion; no object/lifecycle mutation or verified savings accepted"
+          ]
+        },
+        {
+          "id": "forecast_commitment_portfolio",
+          "scope_weight_percent": 5.5,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/traceability.md",
+            "docs/release-1-implementation-vs-acceptance.md"
+          ],
+          "remaining": [
+            "Native eligible/covered usage, contracted marginal rates, remaining obligations and evidenced amortization",
+            "Genuine post-optimization historical ownership and all five issued optimization outcomes",
+            "Calibrated stable-demand forecasts, purchase/do-not-purchase decisions and independent persisted Finance review",
+            "Portfolio allocation, forecasting and broader optimisation",
+            "Historical ownership, complete chargeback/showback policy breadth, tag/account hierarchies and multi-level allocation",
+            "Provider-scale asynchronous or streaming reports and wider cost definitions",
+            "Azure/GCP authoritative financial reporting, native Kubernetes/node attribution and customer commissioning",
+            "Remaining RDS/Aurora capacity, reservation allocation and opportunity families outside the bounded read-only class component; database execution and recovery authority",
+            "Remaining storage opportunity breadth, supported equivalence, retention/quarantine and filesystem migration integrations; storage mutation, recovery and verified economics remain separate unaccepted obligations"
+          ]
+        },
+        {
+          "id": "bounded_readonly_network_nat_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/network-readonly-assessment.md",
+            "internal/network",
+            "internal/provider/network_discovery.go",
+            "internal/workflow/network_native_integration_test.go",
+            "internal/service/network_integration_test.go",
+            "internal/service/network_native_integration_test.go",
+            "economics/autopilot/network.py",
+            "migrations/044_network_assessments.sql"
+          ],
+          "remaining": [
+            "One complete native topology/traffic/billing-to-console customer journey remains unaccepted: native collector and synthetic canonical API/Python/browser fixtures are separate component boundaries",
+            "Native event-time Flow Log selection, complete shared-NAT workload/destination attribution, generic PrivateLink region/unit proofs and scalable snapshot evaluation",
+            "Complete alternative cost/reliability comparisons for architectural families C/F/G/H and complete IPv4 assignment assessment linkage",
+            "Final release CI and installed migration/restoration remain separately reported release gates; historical commitment/fleet failures stay enabled",
+            "Genuine AWS read-role/report commissioning, customer history and NET rates, ownership/configuration authority, security/DNS/access/resilience/DR policy and customer/production acceptance; no network mutation or verified saving"
+          ]
+        },
+        {
+          "id": "bounded_readonly_lambda_assessment",
+          "scope_weight_percent": 1,
+          "accepted_maturity": 20,
+          "release_1_status": "PARTIAL",
+          "evidence": [
+            "docs/lambda-readonly-assessment.md",
+            "internal/lambdacost",
+            "internal/provider/lambda_discovery.go",
+            "internal/workflow/lambda_native_integration_test.go",
+            "internal/service/lambda_integration_test.go",
+            "internal/activity/lambda_integration_test.go",
+            "economics/autopilot/lambda_model.py",
+            "migrations/045_lambda_assessments.sql"
+          ],
+          "remaining": [
+            "Full positive native CUR plus authenticated benchmark ingress through restricted Python, persisted justified recommendation and ordinary OIDC console is unaccepted; the connected capture proves a blocked result",
+            "Historical provisioned-concurrency allocation epochs, complete off-hours selection and priced scheduling remain incomplete",
+            "Priced architecture comparisons, complete artifact/dependency compatibility, separate Web/MicroVM inventory and richer downstream/event-source constraints remain software obligations",
+            "Large REPORT continuation and bounded cohort scale acceptance remain incomplete",
+            "Final-source required CI and installed 044-to-045 migration/restoration are separate release gates; the three historical failures remain enabled",
+            "Genuine AWS read roles/sources/history, customer rates and commitment/free-allowance scope, workload ownership/authority, compatibility/SLO requirements and sustained customer/operational acceptance; no execution or verified saving"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 5,
+      "current_area_maturity": 17.77777777777778
+    },
+    {
+      "id": "execution_iac_gitops",
+      "weight_percent": 18,
+      "contribution_points": 3.3,
+      "packages": [
+        {
+          "id": "bounded_ec2_stop_owned_restore",
+          "scope_weight_percent": 6.75,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/workflow",
+            "internal/safety",
+            "scripts/recovery-smoke.mjs",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Supervised AWS canary, owned restoration/pause and live outage escalation"
+          ]
+        },
+        {
+          "id": "bounded_fleet_protocol",
+          "scope_weight_percent": 1.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/fleet",
+            "internal/store/fleet_integration_test.go",
+            "internal/deploymentobserver/server_integration_test.go",
+            "examples/terraform-fleet",
+            "docs/fleet-and-kubernetes-components.md"
+          ],
+          "remaining": [
+            "Registration of the private continuous-health factories; the separate default-duration protocol passed but does not enable a public runtime",
+            "Connected native capacity, authority and financial factories; customer pipeline and full approved canary/rollback/economics journey",
+            "Supervised customer deployment and production operational acceptance"
+          ]
+        },
+        {
+          "id": "bounded_local_kubernetes_gitops",
+          "scope_weight_percent": 1.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/kubernetes",
+            "scripts/kubernetes-lab.mjs",
+            "scripts/kubernetes-bootstrap.mjs",
+            "scripts/flux-lab.mjs",
+            "examples/flux/README.md",
+            "examples/kubernetes",
+            "docs/fleet-and-kubernetes-components.md"
+          ],
+          "remaining": [
+            "Connected approved native Flux/API execution and hosted Argo CD/Flux acceptance; the real local Flux lab remains a bounded CLI component",
+            "Requests/limits changes, native autoscaler coordination, node economics and workload-normalized verified savings",
+            "EKS/AKS/GKE live/customer and production operation"
+          ]
+        },
+        {
+          "id": "iac_gitops_broad_actions",
+          "scope_weight_percent": 8.25,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/traceability.md"
+          ],
+          "remaining": [
+            "IaC/GitOps authority, broad action families and Azure/GCP parity"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 18.333333333333332
+    },
+    {
+      "id": "reconciliation_verified_savings",
+      "weight_percent": 10,
+      "contribution_points": 4,
+      "packages": [
+        {
+          "id": "bounded_financial_verification",
+          "scope_weight_percent": 7.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "economics/tests/test_v2.py",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Genuine post-change history, live native invoice finality and customer assurance"
+          ]
+        },
+        {
+          "id": "ledger_claim_corrections",
+          "scope_weight_percent": 2.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/service/trusted_integration_test.go",
+            "internal/service/claim_corrections_integration_test.go",
+            "economics/tests/test_v3.py"
+          ],
+          "remaining": [
+            "Live invoice revisions and customer financial assurance"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 35,
+      "current_area_maturity": 40
+    },
+    {
+      "id": "identity_tenancy_policy_audit",
+      "weight_percent": 10,
+      "contribution_points": 3.5,
+      "packages": [
+        {
+          "id": "pilot_identity_policy",
+          "scope_weight_percent": 7.5,
+          "accepted_maturity": 40,
+          "evidence": [
+            "internal/service/secure.go",
+            "migrations",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Live trust/isolation validation and enterprise identity/policy breadth"
+          ]
+        },
+        {
+          "id": "audit_storage_components",
+          "scope_weight_percent": 2.5,
+          "accepted_maturity": 20,
+          "evidence": [
+            "internal/store",
+            "migrations",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "External security, enterprise audit/compliance and certification"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 35,
+      "current_area_maturity": 35
+    },
+    {
+      "id": "console_api_enterprise",
+      "weight_percent": 6,
+      "contribution_points": 1.8,
+      "packages": [
+        {
+          "id": "pilot_console_api",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 40,
+          "evidence": [
+            "frontend/tests",
+            "contracts/openapi.yaml",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Customer usability/accessibility and wider enterprise workflows"
+          ]
+        },
+        {
+          "id": "api_contracts",
+          "scope_weight_percent": 3,
+          "accepted_maturity": 20,
+          "evidence": [
+            "contracts/openapi.yaml",
+            "docs/acceptance.md"
+          ],
+          "remaining": [
+            "Enterprise finance/admin/support workflows and broad integrations"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 30,
+      "current_area_maturity": 30
+    },
+    {
+      "id": "production_operations",
+      "weight_percent": 8,
+      "contribution_points": 1.2,
+      "packages": [
+        {
+          "id": "deployment_assets_operator_controls",
+          "scope_weight_percent": 6,
+          "accepted_maturity": 20,
+          "evidence": [
+            "deploy",
+            "docs/operations.md",
+            "docs/sandbox-readiness.md"
+          ],
+          "remaining": [
+            "Approved provisioned AWS pilot, measured cost, backup/restore and incident drills"
+          ]
+        },
+        {
+          "id": "production_release_slo",
+          "scope_weight_percent": 2,
+          "accepted_maturity": 0,
+          "evidence": [
+            "docs/product-specification.md",
+            "docs/traceability.md"
+          ],
+          "remaining": [
+            "Measured SLO, capacity, recovery and commercial GA release/support"
+          ]
+        }
+      ],
+      "baseline_area_maturity": 15,
+      "current_area_maturity": 15
+    }
+  ],
+  "next_credit_gates": [
+    "Complete remaining application/capacity SLO breadth and native instrumentation; retain independent hard and regression gates",
+    "Approve exact two-account deployment plan, budget, owner and expiry",
+    "Deploy read-only first and validate authentic source/activity receipts",
+    "Collect genuine fourteen-day baseline, latest complete day within forty-eight hours of activation",
+    "Approve one eligible canary, supervise owned stop/restore and confirm schedule pause",
+    "Wait for genuine post-change history and finalized reconciled native billing"
+  ],
+  "reviews": [
+    {
+      "id": "baseline-2026-10-18",
+      "weighted_percent": 17.5,
+      "source_revision": "063a27a229820c70406579c89a4739f5b473eaad",
+      "capability_credit": [
+        {
+          "id": "billing_inventory_telemetry",
+          "contribution_points": 2.7,
+          "packages": [
+            {
+              "id": "inventory_adapters",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "billing_mapping_ingestion",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "workload_graph_demand_slo",
+          "contribution_points": 1.2,
+          "packages": [
+            {
+              "id": "bounded_workload_mapping",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "independent_demand_and_slo",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "optimisation_forecast_commitments",
+          "contribution_points": 0.9,
+          "packages": [
+            {
+              "id": "idle_schedule_model",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "execution_iac_gitops",
+          "contribution_points": 2.7,
+          "packages": [
+            {
+              "id": "bounded_ec2_stop_owned_restore",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "iac_gitops_broad_actions",
+              "accepted_maturity": 0
+            }
+          ]
+        },
+        {
+          "id": "reconciliation_verified_savings",
+          "contribution_points": 3.5,
+          "packages": [
+            {
+              "id": "bounded_financial_verification",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "ledger_claim_corrections",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "identity_tenancy_policy_audit",
+          "contribution_points": 3.5,
+          "packages": [
+            {
+              "id": "pilot_identity_policy",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "audit_storage_components",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "console_api_enterprise",
+          "contribution_points": 1.8,
+          "packages": [
+            {
+              "id": "pilot_console_api",
+              "accepted_maturity": 40
+            },
+            {
+              "id": "api_contracts",
+              "accepted_maturity": 20
+            }
+          ]
+        },
+        {
+          "id": "production_operations",
+          "contribution_points": 1.2,
+          "packages": [
+            {
+              "id": "deployment_assets_operator_controls",
+              "accepted_maturity": 20
+            },
+            {
+              "id": "production_release_slo",
+              "accepted_maturity": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trusted-evidence-v3-2026-10-18",
+      "previous_weighted_percent": 17.5,
+      "weighted_percent": 21,
+      "contribution_changes": [
+        {
+          "capability": "billing_mapping_ingestion",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 1.8,
+          "acceptance": "Provider-shaped delivery through immutable baseline, owned execution and a current native-invoice claim with actual PostgreSQL roles and Python worker; storage callbacks are deterministic doubles."
+        },
+        {
+          "capability": "independent_demand_and_slo",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 1.2,
+          "acceptance": "Independent machine OIDC and append-only guarded minute receipts; full SLO/graph package remains partial."
+        },
+        {
+          "capability": "ledger_claim_corrections",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.5,
+          "acceptance": "Native invoice cancellation appends one null current head, preserves verified history and deduplicates; historical fingerprint revival regression passes."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "scripts/activity-smoke.mjs",
+        "frontend/tests/readiness.spec.ts"
+      ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "dependency-safety-2026-10-18",
+      "previous_weighted_percent": 21,
+      "weighted_percent": 22.2,
+      "contribution_changes": [
+        {
+          "capability": "bounded_workload_mapping",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 1.2,
+          "acceptance": "Server-selected inventory mappings and typed operator declarations through expiring immutable reviews, signed schema-3 plan/proof binding, concurrent-writer exclusion, guarded fixture execution and owned restoration after invalidation. Automatic complete discovery, hard-SLO validation and customer operation remain unaccepted."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "internal/service/dependencies_concurrency_test.go",
+        "scripts/dependency-smoke.mjs",
+        "frontend/tests/dependencies.spec.ts"
+      ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "trusted-slo-2026-10-18",
+      "previous_weighted_percent": 22.2,
+      "weighted_percent": 23.4,
+      "contribution_changes": [
+        {
+          "capability": "independent_demand_and_slo",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 1.2,
+          "acceptance": "Machine-authenticated current-minute SLI receipts and immutable objectives through sealed plan authority, independent hard/regression evaluation, fixture-owned restoration and permanent append-only financial disqualification. Native instrumentation, full capacity SLOs and customer operation remain unaccepted."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "internal/service/trusted_integration_test.go",
+        "internal/service/slo_control_integration_test.go",
+        "internal/service/slo_savings_integration_test.go",
+        "scripts/slo-smoke.mjs",
+        "frontend/tests/slo.spec.ts"
+      ],
+      "live_credit_awarded": false
+    },
+    {
+      "id": "native-capacity-2026-10-18",
+      "previous_weighted_percent": 23.4,
+      "weighted_percent": 24.4,
+      "package_subdivisions": [
+        {
+          "domain": "billing_inventory_telemetry",
+          "previous_package": "inventory_adapters",
+          "previous_scope_weight_percent": 13.5,
+          "previous_maturity": 20,
+          "children": [
+            {
+              "id": "inventory_adapters",
+              "scope_weight_percent": 10.5,
+              "previous_maturity": 20
+            },
+            {
+              "id": "bounded_native_telemetry",
+              "scope_weight_percent": 3,
+              "previous_maturity": 20
+            }
+          ]
+        },
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 13.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_capacity_forecast",
+              "scope_weight_percent": 2,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 11.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_telemetry",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.6,
+          "acceptance": "Registered native Prometheus and real OTel collector through separate machine OIDC, actual versioned objects/ClickHouse facts, tenant-isolated PostgreSQL, durable history jobs and connected console. Customer history, dense streaming and hosted operation remain unaccepted."
+        },
+        {
+          "capability": "bounded_capacity_forecast",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.4,
+          "acceptance": "Exact-unit capacity distributions, headroom, peak/seasonal analysis, rolling backtests and prediction intervals with server-selected immutable input. Missing catalogue/native pricing keeps the public assessment blocked; no execution or verified-money claim."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/native-telemetry.md",
+        "scripts/native-smoke.mjs",
+        "scripts/native-otel-smoke.mjs",
+        "frontend/tests/native-live.spec.ts",
+        "economics/tests/test_capacity.py"
+      ],
+      "release_commit": "aec624aca7a28239b41fee5e992f080574760aba",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39139905144",
+      "live_credit_awarded": false
+    },
+    {
+      "id": "fleet-kubernetes-components-2026-10-18",
+      "previous_weighted_percent": 24.4,
+      "weighted_percent": 25,
+      "package_subdivisions": [
+        {
+          "domain": "execution_iac_gitops",
+          "previous_package": "iac_gitops_broad_actions",
+          "previous_scope_weight_percent": 11.25,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_fleet_protocol",
+              "scope_weight_percent": 1.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "bounded_local_kubernetes_gitops",
+              "scope_weight_percent": 1.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "iac_gitops_broad_actions",
+              "scope_weight_percent": 8.25,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_fleet_protocol",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.3,
+          "acceptance": "Separate signed v4 contract, exact Terraform saved-plan checking, shared disruption reservations, uncertain-outcome reconciliation and separate real-JWT/restricted-PostgreSQL deployment observer. Runtime remains disabled; full stage health and connected fleet/financial acceptance are outstanding."
+        },
+        {
+          "capability": "bounded_local_kubernetes_gitops",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.3,
+          "acceptance": "Real isolated three-node Kubernetes lab with exact local Git rollout, native read-only RBAC/inventory, explicit zero-disruption PDB block, failed readiness/owned rollback and HPA total-request growth. Hosted GitOps/node economics and financial acceptance remain outstanding."
+        }
+      ],
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/fleet-and-kubernetes-components.md",
+        "scripts/kubernetes-lab.mjs",
+        "internal/deploymentobserver/server_integration_test.go"
+      ],
+      "release_commit": "e7b0cd7a970c8086b0b3b498e29c9cf858e15b38",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39144171086",
+      "live_credit_awarded": false
+    },
+    {
+      "id": "native-hardware-recovery-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/native-hardware-capacity.md",
+        "internal/workflow/hardware_reader_test.go",
+        "internal/service/capacity_native_integration_test.go",
+        "docs/postgres-recovery-lab.md",
+        "scripts/postgres-recovery-lab.mjs",
+        "frontend/tests/native-telemetry.spec.ts"
+      ],
+      "release_commit": "4d9f785fda0acb7b77ca8c6a9377730d6f8b4695",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39148714071",
+      "live_credit_awarded": false,
+      "acceptance": "All seven exact-commit CI jobs passed, including actual PostgreSQL/Python, generated contracts, 39 Chromium cases, process recovery, native transports, infrastructure, dependency/source security, real local Kubernetes and encrypted physical PostgreSQL quarantine readback. Native prices, complete fleet proof/runtime/financial integration and customer operational gates remain incomplete; accepted maturity and all fixed weights stay unchanged."
+    },
+    {
+      "id": "fleet-health-multicloud-runtime-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-cohort-health.md",
+        "internal/service/fleet_health_window_test.go",
+        "migrations/022_fleet_forward_observation.sql",
+        "docs/multicloud-observational-publication.md",
+        "scripts/multicloud-publication-lab.mjs",
+        "internal/store/runtime_identity.go",
+        "scripts/lib/kubernetes-observation.mjs"
+      ],
+      "release_commit": "a0d4771c4f3b04433ea6f018f52406c9cd35847e",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39155256473",
+      "live_credit_awarded": false,
+      "acceptance": "All eight normal CI jobs passed, including PostgreSQL 16/17, real Python economics, 39 browser cases, process recovery, native telemetry, actual provisional PostgreSQL/MinIO/ClickHouse publication, encrypted physical backup, Kubernetes, generated contracts and source/dependency security. Private fleet health independently latches full-window failures and preserves owned rollback. The separately dispatched default-duration fleet program is pending and cannot be inferred from normal CI. These improvements strengthen existing component stages without extra progress credit. No live cloud source, enabled fleet runtime, fleet financial claim or customer production acceptance."
+    },
+    {
+      "id": "bounded-observed-allocation-2026-10-18",
+      "previous_weighted_percent": 25,
+      "weighted_percent": 25.2,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 11.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_observed_cost_allocation",
+              "scope_weight_percent": 0.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 11,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_observed_cost_allocation",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 0.2,
+          "acceptance": "Actual OIDC/API persisted-source selection, immutable policy and sealed report, independent pagination and tenant/financial-role denial; actual PostgreSQL exact signed conservation, unknown/zero/currency separation, source correction, immutable roots and cancellation. Current ownership and provisional observed BilledCost only; no historical ownership, verified savings, final chargeback or provider-scale latency claim."
+        }
+      ],
+      "evidence": [
+        "docs/cost-allocation.md",
+        "docs/acceptance.md",
+        "frontend/tests/allocation-live.spec.ts",
+        "internal/service/allocation_integration_test.go",
+        "internal/store/allocation_integration_test.go",
+        "internal/service/financial_source_lock_integration_test.go"
+      ],
+      "release_commit": "21e2e8c4f07435fa314c5efb730074def36c3757",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39161293580",
+      "live_credit_awarded": false,
+      "acceptance": "All eight normal CI jobs passed, including PostgreSQL16/17, real Python economics, 45 browser cases, process recovery, generated contracts, source/dependency security, isolated artifact/rate labs and encrypted PostgreSQL readback. Independent review closed source sync/revocation/current-head selection races with additive024; owned legacy/schema3 START survives. Private020/021 and pending native Flux strengthen existing components without separate credit."
+    },
+    {
+      "id": "stop-recovery-native-flux-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "internal/service/uncertain_stop_integration_test.go",
+        "internal/service/denied_stop_integration_test.go",
+        "internal/workflow/schedule_skip_integration_test.go",
+        "internal/kubernetes/flux.go",
+        "scripts/flux-lab.mjs",
+        "examples/flux/README.md",
+        "docs/acceptance.md"
+      ],
+      "release_commit": "fd0e5d6e6f2d690df6125116b4d97fad439c3e7b",
+      "ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39173887697",
+      "live_credit_awarded": false,
+      "acceptance": "All nine normal exact-commit CI jobs passed, including PostgreSQL16/17, Python economics, connected fixture browser/process recovery, generated contracts, source/dependency checks, infrastructure, encrypted PostgreSQL readback, the prior Kubernetes lab and the new real Flux lab. Native Flux seven-check acceptance proves exact Git/artifact/spec binding, successful two-zone rollout, PDB refusal before Git change, native health failure and owned Git rollback with original immutable plan, followed by owned cleanup. Stop controls serialize with dispatch; uncertain late stop ownership and persisted restoration health remain durable. These strengthen existing stages without new product credit. Full fleet/Kubernetes API approval/execution/economics, hosted/customer acceptance and sustained production operation remain open."
+    },
+    {
+      "id": "fleet-history-proxy-retry-assurance-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-history.md",
+        "docs/acceptance.md",
+        "internal/service/fleet_history_integration_test.go",
+        "internal/service/mutation_authorization_integration_test.go",
+        "internal/source/fleet_history_storage_integration_test.go",
+        "internal/store/fleet_history_integration_test.go",
+        "internal/workflow/fleet_history_reader_integration_test.go",
+        "internal/native/capacity_model_result_test.go",
+        "frontend/tests/fleet-history-live.spec.ts",
+        "deploy/tests/test_fleet_history_chart.py"
+      ],
+      "runtime_source_tree": "89dc954e6c083b93b3f9beb72855b0577c2c593a",
+      "live_credit_awarded": false,
+      "acceptance": "Local final API passed all seven runtime suites consecutively and all 53 Chromium cases in 5.8 minutes with zero retries and unchanged timeouts. Actual restricted PostgreSQL/JWKS acceptance, versioned MinIO cold-lab cleanup, durable reader leases, immutable source/receipt references, exact zero-versus-missing handling, v1 hash compatibility and explicit v2 request-throughput proxy semantics passed. All 39 unsafe Helm configurations refused at their explicit expected guards. Replay now rechecks validated request roles and current scoped ownership without repeating mutation/CAS or revoking owned restoration. All history scopes remain BLOCKED/INTERVAL_OWNERSHIP_UNPROVEN; no enabled Fleet runtime, financial authority, customer history, live cloud or production operation is inferred. Exact-commit CI and final encrypted recovery remain separate release checks."
+    },
+    {
+      "id": "native-identity-request-boundaries-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/hardware-identity.md",
+        "docs/mutation-request-boundaries.md",
+        "docs/acceptance.md",
+        "internal/provider/hardware_identity_test.go",
+        "internal/source/hardware_identity_storage_integration_test.go",
+        "internal/source/hardware_identity_test.go",
+        "internal/service/mutation_body_integration_test.go",
+        "scripts/nginx-body-boundary-lab.mjs"
+      ],
+      "preceding_release_commit": "9209a4b3886cc1a37648332b6ae52f38973fed9e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39179983826",
+      "live_credit_awarded": false,
+      "acceptance": "The preceding history/authorization release passed all nine normal exact-commit CI jobs. Separate schema2 identity decoding preserves original schema1 hashes and pinned source bytes; final actual isolated PostgreSQL/versioned MinIO acceptance passed six cases plus vet and complete owned cleanup. The new observation remains private, OBSERVED_ONLY, interval ownership UNKNOWN/UNPROVEN, and carries no execution or financial authority. Actual JWT/JWKS/restricted PostgreSQL tests reject oversized complete or streamed requests before parse/hash/cache/SQL without poisoning retries. The console proxy has separate bounded edge refusal. These strengthen existing component stages; current-release CI/browser/process-recovery checks remain separate from these local component results. No genuine history, full fleet loop, customer/live or production acceptance is inferred."
+    },
+    {
+      "id": "fleet-group-review-retained-queue-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "evidence": [
+        "docs/fleet-configuration.md",
+        "docs/acceptance.md",
+        "internal/service/fleet_configuration_integration_test.go",
+        "internal/store/fleet_configuration_integration_test.go",
+        "internal/store/ingestion_queue_integration_test.go",
+        "frontend/tests/fleet-configuration-live.spec.ts",
+        "scripts/recovery-smoke.mjs",
+        "scripts/tests/recovery-upgrade.test.mjs"
+      ],
+      "preceding_release_commit": "c49e66abafedd0b7b349bead7551ee5f83e1c39c",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39181639239",
+      "runtime_source_tree": "1678dc72fda2ec1fd1cac1ff243edde6436e163a",
+      "web_source_tree": "105d690cfc723ac146a70ae60cffec923b7c6adc",
+      "live_credit_awarded": false,
+      "acceptance": "Actual restricted PostgreSQL/JWKS binds real group registrations, current sources/definitions/mappings, immutable scope references and exact declaration versions. UI/OIDC selects existing IDs and persists BLOCKED reviews with null money and no action authority. Migration 026→027 and 027→028 each preserved the original stopped occurrence/signature through API/worker replacement and exactly one audited STOP/START. The original 58-case run retained one allocation response-deadline failure; typed DB-derived queue metadata and existence-only fixture checks corrected repeated full-history payload loading without deleting evidence. A later native-source browser journey corrected an existing pagination assumption while preserving every source/evidence check. Final seven runtime suites and all 58 Chromium cases passed with unchanged deadlines and zero retries. Controlled queue regression retains old unsealed jobs, unknown statuses, tenant scope and retry pagination while rejecting generated-metadata forgery. Full exact-commit CI is tracked separately by PR checks. No native interval ownership, Git/state authority, executable group program, fleet economics, customer history or production acceptance is inferred."
+    },
+    {
+      "id": "git-owned-group-artifacts-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "f18680aff38e1547447b48e34eab4033916cef59",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39188886484",
+      "evidence": [
+        "docs/fleet-group-program.md",
+        "docs/acceptance.md",
+        "internal/fleetgroup",
+        "examples/fleet-group-fixture",
+        "examples/fleet-group-git-fixture",
+        "scripts/fleet-group-terraform-lab.mjs",
+        "scripts/fleet-group-git-lab.mjs"
+      ],
+      "fixture_artifact_runs": [
+        "89c27825-283c-48db-82fe-3e6833bfafd2",
+        "f970800f-6f38-4dfc-8bb1-2e9afc8fc3cb"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Preserved schema-5 group component passed 26 real saved-plan applies and encrypted readback. Independent schema-5.1 signs a complete two-file Git stage manifest; 26 forward exact binary applies, one appended inverse of the last owned child, native stale-plan rejection on an isolated clone and seven negatives passed. All 280 ciphertext objects received authenticated post-process readback and owned cleanup; source/runner pins matched. The exact single-child recovery cannot authorize a newer same-model head. No real-clock observation, 025/027 resolution, durable ownership/consumption, multi-effect rollback, unknown-apply reconciliation, native financial claim or customer acceptance is inferred. The 028 encrypted whole-cluster drill passed eight checks with authority/migration hashes; production recovery remains unproved."
+    },
+    {
+      "id": "issued-group-journal-component-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "2a6b669d23ec06c8236bf4e1b456fd6c5df51e9e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39190230208",
+      "evidence": [
+        "docs/fleet-group-journal.md",
+        "docs/acceptance.md",
+        "internal/fleetgroup",
+        "examples/fleet-group-journal-fixture",
+        "scripts/fleet-group-journal-lab.mjs"
+      ],
+      "fixture_artifact_runs": [
+        "3cf0aff6-32b0-4308-9ed0-fbcaa3a829a3"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Private issued-journal component preserves schema-5.1 signatures and explicitly authorizes composition before the first command. Pure full26-forward/25-inverse replay and focused actual-dispatch gates passed. Real local Git/Terraform exercised seven exact applies, three consumed LIFO effects, actual Git-boundary process exit/reopen, authenticated terminal reconciliation without reapply, held unknown, zero-apply Git repair and stale/torn/conflicting refusal. All99 AES-GCM artifacts received authenticated post-process readback and owned cleanup; source/runner pins matched independent metadata review. Shared-UID file keys and synthetic source references remain explicit. No PostgreSQL/RLS, customer pipeline OIDC, durable current ownership, real025/027 resolution, whole-program/real-clock rollout, customer action or financial acceptance is inferred. Segment continuation/deduplication or audited takeover must preserve restoration beyond component bounds."
+    },
+    {
+      "id": "connected-group-authority-persistence-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "31a777f1df18064b752efed8264530ba7cab15e0",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39194127843",
+      "evidence": [
+        "docs/connected-fleet-fixture.md",
+        "docs/acceptance.md",
+        "internal/store/fleet_group_journal_integration_test.go",
+        "internal/store/fleet_group_journal_security_test.go",
+        "internal/store/group_artifacts_integration_test.go",
+        "internal/service/fleet_fixture_integration_test.go",
+        "internal/service/fleet_fixture_profiles_integration_test.go",
+        "internal/service/fleet_group_connected_integration_test.go",
+        "internal/service/group_admission_integration_test.go",
+        "scripts/fleet-group-connected-lab.mjs",
+        "scripts/recovery-smoke.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "647f7a66-477e-4199-8d4a-37a38522a802",
+        "386baea1-4253-43f4-868f-48194147f061",
+        "3e6d1255-87af-4471-83d8-80a363feed19",
+        "19a984f5-abc9-440a-a837-69f8d8d678cd",
+        "492d3da2-1607-480f-b3e4-525973e94e6f"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual native Git/Terraform preparation, versioned encrypted readback, independently commissioned keys, authenticated exact-body approvals and PostgreSQL zero-head bootstrap passed. Restricted PostgreSQL tests cover immutable authority/currentness, lifetime receipt deduplication, recovery-only continuation, one-shot delivery, source/key separation and exact artifact selection. The frozen full backend test/vet run passed with real PostgreSQL and Python; a separate 103-profile JWT/PostgreSQL regression proves bounded catalog pagination. The retained local 028-to-032 upgrade preserved original R1 stopped ownership/signature and exactly one stop/start across API/worker replacement (7/7); all seven existing runtime suites and 224 Node guards passed. Ordinary browser run 19a984f5-abc9-440a-a837-69f8d8d678cd passed 74 cases with zero retries against ten running service containers whose pinned images and 32 migration hashes matched source snapshot237c2315. Separate commissioning run 492d3da2-1607-480f-b3e4-525973e94e6f passed the final real-Keycloak/OIDC browser case in 25.7 seconds (30.5 total), using a visibly deterministic fixture reader through the normal source pipeline with 20-second refresh; temporary login/jobs were removed and the installed image/profile retained. No maturity changes are awarded. Native run 0e401bd8-7942-4b30-8066-733794cebd0e failed HEALTH_COVERAGE_UNKNOWN with no acceptance; the corrected operating-loop run and final-commit CI remain pending. DISQUALIFIED is a run-inspection disposition, not native financial-ledger enforcement. No customer execution, genuine historical interval ownership, native fleet finance, fresh-workspace restoration, customer pipeline OIDC or production acceptance is inferred."
+    },
+    {
+      "id": "private-group-program-approval-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "eedfccca4d4603a3161431a264bd2b02fc5905ae",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39205878401",
+      "evidence": [
+        "docs/connected-fleet-fixture.md",
+        "docs/acceptance.md",
+        "scripts/group-fixture-prepare.mjs",
+        "scripts/group-fixture-program-review.mjs",
+        "scripts/group-fixture-review-sequence.mjs",
+        "frontend/tests/fleet-fixture-prepared-live.spec.ts",
+        "internal/groupfixtureproducer/health_anchor.go"
+      ],
+      "fixture_acceptance_runs": [
+        "4ec0c4eb-e853-41d1-96de-d4c1795529b5",
+        "f778123c-eb39-4b22-b7a0-6e8ab8f8d518"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual local Git/Terraform preparation, encrypted versioned storage and exact replay without another invocation passed. A distinct authenticated browser subject approved the exact prepared program; self-approval was denied and persisted reload passed with zero retries. Public run creation, journal authorization and native financial authority remain unavailable. The preceding release passed ten of eleven normal CI jobs; its native operating-loop job failed with unproved cause. A separate local attempt performed both owned inverse applies but failed terminal P99, so no operating-loop acceptance is awarded. Signed activation-anchor component tests preserve the frozen baseline across later stages and owned recovery after expiry. These strengthen the current component stage and award no additional maturity. Full native real-clock acceptance, fresh-workspace recovery, customer pipeline OIDC, genuine history/economics and customer/production operation remain open."
+    },
+    {
+      "id": "native-rollback-and-workspace-reconstruction-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "516fb79f4f78110f8df1b2a8f916e2ae59408157",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39210567820",
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/group-workspace-recovery.md",
+        "internal/groupfixtureproducer/native_reconstruction.go",
+        "internal/store/group_native_reconstruction.go",
+        "migrations/033_group_native_reconstruction.sql",
+        "scripts/group-workspace-reconstruction-lab.mjs",
+        "internal/service/group_native_upgrade_integration_test.go"
+      ],
+      "fixture_acceptance_runs": [
+        "d9b67c9f-31d6-4382-9543-cc567591be30",
+        "a00c6d9b-28a4-4d93-9120-683856bba939"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "A real native canary measured approximately 35% latency regression against its frozen 15% allowance, stopped expansion, applied both fresh LIFO inverses and observed the full 900-second restored health window. A real process exit reconciled UNKNOWN without reapplying. Independently pinned source and ciphertext closure passed. Separately, actual old-container removal and independent controller retirement preceded a distinct empty replacement; authenticated Git/state reconstruction invoked no Terraform and one fresh owned inverse followed. That rehearsal retains health PENDING and reservation HELD; the separate health lab supplies no recovered-health credit. Actual restricted PostgreSQL migration 032-to-033 preserves old signed ownership and owned START through pause/revocation/expiry. The preceding release passed ten of eleven normal CI jobs including native and 76 browser cases; infrastructure failed only its actual Git regression because slim Node lacked Git. The final package fixes that tooling prerequisite and repeats all normal CI jobs. No package weights or accepted maturity changes. Customer execution, native financial/capacity factories, genuine history and production operation remain unavailable."
+    },
+    {
+      "id": "recovered-health-observer-restart-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "f7b27c6798e7e7a859a06ad5d6f439684c73367e",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39214204557",
+      "evidence": [
+        "docs/acceptance.md",
+        "docs/group-recovered-health.md",
+        "migrations/034_group_recovery_health.sql",
+        "internal/store/group_recovery_health_integration_test.go",
+        "internal/service/group_recovered_health_integration_test.go",
+        "scripts/group-workspace-health-lab.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "d865a860-5911-416f-9e2c-f762de214b35",
+        "033a3623-9723-4e6c-a6b9-4d009abbc54d",
+        "9b699fc6-2a15-4057-8eb4-76b6273fc777"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Actual empty replacement reconstruction retains the original signed baseline, reconciles UNKNOWN without another apply and executes one fresh owned inverse. Observer interruption yields immutable abandonment; a new process observes 933.411647356 UTC seconds and 933.473750049 monotonic seconds with 920 samples before database-gated release. All 73 ciphertexts (1,283,875 bytes), source/signature checks and owned cleanup passed independent audit. The earlier interop attempt remains failed; exact typed canonical fragments fix the reader without changing original bytes or health gates. Restricted PostgreSQL/vet, 285 final-source Linux Node checks, Actionlint, Gitleaks and traceability passed. Prior CI failures remain recorded; TCP readiness and the explicit 034 commissioning schema are corrected. Final-commit CI remains required. Native capacity/finance integration, customer pipeline identity, public runtime, deployed durable/repeated-loss recovery and customer/production acceptance remain open. Existing component maturity earns no additional credit."
+    },
+    {
+      "id": "native-fleet-assessment-worker-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.2,
+      "contribution_changes": [],
+      "preceding_release_commit": "b17ba1c38978492a7c84a1fea1116ef35a324c24",
+      "preceding_release_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39224208747",
+      "evidence": [
+        "docs/fleet-native-assessments.md",
+        "docs/acceptance.md",
+        "internal/fleetassessment",
+        "internal/fleetassessmentworker",
+        "internal/fleetbilling/group_native.go",
+        "internal/service/fleet_native_assessment_native_integration_test.go",
+        "internal/store/fleet_native_assessment_integration_test.go",
+        "migrations/035_group_native_assessments.sql",
+        "frontend/tests/fleet-fixture-live.spec.ts",
+        "scripts/fleet-native-assessment-lab.mjs"
+      ],
+      "fixture_acceptance_runs": [
+        "6835f944-ac32-405d-af99-94049dd94e90",
+        "5248b01d-a5fc-451e-b69a-2f08184206e4",
+        "fd0dcc39-b474-4394-a204-006026281731",
+        "4ee38ca8-c96a-4c6f-a94d-b00b49b09159",
+        "1e98fb91-7710-4ce0-987f-4f8ad0307fa8"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Authenticated IDs-only requests now queue immutable fleet assessments for a dedicated restricted daemon. The public cold lab passed ordinary native-shaped CUR ingestion, ten exact version readbacks, conditional USD 0.4/0.24/0.16 rates, six direct SQL negatives, immutable replay, 454 source/eight host pins and full owned cleanup. Actual role tests close current-month, recursive-grant and latest contradictory-hardware gaps. Full backend tests/vet passed with real PostgreSQL/Python; all seven retained-stack runtime suites and the 032-to-035 owned restoration upgrade passed. Eleven running service images and all 35 migration hashes matched source. The final package passed 294 Linux Node checks, generated contracts/build, Helm positive/17 negative inputs, Actionlint and secret scanning. All 84 browser cases passed across ordinary/presentation and real-OIDC assessment/preparation/independent-approval runs with zero retries. A test-only SSO expectation failure remains retained; fresh credential entry fixes the reload check. Actual read-only worker startup exposed Windows 0555 projection; network-isolated Linux secret initialization preserves strict 0444 validation and the worker is healthy. Quarantined encrypted physical backup passed eight checks. The preceding recovered-health commit passed all twelve standard CI jobs. Final-commit CI remains required. The comparison is a historical account-rate estimate: native capacity, interval ownership, contracted avoidable economics, executable authority and verified savings remain unavailable. No package weights or maturity stages change; no AWS/customer/production credit is awarded."
+    },
+    {
+      "id": "native-fleet-physical-capacity-2026-10-19",
+      "previous_weighted_percent": 25.2,
+      "weighted_percent": 25.4,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "bounded_capacity_forecast",
+          "previous_scope_weight_percent": 2,
+          "previous_maturity": 20,
+          "children": [
+            {
+              "id": "bounded_native_physical_capacity_analysis",
+              "scope_weight_percent": 1,
+              "previous_maturity": 20
+            },
+            {
+              "id": "native_costed_capacity_decision",
+              "scope_weight_percent": 1,
+              "previous_maturity": 20
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_physical_capacity_analysis",
+          "from_stage": 20,
+          "to_stage": 40,
+          "delta_points": 0.2,
+          "acceptance": "Connected deterministic native per-member physical analysis, immutable restricted publication, real process recovery and actual-OIDC persisted read/reload; no complete suitability, economics or executable authority."
+        }
+      ],
+      "implementation_commit": "8662ae9b0299f4f8f661eb8a69255c06ec8093cd",
+      "implementation_tree": "2871430e6edb7eb0a1e1049fb66e6cb4f3901d8c",
+      "implementation_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39259004396",
+      "required_standard_ci_jobs": [
+        "infrastructure",
+        "frontend-contract",
+        "fleet-group-connected",
+        "flux-lab",
+        "compose-smoke",
+        "fleet-native-assessment",
+        "go (16)",
+        "security",
+        "go (17)",
+        "fleet-group-artifacts",
+        "kubernetes-lab",
+        "economics",
+        "fleet-native-capacity",
+        "fleet-workspace-health"
+      ],
+      "preceding_ledger_review": "native-fleet-assessment-worker-2026-10-19",
+      "prior_history_sha256": "a5b7dbe330d65dd7f75787cfb6123faa03c978b663eb6185277a978fff4213de",
+      "evidence": [
+        "internal/fleetcapacity",
+        "internal/fleetcapacityworker",
+        "internal/service/fleet_capacity_native_integration_test.go",
+        "internal/service/fleet_capacity_browser_fixture_test.go",
+        "internal/service/fleet_capacity_daemon_fixture_test.go",
+        "internal/store/fleet_native_capacity_integration_test.go",
+        "internal/store/fleet_native_capacity_busy_integration_test.go",
+        "migrations/036_fleet_native_capacity.sql",
+        "frontend/src/FleetNativeCapacity.tsx",
+        "scripts/fleet-native-capacity-lab.mjs",
+        "docs/fleet-native-capacity-acceptance.md"
+      ],
+      "fixture_acceptance_runs": [
+        "79ae3595-d85d-44d1-bec5-c31ad2615ecf"
+      ],
+      "diagnostic_runs": [
+        "7a96de42-538c-485d-a4e2-54803eee168c"
+      ],
+      "retained_failure_runs": [
+        "ff6095d2-9701-4a4e-b521-066b9436600e"
+      ],
+      "bounded_evidence": {
+        "native_run_id": "79ae3595-d85d-44d1-bec5-c31ad2615ecf",
+        "native_receipt_sha256": "47953d6f152b47ede564148700eff0e4f3fa15a992be6a98a87f9eb91fd1448e",
+        "diagnostic_run_id": "7a96de42-538c-485d-a4e2-54803eee168c",
+        "diagnostic_receipt_sha256": "86b2bf4898c04704f518aeada54f8f89002183a462056bf6726f6577c5da2368",
+        "diagnostic_kind": "EXACT_5B_PRIVATE_TIMING_DIAGNOSTIC",
+        "diagnostic_request_to_batch_witness_ms": 47181,
+        "retained_failed_cold_run_id": "ff6095d2-9701-4a4e-b521-066b9436600e",
+        "retained_failure_receipt_sha256": "ea1f67ee5847c70758effba2f651fa3486575396852f788d5aa4f889b4bc5f44",
+        "retained_failure_cause_proven": false,
+        "source_tree": "2871430e6edb7eb0a1e1049fb66e6cb4f3901d8c",
+        "installed_web_source_tree": "5b321b95210bb2397084630ac367de934b0962f9",
+        "production_deltas_since_installed_web": [],
+        "source_pins": 564,
+        "host_pins": 11,
+        "dist_manifest_sha256": "66b5541c341ad925dfd7f77ccea1229f1816ed0b1f8e2eb71c8aa94f29679284"
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Only the bounded native physical-analysis subset advances to deterministic end-to-end acceptance. The exact published cold CI flow connects provider-shaped native hardware and synthetic fourteen-day Prometheus history through versioned storage, ClickHouse, the existing Python model, restricted immutable member publication, actual daemon retirement/replacement and real Keycloak PKCE through the built console. Two members are evaluated and one remains unavailable; low-CPU/high-memory rejection, declared fourfold demand, missing statistics, revoked sources and unsupported templates remain explicit. The observed roster is a point capture, request counts are a demand proxy, and complete candidate suitability remains unestablished. All fourteen standard jobs on the implementation commit passed before this credit write. The local fixed-60-second failure remains retained with its exact cause unproven; a separately labelled shared-cache diagnostic passed the unchanged deadline in 47.181 seconds and does not become cold acceptance. Existing two-point scope is split 1+1 with both children retaining their former 20 maturity before only physical analysis advances 20→40, adding 0.2 points. Contracted avoidable economics, complete group safety/authority, calibrated broad forecasts, genuine customer/live operation and production acceptance remain pending. Shared foundations and test counts earn no additional credit; execution remains disabled, savings unavailable and cloud credit absent. The ledger/documentation follow-up retains its own exact-commit CI gate."
+    },
+    {
+      "id": "native-existing-commitment-observations-2026-10-19",
+      "recorded_at": "2026-10-19",
+      "previous_weighted_percent": 25.4,
+      "weighted_percent": 25.8,
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 11,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_native_commitment_observations",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 10,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_native_commitment_observations",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 0.4,
+          "acceptance": "Existing commitment observations only; no commitment recommendation or purchase maturity."
+        }
+      ],
+      "implementation_commit": "da16989f951205cfb3c46ccf5f6f3b022c0a76c1",
+      "implementation_tree": "fa1064f993cec9145837543faca607bb617cfc57",
+      "implementation_ci_url": "https://github.com/christopherosiemo/bn-implementation-Finops/actions/runs/39318602905",
+      "required_standard_ci_jobs": [
+        "frontend-contract",
+        "fleet-group-artifacts",
+        "security",
+        "compose-smoke",
+        "flux-lab",
+        "go (16)",
+        "fleet-native-capacity",
+        "economics",
+        "go (17)",
+        "commitment-portfolio",
+        "fleet-joint-decision",
+        "kubernetes-lab",
+        "infrastructure",
+        "fleet-group-connected",
+        "fleet-native-assessment",
+        "fleet-workspace-health"
+      ],
+      "preceding_ledger_review": "native-fleet-physical-capacity-2026-10-19",
+      "prior_history_sha256": "43571244dee8d82ebd6b090f5c32f499a2ea8020341822df26c57bfba6fd0fde",
+      "evidence": [
+        "docs/commitment-portfolio-acceptance.md",
+        "docs/release-1-acceptance.json",
+        "scripts/commitment-portfolio-lab.mjs"
+      ],
+      "bounded_evidence": {
+        "ci": {
+          "path": "work/private/ci-native-39318602905/jobs-final.json",
+          "sha256": "d8d3c3fc45382c3eaf5e6f6d4248d366f1f7c1d0028c43d2c7cc9bfa9b517ea9",
+          "run_id": 39318602905
+        },
+        "portfolio": {
+          "path": "work/private/commitment-portfolio/0074ff0d-3e51-486d-90c3-1269b2529cdb/receipt.json",
+          "sha256": "7d35df37800b2a5a5e02641f7ba1628b99ebd1b763df5c4d0fb639c6a4f21ab4",
+          "run_id": "0074ff0d-3e51-486d-90c3-1269b2529cdb"
+        },
+        "joint": {
+          "path": "work/private/fleet-joint-decision/18296de6-7a13-4fcf-96ce-ef344b0c4b5b/acceptance.json",
+          "sha256": "5370745d27e820dff78202160802ca157047f0fe43acc56ec740de480670acdc",
+          "run_id": "18296de6-7a13-4fcf-96ce-ef344b0c4b5b"
+        },
+        "r1": {
+          "path": "work/private/main36-to39/18296de6-7a13-4fcf-96ce-ef344b0c4b5b/r1-database-receipt.json",
+          "sha256": "c7b5903cbce459d936f5ef9e2d70bf8531e946312d1dbb47eedbfac3392daa44",
+          "run_id": null
+        },
+        "runtime": {
+          "path": "work/commitment-portfolio-runtime-source-metadata.json",
+          "sha256": "1b9ee99a4f57ec598bd037c07311eb34eb8fa7ad5cd64643f94f7b0add1d63d5",
+          "run_id": null
+        },
+        "dist": {
+          "path": "work/commitment-portfolio-release-web-dist.json",
+          "sha256": "4ed22f1df572ab8580488677d7c52db007c550e078dad985f430e5b1aabad959",
+          "run_id": "b0da5d76-378f-4bdc-ae0c-576e66fc6f5f"
+        },
+        "browser": {
+          "path": "work/private/installed-browser-105-fa1064/7797d6d8-5844-4860-b787-9e6ec533eeae/acceptance.json",
+          "sha256": "8f907ec4c6470b0491a16ed68d5d8b235bfbc856189f60104265365e8634032d",
+          "run_id": "7797d6d8-5844-4860-b787-9e6ec533eeae"
+        },
+        "recovery": {
+          "path": "work/private/postgres-recovery/8d400897-6b25-4187-863b-6e95f363f476/acceptance.json",
+          "sha256": "49882b8243b4a1bb0f157cbb06e326301381cca59b85856205c59a5ad64d3bfb",
+          "run_id": "8d400897-6b25-4187-863b-6e95f363f476"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Bounded existing AWS RI/SP observations pass ordinary provider-shaped ingestion, immutable object/ClickHouse evidence, a restricted tenant-bound daemon and separate Python model, real Finance PKCE, IDs-only request and persisted reload. All16 required implementation CI jobs passed. Installed36-to39 migration preserves the same signed stopped-instance ownership through exactly one stop/start;15 runtime bindings, all39 migration hashes, complete16-file served console,105 browser cases with zero retry/skip and8 quarantined encrypted physical PostgreSQL recovery checks passed. Only this one-point observation subset advances0→40, adding0.4points. Coverage, commitment decisions, forecasts, cash valuation, purchasing, full fleet safety and customer/production acceptance remain outside this credit. No shared foundation, test-count, cloud, purchase or verified-savings credit is added."
+    },
+    {
+      "id": "readonly-database-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "previous_weighted_percent": 25.8,
+      "weighted_percent": 25.9,
+      "prior_history_sha256": "e71ed1a914da66aeeea5747a594896c180330896c839502ff496034b1467226a",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 10,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_database_class_assessment",
+              "scope_weight_percent": 0.5,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 9.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_database_class_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.1,
+          "acceptance": "Component acceptance only; combined native/browser original deadline remains unaccepted."
+        }
+      ],
+      "implementation_tree": "49e53849cf135b1b450031b51e84da3bca281420",
+      "final_required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "evidence": [
+        "docs/rds-readonly-assessment.md",
+        "docs/commitment-acceptance-deferred.md"
+      ],
+      "bounded_evidence": {
+        "native": {
+          "run_id": "921d96fd-f7ec-4c5c-a311-257c95fdcffa",
+          "receipt_sha256": "20e80180e2a14242cf4d71c1d730416111a535f4e1d55d49980b3357579bea99",
+          "status": "PASS"
+        },
+        "browser": {
+          "run_id": "90fdcd8f-0a3e-4723-93dc-d41029576ccd",
+          "receipt_sha256": "b013d93b5043dc58842bfd0f575cfbe48ec29aac25fb82f3cd0ec591d9771f35",
+          "browser_component_status": "PASS",
+          "combined_status": "FAIL",
+          "failure": "Original 120-second context elapsed before independent Go browser-result readback; service elapsed 125.36 seconds"
+        },
+        "final_presentation": {
+          "run_id": "7cf15c29-b266-4e8f-86e6-e4f9d85728fc",
+          "receipt_sha256": "9198af8f602bd288b0ab8293c39538d7956665ccae004cd178232021cc5e1f72"
+        },
+        "final_build": {
+          "run_id": "2a751fef-a99b-4dcf-9065-ac10c0790338",
+          "receipt_sha256": "983b4870efd8e9102f07eaf686a255268f21d1f68f0a391b5884e4c1cbf374a8"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only database components advance 0 to 20 only. Actual native backend and collector pass versioned storage, ClickHouse, tenant-isolated PostgreSQL and Python economics. A real OIDC browser component passes new persisted positive, blocked and no-change requests through the separate analyst. The combined run remains FAIL because independent Go readback missed its original 120-second context; no maturity-40 credit is awarded. Only 0.5 points of the existing unaccepted optimisation pool advance, adding 0.1 points. Shared foundations, test counts, wider database families, live/customer/production acceptance, execution and verified savings earn no credit. Commitment acceptance remains deferred and its required failing job stays enabled.",
+      "release_evidence": {
+        "implementation_tree": "49e53849cf135b1b450031b51e84da3bca281420",
+        "core_recovery": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/process-recovery-result.json",
+        "installed_browser": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/installed-browser.json",
+        "installed_bindings": "work/rds-release-49e53849cf135b1b450031b51e84da3bca281420/installed-bindings-result.json",
+        "physical_recovery_terminal_receipt": "work/private/postgres-recovery/aa45df7d-5645-4352-ba51-576c930fc8d5/acceptance.json",
+        "final_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+        "no_extra_maturity_credit": true
+      }
+    },
+    {
+      "id": "bounded-readonly-ebs-performance-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "previous_weighted_percent": 25.9,
+      "weighted_percent": 26.3,
+      "prior_history_sha256": "95ec45f81e274c15d109af42eef535fff1e7c6374a8a12d7a189403b5e6b1c50",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 9.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_ebs_performance_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 8.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_ebs_performance_assessment",
+          "from_stage": 0,
+          "to_stage": 40,
+          "delta_points": 0.4,
+          "acceptance": "Bounded deterministic provider-collector persistence and authenticated persisted API/analyst/model/console performance-advice path; exact captured sources and receipts below. No live or execution credit."
+        }
+      ],
+      "base_commit": "e701c800c5c049ec70ce2cb2a20a6ba6be7d659a",
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "evidence": [
+        "docs/ebs-readonly-assessment.md",
+        "docs/commitment-acceptance-deferred.md"
+      ],
+      "bounded_evidence": {
+        "collector": {
+          "run_id": "dde193e7-4cd6-4a78-a55b-7d99d4ed1ccd",
+          "receipt_sha256": "cded7fc9ceaa1517cbd26697ccdeb856b739baf31272cc2e03ef37e2238afa61",
+          "source_manifest_sha256": "1fac09466754e0967d374cf4b30767b71311c43f183f25e8b9017a1560107dc5",
+          "python_tests": 165,
+          "ebs_checks": 25,
+          "status": "PASS"
+        },
+        "native_console": {
+          "run_id": "13de544b-8246-4bca-a4c0-8b69ea1e2824",
+          "receipt_sha256": "6982f421e5817937a22cbe9e4d228b0595fdca9198efa784a03c839a97e5715a",
+          "source_manifest_sha256": "1fac09466754e0967d374cf4b30767b71311c43f183f25e8b9017a1560107dc5",
+          "status": "PASS"
+        },
+        "offline_terraform": {
+          "run_id": "9df3b533-8b8b-4a46-971f-783fd77e7fe0",
+          "receipt_sha256": "2579b8631ba96fa6be2f497cfffb7e5ae83dcfebf0aba182e3b03cddb1a0ef1c",
+          "status": "PASS"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "A one-point subset of the existing 9.5-point unaccepted optimisation pool advances from 0 to deterministic E2E maturity 40 for bounded read-only EBS performance assessment, adding 0.4 points. Actual native-provider collector persistence and the separate authenticated API/analyst/Python/normal OIDC console journey demonstrate gp2-to-gp3 and gp3 IOPS/throughput advice with native customer-rate estimates and explicit refusals. These complementary boundaries are recorded separately; provider transports are synthetic. Review-only snapshot/unattached components and blocked io equivalence add no independent credit. Shared foundations, test counts, live/customer/production acceptance, execution and verified savings earn no additional credit. Previous RDS partial credit and deferred commitment acceptance remain unchanged; the required commitment job remains enabled."
+    },
+    {
+      "id": "bounded-readonly-s3-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "previous_weighted_percent": 26.3,
+      "weighted_percent": 26.5,
+      "prior_history_sha256": "4bd6b4401be6d6e8d61132b86552d042050888a0d7962a6a4a15d8e8c3bf26b0",
+      "base_commit": "962d75775bb7f9fdffaa3425d2d17bbb3429ca49",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 8.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_s3_dataset_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 7.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_s3_dataset_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Focused component acceptance only; connected deterministic customer path is not accepted."
+        }
+      ],
+      "evidence": [
+        "docs/s3-readonly-assessment.md",
+        "docs/commitment-acceptance-deferred.md"
+      ],
+      "bounded_evidence": {
+        "components": {
+          "run_id": "c29ec5cb-126d-4041-bb61-17c183726c9b",
+          "receipt_sha256": "07adc077d1a49a6810f92a5b7f199b4d89516ded29593710cb102474ffe7b026",
+          "source_manifest_sha256": "1777fe2856c425934493f8abcb8f5ea20743b8a34bb7267e67d9175c9847c7b4",
+          "status": "PASS"
+        },
+        "connected_native_console": {
+          "run_id": "f9c32989-00f2-47d0-b09d-533d8c45ef34",
+          "receipt_sha256": "fcfd4069c8157ab21ed9f2bced74ba2a282598bfa27b1b342a6b2d8aa0992de8",
+          "source_manifest_sha256": "94651e1d6814bf4e8f0134e80365a5f1dfb259fd3daf90bcf7c63a5ec284b5fc",
+          "status": "FAIL",
+          "stage": "FULL_PYTHON_120_SECOND_DEADLINE",
+          "native_and_browser_executed": false
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only S3 component acceptance advances a reserved one-point scope from 0 to 20, adding 0.2 points. Native/provider/source parsers, exact native-rate financial projections, independent activity ingress, IDs-only dataset/API/blocked publication and Python policy components have focused evidence. The connected native/Python/OIDC journey remains unaccepted: both retained runs stopped at the unchanged 120-second full-Python stage before native ingestion/browser execution. Maturity 40 and the additional 0.2 points are not awarded. Shared foundations, test counts, live/customer/production operation and verified savings receive no credit. Previous EBS/RDS/commitment reviews and the deferred required commitment failure remain unchanged."
+    },
+    {
+      "id": "bounded-readonly-network-components-2026-10-20",
+      "recorded_at": "2026-10-20",
+      "base_commit": "e059da01e119b98dfc0aa527939f6541cea9f4f5",
+      "previous_weighted_percent": 26.5,
+      "weighted_percent": 26.7,
+      "prior_history_sha256": "583301a1adb1fae8fb562b67df60fb8a2f4b22be7f92a5d611f90ab6e5252a77",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 7.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_network_nat_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 6.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_network_nat_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Component maturity only; separate collector and synthetic API/model/UI boundaries do not establish full deterministic native customer acceptance."
+        }
+      ],
+      "evidence": [
+        "docs/network-readonly-assessment.md"
+      ],
+      "bounded_evidence": {
+        "focused": {
+          "run_id": "ccc53ba5-79f2-4295-b747-808563897073",
+          "status": "PASS",
+          "receipt_sha256": "5b3fcc4fd789a30b2be276a053fb0a211ba0e442c1197975f042cb9397ad3123",
+          "source_manifest_sha256": "385fcdcb7ec71ead031274bab6dd6db8008dde6886cbbc70c487d92b6a81d775"
+        },
+        "native_and_synthetic_api_components": {
+          "run_id": "4e764d3b-3fc0-41af-be94-72ba5814c2bc",
+          "status": "FAIL",
+          "receipt_sha256": "58934ff2223d3ef7e087fd771853302e48dc4ff54c5d282fc68aa2a9927b8d27",
+          "source_manifest_sha256": "c8ed211254943990d9381ebc8746741ad6422320c174f0acc9110a59242be337"
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only Network/NAT components advance a reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native topology/metrics/Flow Log readers, exact customer NET economics, IDs-only policy/assessment APIs, non-executable publications and ordinary console components have bounded acceptance. Native collector and synthetic canonical API/Python/browser journeys are separate acceptance boundaries; their complete persisted customer path is not accepted by this component bank. Maturity 40, live/customer/production operation, network mutations and verified savings are not credited. Fixed weights, all historical reviews and outstanding S3/EBS/RDS/commitment/fleet obligations remain unchanged."
+    },
+    {
+      "id": "bounded-readonly-lambda-components-2026-10-21",
+      "recorded_at": "2026-10-21",
+      "base_commit": "4dadac72182666781d16c98f7b29cf1602f9524d",
+      "previous_weighted_percent": 26.7,
+      "weighted_percent": 26.9,
+      "prior_history_sha256": "155dbeb1292edaeeb01e239df760425f4dd420f53b0d5c2b46df7ee705934f36",
+      "package_subdivisions": [
+        {
+          "domain": "optimisation_forecast_commitments",
+          "previous_package": "forecast_commitment_portfolio",
+          "previous_scope_weight_percent": 6.5,
+          "previous_maturity": 0,
+          "children": [
+            {
+              "id": "bounded_readonly_lambda_assessment",
+              "scope_weight_percent": 1,
+              "previous_maturity": 0
+            },
+            {
+              "id": "forecast_commitment_portfolio",
+              "scope_weight_percent": 5.5,
+              "previous_maturity": 0
+            }
+          ]
+        }
+      ],
+      "contribution_changes": [
+        {
+          "capability": "bounded_readonly_lambda_assessment",
+          "from_stage": 0,
+          "to_stage": 20,
+          "delta_points": 0.2,
+          "acceptance": "Component acceptance only. The connected native result is blocked; the positive financial and performance components are separate acceptance boundaries."
+        }
+      ],
+      "evidence": [
+        "docs/lambda-readonly-assessment.md"
+      ],
+      "bounded_evidence": {
+        "focused": {
+          "run_id": "eaf54c04-af35-4366-9d7e-9f6b98c98a99",
+          "status": "PASS",
+          "receipt_sha256": "321adb7a4a4cbd28dcb2e4ddaf4e18ae3b5bbead55a3a8ef8d7e87df5bcefd1e",
+          "source_manifest_sha256": "e671ee05de6c93c5c8eeebe9530d1c603caf1aca72f901a1875306af6bb2d66b"
+        },
+        "native_blocked_python_oidc": {
+          "run_id": "fc7348fc-0572-4144-aa02-4e61b34964b4",
+          "status": "PASS",
+          "receipt_sha256": "a31bc144b663ba689110b66c14213c512711344063938fc8345f8a83d66549c3",
+          "source_manifest_sha256": "e671ee05de6c93c5c8eeebe9530d1c603caf1aca72f901a1875306af6bb2d66b"
+        }
+      },
+      "required_ci_results": "https://github.com/christopherosiemo/bn-implementation-Finops/pull/1/checks",
+      "live_credit_awarded": false,
+      "acceptance": "Bounded read-only Lambda components advance the reserved one-point scope from maturity 0 to 20, adding 0.2 points. Native collection, immutable operational evidence, guarded financial/performance components, restricted persisted blocked assessments and normal authenticated UI have bounded acceptance. The connected native capture has no canonical billing or performance curve and proves a blocked result; positive economics components are separate. Full positive native financial/performance-to-console acceptance, software omissions, genuine AWS/customer commissioning and sustained operation remain outstanding. No deterministic maturity 40, live, execution or verified-savings credit. Fixed weights, all historical reviews and closed-family acceptance debts remain unchanged."
+    },
+    {
+      "id": "forward_aws_sprint_m1",
+      "recorded_at": "2026-10-21",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "c09f519f41d2c1b7dfdab747d1aa993cf84ef8370c4d335aef86f63e70f6f135",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "internal/provider/aws_service_test.go",
+        "internal/provider/aws_service_elb_test.go",
+        "internal/service/aws_service_integration_test.go",
+        "frontend/tests/aws-service-inventory.spec.ts"
+      ],
+      "acceptance": "AWS service inventory breadth adds read-only product components within the existing inventory_adapters scope. Broader native-connected and EKS/Kubernetes association gates remain; no whole-package maturity transition or additional credit is awarded."
+    },
+    {
+      "id": "forward_aws_sprint_m2",
+      "recorded_at": "2026-10-21",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "81d58ecc9d892cb64132c1cb9e067ea34d322c4ef586e75827a7312bef8d56d0",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "economics/tests/test_aws_service.py",
+        "internal/service/aws_service_assessment_integration_test.go",
+        "internal/provider/aws_service_metrics_test.go",
+        "frontend/tests/aws-service-assessment.spec.ts"
+      ],
+      "acceptance": "Shared four-family AWS service recommendation components, restricted persisted refusals, native metric semantics and authenticated presentation extend product capability. Native positive financial/demand/physical-candidate closure and complete connected acceptance remain software gates. Existing optimisation scopes/weights are unchanged; no arbitrary package subdivision or maturity uplift."
+    },
+    {
+      "id": "forward_aws_sprint_m3",
+      "recorded_at": "2026-10-21",
+      "base_commit": "3924ed8c2d05e9e3c801434a481d49f050fdc002",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "adbe683cc53dcdca3627fd5e8fc4eed9ab7337b8a9dee3d767869b7518df5a5f",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/forward-aws-sprint.md",
+        "internal/service/lambda_comparability_test.go",
+        "internal/activity/lambda_integration_test.go",
+        "internal/provider/rds_physical_capacity_v2_test.go",
+        "internal/service/database_input_test.go",
+        "internal/workflow/network_native_integration_test.go"
+      ],
+      "bounded_evidence": {
+        "lambda_focused": {
+          "log_sha256": "652fe236b6bd71c573a8fb80a0d062a41a6b14dac5bc5de8b97c8578a50cdbfd"
+        },
+        "lambda_connected": {
+          "log_sha256": "a96183a2458c4d77f0487260bcfb5e0525d1dc0ce1075f15b98af17e0f7b99c7"
+        },
+        "rds_first": {
+          "log_sha256": "b6ec79ad71c8c468f20b0f4a23742c3f56806343bb82d302470989951e933cf3"
+        },
+        "rds_rerun": {
+          "log_sha256": "e8e5ec855ce23fc490c3421fc73216395bebe48021570e8532153c829593def0"
+        },
+        "rds_python": {
+          "log_sha256": "85f0beb4998ff4862cb6e687f003e7eb9a10ee24c6542631219e541cd5dc18b4"
+        },
+        "network_focused": {
+          "log_sha256": "2e475f37116b624e7ce537c437dc20e53b3832fa09e4ce41376e587f0a1d8c60"
+        },
+        "s3_connected": {
+          "log_sha256": "b815b33d872ed9626291cf4082b6f3a756caf2db46592be3d7d730ae5a5bae41"
+        },
+        "network_connected": {
+          "log_sha256": "e8569ea5dba69737d12fdd6875f044057e1f47158757f08612b0353a7a1ca266"
+        }
+      },
+      "live_credit_awarded": false,
+      "acceptance": "Native LambdaV2 authority and18literal RDS physical classes extend existing scopes. RDS catalogue subset passed9focused/17Python checks after one product-boundary repair. Lambda positive fixture identity is missing; S3/Network connected attempts fail at the unchanged shared preflight deadline. Their native connected maturity is not accepted. Current retained commitment failure has no proved new defect; EBS stays banked. No weights, old credits, family maturity or package subdivisions change. Final release and genuine AWS/customer/operational gates remain separate."
+    },
+    {
+      "id": "aws_readiness_closure_a",
+      "recorded_at": "2026-10-21",
+      "base_commit": "20dd765d7414764056c7e0aeae8935e389dc1be2",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "3fd73e1d92925a15da4ddf72432c93079d287ae44f05ac99ee54bb947f14ecca",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "Dockerfile.backend",
+        ".github/workflows/ci.yaml"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Active Go1.27.3 pins and103existing focused Node/static checks accepted. Local fixed-image download failed DockerHub EOF (EXTERNAL_INFRASTRUCTURE_FAILURE), with no retry or fallback. Reachable-vulnerability and complete release acceptance are pending required CI on the pushed source; no secure-baseline completion or maturity transition is claimed until the scan itself passes. Historical evidence/credits/weights remain unchanged."
+    },
+    {
+      "id": "aws_readiness_closure_b",
+      "recorded_at": "2026-10-21",
+      "base_commit": "71e1f88ce4e561bfc0a6173309aee368f19f5a69",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "11f67f9679315a41652b64aef2de925621de83a57c7f99f0e75b9df65695751e",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "migrations/048_eks_kubernetes_associations.sql",
+        "internal/eksassociation/",
+        "scripts/commission-lambda-performance.mjs"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Checkpoint A exact-source required CI finished13PASS/3historicalFAIL; reachable Go security scan PASS. Local Lambda dedicated machine identity commissioning PASS. EKS native/Kubernetes identity product slice and ECS native cohort/rate path implemented; frontend/static/Helm and12focused ECS model checks pass. Three bounded connected paths stop before tests because fixed Go image is unavailable locally; ECS invocation fails its source-path assertion and trusted historical-demand reader remains absent. No positive connected or family maturity transition accepted. Existing fixed weights, reviews and external requirements unchanged."
+    },
+    {
+      "id": "aws_readiness_closure_c",
+      "recorded_at": "2026-10-21",
+      "base_commit": "28e533c4ffb71ae6577d612631a020539c17e0f8",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "076264bb246971f52bbd65ebf103c90e669d04fe67e5324d9c92b9d866dc9ffb",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/aws-pilot-readiness-closure.md",
+        "docs/aws-readonly-commissioning.md",
+        "migrations/049_aws_account_commissioning.sql",
+        "frontend/tests/operating-loop.spec.ts",
+        "internal/workflow/aws_account_commissioning.go"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Read-only commissioning product now includes approved secret-binding metadata, asynchronous identity/category probes, durable immutable tenant reports, persisted evidence/coverage dimensions, normal authenticated console and export. Pre-release frontend/static/schema/Helm/IAM checks pass; full final-source CI, browser and installed migration/restoration are separate release gates, not assumed passed. Generic telemetry, raw class-assessor currentness, remote Git resolution and ECS historical-demand limitations remain explicit. No new package maturity transition, scope split, live/customer/financial credit or mutation authority is claimed; fixed weights and historical reviews remain unchanged."
+    },
+    {
+      "id": "prepilot_polish_1",
+      "recorded_at": "2026-10-21",
+      "base_commit": "4583df9a340baf8874a57f1465c6369384d44741",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "1fd618f5ad6d31ceafa496b2af15dcd0ac975564aef11f635245f63e7b676988",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/prepilot-software-polish.md",
+        "internal/awsservice/service_history.go",
+        "internal/service/aws_service_history.go",
+        "migrations/050_aws_service_historical_demand.sql",
+        "frontend/tests/aws-service-live.spec.ts"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Registered historical ECS service-demand and sampled configuration epochs connect to the existing restricted evaluator. Focused Python, generated contracts, frontend build, two supplementary browser presentations and29migration guards pass. One connected attempt fails at unresponsive Docker API before native/browser start (EXTERNAL_INFRASTRUCTURE_FAILURE); positive E2E and installed migration/restoration remain unaccepted. Fixed weights, historical reviews, broader maturity and external obligations unchanged."
+    },
+    {
+      "id": "prepilot_polish_2",
+      "recorded_at": "2026-10-21",
+      "base_commit": "cdd454c607e6da7e4379341a7e992390f300e043",
+      "previous_weighted_percent": 26.9,
+      "weighted_percent": 26.9,
+      "contribution_changes": [],
+      "prior_reviews_sha256": "99028e227e74922f7ad91f01371189234ecb73019b53748595484e6e9ff1608f",
+      "status": "PARTIAL",
+      "evidence": [
+        "docs/prepilot-software-polish.md",
+        "migrations/051_recommendation_currentness.sql",
+        "internal/service/recommendation_currentness.go",
+        "internal/configuration/revision.go",
+        "frontend/tests/operating-loop.spec.ts"
+      ],
+      "live_credit_awarded": false,
+      "acceptance": "Immutable tenant-scoped publication contexts, trusted evidence currentness, exact approved Git revision resolution, legacy refusals, existing family/fleet validators, qualified UI economics and commissioning counts are implemented. Frontend generated contracts/typecheck/build,71supplementary presentations and29exactmigrationguards pass. Broad localNode423PASS/1WindowsEPERMsymlinkFAIL/3SKIP, classified external infrastructure. NewGo/PG, normalOIDC/current-to-stale and finalreleaseCI/recovery are separate reported gates; localDocker remains unavailable. No new family maturity, fullfleetcontext, live/customer/financial credit or mutation authority. Fixed weights, prior reviews and full denominator preserved."
+    }
+  ],
+  "reserved_package": {
+    "id": "bounded_readonly_s3_dataset_assessment",
+    "base_commit": "962d75775bb7f9fdffaa3425d2d17bbb3429ca49",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 8.5,
+    "remaining_scope_weight_percent": 7.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "deterministic_maturity_40_awarded": false
+  },
+  "network_reserved_package": {
+    "id": "bounded_readonly_network_nat_assessment",
+    "base_commit": "e059da01e119b98dfc0aa527939f6541cea9f4f5",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 7.5,
+    "remaining_scope_weight_percent": 6.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "prior_reviews_sha256": "583301a1adb1fae8fb562b67df60fb8a2f4b22be7f92a5d611f90ab6e5252a77",
+    "deterministic_maturity_40_awarded": false,
+    "final_component_acceptance": {
+      "run_id": "355c77e7-e92b-49fd-a26f-193742627f81",
+      "status": "PASS",
+      "receipt_sha256": "fdbcf3f420d1ef78a9c873adcb69ed166cfa11b876c2de807abc048f0d6a6a9d",
+      "source_manifest_sha256": "14ef912fffb0a6810ec72870dcc21e374136868d337581f7723305373fc56e84",
+      "collector_and_api_are_separate_components": true,
+      "real_oidc_browser_passed": true,
+      "native_customer_e2e_accepted": false,
+      "additional_credit": 0
+    }
+  },
+  "lambda_reserved_package": {
+    "id": "bounded_readonly_lambda_assessment",
+    "base_commit": "4dadac72182666781d16c98f7b29cf1602f9524d",
+    "from_scope": "forecast_commitment_portfolio",
+    "from_scope_weight_percent": 6.5,
+    "remaining_scope_weight_percent": 5.5,
+    "reserved_scope_weight_percent": 1,
+    "accepted_maturity": 20,
+    "credit_awarded": 0.2,
+    "status": "BANKED_COMPONENT_PARTIAL",
+    "prior_reviews_sha256": "155dbeb1292edaeeb01e239df760425f4dd420f53b0d5c2b46df7ee705934f36",
+    "deterministic_maturity_40_awarded": false
+  }
+}

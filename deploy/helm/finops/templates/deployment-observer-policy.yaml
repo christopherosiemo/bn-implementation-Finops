@@ -1,0 +1,39 @@
+{{- if and .Values.deploymentObserver.enabled .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-deployment-observer-egress
+spec:
+  podSelector:
+    matchLabels: {finops-role: deployment-observer}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        {{- range .Values.deploymentObserver.httpsEgressCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 443}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-deployment-observer-ingress
+spec:
+  podSelector:
+    matchLabels: {finops-role: deployment-observer}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{ toYaml .Values.deploymentObserver.pipelinePodSelector | nindent 14 }}
+      ports: [{protocol: TCP, port: 8080}]
+    {{- if and .Values.ingress.enabled .Values.deploymentObserver.ingressEnabled }}
+    - from:
+        - ipBlock: {cidr: {{ .Values.ingress.vpcCidr | quote }}}
+      ports: [{protocol: TCP, port: 8080}]
+    {{- end }}
+{{- end }}

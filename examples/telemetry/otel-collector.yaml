@@ -1,0 +1,56 @@
+# Optional local lab. Render only after registering an OTLP connection and
+# supplying server-approved resource binding. The default Compose stack does
+# not run this collector. Secrets are mounted files, never included here.
+extensions:
+  oauth2client:
+    client_id: telemetry-collector
+    client_secret_file: /run/secrets/telemetry-client-secret
+    token_url: http://keycloak:8080/realms/finops/protocol/openid-connect/token
+    endpoint_params:
+      audience: finops-telemetry
+receivers:
+  prometheus:
+    trim_metric_suffixes: false
+    config:
+      scrape_configs:
+        - job_name: native-fixture-gateway
+          scrape_interval: 15s
+          scrape_protocols: [OpenMetricsText1.0.0]
+          static_configs:
+            - targets: [telemetry-gateway:8096]
+processors:
+  resource/binding:
+    attributes:
+      - {key: cloud.provider, value: aws, action: upsert}
+      - {key: cloud.account.id, value: '${env:FINOPS_ACCOUNT_ID}', action: upsert}
+      - {key: cloud.region, value: eu-west-1, action: upsert}
+      - {key: host.id, value: '${env:FINOPS_PROVIDER_RESOURCE_ID}', action: upsert}
+      - {key: finops.resource.id, value: '${env:FINOPS_RESOURCE_ID}', action: upsert}
+      - {key: finops.tenant.id, value: '${env:FINOPS_TENANT_ID}', action: upsert}
+  filter/registered:
+    error_mode: propagate
+    metrics:
+      metric:
+        - 'name != "finops_gateway_requests_total" and name != "finops_gateway_request_duration_seconds" and name != "process_start_time_seconds"'
+exporters:
+  otlp_http/native:
+    endpoint: http://telemetry-ingress:8094
+    compression: none
+    encoding: proto
+    headers:
+      X-Finops-Connection-ID: '${env:FINOPS_CONNECTION_ID}'
+      X-Finops-Config-Hash: '${env:FINOPS_CONFIG_HASH}'
+    auth:
+      authenticator: oauth2client
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 1m
+    sending_queue:
+      enabled: false
+service:
+  extensions: [oauth2client]
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [resource/binding, filter/registered]
+      exporters: [otlp_http/native]

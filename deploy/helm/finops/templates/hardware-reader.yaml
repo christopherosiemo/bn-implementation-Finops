@@ -1,0 +1,123 @@
+{{- if .Values.hardware.enabled }}
+{{- if not .Values.networkPolicy.enabled }}{{ fail "hardware reader requires default-deny network policy" }}{{ end }}
+{{- if ne .Values.dataMode "aws" }}{{ fail "hardware reader requires explicit AWS read-only mode" }}{{ end }}
+{{- $_ := required "hardware.roleArn requires a dedicated IRSA role" .Values.hardware.roleArn }}
+{{- $_ := required "hardware.targetsSecret requires approved exact resource/candidate bindings" .Values.hardware.targetsSecret }}
+{{- $_ := required "sources.readBindingsSecret required for hardware member roles" .Values.sources.readBindingsSecret }}
+{{- if has .Values.hardware.roleArn (list .Values.aws.ingesterRoleArn .Values.aws.signerRoleArn .Values.aws.executorRoleArn .Values.telemetry.readerRoleArn .Values.telemetry.ingressRoleArn) }}{{ fail "hardware reader cannot reuse another service IRSA identity" }}{{ end }}
+{{- if eq (len .Values.hardware.httpsEgressCidrs) 0 }}{{ fail "hardware reader requires approved regional HTTPS networks" }}{{ end }}
+{{- if eq (len .Values.hardware.postgresEgressCidrs) 0 }}{{ fail "hardware reader requires approved private RDS destination networks" }}{{ end }}
+{{- range .Values.hardware.httpsEgressCidrs }}{{ if regexMatch "/0+$" . }}{{ fail "hardware reader HTTPS egress cannot be world-open" }}{{ end }}{{ end }}
+{{- range .Values.hardware.postgresEgressCidrs }}{{ if regexMatch "/0+$" . }}{{ fail "hardware reader RDS egress cannot be world-open" }}{{ end }}{{ end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: finops-hardware-reader
+  labels: {finops-role: hardware-reader}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ .Values.hardware.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-hardware-reader
+  labels: {finops-role: hardware-reader}
+spec:
+  replicas: {{ .Values.hardware.replicas }}
+  selector:
+    matchLabels: {finops-role: hardware-reader}
+  template:
+    metadata:
+      labels: {finops-role: hardware-reader}
+    spec:
+      serviceAccountName: finops-hardware-reader
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: hardware-reader
+          image: {{ include "finops.image" .Values.images.backend | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports: [{name: http, containerPort: 8080}]
+          env:
+            - {name: APP_ROLE, value: hardware-reader}
+            - {name: PORT, value: "8080"}
+            - {name: DATA_MODE, value: aws}
+            - {name: FIXTURE_MODE, value: "false"}
+            - {name: AWS_REGION, value: eu-west-1}
+            - {name: AWS_TENANT_ID, value: {{ .Values.aws.tenantId | quote }}}
+            - {name: AWS_STS_REGIONAL_ENDPOINTS, value: regional}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ index .Values.database.secrets "hardware-reader" }}, key: DATABASE_URL}
+            - name: AWS_SOURCE_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.sources.readBindingsSecret }}, key: AWS_SOURCE_READ_BINDINGS_JSON}
+            - name: AWS_HARDWARE_TARGETS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.hardware.targetsSecret }}, key: AWS_HARDWARE_TARGETS_JSON}
+            - {name: OBJECT_REGION, value: eu-west-1}
+            - {name: OBJECT_ENDPOINT, value: {{ default "https://s3.eu-west-1.amazonaws.com" .Values.objectStorage.endpoint | quote }}}
+            - {name: OBJECT_BUCKET_RAW, value: {{ .Values.aws.rawBucket | quote }}}
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 20
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: rds-ca, mountPath: /etc/finops/rds, readOnly: true}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 128Mi}
+        - name: rds-ca
+          configMap: {name: {{ .Values.database.caConfigMap }}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: finops-hardware-reader}
+spec:
+  type: ClusterIP
+  selector: {finops-role: hardware-reader}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: finops-hardware-reader-egress}
+spec:
+  podSelector:
+    matchLabels: {finops-role: hardware-reader}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        {{- range .Values.hardware.postgresEgressCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        {{- range .Values.hardware.httpsEgressCidrs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 443}]
+{{- end }}

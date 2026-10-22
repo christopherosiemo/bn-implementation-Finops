@@ -1,0 +1,328 @@
+# Build and push the repository Dockerfiles; replace tags with reviewed digests.
+images:
+  backend: { repository: finops/backend, tag: pilot, digest: "" }
+  economics: { repository: finops/economics, tag: pilot, digest: "" }
+  web: { repository: finops/web, tag: pilot, digest: "" }
+  clickhouse: { repository: clickhouse/clickhouse-server, tag: "26.8", digest: "" }
+  temporal: { repository: temporalio/auto-setup, tag: "1.27.2", digest: "" }
+imagePullSecrets: []
+dataMode: fixture
+aws:
+  region: eu-west-1
+  # One live customer per isolated read/execution role deployment.
+  tenantId: ""
+  readRoleArn: ""
+  # Optional: leave empty for read-only AWS onboarding/discovery.
+  # A nonempty customer execution target also requires executorRoleArn + health.allowedHosts.
+  executionRoleArn: ""
+  externalIdSecret: finops-aws
+  rawBucket: ""
+  auditBucket: ""
+  # Terraform output workload_role_arns, not the cross-account target roles.
+  ingesterRoleArn: ""
+  signerRoleArn: ""
+  executorRoleArn: ""
+oidc:
+  issuer: "https://identity.example.invalid/realms/finops"
+  jwksUrl: ""
+  audience: finops
+database:
+  host: "replace-with-rds-endpoint.eu-west-1.rds.amazonaws.com"
+  caConfigMap: finops-rds-ca
+  # Each secret contains DATABASE_URL using sslmode=verify-full and the mounted CA.
+  secrets:
+    api: finops-db-api
+    worker: finops-db-worker
+    ingester: finops-db-ingester
+    signer: finops-db-signer
+    executor: finops-db-executor
+    activity-ingress: finops-db-activity
+    telemetry-reader: finops-db-telemetry-reader
+    telemetry-ingress: finops-db-telemetry-ingress
+    deployment-observer: finops-db-deployment-observer
+    hardware-reader: finops-db-hardware-reader
+    # A distinct LOGIN member of finops_ingester; never reuse another process login.
+    fleet-history-reader: finops-db-fleet-history-reader
+    fleet-assessment: finops-db-group-assessor
+    database-assessor: finops-db-database-analyst
+    storage-assessor: finops-db-storage-analyst
+    object-storage-assessor: finops-db-object-storage-analyst
+    network-assessor: finops-db-network-analyst
+    lambda-assessor: finops-db-lambda-analyst
+    aws-service-assessor: finops-db-service-analyst
+    fleet-capacity: finops-db-group-capacity
+    fleet-decision: finops-db-group-decision
+    commitment-portfolio: finops-db-commitment-portfolio
+    migrate: finops-db-migrate
+secrets:
+  # signer: SIGNING_PRIVATE_KEY, SIGNER_TOKEN. Never mounted in API/worker.
+  signer: finops-signer
+  # executor: EXECUTOR_TOKEN, SIGNING_PUBLIC_KEY. Never contains private key.
+  executor: finops-executor
+  # worker: SIGNER_TOKEN, EXECUTOR_TOKEN, SIGNING_PUBLIC_KEY.
+  worker: finops-worker
+  # ClickHouse password key: password. Temporal keys: username,password.
+  clickhouse: finops-clickhouse
+  temporal: finops-temporal-db
+  economics: finops-economics
+health:
+  # Comma-delimited exact hostnames; AWS pilot probes use HTTPS (egress 443).
+  allowedHosts: ""
+sources:
+  # Safe metadata only. External IDs/credentials are forbidden in this value.
+  accountApprovedBindingsJSON: "{}"
+  # Existing ingester-only Secret containing AWS_ACCOUNT_READ_BINDINGS_JSON.
+  # Entries bind exact tenant/account/role/external ID/region; never mounted in API.
+  accountReadBindingsSecret: ""
+  # Optional existing secret containing AWS_SOURCE_READ_BINDINGS_JSON. Only the
+  # ingester receives it; leave empty for discovery-only installations.
+  readBindingsSecret: ""
+  # Public safe metadata only: binding ID -> tenant/account/region/cluster ARN.
+  eksApprovedBindingsJSON: "{}"
+  # Existing ingester-only Secret, never created by this chart. Contains
+  # EKS_KUBERNETES_READ_BINDINGS_JSON and operator-managed renewable token files.
+  # Configure token_file inside /var/run/finops/eks-kubernetes; mounted read-only.
+  eksKubernetesReadBindingsSecret: ""
+  # Optional existing ingester-only Secret with S3_OBJECT_IDENTITY_KEY_HEX
+  # (32 random bytes or more, hex encoded) and S3_OBJECT_IDENTITY_KEY_VERSION.
+  # Required when commissioning S3 object evidence; never supplied to analysts.
+  objectIdentitySecret: ""
+  # Optional ingester-only selectors, commissioned after read-only onboarding.
+  # No credentials, source facts or approval authority are supplied by a target.
+  commitmentQuoteTargetsSecret: ""
+  controllerBindingsSecret: ""
+  # Existing ingester-only Secret: AWS_NETWORK_READ_BINDINGS_JSON.
+  networkReadBindingsSecret: ""
+  networkReadonlyEnabled: false
+  lambdaReadonlyEnabled: false
+  lambdaComputeOptimizerEnabled: false
+  lambdaReadBindingsSecret: ""
+  ownershipArchiveTargetsSecret: ""
+hardware:
+  # Live read-only observations only; never runs against AWS in fixture mode.
+  enabled: false
+  roleArn: ""
+  targetsSecret: ""
+  httpsEgressCidrs: []
+  # Exact private RDS subnet networks, reviewed alongside destination TLS/CA.
+  postgresEgressCidrs: []
+  replicas: 1
+fleetHistory:
+  # Optional point observations only. Provision neither IAM nor secrets here.
+  # Commission dedicated renewable IRSA/customer read trust and a distinct
+  # finops_ingester LOGIN before enabling; no execution or historical authority.
+  enabled: false
+  roleArn: ""
+  # Existing secret: AWS_FLEET_HISTORY_REGISTRATIONS_JSON (exact tenant+IDs).
+  targetsSecret: ""
+  # Existing secret: AWS_SOURCE_READ_BINDINGS_JSON (approved member read roles).
+  readBindingsSecret: ""
+  # Bounded IPv4 networks (/16 or narrower): approved regional STS/S3
+  # endpoints and separate private RDS destinations; no world/metadata routes.
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+  replicas: 1
+notifications:
+  # Optional platform/operator destination. Add WEBHOOK_SECRET to secrets.worker only when enabled.
+  webhookUrl: ""
+configurationRevision:
+  # Operator-owned metadata only; never credentials or customer request paths.
+  # Register tenant:authority -> tenant_id,authority_id,repository_root,repository.
+  # Roots must be beneath /var/run/finops/configuration-revisions on the mount.
+  bindingsJSON: "{}"
+  # Optional existing local Git mirror PVC. The chart creates no volume or Git
+  # synchronizer; only the API mounts this existing claim, always read-only.
+  existingClaim: ""
+lambdaPerformance:
+  # Existing writer/analytics identities only; no provider credentials.
+  enabled: false
+  issuer: ""
+  audience: finops-lambda-performance
+  jwksUrl: ""
+  evidenceWriterSecret: ""
+  analyticsSecret: ""
+  httpsEgressCidrs: []
+serviceAssessor:
+  # Separate restricted LOGIN and immutable version-only product evidence reader.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+lambdaAssessor:
+  # Optional analytical LOGIN and version-only evidence reader; no AWS or execution credentials.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+networkAssessor:
+  # Separate read-only analytical LOGIN and version-only product evidence reader.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+
+objectStorageAssessor:
+  # Dedicated restricted LOGIN and version-only evidence reader. Never receives
+  # AWS, signing, execution or customer object/lifecycle mutation credentials.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+
+storageAssessor:
+  # Existing restricted LOGIN and version-only evidence reader. No AWS role,
+  # signing or storage mutation credentials. Optional in every deployment mode.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+databaseAssessor:
+  # Existing restricted LOGIN + version-only evidence reader; no cloud-role,
+  # signing, execution or purchase credentials. Hosted deployment is opt-in.
+  enabled: false
+  replicas: 1
+  evidenceReaderSecret: ""
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+fleetAssessment:
+  # Optional read-only consumer of persisted requests and versioned evidence.
+  # Existing dedicated IRSA: GetObjectVersion/GetBucketLocation + scoped KMS
+  # decrypt only. No provider discovery, AssumeRole, signing or execution grants.
+  enabled: false
+  roleArn: ""
+  bucketOwner: ""
+  replicas: 1
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+fleetCapacity:
+  # Optional per-member native physical model; existing read-only identity and
+  # secrets only. This chart provisions no IAM, account role or workload change.
+  enabled: false
+  roleArn: ""
+  bucketOwner: ""
+  replicas: 1
+  httpsEgressCidrs: []
+  postgresEgressCidrs: []
+fleetDecision:
+  # Optional database-only analytical join. Existing dedicated LOGIN member of
+  # finops_group_decision; no archive/model/cloud/signing/execution credentials.
+  enabled: false
+  tenantId: ""
+  replicas: 1
+  postgresEgressCidrs: []
+commitmentPortfolio:
+  # Default off. Commission the existing LOGIN/tenant binding and three existing
+  # Secrets explicitly; this chart creates no Secret, IAM, purchase or execution grant.
+  enabled: false
+  tenantId: ""
+  replicas: 1
+  modelReplicas: 1
+  modelTokenSecret: ""
+  modelTLSSecret: ""
+  # Private model root CA, separate from the database CA trust file.
+  modelCAConfigMap: ""
+  postgresEgressCidrs: []
+activity:
+  # Dedicated machine tokens; never configure the browser/API audience here.
+  audience: finops-activity
+  issuer: ""
+  jwksUrl: ""
+telemetry:
+  # Opt in after provisioning distinct database logins and versioned raw storage.
+  enabled: false
+  audience: finops-telemetry
+  issuer: ""
+  jwksUrl: ""
+  readerRoleArn: ""
+  ingressRoleArn: ""
+  readerTokenSecret: finops-telemetry-reader-token
+  # Only the reader receives endpoint/credential bindings. The API receives
+  # a separate endpoint-free catalog with exact resource and required labels.
+  readBindingsSecret: ""
+  bindingCatalogSecret: ""
+  readCredentialsSecret: ""
+  # Exact approved HTTPS destination networks: regional S3/VPC endpoints,
+  # machine JWKS and approved Prometheus. No world-open egress is accepted.
+  httpsEgressCidrs: []
+  collectorPodSelector: {app: finops-native-collector}
+  ingressEnabled: false
+  readerReplicas: 1
+  ingressReplicas: 1
+  readerResources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+  ingressResources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
+deploymentObserver:
+  # Receipt ingestion only; no deployment dispatch or customer mutations.
+  enabled: false
+  audience: finops-deployment-observer
+  issuer: ""
+  jwksUrl: ""
+  httpsEgressCidrs: []
+  ingressEnabled: false
+  pipelinePodSelector: {app: finops-customer-pipeline}
+objectStorage:
+  # Empty endpoint selects regional AWS S3 and SDK IRSA credentials.
+  endpoint: ""
+clickhouseCredentials:
+  username: finops
+  database: finops
+externalSecrets:
+  enabled: false
+  # Install External Secrets Operator CRDs first; existing Terraform secret ARNs.
+  signerSecretArn: ""
+  executionSecretArn: ""
+ingress:
+  enabled: false
+  scheme: internal
+  hostname: ""
+  certificateArn: ""
+  inboundCidrs: []
+  vpcCidr: 10.42.0.0/16
+replicas:
+  api: 2
+  worker: 1
+  ingester: 1
+  signer: 1
+  executor: 1
+  activity-ingress: 1
+  deployment-observer: 1
+  economics: 1
+  web: 1
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 512Mi }
+migration:
+  enabled: true
+web:
+  containerPort: 8080
+  # Web image uses /api as its API origin; expose via a trusted TLS reverse proxy.
+  readOnlyRootFilesystem: true
+networkPolicy:
+  enabled: true
+clickhouse:
+  enabled: true
+  storageClass: finops-gp3
+  storageSize: 30Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+temporal:
+  enabled: true
+  namespace: finops
+  retention: 336h
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+external:
+  temporalAddress: ""
+  clickhouseUrl: ""
+storageClass:
+  create: true

@@ -1,0 +1,26 @@
+# Private native EC2 identity derivation
+
+This bounded component decodes an already issued `AWS_EC2_HARDWARE` schema-1 capture into a separate schema-2 observation. It performs no new AWS query. There is no enabled process, public upload route, fleet proof publication, execution permission or financial claim. Integration with fleet history remains pending; unmapped members remain unknown.
+
+`HardwareEvidence` and `HardwareInstance` v1, their JSON representation, hashes, source revisions and receipts are unchanged. The derivation first runs the original whole-capture validator, including exact selectors, native account/instance bindings and raw-byte hash. It then separately decodes the pinned original `DescribeInstances` XML. Its new fields were absent from the v1 canonical projection: the trusted versioned decoder and archived bytes establish their provenance, rather than a claim that the old canonical JSON already included them.
+
+AWS documents `launchTime` as the most recent launch. The result therefore calls it `last_start_time`. The separately recorded primary-ENI attachment initiation time is not promoted to VM creation or complete incarnation evidence. Both values can be absent. Optional device/network-card indices are distinguished from explicit zero. Multiple possible device-zero interfaces, an unknown device index, or a nonzero primary-card candidate keep the primary interface unknown. Missing attachment time remains null. The ENI creator account is retained as a native field and does not replace the instance reservation owner binding. These distinctions follow the [EC2 instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html), [interface attachment](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterfaceAttachment.html) and [network-interface](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html) contracts.
+
+The private entry point is `source.HardwareIdentityPipeline.Derive(ctx, tenant, parentReceiptID)`. It selects a real ingestion-issued parent tied to an existing individual resource, retrieves exactly its archived S3 object version, verifies returned version and SHA-256, and revalidates the parent hardware projection. It does not create representative ASG resources or enrich unmapped members. Failed, missing or substituted version reads publish nothing.
+
+The new immutable row retains the parent receipt/revision IDs, tenant/account/region/resource/workload binding, original collected and PostgreSQL received times, original versioned raw reference and parent canonical hash (`GO_JSON_V1`). Its decoder version and separate content hash describe the new interpretation. Its own database `created_at` is the actual publication time. Source configuration/version and inventory are rechecked after I/O; a benign registry-version advance with unchanged configuration does not rewrite original parent metadata. Changed configuration, revocation, changed mapping or an active source synchronization blocks new publication and writer replay. Existing observations remain readable as immutable historical facts.
+
+Migration 026 creates forced tenant RLS and append-only `hardware_identity_derivations`. Only `finops_ingester` can insert; `finops_api` can read. Workers, signers, executors and telemetry/activity roles receive no new privileges. The fixed-search-path source helper orders the existing dependency-graph guard, nonblocking shared source-sync guard and exact source-row `FOR SHARE`. Final reads and insert remain inside that transaction. Revocation serializes against the source row. The SQL trigger validates issued-parent closure, source/configuration, mapped identity, raw reference, original times, exact payload hash and bounded metadata; XML semantic decoding remains an explicit ingestion trust boundary.
+
+Every result remains `OBSERVED_ONLY`, `incarnation_status: UNKNOWN`, `interval_ownership: UNPROVEN`, `execution_authorized: false` and `verified_saving: null`. Equal point observations, stable ENI attachment times and body hashes cannot establish complete ASG membership intervals, independent completed-work preservation, native invoice finality or optimization savings.
+
+Acceptance commands use Docker Go 1.27.3 and disposable test infrastructure:
+
+```text
+go test -count=1 ./internal/provider ./internal/source -run '^TestHardwareIdentity'
+go vet ./internal/provider ./internal/source ./internal/store
+node --test scripts/tests/hardware-identity-lab.test.mjs
+node scripts/hardware-identity-lab.mjs
+```
+
+The final command creates only fresh, labelled, isolated local PostgreSQL and versioned MinIO resources. Its module preparation has no credentials and only public lockfiles; credentialed storage tests run without outbound connectivity. Native XML is a provider-shaped double. The runner verifies actual pinned-version storage/readback, original-v1 preservation, process reopen/replay, missing facts, failed readback, revocation during I/O and tenant/process boundaries. It neither migrates the running application database nor commissions customer AWS access. Private logs and a sanitized acceptance record stay under ignored `work/private/hardware-identity/`.

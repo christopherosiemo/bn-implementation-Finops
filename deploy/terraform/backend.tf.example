@@ -1,0 +1,13 @@
+# Copy to backend.tf only after creating a dedicated encrypted state bucket and
+# DynamoDB lock table in eu-west-1. Terraform state contains infrastructure
+# metadata and external IDs; restrict it to deployment operators.
+terraform {
+  backend "s3" {
+    bucket         = "REPLACE-finops-eu-terraform-state"
+    key            = "pilot/terraform.tfstate"
+    region         = "eu-west-1"
+    encrypt        = true
+    kms_key_id     = "REPLACE-state-kms-key-arn"
+    dynamodb_table = "REPLACE-finops-terraform-locks"
+  }
+}

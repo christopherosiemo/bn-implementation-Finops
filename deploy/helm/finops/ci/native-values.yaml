@@ -1,0 +1,11 @@
+# Render-only documentation bindings. No resources or accounts are contacted.
+aws:
+  rawBucket: finops-validation-raw
+telemetry:
+  enabled: true
+  readerRoleArn: arn:aws:iam::123456789012:role/finops-native-reader
+  ingressRoleArn: arn:aws:iam::123456789012:role/finops-native-ingress
+  readBindingsSecret: finops-native-read-bindings
+  bindingCatalogSecret: finops-native-binding-catalog
+  readCredentialsSecret: finops-native-source-credentials
+  httpsEgressCidrs: [203.0.113.0/24]

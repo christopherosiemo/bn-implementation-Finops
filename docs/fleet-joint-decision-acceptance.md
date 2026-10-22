@@ -1,0 +1,233 @@
+# Fleet joint decision: 037 acceptance record
+
+Status: **integration in progress**. Official completion remains **25.4%**.
+This component has no additional accepted milestone credit yet.
+
+The component joins issued 035 account-rate assessments with issued 036
+physical member results. The API accepts identifiers and a current profile
+version, resolves the inputs under the tenant graph lock and queues a
+separately credentialled worker. Results retain exact references and hashes,
+five dimensional observations per member and the original conditional hourly
+scenario. Missing evidence remains unknown. Source change, revocation and
+unsupported retained precision produce explicit immutable refusals.
+
+## Completed bounded checks
+
+- Actual restricted PostgreSQL, JWT/API and production-worker checks passed in
+  run `0e49f0d1-3c6c-4be7-9d8d-81e68aec7eb3`, with no skipped tests and owned
+  cleanup. The positive path publishes an honest unavailable-price/unknown
+  physical decision from issued child records. Direct-role nested-shape,
+  altered authority and incomplete population insertions were rejected.
+  Revocation prevents new publication, records an immutable refusal and
+  preserves the earlier result. A current proof set cannot be falsely labelled
+  stale. These fixtures do not establish native price or physical-model
+  acceptance for the complete join.
+- Linux Node 22 bootstrap checks passed in run
+  `a2d931d9-76df-4fdb-8205-e3d70b0281da`. Optional provisioning writes only
+  private local material and operator-reviewed SQL; it connects to neither
+  PostgreSQL nor AWS. Default disabled mode provisions no login or file.
+- Actual Helm render and dedicated credential/network assertions passed in
+  run `fece9ef0-b364-4c09-a089-28ad760ad283`. Nineteen unsafe value sets were
+  refused. The generic chart checker independently passed the rendered
+  deployment in run `0248569e-8b13-40fd-92c3-66a51c4dc4cf`.
+- Actual Compose parsing passed in run
+  `9388fe8c-8425-4981-95b5-f71683180238`. Both optional services remain out of
+  the default installation; only the separate database file is a runtime
+  credential. No service or cloud resource was started by these render checks.
+
+Source manifests distinguish unpublished candidates from indexed source.
+Subsequent revisions require their own checks; the entries above do not prove
+later source changes. The earlier 36 migration files remain immutable.
+
+The later coherent snapshot passed 79 focused tests without skips and vet in
+run `75481d64-9fc3-47b3-ac1a-a3db0fcf2515`, with owned cleanup. It binds each
+decision to its issued request, including two separate requests with identical
+evidence and observation time, and rejects a resealed cross-request result.
+The shared production billing-fact publisher preserves canonical decimal
+amounts and is reused by the native fixture. Bridge and both daemon binaries
+compile; this does not establish actual native runtime or ClickHouse readback.
+
+First candidate rehearsal `538244f0-45ea-4181-b4f5-61cd69984f63` is retained as
+**FAIL**, phase `PREPARE_BROWSER_DEPENDENCIES`. Offline service and daemon
+compilation plus vet completed. A reused secret-volume guard correctly refused
+the new runner's namespace before runtime acceptance. Owned cleanup passed.
+Receipt SHA-256: `05301bc26c7d6da02d62a349ea498db6294a5f94424612f83c9988db8895cc57`.
+Its source kind was explicitly `CANDIDATE_OVERLAY_ON_GIT_INDEX_BLOBS`; it is
+neither native nor indexed cold acceptance. The accepted 036 guard remains
+unchanged while a separate exact joint namespace boundary is corrected.
+
+Indexed rehearsal `c1335cdc-4f79-4827-b3fa-e16fe17fe4dd`, tree
+`e1b5183d305a36bde4403e4b85accd301673462a`, is also retained as **FAIL**.
+It passed compilation, both credential initializers, native model persistence,
+capacity-worker replacement and actual 1,032-row canonical financial
+ClickHouse readback. Real OIDC produced a capacity POST 202 and authenticated
+GET 200 responses, but the original capacity-result poll expired at its
+unchanged 60-second deadline before the joint phase. The error hash matches
+that fixed timeout; it does not establish a frontend exception. Timestamp-free
+IDLE summaries do not establish queue visibility or model progress. A scoped
+timing diagnostic is required before attributing or correcting the delay.
+Owned cleanup passed; main resources and cloud accounts were unchanged.
+Receipt SHA-256: `cd06bfe4c3c809861ae6abd65f764ade5873cf48bf433e1de143584a3b7ec935`.
+No successful joint-worker replacement, joint browser result or extra
+completion credit follows from this failed rehearsal.
+
+Private timing diagnostic `b8deff77-103a-4795-a667-13ac43984c62`
+preserves that same indexed application source and the original failed client
+outcome. Its shared compiler caches make it explicitly noncold and ineligible
+for acceptance credit. The actual browser request committed at
+15:06:17.491289 UTC, its scope persisted 8.723 seconds later, and its complete
+batch persisted after 65.520 seconds. Two members had real model results; the
+third retained missing statistics. The sampled sessions showed continued work
+and no observed database lock wait. This establishes late completion in this
+diagnostic, rather than an unseen queue. The 8.723 seconds includes capture
+work and cannot all be attributed to polling. Cleanup passed and the shared
+caches retained their original ownership.
+Diagnostic receipt SHA-256: `b4536af1a2699a1160c7513b87491c27b0661daa33e309b8af535a5b94d5b855`.
+
+The resulting correction reduces idle capacity polling from ten seconds to
+one second, preserves serial processing and the five-minute job budget, and
+avoids deriving telemetry segments and their provenance hashes twice in a
+single native request. Nine pre-change history fixtures and two complete
+population JSON/hash fixtures remain identical, including gaps, observed zero,
+counter resets, conflicts and histogram uncertainty. Focused telemetry/native
+checks passed with five external PG/Python cases explicitly unconfigured;
+these do not replace the final connected native run. The queue wake regression
+passed twenty package repetitions and vet. The complete Linux Node 22/Git guard
+suite passed 363 checks without skips. A Windows symlink-permission failure and
+an initial local Linux test-container noexec configuration remain distinct
+tooling failures; rerunning with executable private test scratch passed.
+
+Remote rehearsal `96a026c7-1a8f-48ec-b0c2-a0277f0eff15` in CI
+`39273848287` also failed at `REAL_OIDC_CALCULATED_MEMBER_BROWSER`, with
+successful owned cleanup and identical source/host pins to the indexed local
+failure. Its uploaded receipt omitted the inner browser reason, so it cannot
+establish the same timeout. Subsequent failure receipts retain only a validated
+browser phase and fixed reason code, or null when unavailable. No arbitrary
+errors, response bodies or observations are added to public artifacts.
+Remote receipt SHA-256: `0d7d40a3e9f6ba49438216fd07ed7ed0ca9a563b03ee3ec6062ed5807e986b44`.
+
+Corrected indexed rehearsal `ab8765cc-6c21-4a8f-8922-dd73d4c8927c`, tree
+`a09515e988084f80c4912340eca12029e148bd87`, is retained as **FAIL**. The
+capacity result passed the unchanged 60-second poll; the real console fetched
+and rendered its persisted calculated member. Native model persistence,
+capacity-worker replacement and 1,032-row financial readback also completed.
+The coordinator then rejected the joint input pair with SQLSTATE `P0001` and
+stopped its API. The browser consequently failed during capacity reload,
+before the finance actor submitted a joint decision. Its bounded failure is
+`PERSISTED_RELOAD` / `BROWSER_CHECK_FAILED`. This does not establish joint
+worker recovery, a successful reload or complete native acceptance. Owned
+cleanup succeeded; no main or cloud resources were modified.
+Receipt SHA-256: `bd5363dd01e7fe92d8eaaae1078ec884d0ec8c768c147c5a4e5a0b33da423bf6`.
+
+A subsequent credential review found that 037's dedicated login relied on
+the deployment tenant setting rather than an independent database tenant
+binding. New additive migration 038 closes that boundary using the actual
+session login and live role OID, an operator-installed immutable binding and
+append-only revocation. The original 001–037 migration bytes remain frozen.
+Actual two-tenant credential, bootstrap compatibility and migration recovery
+acceptance are required before commissioning this optional process. Earlier
+API cross-tenant checks do not by themselves prove containment of a leaked
+database credential. This correction earns no additional milestone credit
+until its connected acceptance passes.
+
+Bounded candidate credential checks passed in actual restricted PostgreSQL
+run `8c0478ce-e0c3-47e8-bc11-4a1560ad30a8`, with worker/command checks, vet
+and owned cleanup. Both tenants contain independently issued requests,
+decisions and refusals. Changing the tenant GUC, using raw login or `RESET
+ROLE`, calling the public/private resolver and publishing another tenant's
+otherwise valid evidence are rejected. The same direct decision and refusal
+inserts first succeed for their legitimate tenant in rollback-only positive
+controls. Actual lock waits exercise publication before revocation and
+revocation before publication. Renaming or recreating the login does not
+inherit its binding. Authenticated API history survives machine revocation.
+Linux Node 22 bootstrap run `f429f3ef-b69b-47e8-97b7-760a9402b61f` passed four cases without skips,
+including unchanged legacy material and separate OID-pinned upgrade output.
+The earlier weaker direct-write negative remains distinct from this retake;
+neither component run establishes the final native or installed migration gate.
+
+Final credential snapshot `7666a987-80cc-49d2-824b-f370e2a2ebd8` passed the
+coherent domain, worker, command, existing 037 store/service and new credential
+checks, with no skips, vet and owned cleanup. It additionally establishes a
+real `REPEATABLE READ` snapshot before an operator revocation, then rejects
+scope, reads, resolver access and direct publication after that revocation.
+`SERIALIZABLE` is also refused; normal `READ COMMITTED` operation and API
+history remain available. This closes the retained-snapshot edge rather than
+assuming the application transaction settings contain a stolen credential.
+Final 038 SHA-256:
+`789d53114532af2b831fc2e2c011b5d15e7df2b72affafb2068fc4a84a6ee984`.
+
+Indexed 038 rehearsal `247fa212-a36a-4369-9991-39e404b90546`, published
+source `d131` and tree
+`557f4e676f4af0a0041a8c4da24585e8a7a742cf`, is retained as **FAIL**.
+It completed actual native model persistence, capacity-worker replacement,
+1,032-row canonical financial readback and conditional joint-input issuance.
+The real OIDC console rendered the calculated capacity result on desktop and
+mobile. The separate finance actor then submitted the IDs-only joint request
+and received HTTP 202. Original-worker blocking and replacement handoff
+markers were retained, but they do not establish the complete replacement
+proof or a published joint result.
+
+The coordinator reported `joint original database process remains` during
+its database absence assertion and stopped the fixture API. Three joint-detail
+GETs had returned HTTP 200; the next returned HTTP 502. The browser's retained
+inner error hash exactly matches its `502 !== 200` assertion, rather than the
+fixed 60-second result timeout. This records the observed assertion and API
+cascade; that failed run alone does not establish the PostgreSQL mechanism.
+No browser, selector or deadline correction follows from
+this evidence. No joint screenshot or successful joint reload was produced.
+
+Failure receipt SHA-256:
+`f43ed69ca637baabe6870396327bdfc5a76dccefcee35cc1d54a2b712a231e4a`.
+Owned cleanup succeeded with zero published ports; main resources were not
+modified and no cloud credentials were used. Provider transports and historical
+workloads remain explicit fixture doubles. Customer execution remains false,
+verified savings remain null, and this partial rehearsal earns no additional
+acceptance or completion credit.
+
+Separate isolated reproduction `b09852d6-15d6-478b-87e9-8262515fef2a`
+passed with actual PostgreSQL and forced client-container removal. The exact
+old server backend remained an advisory waiter while the guard was held, and
+a distinct replacement waited behind the same guard. Releasing the guard
+allowed the old backend to disappear; exactly one terminal record came from
+the replacement. No server backend was forcibly terminated. Owned cleanup
+passed. The corrected native coordinator retains both process witnesses,
+releases the guard before its bounded old-backend exit check, and requires one
+decision, zero refusals and immutable same-hash worker replay. This focused
+reproduction does not replace the full indexed native acceptance.
+
+## Required integration and release gates
+
+The subsequent fixed-deadline rehearsal also remains a failure: capacity work
+did not finish within sixty seconds. Profiling identified repeated telemetry
+serialization and distribution sorting. Request-local encoding and model reuse
+preserve complete population bytes, issued model hashes, missing observations
+and horizon-specific calibration. Focused equivalence checks do not establish
+the native deadline. The full indexed flow must pass with the original quota,
+population and deadline before release acceptance.
+
+Actual PostgreSQL/JWT acceptance also distinguishes concurrent source Sync
+from invalid evidence. Configuration recording retries only typed contention,
+after rolling back the complete transaction and releasing its locks. A released
+source produces one record and immutable replay; changed bindings still fail
+with 422. Continued contention returns 503 after a bounded wait without a
+partial proposal, audit record or idempotency result. This does not establish
+the cause of the earlier CI browser failure.
+
+Connect actual archived native hardware and billing,
+Prometheus/ClickHouse telemetry, Python capacity results, the restricted joint
+worker and a real OIDC browser request. The browser must create the request
+through the IDs-only API, inspect conditional prices and per-member evidence,
+show unavailable amounts and refusal reasons, and reload the persisted result.
+
+Exercise actual decision-worker removal/replacement with queue ownership
+preserved, migration with an owned scheduling restoration, generated-contract
+checks, the final browser suite, secret/dependency scans and every required
+job on the final published commit. A candidate-overlay rehearsal must never
+be described as an indexed cold acceptance.
+
+All authority remains deliberately absent: group capacity, independently
+preserved completed business work, contracted avoidable costs, plan eligibility,
+customer mutation and verified savings are not established by this join.
+Conditional differences may be positive, zero or negative; they are not verified
+savings. Customer-native sources, genuine history, action-specific feasibility,
+supervised deployment and sustained production acceptance remain separate gates.

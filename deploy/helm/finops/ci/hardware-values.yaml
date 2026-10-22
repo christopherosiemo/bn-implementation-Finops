@@ -1,0 +1,9 @@
+# Render with aws-readonly-values.yaml; no credentials or customer calls.
+sources:
+  readBindingsSecret: finops-hardware-approved-read-bindings
+hardware:
+  enabled: true
+  roleArn: arn:aws:iam::123456789012:role/finops-hardware-reader
+  targetsSecret: finops-hardware-exact-targets
+  httpsEgressCidrs: ["10.40.1.0/24"]
+  postgresEgressCidrs: ["10.42.10.0/24", "10.42.11.0/24"]

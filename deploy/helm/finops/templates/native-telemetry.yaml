@@ -1,0 +1,126 @@
+{{- if .Values.telemetry.enabled }}
+{{- if has .Values.telemetry.audience (list .Values.oidc.audience .Values.activity.audience) }}{{ fail "telemetry.audience must differ from human and activity audiences" }}{{ end }}
+{{- $_ := required "telemetry.readerTokenSecret is required" .Values.telemetry.readerTokenSecret }}
+{{- range $nativeArn := list .Values.telemetry.readerRoleArn .Values.telemetry.ingressRoleArn }}
+{{- if and $nativeArn (has $nativeArn (list $.Values.aws.ingesterRoleArn $.Values.aws.signerRoleArn $.Values.aws.executorRoleArn)) }}{{ fail "native telemetry cannot reuse ingestion, signing or execution IRSA identities" }}{{ end }}
+{{- end }}
+{{- if eq .Values.dataMode "aws" }}
+{{- $_ := required "telemetry.readerRoleArn required for native reader storage" .Values.telemetry.readerRoleArn }}
+{{- $_ := required "telemetry.ingressRoleArn required for native ingress storage" .Values.telemetry.ingressRoleArn }}
+{{- if eq .Values.telemetry.readerRoleArn .Values.telemetry.ingressRoleArn }}{{ fail "native reader and ingress require distinct IRSA roles" }}{{ end }}
+{{- if eq (len .Values.telemetry.httpsEgressCidrs) 0 }}{{ fail "telemetry.httpsEgressCidrs must list approved destination networks" }}{{ end }}
+{{- end }}
+{{- if or (has "0.0.0.0/0" .Values.telemetry.httpsEgressCidrs) (has "::/0" .Values.telemetry.httpsEgressCidrs) }}{{ fail "native telemetry egress cannot be world-open" }}{{ end }}
+{{- range .Values.telemetry.httpsEgressCidrs }}{{ if regexMatch "/0$" . }}{{ fail "native telemetry egress cannot use a zero prefix" }}{{ end }}{{ end }}
+{{- range $role := list "telemetry-reader" "telemetry-ingress" }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+    finops-role: {{ $role }}
+  {{- $arn := $.Values.telemetry.readerRoleArn }}
+  {{- if eq $role "telemetry-ingress" }}{{ $arn = $.Values.telemetry.ingressRoleArn }}{{ end }}
+  {{- if $arn }}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ $arn | quote }}
+  {{- end }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+    finops-role: {{ $role }}
+spec:
+  replicas: {{ if eq $role "telemetry-reader" }}{{ $.Values.telemetry.readerReplicas }}{{ else }}{{ $.Values.telemetry.ingressReplicas }}{{ end }}
+  selector:
+    matchLabels: {finops-role: {{ $role }}}
+  template:
+    metadata:
+      labels:
+        {{- include "finops.labels" $ | nindent 8 }}
+        finops-role: {{ $role }}
+    spec:
+      serviceAccountName: finops-{{ $role }}
+      terminationGracePeriodSeconds: 60
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: {{ $role }}
+          image: {{ include "finops.image" $.Values.images.backend | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          ports: [{name: http, containerPort: 8080}]
+          env:
+            - {name: APP_ROLE, value: {{ $role | quote }}}
+            - {name: PORT, value: "8080"}
+            - {name: FIXTURE_MODE, value: {{ eq $.Values.dataMode "fixture" | quote }}}
+            - {name: AWS_REGION, value: {{ $.Values.aws.region | quote }}}
+            - {name: AWS_STS_REGIONAL_ENDPOINTS, value: regional}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ index $.Values.database.secrets $role }}, key: DATABASE_URL}
+            - {name: OBJECT_ENDPOINT, value: {{ $.Values.objectStorage.endpoint | quote }}}
+            - {name: OBJECT_REGION, value: {{ $.Values.aws.region | quote }}}
+            - {name: OBJECT_BUCKET_RAW, value: {{ $.Values.aws.rawBucket | quote }}}
+            - {name: CLICKHOUSE_URL, value: {{ include "finops.clickhouse" $ | quote }}}
+            - {name: CLICKHOUSE_DATABASE, value: {{ $.Values.clickhouseCredentials.database | quote }}}
+            - {name: CLICKHOUSE_USER, value: {{ $.Values.clickhouseCredentials.username | quote }}}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.secrets.clickhouse }}, key: password}
+            {{- if eq $role "telemetry-reader" }}
+            - name: TELEMETRY_READER_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.telemetry.readerTokenSecret }}, key: TELEMETRY_READER_TOKEN}
+            {{- if $.Values.telemetry.readBindingsSecret }}
+            - name: TELEMETRY_READ_BINDINGS_JSON
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.telemetry.readBindingsSecret }}, key: TELEMETRY_READ_BINDINGS_JSON}
+            {{- end }}
+            {{- else }}
+            - {name: OIDC_ISSUER, value: {{ $.Values.oidc.issuer | quote }}}
+            - {name: OIDC_AUDIENCE, value: {{ $.Values.oidc.audience | quote }}}
+            - {name: TELEMETRY_OIDC_ISSUER, value: {{ default $.Values.oidc.issuer $.Values.telemetry.issuer | quote }}}
+            - {name: TELEMETRY_OIDC_AUDIENCE, value: {{ $.Values.telemetry.audience | quote }}}
+            {{- if or $.Values.telemetry.jwksUrl $.Values.oidc.jwksUrl }}
+            - {name: TELEMETRY_OIDC_JWKS_URL, value: {{ default $.Values.oidc.jwksUrl $.Values.telemetry.jwksUrl | quote }}}
+            {{- end }}
+            {{- end }}
+          startupProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 20}
+          resources: {{ if eq $role "telemetry-reader" }}{{ toYaml $.Values.telemetry.readerResources | nindent 12 }}{{ else }}{{ toYaml $.Values.telemetry.ingressResources | nindent 12 }}{{ end }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: rds-ca, mountPath: /etc/finops/rds, readOnly: true}
+            {{- if and (eq $role "telemetry-reader") $.Values.telemetry.readCredentialsSecret }}
+            - {name: read-credentials, mountPath: /etc/finops/prometheus-credentials, readOnly: true}
+            {{- end }}
+      volumes:
+        - {name: tmp, emptyDir: {sizeLimit: 64Mi}}
+        - {name: rds-ca, configMap: {name: {{ $.Values.database.caConfigMap }}}}
+        {{- if and (eq $role "telemetry-reader") $.Values.telemetry.readCredentialsSecret }}
+        - name: read-credentials
+          secret: {secretName: {{ $.Values.telemetry.readCredentialsSecret }}, defaultMode: 0440}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-{{ $role }}
+  labels:
+    {{- include "finops.labels" $ | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {finops-role: {{ $role }}}
+  ports: [{name: http, port: 8080, targetPort: http}]
+{{- end }}
+{{- end }}

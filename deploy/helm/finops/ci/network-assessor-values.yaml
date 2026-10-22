@@ -1,0 +1,12 @@
+# Render-only values. These are existing Secret names and documentation
+# networks, not credentials or provisioned infrastructure.
+networkAssessor:
+  enabled: true
+  evidenceReaderSecret: finops-network-evidence-reader
+  httpsEgressCidrs: [10.44.16.0/24]
+  postgresEgressCidrs: [10.44.32.0/24]
+objectStorage:
+  endpoint: https://evidence.example.invalid
+sources:
+  networkReadonlyEnabled: true
+  networkReadBindingsSecret: finops-network-read-bindings

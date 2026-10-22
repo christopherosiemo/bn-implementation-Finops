@@ -1,0 +1,4 @@
+# Render-only receipt observer. Example ranges are documentation, not routing.
+deploymentObserver:
+  enabled: true
+  httpsEgressCidrs: [192.0.2.0/24]

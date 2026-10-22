@@ -1,0 +1,11 @@
+# Render-only values. These are existing Secret names and documentation
+# networks, not credentials or provisioned infrastructure.
+objectStorageAssessor:
+  enabled: true
+  evidenceReaderSecret: finops-object-storage-evidence-reader
+  httpsEgressCidrs: [10.44.16.0/24]
+  postgresEgressCidrs: [10.44.32.0/24]
+objectStorage:
+  endpoint: https://evidence.example.invalid
+sources:
+  objectIdentitySecret: finops-s3-object-identities

@@ -1,0 +1,100 @@
+{{- if .Values.ingress.enabled }}
+{{- $host := required "ingress.hostname required" .Values.ingress.hostname }}
+{{- $cert := required "ingress.certificateArn must identify an issued ACM certificate in eu-west-1" .Values.ingress.certificateArn }}
+{{- if not (hasPrefix "arn:aws:acm:eu-west-1:" $cert) }}{{ fail "ACM certificate must be in eu-west-1" }}{{ end }}
+{{- if or (eq (len .Values.ingress.inboundCidrs) 0) (has "0.0.0.0/0" .Values.ingress.inboundCidrs) (has "::/0" .Values.ingress.inboundCidrs) }}{{ fail "Configure explicit ingress.inboundCidrs without world-open access" }}{{ end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finops
+  annotations:
+    alb.ingress.kubernetes.io/scheme: {{ .Values.ingress.scheme | quote }}
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: {{ $cert | quote }}
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/inbound-cidrs: {{ join "," .Values.ingress.inboundCidrs | quote }}
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/load-balancer-attributes: deletion_protection.enabled=true,routing.http.drop_invalid_header_fields.enabled=true
+spec:
+  ingressClassName: alb
+  tls:
+    - hosts: [{{ $host | quote }}]
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          {{- if and .Values.deploymentObserver.enabled .Values.deploymentObserver.ingressEnabled }}
+          - path: /v1/deployment-callbacks/
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-deployment-observer
+                port: {number: 8080}
+          {{- end }}
+          {{- if and .Values.telemetry.enabled .Values.telemetry.ingressEnabled }}
+          - path: /v1/metrics
+            pathType: Exact
+            backend:
+              service:
+                name: finops-telemetry-ingress
+                port: {number: 8080}
+          {{- end }}
+          - path: /v1/activity/intervals
+            pathType: Exact
+            backend:
+              service:
+                name: finops-activity-ingress
+                port: { number: 8080 }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finops-web
+                port: { number: 80 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-alb-web-ingress
+spec:
+  podSelector:
+    matchLabels: { finops-role: web }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: {{ .Values.ingress.vpcCidr }} }
+      ports: [{ protocol: TCP, port: {{ .Values.web.containerPort }} }]
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-alb-activity-ingress
+spec:
+  podSelector:
+    matchLabels: { finops-role: activity-ingress }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: {{ .Values.ingress.vpcCidr }} }
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.networkPolicy.enabled .Values.telemetry.enabled .Values.telemetry.ingressEnabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-alb-native-ingress
+spec:
+  podSelector:
+    matchLabels: {finops-role: telemetry-ingress}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: {cidr: {{ .Values.ingress.vpcCidr }}}
+      ports: [{protocol: TCP, port: 8080}]
+{{- end }}

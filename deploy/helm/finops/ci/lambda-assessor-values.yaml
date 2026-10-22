@@ -1,0 +1,8 @@
+# Render only: existing identities and private networks; no resources are provisioned.
+lambdaAssessor:
+  enabled: true
+  evidenceReaderSecret: finops-lambda-evidence-reader
+  httpsEgressCidrs: [10.44.16.0/24]
+  postgresEgressCidrs: [10.44.32.0/24]
+objectStorage:
+  endpoint: https://evidence.example.invalid

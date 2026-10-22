@@ -1,0 +1,18 @@
+# Render-only fixture: symbolic existing Secret names and documentation ARNs.
+# No Secret, provider account, source registration or ownership fact is created.
+dataMode: aws
+aws:
+  tenantId: tenant-aws-readonly-test
+  readRoleArn: arn:aws:iam::123456789012:role/finops-pilot-read
+  ingesterRoleArn: arn:aws:iam::123456789012:role/finops-pilot-ingester
+  rawBucket: finops-validation-raw
+  auditBucket: finops-validation-audit
+  executionRoleArn: ""
+  executorRoleArn: ""
+health:
+  allowedHosts: ""
+sources:
+  readBindingsSecret: finops-approved-source-bindings
+  commitmentQuoteTargetsSecret: finops-commitment-quote-targets
+  controllerBindingsSecret: finops-controller-bindings
+  ownershipArchiveTargetsSecret: finops-ownership-archive-targets

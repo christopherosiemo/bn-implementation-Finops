@@ -1,0 +1,180 @@
+{{- if .Values.storageClass.create }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: finops-gp3
+provisioner: ebs.csi.aws.com
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3
+  encrypted: "true"
+  fsType: ext4
+{{- end }}
+{{- if .Values.clickhouse.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finops-clickhouse-init
+data:
+  001_facts.sql: |
+{{ .Files.Get "files/001_facts.sql" | indent 4 }}
+  listen.xml: |
+    <clickhouse><listen_host replace="replace">0.0.0.0</listen_host></clickhouse>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-clickhouse
+spec:
+  clusterIP: None
+  selector: { finops-role: clickhouse }
+  ports:
+    - { name: http, port: 8123, targetPort: 8123 }
+    - { name: native, port: 9000, targetPort: 9000 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: finops-clickhouse
+spec:
+  serviceName: finops-clickhouse
+  replicas: 1
+  selector:
+    matchLabels: { finops-role: clickhouse }
+  template:
+    metadata:
+      labels:
+        {{- include "finops.labels" . | nindent 8 }}
+        finops-role: clickhouse
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: clickhouse
+          image: {{ include "finops.image" .Values.images.clickhouse | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          env:
+            - { name: CLICKHOUSE_USER, value: finops }
+            - { name: CLICKHOUSE_DB, value: finops }
+            - { name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT, value: "1" }
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.clickhouse }}, key: password }
+          ports:
+            - { name: http, containerPort: 8123 }
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 60
+          resources: {{ toYaml .Values.clickhouse.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/clickhouse }
+            - { name: logs, mountPath: /var/log/clickhouse-server }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d/001_facts.sql, subPath: 001_facts.sql, readOnly: true }
+            - { name: init, mountPath: /etc/clickhouse-server/config.d/listen.xml, subPath: listen.xml, readOnly: true }
+      volumes:
+        - name: logs
+          emptyDir: { sizeLimit: 256Mi }
+        - name: init
+          configMap: { name: finops-clickhouse-init }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: {{ .Values.clickhouse.storageClass }}
+        resources:
+          requests: { storage: {{ .Values.clickhouse.storageSize }} }
+{{- end }}
+{{- if .Values.temporal.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-temporal
+spec:
+  selector: { finops-role: temporal }
+  ports:
+    - { name: grpc, port: 7233, targetPort: 7233 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-temporal
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { finops-role: temporal }
+  template:
+    metadata:
+      labels:
+        {{- include "finops.labels" . | nindent 8 }}
+        finops-role: temporal
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: temporal
+          image: {{ include "finops.image" .Values.images.temporal | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          ports:
+            - { name: grpc, containerPort: 7233 }
+          env:
+            - { name: DB, value: postgres12 }
+            - { name: DB_PORT, value: "5432" }
+            - { name: DBNAME, value: temporal }
+            - { name: VISIBILITY_DBNAME, value: temporal_visibility }
+            - { name: POSTGRES_SEEDS, value: {{ .Values.database.host | quote }} }
+            - { name: POSTGRES_TLS_ENABLED, value: "true" }
+            - { name: POSTGRES_TLS_DISABLE_HOST_VERIFICATION, value: "false" }
+            - { name: POSTGRES_TLS_SERVER_NAME, value: {{ .Values.database.host | quote }} }
+            - { name: POSTGRES_TLS_CA_FILE, value: /etc/finops/rds/ca.crt }
+            - { name: SKIP_DB_CREATE, value: "true" }
+            - { name: DEFAULT_NAMESPACE, value: {{ .Values.temporal.namespace | quote }} }
+            - { name: DEFAULT_NAMESPACE_RETENTION, value: {{ .Values.temporal.retention | quote }} }
+            - { name: SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES, value: "true" }
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.temporal }}, key: username }
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.secrets.temporal }}, key: password }
+          startupProbe:
+            tcpSocket: { port: grpc }
+            failureThreshold: 120
+            periodSeconds: 5
+          readinessProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 10
+          resources: {{ toYaml .Values.temporal.resources | nindent 12 }}
+          volumeMounts:
+            - { name: rds-ca, mountPath: /etc/finops/rds, readOnly: true }
+      volumes:
+        - name: rds-ca
+          configMap: { name: {{ .Values.database.caConfigMap }} }
+{{- end }}

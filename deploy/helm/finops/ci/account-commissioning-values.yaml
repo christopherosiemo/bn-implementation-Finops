@@ -1,0 +1,7 @@
+sources:
+  accountApprovedBindingsJSON: '{"ireland-read":{"tenant_id":"tenant-demo","account_id":"111122223333","regions":["eu-west-1"],"role_arn":"arn:aws:iam::111122223333:role/ApprovedReadOnly","scope_mode":"ACCOUNT","external_id_configured":true}}'
+  accountReadBindingsSecret: finops-approved-account-read
+configurationRevision:
+  # Render-only references to an operator-provided, read-only local checkout.
+  existingClaim: finops-approved-repository-mirror
+  bindingsJSON: '{"tenant-demo:approved-terraform":{"tenant_id":"tenant-demo","authority_id":"approved-terraform","repository_root":"/var/run/finops/configuration-revisions/tenant-demo/infrastructure","repository":{"url":"https://github.com/example/approved-infrastructure.git","ref":"main","directory":"terraform"}}}'

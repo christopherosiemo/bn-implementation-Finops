@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": ["arn:aws:s3:::finops-raw/tenant/tenant-demo/*"],
+      "Condition": {"Null": {"s3:versionid": "true"}}
+    },
+    {
+      "Effect": "Deny",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": ["arn:aws:s3:::finops-raw/tenant/tenant-demo/*"],
+      "Condition": {"StringEquals": {"s3:versionid": ["", "null"]}}
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObjectVersion"],
+      "Resource": ["arn:aws:s3:::finops-raw/tenant/tenant-demo/*"]
+    }
+  ]
+}

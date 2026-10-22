@@ -1,0 +1,80 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-dns-and-https
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: finops-role, operator: NotIn, values: [telemetry-reader, telemetry-ingress, deployment-observer, hardware-reader, fleet-history-reader, fleet-assessment, database-assessor, storage-assessor, object-storage-assessor, network-assessor, lambda-assessor, aws-service-assessor, {{ if .Values.lambdaPerformance.enabled }}activity-ingress, {{ end }}fleet-capacity, fleet-decision, commitment-portfolio, commitment-portfolio-model]}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-postgres-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: finops-role
+        operator: In
+        values: [api, worker, ingester, signer, executor, activity-ingress, telemetry-reader, telemetry-ingress, deployment-observer, migrate, temporal]
+  policyTypes: [Egress]
+  egress:
+    - ports: [{ protocol: TCP, port: 5432 }]
+{{- range $role, $sources := dict "api" (list "web") "economics" (list "api" "ingester") "signer" (list "worker") "executor" (list "worker") "temporal" (list "api" "worker") "clickhouse" (list "ingester" "telemetry-reader" "telemetry-ingress") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-ingress-{{ $role }}
+spec:
+  podSelector:
+    matchLabels: { finops-role: {{ $role }} }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range $source := $sources }}
+        - podSelector:
+            matchLabels: { finops-role: {{ $source }} }
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ if eq $role "economics" }}8000{{ else if eq $role "temporal" }}7233{{ else if eq $role "clickhouse" }}8123{{ else }}8080{{ end }} }
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finops-internal-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: finops-role, operator: In, values: [web, api, worker, ingester] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - { key: finops-role, operator: In, values: [api, economics, signer, executor, temporal, clickhouse] }
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 8000 }
+        - { protocol: TCP, port: 7233 }
+        - { protocol: TCP, port: 8123 }
+{{- end }}

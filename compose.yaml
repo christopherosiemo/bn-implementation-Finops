@@ -1,0 +1,979 @@
+name: cloud-cost-autopilot
+
+x-go: &go
+  image: cloud-cost-autopilot-go:local
+  build:
+    context: .
+    dockerfile: Dockerfile.backend
+  restart: unless-stopped
+  networks: [private]
+
+x-common: &common
+  FIXTURE_MODE: ${FIXTURE_MODE:-true}
+  AWS_REGION: eu-west-1
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: default
+  ECONOMICS_URL: http://economics:8000
+  SIGNER_URL: http://signer:8091
+  EXECUTOR_URL: http://executor:8092
+  SIGNING_PUBLIC_KEY: ${SIGNING_PUBLIC_KEY:?Run node scripts/bootstrap.mjs}
+  OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+  OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+  OIDC_AUDIENCE: finops
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/bootstrap.mjs}
+      POSTGRES_DB: finops
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d finops']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+
+  migrate:
+    <<: *go
+    restart: 'no'
+    environment:
+      APP_ROLE: migrate
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/finops?sslmode=disable
+      DB_API_PASSWORD: ${DB_API_PASSWORD}
+      DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD}
+      DB_SIGNER_PASSWORD: ${DB_SIGNER_PASSWORD}
+      DB_EXECUTOR_PASSWORD: ${DB_EXECUTOR_PASSWORD}
+      DB_INGESTER_PASSWORD: ${DB_INGESTER_PASSWORD}
+      DB_ACTIVITY_PASSWORD: ${DB_ACTIVITY_PASSWORD}
+      DB_TELEMETRY_READER_PASSWORD: ${DB_TELEMETRY_READER_PASSWORD}
+      DB_TELEMETRY_INGRESS_PASSWORD: ${DB_TELEMETRY_INGRESS_PASSWORD}
+      DB_DEPLOYMENT_OBSERVER_PASSWORD: ${DB_DEPLOYMENT_OBSERVER_PASSWORD:-}
+      DB_HARDWARE_READER_PASSWORD: ${DB_HARDWARE_READER_PASSWORD:-}
+      DB_GROUP_ASSESSOR_PASSWORD: ${DB_GROUP_ASSESSOR_PASSWORD:-}
+      DB_DATABASE_ANALYST_PASSWORD: ${DB_DATABASE_ANALYST_PASSWORD:-}
+      DB_STORAGE_ANALYST_PASSWORD: ${DB_STORAGE_ANALYST_PASSWORD:-}
+      DB_NETWORK_ANALYST_PASSWORD: ${NETWORK_DATABASE_PASSWORD:-}
+      DB_LAMBDA_ANALYST_PASSWORD: ${LAMBDA_DATABASE_PASSWORD:-}
+      DB_SERVICE_ANALYST_PASSWORD: ${SERVICE_DATABASE_PASSWORD:-}
+      DB_OBJECT_STORAGE_ANALYST_PASSWORD: ${DB_OBJECT_STORAGE_ANALYST_PASSWORD:-}
+      DB_GROUP_CAPACITY_PASSWORD: ${DB_GROUP_CAPACITY_PASSWORD:-}
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    environment:
+      DB: postgres12
+      DB_PORT: '5432'
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: postgres
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, temporal, operator, cluster, health, --address, 'temporal:7233']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    networks: [private]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: [start-dev, --import-realm]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: local-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HEALTH_ENABLED: 'true'
+    ports: ['127.0.0.1:${KEYCLOAK_PORT:-8081}:8080']
+    volumes:
+      - ./work/keycloak:/opt/keycloak/data/import:ro
+      - keycloak:/opt/keycloak/data
+    networks: [private]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8-alpine
+    environment:
+      CLICKHOUSE_DB: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - ./config/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ./config/clickhouse-server/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- http://127.0.0.1:8123/ping | grep -q Ok']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+
+  minio:
+    image: cloud-cost-autopilot-minio:local
+    build:
+      context: .
+      dockerfile: Dockerfile.local-object-store
+      target: minio
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: [minio:/data]
+    networks: [private]
+
+  buckets:
+    image: cloud-cost-autopilot-mc:local
+    build:
+      context: .
+      dockerfile: Dockerfile.local-object-store
+      target: mc
+    entrypoint: [timeout, --signal=TERM, --kill-after=2s, 180s, /bin/sh, /config/init-buckets.sh]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      AUDIT_ACCESS_KEY: ${AUDIT_ACCESS_KEY}
+      AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
+      DATABASE_ASSESSOR_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY:-}
+      DATABASE_ASSESSOR_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY:-}
+      STORAGE_ASSESSOR_ACCESS_KEY: ${STORAGE_ASSESSOR_ACCESS_KEY:-}
+      STORAGE_ASSESSOR_SECRET_KEY: ${STORAGE_ASSESSOR_SECRET_KEY:-}
+      NETWORK_ASSESSOR_ACCESS_KEY: ${NETWORK_ASSESSOR_ACCESS_KEY:-}
+      NETWORK_ASSESSOR_SECRET_KEY: ${NETWORK_ASSESSOR_SECRET_KEY:-}
+      LAMBDA_ASSESSOR_ACCESS_KEY: ${LAMBDA_ASSESSOR_ACCESS_KEY:-}
+      LAMBDA_ASSESSOR_SECRET_KEY: ${LAMBDA_ASSESSOR_SECRET_KEY:-}
+      SERVICE_ASSESSOR_ACCESS_KEY: ${SERVICE_ASSESSOR_ACCESS_KEY:-}
+      SERVICE_ASSESSOR_SECRET_KEY: ${SERVICE_ASSESSOR_SECRET_KEY:-}
+      LAMBDA_PERFORMANCE_ACCESS_KEY: ${LAMBDA_PERFORMANCE_ACCESS_KEY:-}
+      LAMBDA_PERFORMANCE_SECRET_KEY: ${LAMBDA_PERFORMANCE_SECRET_KEY:-}
+      OBJECT_STORAGE_ASSESSOR_ACCESS_KEY: ${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_STORAGE_ASSESSOR_SECRET_KEY: ${OBJECT_STORAGE_ASSESSOR_SECRET_KEY:-}
+      ASSESSMENT_ACCESS_KEY: ${ASSESSMENT_ACCESS_KEY:-}
+      ASSESSMENT_SECRET_KEY: ${ASSESSMENT_SECRET_KEY:-}
+      CAPACITY_ACCESS_KEY: ${CAPACITY_ACCESS_KEY:-}
+      CAPACITY_SECRET_KEY: ${CAPACITY_SECRET_KEY:-}
+    volumes: ['./config/minio:/config:ro']
+    depends_on: [minio]
+    restart: 'no'
+    networks: [private]
+
+  economics:
+    image: cloud-cost-autopilot-economics:local
+    build: {context: ., dockerfile: economics/Dockerfile}
+    environment:
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:8000/healthz")']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [private]
+
+  signer:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: signer
+      PORT: '8091'
+      DATABASE_URL: postgres://finops_signer:${DB_SIGNER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      SIGNING_PRIVATE_KEY: ${SIGNING_PRIVATE_KEY}
+      SIGNER_TOKEN: ${SIGNER_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  executor:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: executor
+      PORT: '8092'
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      AWS_EXECUTION_ROLE_ARN: ${AWS_EXECUTION_ROLE_ARN:-}
+      AWS_EXTERNAL_ID: ${AWS_EXTERNAL_ID:-}
+      HEALTH_ALLOWED_HOSTS: ${HEALTH_ALLOWED_HOSTS:-}
+      DATABASE_URL: postgres://finops_executor:${DB_EXECUTOR_PASSWORD}@postgres:5432/finops?sslmode=disable
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  worker:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: worker
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      DATABASE_URL: postgres://finops_worker:${DB_WORKER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      SIGNER_TOKEN: ${SIGNER_TOKEN}
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      temporal: {condition: service_healthy}
+
+  ingester:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: ingester
+      NETWORK_READONLY_ENABLED: ${NETWORK_READONLY_ENABLED:-false}
+      LAMBDA_READONLY_ENABLED: ${LAMBDA_READONLY_ENABLED:-false}
+      LAMBDA_COMPUTE_OPTIMIZER_ENABLED: ${LAMBDA_COMPUTE_OPTIMIZER_ENABLED:-false}
+      AWS_LAMBDA_READ_BINDINGS_JSON: ${AWS_LAMBDA_READ_BINDINGS_JSON:-}
+      AWS_NETWORK_READ_BINDINGS_JSON: ${AWS_NETWORK_READ_BINDINGS_JSON:-}
+      S3_OBJECT_IDENTITY_KEY_HEX: ${S3_OBJECT_IDENTITY_KEY_HEX:-}
+      S3_OBJECT_IDENTITY_KEY_VERSION: ${S3_OBJECT_IDENTITY_KEY_VERSION:-}
+      AWS_SOURCE_READ_BINDINGS_JSON: ${AWS_SOURCE_READ_BINDINGS_JSON:-}
+      AWS_ACCOUNT_APPROVED_BINDINGS_JSON: ${AWS_ACCOUNT_APPROVED_BINDINGS_JSON:-}
+      AWS_ACCOUNT_READ_BINDINGS_JSON: ${AWS_ACCOUNT_READ_BINDINGS_JSON:-}
+      EKS_KUBERNETES_READ_BINDINGS_JSON: ${EKS_KUBERNETES_READ_BINDINGS_JSON:-}
+      AWS_SAVINGS_PLAN_QUOTE_TARGETS_JSON: ${AWS_SAVINGS_PLAN_QUOTE_TARGETS_JSON:-}
+      AWS_CONTROLLER_DISCOVERY_BINDINGS_JSON: ${AWS_CONTROLLER_DISCOVERY_BINDINGS_JSON:-}
+      AWS_OWNERSHIP_ARCHIVE_TARGETS_JSON: ${AWS_OWNERSHIP_ARCHIVE_TARGETS_JSON:-}
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      AWS_READ_ROLE_ARN: ${AWS_READ_ROLE_ARN:-}
+      AWS_EXTERNAL_ID: ${AWS_EXTERNAL_ID:-}
+      DATABASE_URL: postgres://finops_ingester:${DB_INGESTER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_BUCKET_AUDIT: finops-audit
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      AUDIT_ACCESS_KEY: ${AUDIT_ACCESS_KEY}
+      AUDIT_SECRET_KEY: ${AUDIT_SECRET_KEY}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+
+  # Optional database advice uses only its dedicated database, economics and
+  # version-only product evidence credentials. No customer AWS or action keys.
+  database-assessor:
+    <<: *go
+    profiles: [database-assessment]
+    environment:
+      APP_ROLE: database-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_database_analyst_login:${DB_DATABASE_ANALYST_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${DATABASE_ASSESSOR_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${DATABASE_ASSESSOR_SECRET_KEY}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  # Optional EBS advice has only a dedicated analytical LOGIN, model token and
+  # version-only product evidence reader. No customer AWS or storage action keys.
+  storage-assessor:
+    <<: *go
+    profiles: [storage-assessment]
+    environment:
+      APP_ROLE: storage-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_storage_analyst_login:${DB_STORAGE_ANALYST_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${STORAGE_ASSESSOR_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${STORAGE_ASSESSOR_SECRET_KEY}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  # Optional S3 advice consumes only a dedicated analytical LOGIN, model token
+  # and version-only product evidence identity. No customer AWS/action keys.
+  object-storage-assessor:
+    <<: *go
+    profiles: [object-storage-assessment]
+    environment:
+      APP_ROLE: object-storage-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_object_storage_analyst_login:${DB_OBJECT_STORAGE_ANALYST_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${OBJECT_STORAGE_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_SECRET_KEY: ${OBJECT_STORAGE_ASSESSOR_SECRET_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  # Optional read-only portfolio analysis. Explicit profile; operator commissions
+  # only its unique LOGIN and model token. No cloud or execution credentials.
+  # Optional network analysis receives no provider, signing or execution credentials.
+  network-assessor:
+    <<: *go
+    profiles: [network-assessment]
+    environment:
+      APP_ROLE: network-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_network_analyst_login:${NETWORK_DATABASE_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${NETWORK_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_SECRET_KEY: ${NETWORK_ASSESSOR_SECRET_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+
+  # Optional Lambda analysis receives no provider or function mutation credentials.
+  lambda-assessor:
+    <<: *go
+    profiles: [lambda-assessment]
+    environment:
+      APP_ROLE: lambda-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_lambda_analyst_login:${LAMBDA_DATABASE_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${LAMBDA_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_SECRET_KEY: ${LAMBDA_ASSESSOR_SECRET_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  # Optional AWS service analysis has an independent analytical login and evidence reader.
+  aws-service-assessor:
+    <<: *go
+    profiles: [aws-service-assessment]
+    environment:
+      APP_ROLE: aws-service-assessor
+      PORT: '8080'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_service_analyst_login:${SERVICE_DATABASE_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_URL: http://economics:8000
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${SERVICE_ASSESSOR_ACCESS_KEY:-}
+      OBJECT_SECRET_KEY: ${SERVICE_ASSESSOR_SECRET_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=16m,mode=1777']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+
+  commitment-portfolio-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [commitment-portfolio]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        for directory in /portfolio-analyst-secrets /portfolio-model-secrets; do
+          test -d "$$directory"
+          test ! -L "$$directory"
+          chmod 0755 "$$directory"
+        done
+        temporary=''
+        trap 'test -z "$$temporary" || rm -f -- "$$temporary"' EXIT
+        for name in commitment-portfolio-database commitment-portfolio-model-token; do
+          source="/run/secrets/$$name"
+          test -f "$$source"
+          test ! -L "$$source"
+          test -r "$$source"
+          maximum=4096
+          test "$$name" != commitment-portfolio-database || maximum=8192
+          bytes=$$(wc -c < "$$source")
+          test "$$bytes" -gt 0
+          test "$$bytes" -le "$$maximum"
+          for directory in /portfolio-analyst-secrets /portfolio-model-secrets; do
+            if test "$$directory" = /portfolio-model-secrets && test "$$name" = commitment-portfolio-database; then continue; fi
+            target="$$directory/$$name"
+            if test -e "$$target" || test -L "$$target"; then
+              test -f "$$target"
+              test ! -L "$$target"
+              test "$$(stat -c '%h' "$$target")" = 1
+            fi
+            temporary=$$(mktemp "$$directory/.secret.XXXXXX")
+            cat "$$source" > "$$temporary"
+            chmod 0444 "$$temporary"
+            test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+            sync -f "$$temporary"
+            mv -fT -- "$$temporary" "$$target"
+            temporary=''
+            test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+          done
+        done
+        test ! -e /portfolio-model-secrets/commitment-portfolio-database
+        sync -f /portfolio-analyst-secrets
+        sync -f /portfolio-model-secrets
+        printf '%s\n' COMMITMENT_PORTFOLIO_SECRET_FILES_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [commitment-portfolio-database, commitment-portfolio-model-token]
+    volumes: ['commitment-portfolio-analyst-secrets:/portfolio-analyst-secrets', 'commitment-portfolio-model-secrets:/portfolio-model-secrets']
+    restart: 'no'
+
+  commitment-portfolio-model:
+    image: cloud-cost-autopilot-economics:local
+    build: {context: ., dockerfile: economics/Dockerfile}
+    profiles: [commitment-portfolio]
+    entrypoint: [python, -m, autopilot.portfolio_server]
+    environment:
+      COMMITMENT_PORTFOLIO_MODEL_MODE: LOCAL_PRIVATE
+    volumes: ['commitment-portfolio-model-secrets:/run/secrets:ro']
+    user: '10001:10001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; o=urllib.request.build_opener(urllib.request.ProxyHandler({})); r=o.open('http://127.0.0.1:8000/healthz', timeout=2); assert r.status == 200"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      commitment-portfolio-secrets-init: {condition: service_completed_successfully}
+    networks: [private]
+    restart: unless-stopped
+
+  commitment-portfolio:
+    <<: *go
+    profiles: [commitment-portfolio]
+    entrypoint: [/app/commitment-portfolio-worker]
+    environment:
+      COMMITMENT_PORTFOLIO_ENABLED: 'true'
+      COMMITMENT_PORTFOLIO_TENANT_ID: ${COMMITMENT_PORTFOLIO_TENANT_ID:-tenant-demo}
+      COMMITMENT_PORTFOLIO_DATABASE_FILE: /run/secrets/commitment-portfolio-database
+      COMMITMENT_PORTFOLIO_DATABASE_MODE: LOCAL_PRIVATE
+      COMMITMENT_PORTFOLIO_MODEL_URL: http://commitment-portfolio-model:8000
+      COMMITMENT_PORTFOLIO_MODEL_TOKEN_FILE: /run/secrets/commitment-portfolio-model-token
+    volumes: ['commitment-portfolio-analyst-secrets:/run/secrets:ro']
+    user: '10001:10001'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/commitment-portfolio-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      commitment-portfolio-secrets-init: {condition: service_completed_successfully}
+      commitment-portfolio-model: {condition: service_healthy}
+
+  # Optional local database-only process. Commission its unique LOGIN as an
+  # operator first; commission.sql and identity.json are never runtime mounts.
+  fleet-decision-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [fleet-decision]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        test -d /decision-secrets
+        test ! -L /decision-secrets
+        chmod 0755 /decision-secrets
+        source=/run/secrets/group-decision-database
+        target=/decision-secrets/group-decision-database
+        test -f "$$source"
+        test ! -L "$$source"
+        test -r "$$source"
+        bytes=$$(wc -c < "$$source")
+        test "$$bytes" -gt 0
+        test "$$bytes" -le 8192
+        if test -e "$$target" || test -L "$$target"; then
+          test -f "$$target"
+          test ! -L "$$target"
+          test "$$(stat -c '%h' "$$target")" = 1
+        fi
+        temporary=$$(mktemp /decision-secrets/.secret.XXXXXX)
+        trap 'rm -f -- "$$temporary"' EXIT
+        cat "$$source" > "$$temporary"
+        chmod 0444 "$$temporary"
+        test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+        sync -f "$$temporary"
+        mv -fT -- "$$temporary" "$$target"
+        test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+        sync -f /decision-secrets
+        printf '%s\n' FLEET_DECISION_SECRET_FILE_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [group-decision-database]
+    volumes: ['fleet-decision-secrets:/decision-secrets']
+    restart: 'no'
+
+  fleet-decision:
+    <<: *go
+    profiles: [fleet-decision]
+    entrypoint: [/app/fleet-decision-worker]
+    environment:
+      FLEET_DECISION_ENABLED: 'true'
+      FLEET_DECISION_TENANT_ID: ${FLEET_DECISION_TENANT_ID:-tenant-demo}
+      FLEET_DECISION_DATABASE_FILE: /run/secrets/group-decision-database
+      FLEET_DECISION_DATABASE_MODE: LOCAL_PRIVATE
+    volumes: ['fleet-decision-secrets:/run/secrets:ro']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/fleet-decision-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      fleet-decision-secrets-init: {condition: service_completed_successfully}
+
+  fleet-assessment-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [fleet-assessment]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        test -d /assessment-secrets
+        test ! -L /assessment-secrets
+        chmod 0755 /assessment-secrets
+        temporary=''
+        trap 'test -z "$$temporary" || rm -f -- "$$temporary"' EXIT
+        for name in group-assessment-database group-assessment-access-key group-assessment-secret-key; do
+          source="/run/secrets/$$name"
+          target="/assessment-secrets/$$name"
+          test -f "$$source"
+          test ! -L "$$source"
+          test -r "$$source"
+          maximum=256
+          test "$$name" != group-assessment-database || maximum=8192
+          bytes=$$(wc -c < "$$source")
+          test "$$bytes" -gt 0
+          test "$$bytes" -le "$$maximum"
+          if test -e "$$target" || test -L "$$target"; then
+            test -f "$$target"
+            test ! -L "$$target"
+            test "$$(stat -c '%h' "$$target")" = 1
+          fi
+          temporary=$$(mktemp /assessment-secrets/.secret.XXXXXX)
+          cat "$$source" > "$$temporary"
+          chmod 0444 "$$temporary"
+          test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+          sync -f "$$temporary"
+          mv -fT -- "$$temporary" "$$target"
+          temporary=''
+          test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+        done
+        sync -f /assessment-secrets
+        printf '%s\n' FLEET_ASSESSMENT_SECRET_FILES_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [group-assessment-database, group-assessment-access-key, group-assessment-secret-key]
+    volumes: ['fleet-assessment-secrets:/assessment-secrets']
+    restart: 'no'
+
+  fleet-assessment:
+    <<: *go
+    profiles: [fleet-assessment]
+    entrypoint: [/app/fleet-assessment-worker]
+    environment:
+      FLEET_ASSESSMENT_ENABLED: 'true'
+      FLEET_ASSESSMENT_TENANT_ID: tenant-demo
+      FLEET_ASSESSMENT_DATABASE_FILE: /run/secrets/group-assessment-database
+      FLEET_ASSESSMENT_ARCHIVE_REGION: eu-west-1
+      FLEET_ASSESSMENT_ARCHIVE_MODE: LOCAL_VERSIONED_S3
+      FLEET_ASSESSMENT_ARCHIVE_ENDPOINT: http://minio:9000
+      FLEET_ASSESSMENT_ARCHIVE_BUCKET: finops-raw
+      FLEET_ASSESSMENT_ARCHIVE_ACCESS_KEY_FILE: /run/secrets/group-assessment-access-key
+      FLEET_ASSESSMENT_ARCHIVE_SECRET_KEY_FILE: /run/secrets/group-assessment-secret-key
+    volumes: ['fleet-assessment-secrets:/run/secrets:ro']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/fleet-assessment-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      fleet-assessment-secrets-init: {condition: service_completed_successfully}
+
+  fleet-capacity-secrets-init:
+    image: cloud-cost-autopilot-go:local
+    profiles: [fleet-capacity]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        set -f
+        umask 077
+        test -d /capacity-secrets
+        test ! -L /capacity-secrets
+        chmod 0755 /capacity-secrets
+        temporary=''
+        trap 'test -z "$$temporary" || rm -f -- "$$temporary"' EXIT
+        for name in group-capacity-database group-capacity-access-key group-capacity-secret-key group-capacity-reader-token group-capacity-model-token; do
+          source="/run/secrets/$$name"
+          target="/capacity-secrets/$$name"
+          test -f "$$source"
+          test ! -L "$$source"
+          test -r "$$source"
+          maximum=256
+          test "$$name" != group-capacity-database || maximum=8192
+          bytes=$$(wc -c < "$$source")
+          test "$$bytes" -gt 0
+          test "$$bytes" -le "$$maximum"
+          if test -e "$$target" || test -L "$$target"; then
+            test -f "$$target"
+            test ! -L "$$target"
+            test "$$(stat -c '%h' "$$target")" = 1
+          fi
+          temporary=$$(mktemp /capacity-secrets/.secret.XXXXXX)
+          cat "$$source" > "$$temporary"
+          chmod 0444 "$$temporary"
+          test "$$(stat -c '%a:%u:%g:%F' "$$temporary")" = '444:0:0:regular file'
+          sync -f "$$temporary"
+          mv -fT -- "$$temporary" "$$target"
+          temporary=''
+          test "$$(stat -c '%a:%u:%g:%F' "$$target")" = '444:0:0:regular file'
+        done
+        sync -f /capacity-secrets
+        printf '%s\n' FLEET_CAPACITY_SECRET_FILES_READY
+    user: '0:0'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.1
+    secrets: [group-capacity-database, group-capacity-access-key, group-capacity-secret-key, group-capacity-reader-token, group-capacity-model-token]
+    volumes: ['fleet-capacity-secrets:/capacity-secrets']
+    restart: 'no'
+
+  fleet-capacity:
+    <<: *go
+    profiles: [fleet-capacity]
+    entrypoint: [/app/fleet-capacity-worker]
+    environment:
+      FLEET_CAPACITY_ENABLED: 'true'
+      FLEET_CAPACITY_TENANT_ID: tenant-demo
+      FLEET_CAPACITY_DATABASE_FILE: /run/secrets/group-capacity-database
+      FLEET_CAPACITY_ARCHIVE_REGION: eu-west-1
+      FLEET_CAPACITY_ARCHIVE_MODE: LOCAL_VERSIONED_S3
+      FLEET_CAPACITY_ARCHIVE_ENDPOINT: http://minio:9000
+      FLEET_CAPACITY_ARCHIVE_BUCKET: finops-raw
+      FLEET_CAPACITY_ARCHIVE_ACCESS_KEY_FILE: /run/secrets/group-capacity-access-key
+      FLEET_CAPACITY_ARCHIVE_SECRET_KEY_FILE: /run/secrets/group-capacity-secret-key
+      FLEET_CAPACITY_SERVICE_MODE: PRIVATE_SERVICES
+      FLEET_CAPACITY_READER_URL: http://telemetry-reader:8095
+      FLEET_CAPACITY_READER_TOKEN_FILE: /run/secrets/group-capacity-reader-token
+      FLEET_CAPACITY_MODEL_URL: http://economics:8000
+      FLEET_CAPACITY_MODEL_TOKEN_FILE: /run/secrets/group-capacity-model-token
+    volumes: ['fleet-capacity-secrets:/run/secrets:ro']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,noexec,size=16m,uid=10001,gid=10001,mode=0700']
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: [CMD, /app/fleet-capacity-worker, --healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      fleet-capacity-secrets-init: {condition: service_completed_successfully}
+      telemetry-reader: {condition: service_started}
+      economics: {condition: service_healthy}
+
+  activity-ingress:
+    <<: *go
+    environment:
+      APP_ROLE: activity-ingress
+      PORT: '8093'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_activity:${DB_ACTIVITY_PASSWORD}@postgres:5432/finops?sslmode=disable
+      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+      OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+      ACTIVITY_OIDC_AUDIENCE: finops-activity
+      LAMBDA_PERFORMANCE_ENABLED: ${LAMBDA_PERFORMANCE_ENABLED:-false}
+      LAMBDA_PERFORMANCE_OIDC_ISSUER: ${LAMBDA_PERFORMANCE_OIDC_ISSUER:-}
+      LAMBDA_PERFORMANCE_OIDC_AUDIENCE: ${LAMBDA_PERFORMANCE_OIDC_AUDIENCE:-finops-lambda-performance}
+      LAMBDA_PERFORMANCE_OIDC_JWKS_URL: ${LAMBDA_PERFORMANCE_OIDC_JWKS_URL:-}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      LAMBDA_PERFORMANCE_ACCESS_KEY: ${LAMBDA_PERFORMANCE_ACCESS_KEY:-}
+      LAMBDA_PERFORMANCE_SECRET_KEY: ${LAMBDA_PERFORMANCE_SECRET_KEY:-}
+      LAMBDA_PERFORMANCE_CLICKHOUSE_USER: ${LAMBDA_PERFORMANCE_CLICKHOUSE_USER:-}
+      LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD: ${LAMBDA_PERFORMANCE_CLICKHOUSE_PASSWORD:-}
+    ports: ['127.0.0.1:${ACTIVITY_PORT:-8093}:8093']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      keycloak: {condition: service_started}
+
+  api:
+    <<: *go
+    environment:
+      <<: *common
+      APP_ROLE: api
+      PORT: '8080'
+      # Empty means no approved repositories, equivalent to the {} registry.
+      CONFIGURATION_REVISION_BINDINGS_JSON: ${CONFIGURATION_REVISION_BINDINGS_JSON:-}
+      EKS_KUBERNETES_APPROVED_BINDINGS_JSON: ${EKS_KUBERNETES_APPROVED_BINDINGS_JSON:-}
+      AWS_ACCOUNT_APPROVED_BINDINGS_JSON: ${AWS_ACCOUNT_APPROVED_BINDINGS_JSON:-}
+      AWS_TENANT_ID: ${AWS_TENANT_ID:-}
+      DATABASE_URL: postgres://finops_api:${DB_API_PASSWORD}@postgres:5432/finops?sslmode=disable
+      ECONOMICS_TOKEN: ${ECONOMICS_TOKEN}
+      TELEMETRY_READER_TOKEN: ${TELEMETRY_READER_TOKEN}
+      TELEMETRY_READER_URL: http://telemetry-reader:8095
+      ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-3000},http://localhost:5173
+    ports: ['127.0.0.1:${API_PORT:-8080}:8080']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      economics: {condition: service_healthy}
+      keycloak: {condition: service_started}
+
+  telemetry-reader:
+    <<: *go
+    environment:
+      APP_ROLE: telemetry-reader
+      PORT: '8095'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_telemetry_reader:${DB_TELEMETRY_READER_PASSWORD}@postgres:5432/finops?sslmode=disable
+      TELEMETRY_READER_TOKEN: ${TELEMETRY_READER_TOKEN}
+      TELEMETRY_READ_BINDINGS_JSON: ${TELEMETRY_READ_BINDINGS_JSON:-}
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+
+  telemetry-ingress:
+    <<: *go
+    environment:
+      APP_ROLE: telemetry-ingress
+      PORT: '8094'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_telemetry_ingress:${DB_TELEMETRY_INGRESS_PASSWORD}@postgres:5432/finops?sslmode=disable
+      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+      OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+      OIDC_AUDIENCE: finops
+      TELEMETRY_OIDC_AUDIENCE: finops-telemetry
+      OBJECT_ENDPOINT: http://minio:9000
+      OBJECT_REGION: eu-west-1
+      OBJECT_BUCKET_RAW: finops-raw
+      OBJECT_ACCESS_KEY: ${OBJECT_ACCESS_KEY}
+      OBJECT_SECRET_KEY: ${OBJECT_SECRET_KEY}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: finops
+      CLICKHOUSE_USER: finops
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports: ['127.0.0.1:${TELEMETRY_PORT:-8094}:8094']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      buckets: {condition: service_completed_successfully}
+      clickhouse: {condition: service_healthy}
+      keycloak: {condition: service_started}
+
+  # Optional receipt ingress only. This profile grants no pipeline dispatch,
+  # signer, financial-write or customer execution identity.
+  deployment-observer:
+    <<: *go
+    profiles: [fleet]
+    environment:
+      APP_ROLE: deployment-observer
+      PORT: '8097'
+      FIXTURE_MODE: ${FIXTURE_MODE:-true}
+      DATABASE_URL: postgres://finops_deployment_observer:${DB_DEPLOYMENT_OBSERVER_PASSWORD:-}@postgres:5432/finops?sslmode=disable
+      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8081}/realms/finops
+      OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+      OIDC_AUDIENCE: finops
+      DEPLOYMENT_OIDC_AUDIENCE: finops-deployment-observer
+    ports: ['127.0.0.1:${DEPLOYMENT_OBSERVER_PORT:-8097}:8097']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      keycloak: {condition: service_started}
+
+  telemetry-gateway:
+    image: python:3.13-slim
+    command: [python, /app/gateway.py]
+    volumes: ['./examples/telemetry/gateway.py:/app/gateway.py:ro']
+    mem_limit: 128m
+    restart: unless-stopped
+    networks: [private]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.retention.time=100d']
+    volumes: ['./examples/telemetry/prometheus.yml:/etc/prometheus/prometheus.yml:ro', prometheus:/prometheus]
+    mem_limit: 512m
+    restart: unless-stopped
+    networks: [private]
+
+  web:
+    image: cloud-cost-autopilot-web:local
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    ports: ['127.0.0.1:${WEB_PORT:-3000}:8080']
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [private]
+
+networks:
+  private: {}
+
+secrets:
+  commitment-portfolio-database:
+    file: ./work/private/commitment-portfolio-secrets/database
+  commitment-portfolio-model-token:
+    file: ./work/private/commitment-portfolio-secrets/model-token
+  group-decision-database:
+    file: ./work/private/fleet-decision-secrets/database
+  group-assessment-database:
+    file: ./work/private/fleet-assessment-secrets/database
+  group-assessment-access-key:
+    file: ./work/private/fleet-assessment-secrets/access-key
+  group-assessment-secret-key:
+    file: ./work/private/fleet-assessment-secrets/secret-key
+
+  group-capacity-database:
+    file: ./work/private/fleet-capacity-secrets/database
+  group-capacity-access-key:
+    file: ./work/private/fleet-capacity-secrets/access-key
+  group-capacity-secret-key:
+    file: ./work/private/fleet-capacity-secrets/secret-key
+  group-capacity-reader-token:
+    file: ./work/private/fleet-capacity-secrets/reader-token
+  group-capacity-model-token:
+    file: ./work/private/fleet-capacity-secrets/model-token
+
+volumes:
+  commitment-portfolio-analyst-secrets: {}
+  commitment-portfolio-model-secrets: {}
+  fleet-decision-secrets: {}
+  fleet-capacity-secrets: {}
+  fleet-assessment-secrets: {}
+  postgres: {}
+  keycloak: {}
+  clickhouse: {}
+  minio: {}
+  prometheus: {}
