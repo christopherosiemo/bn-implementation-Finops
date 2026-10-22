@@ -740,6 +740,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		if model.String(plan, "status") != "AWAITING_APPROVAL" {
 			return nil, 0, problem(409, "INVALID_STATE", "plan is not awaiting approval")
 		}
+		if e = requireUnexpiredChangePlan(plan, a.now()); e != nil {
+			return nil, 0, e
+		}
 		payload := model.Clone(plan)
 		plan["status"] = "APPROVED"
 		plan, e = t.Update(ctx, "change_plans", model.String(plan, "id"), model.Number(plan, "version"), plan)
@@ -768,6 +771,9 @@ func (a *API) mutate(ctx context.Context, t *store.Tx, i auth.Identity, r *http.
 		}
 		if model.String(p, "status") != "APPROVED" {
 			return nil, 0, problem(409, "APPROVAL_REQUIRED", "approve this exact plan first")
+		}
+		if e = requireUnexpiredChangePlan(p, a.now()); e != nil {
+			return nil, 0, e
 		}
 		parsed, e := decodePlan(p)
 		if e != nil {

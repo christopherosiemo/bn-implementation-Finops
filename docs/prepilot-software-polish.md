@@ -110,3 +110,15 @@ Acceptance evidence:
 - `git diff --check` passes. No migration, provider permission, Terraform apply or cloud mutation was added.
 
 Checkpoint 7 is **PARTIAL**. Exact Git revision binding, managed-address-to-file resolution, minimal patch generation, Terraform validation/saved-plan evidence, durable review artifact/PR and a valid positive proposal remain unimplemented. No maturity credit is claimed; customer repository access and human approval remain **EXTERNAL_ACCEPTANCE_REQUIRED**. Checkpoint 8 follows immediately.
+
+### Checkpoint 8 — reject expired plans at approval and queue boundaries
+
+The existing ChangePlan lifecycle already binds an immutable R1 action, requires separate approval, locks execution submission, and rechecks readiness in the signer before dispatch. The API previously allowed an expired plan to be marked approved or queued, leaving the later signer to reject it. Both the human-approval transition and execution-queue transition now require a valid future expiry and return `PLAN_EXPIRED` (or `PLAN_EXPIRY_INVALID`) before changing durable state. Existing signer and executor expiry checks remain in force.
+
+Acceptance evidence:
+
+- Added PostgreSQL-role integration coverage requiring an expired approval request to leave the plan awaiting approval and an expired approved plan to create no execution record. Updated the independent approval fixture to carry the same explicit expiry required by production plans.
+- `git diff --check` passes. The Go/PostgreSQL integration cannot run locally because Go is unavailable; pushed-source CI is pending.
+- Risk remains R1-only for the existing EC2 scheduling action. No alternate execution engine, provider mutation, migration, or broader role was introduced.
+
+Checkpoint 8 is **PARTIAL** pending connected CI and broader lifecycle acceptance for cancellation, cooldown/hysteresis, dependency ordering and terminal audit outcomes. Expiry now fails closed at API transitions; approval still grants no execution authority by itself. Checkpoint 9 follows immediately.

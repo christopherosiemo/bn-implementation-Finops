@@ -196,7 +196,7 @@ func TestMutationReplayAuthorizationUsesCurrentWorkloadAndSerializesReassignment
 			body model.Document
 		}{
 			{"schedules", model.Document{"id": "replay-schedule", "workload_id": "replay-workload", "paused": false}},
-			{"change_plans", model.Document{"id": "replay-plan", "workload_id": "replay-workload", "status": "AWAITING_APPROVAL", "policy_version": 1}},
+			{"change_plans", model.Document{"id": "replay-plan", "workload_id": "replay-workload", "status": "AWAITING_APPROVAL", "policy_version": 1, "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}},
 		} {
 			if _, err := tx.Create(ctx, d.kind, d.body); err != nil {
 				return err
@@ -273,6 +273,49 @@ func TestMutationReplayAuthorizationUsesCurrentWorkloadAndSerializesReassignment
 	}
 	if code, _, _ := f.request("schedules/replay-schedule/pause", `"1"`, "owner-pause-once", owner, model.Document{"paused": true}); code != 200 {
 		t.Fatal("ownership guard did not release after replay transaction", code)
+	}
+}
+
+func TestExpiredChangePlanCannotBeApprovedOrQueued(t *testing.T) {
+	f := newMutationReplayFixture(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	f.api.Clock = func() time.Time { return now }
+	expired := now.Add(-time.Second).Format(time.RFC3339Nano)
+	plan := model.Plan{ID: "expired-execution-plan", TenantID: f.tenant, WorkloadID: "replay-workload", RiskClass: "R1", ExpiresAt: now.Add(-time.Second), Operations: []model.Operation{{Type: "EC2_STOP", ResourceID: "resource-dev-api"}, {Type: "EC2_START", ResourceID: "resource-dev-api"}}}
+	if err := f.roles["api"].Do(context.Background(), f.tenant, func(tx *store.Tx) error {
+		if _, err := tx.Create(context.Background(), "change_plans", model.Document{"id": "expired-approval-plan", "workload_id": "replay-workload", "resource_id": "resource-dev-api", "status": "AWAITING_APPROVAL", "expires_at": expired}); err != nil {
+			return err
+		}
+		_, err := tx.Create(context.Background(), "change_plans", model.Document{"id": plan.ID, "workload_id": plan.WorkloadID, "resource_id": "resource-dev-api", "status": "APPROVED", "expires_at": expired, "payload": plan})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	approver := f.token(f.tenant, "finance-approver", "APPROVER", "PLATFORM_ADMIN")
+	if code, out, _ := f.request("approvals", `"1"`, "expired-approval", approver, model.Document{"change_plan_id": "expired-approval-plan"}); code != 422 || model.String(out, "error") != "PLAN_EXPIRED" {
+		t.Fatal("expired plan accepted for approval", code, out)
+	}
+	operator := f.token(f.tenant, "operator", "PLATFORM_ADMIN")
+	if code, out, _ := f.request("executions", `"1"`, "expired-execution", operator, model.Document{"change_plan_id": plan.ID}); code != 422 || model.String(out, "error") != "PLAN_EXPIRED" {
+		t.Fatal("expired plan queued for execution", code, out)
+	}
+	if err := f.roles["api"].Do(context.Background(), f.tenant, func(tx *store.Tx) error {
+		approvalPlan, err := tx.Get(context.Background(), "change_plans", "expired-approval-plan")
+		if err != nil || model.String(approvalPlan, "status") != "AWAITING_APPROVAL" {
+			return errors.New("expired approval changed plan state")
+		}
+		queued, err := tx.List(context.Background(), "executions")
+		if err != nil {
+			return err
+		}
+		for _, execution := range queued {
+			if model.String(execution, "change_plan_id") == plan.ID {
+				return errors.New("expired plan created an execution")
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -210,6 +210,18 @@ func decodePlan(d model.Document) (model.Plan, error) {
 	e = json.Unmarshal(b, &p)
 	return p, e
 }
+
+func requireUnexpiredChangePlan(d model.Document, now time.Time) error {
+	expires, err := time.Parse(time.RFC3339Nano, model.String(d, "expires_at"))
+	if err != nil {
+		return problem(422, "PLAN_EXPIRY_INVALID", "change plan must carry a valid expiry before approval or execution")
+	}
+	if !now.Before(expires) {
+		return problem(422, "PLAN_EXPIRED", "expired change plans cannot be approved or queued for execution")
+	}
+	return nil
+}
+
 func (a *API) economics(ctx context.Context, endpoint string, input model.Document) (model.Document, error) {
 	b, e := json.Marshal(input)
 	if e != nil {
