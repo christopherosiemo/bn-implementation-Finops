@@ -134,3 +134,15 @@ Acceptance evidence:
 - `git diff --check` passes. Go/PostgreSQL execution is pending pushed-source CI; this host has no Go or `psql` toolchain, so the database trigger has not been executed locally.
 
 Checkpoint 9 is **PARTIAL** until the PostgreSQL recovery integration passes on the pushed source. No maturity credit is claimed. Checkpoint 10 follows immediately.
+
+### Checkpoint 10 — financial verification and append-only savings closeout
+
+The existing schema-3 EC2 path already uses the source-bound baseline and measurement, owned execution windows, workload-preservation evidence, canonical billed rows, native invoice/commitment scope, decimal economics, and the shared append-only `savings_ledger`. The current fingerprint can be replaced by a superseding correction while the earlier row remains immutable; provisional or blocked revisions carry no verified amount. Fleet health failures also permanently disqualify positive cohort savings. This checkpoint validates those existing boundaries and does not introduce a second ledger or a new claim path.
+
+Acceptance evidence:
+
+- The bundled Python economics suite passes **242/242**. It includes a complete owned synthetic period with exact verified arithmetic, insufficient/missing workload evidence, zero-versus-missing demand, negative outcomes, billing finality and reconciliation, source corrections with a stable claim identity and changed evidence fingerprint, and continuing-cost/commitment guards.
+- Existing checked-in PostgreSQL tests cover append-only verified/provisional/blocked revisions, source revocation and revalidation, tenant isolation, no claim without a financial head, and fleet rollback/SLO disqualification. The retained deployed fixture record documents a synthetic end-to-end API/OIDC/browser claim journey; it is not live customer evidence.
+- A fresh connected PostgreSQL/API/browser run could not be started: the single local Docker daemon probe did not return, and Go/`psql` are unavailable on this host. Current-source CI is the remaining connected acceptance gate.
+
+Checkpoint 10 is **PARTIAL** pending final pushed-source CI, including the database integration, recovery, and authenticated browser jobs. The synthetic tests are not customer savings. Official maturity remains **26.9%**; this closeout revalidates existing capability but does not satisfy any unearned maturity gate. No live AWS commissioning, customer billing finality, customer use, or verified customer savings is claimed.
